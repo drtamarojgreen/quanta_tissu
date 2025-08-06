@@ -36,25 +36,25 @@ BDD tests will be written to ensure that the application behaves as expected fro
 
 ### 2.1. Generating Text
 
-**Feature**: Text Generation
-As a user, I want to be able to generate text from a prompt.
+Feature: Text Generation
+  As a user, I want to be able to generate text from a prompt.
 
-**Scenario**: Generate the next word
-**Given** a trained QuantaTissu model
-**And** a prompt "hello"
-**When** I ask the model to predict the next token
-**Then** the model should return a single token ID
+  Scenario: Generate the next word
+    Given a trained QuantaTissu model
+    And a prompt "hello"
+    When I ask the model to predict the next token
+    Then the model should return a single token ID
 
-**Scenario**: Generate a sequence of words
-**Given** a trained QuantaTissu model
-**And** a prompt "hello world"
-**When** I ask the model to generate a sequence of 5 tokens
-**Then** the model should return a sequence of 5 token IDs
+  Scenario: Generate a sequence of words
+    Given a trained QuantaTissu model
+    And a prompt "hello world"
+    When I ask the model to generate a sequence of 5 tokens
+    Then the model should return a sequence of 5 token IDs
 
 ### 2.2. Handling Unknown Words
 
-**Feature**: Unknown Word Handling
-As a user, I want the model to handle words that are not in its vocabulary.
+Feature: Unknown Word Handling
+  As a user, I want the model to handle words that are not in its vocabulary.
 
 **Scenario**: Tokenize a sentence with an unknown word
 **Given** a QuantaTissu model with a fixed vocabulary
@@ -72,3 +72,9 @@ As a user, I want the model to use a knowledge base to answer my questions.
 **And** the knowledge base contains the document "the sky is blue"
 **When** I ask the model to generate an answer to "what color is the sky" using the knowledge base
 **Then** the model should generate an answer containing the word "blue"
+
+  Scenario: Tokenize a sentence with an unknown word
+    Given a QuantaTissu model with a fixed vocabulary
+    And a sentence "this is a foobar test"
+    When I tokenize the sentence
+    Then the token "foobar" should be mapped to the "<unk>" token ID
