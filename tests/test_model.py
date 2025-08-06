@@ -76,3 +76,21 @@ def test_quanta_tissu_predict():
     # Test that other methods also return a single token
     next_token_id_random = model.predict(token_ids, method="random")
     assert_true(isinstance(next_token_id_random, (int, np.integer)), "Predicted token (random) should be an integer ID")
+
+
+def test_quanta_tissu_generate_sequence():
+    """Tests generating a sequence of tokens."""
+    model = QuantaTissu(model_config)
+
+    # Start with the token for "hello"
+    initial_ids = np.array([model_config["vocab_size"] - 4]) # A known token from the config
+    num_to_generate = 5
+
+    generated_ids = list(initial_ids)
+    for _ in range(num_to_generate):
+        next_token_id = model.predict(np.array(generated_ids))
+        generated_ids.append(next_token_id)
+
+    # The total length should be the initial length plus the number generated
+    expected_length = len(initial_ids) + num_to_generate
+    assert_equal(len(generated_ids), expected_length, "Generated sequence has incorrect length")
