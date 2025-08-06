@@ -1,26 +1,34 @@
 # QuantaTissu Enhancements
 
-This document lists potential enhancements for the QuantaTissu application.
+This document lists potential enhancements for the QuantaTissu application, categorized by area of improvement. These represent next steps to move the project from a simple educational tool to a more capable and robust system.
 
-## 1. Tokenization
+## Core Model and Inference
 
--   **Byte-Pair Encoding (BPE)**: Implement BPE or a similar subword tokenization strategy to handle a larger vocabulary and out-of-vocabulary words more effectively.
--   **Vocabulary Expansion**: Support loading a larger, pre-trained vocabulary.
+### 1.1. Advanced Sampling Strategies
+-   **Top-k Sampling**: Instead of greedy decoding, select the next token from the `k` most likely candidates. This introduces more variety in the generated text.
+-   **Nucleus Sampling (Top-p)**: Select the next token from the smallest set of tokens whose cumulative probability exceeds a threshold `p`. This provides a more dynamic and often higher-quality alternative to top-k sampling.
+-   **Temperature Scaling**: Add a `temperature` parameter to the softmax function during sampling. `T > 1` increases randomness (more creative), while `T < 1` decreases it (more deterministic).
 
-## 2. Inference and Sampling
+### 1.2. Performance and Efficiency
+-   **Batched Inference**: Modify the model's forward pass to accept a batch of prompts simultaneously. This significantly improves computational efficiency by leveraging matrix operations on multiple inputs at once.
+-   **KV Caching**: During generative inference, cache the Key (K) and Value (V) matrices from the attention layers for previous tokens. This avoids redundant computation and dramatically speeds up the generation of long sequences.
 
--   **Top-k Sampling**: Implement top-k sampling to introduce more variety in the generated text.
--   **Nucleus Sampling (Top-p)**: Implement nucleus sampling for more controlled and diverse text generation.
--   **Temperature Scaling**: Add a temperature parameter to control the randomness of the output.
--   **Batched Inference**: Add support for processing multiple prompts in a single batch for improved efficiency.
+### 1.3. Architectural Improvements
+-   **Multiple Transformer Blocks**: Generalize the model to allow stacking `N` transformer blocks, creating a deeper and more powerful model. This should be a configurable hyperparameter.
+-   **Hyperparameter Configuration**: Centralize all model hyperparameters (e.g., `d_model`, `num_heads`, `d_ff`, `n_layers`, `vocab_size`) into a configuration object or file (e.g., `config.py` or a YAML file).
+-   **Pre-trained Weights**: Implement functionality to load pre-trained model weights from a file (e.g., a `.npz` or `.safetensors` file), allowing the model to perform useful tasks without being trained from scratch each time.
 
-## 3. Model Architecture
+## Training and Data
 
--   **Multiple Transformer Blocks**: Allow stacking multiple transformer blocks to create a deeper model.
--   **Hyperparameter Configuration**: Allow easy configuration of model hyperparameters (e.g., `d_model`, `num_heads`, `d_ff`).
--   **Pre-trained Weights**: Add functionality to load pre-trained model weights.
+### 2.1. Training Pipeline
+-   **Training Loop**: Implement a complete training loop that iterates over a dataset, performs forward and backward passes, and updates model parameters.
+-   **Optimizer**: Integrate an optimizer like Adam or AdamW to perform gradient-based weight updates. This will require implementing the backpropagation algorithm.
+-   **Loss Function**: Implement the cross-entropy loss function to measure the difference between the model's predictions and the target tokens.
+-   **Causal Attention Mask**: Ensure a proper causal (look-ahead) mask is applied during training to prevent the model from "cheating" by looking at future tokens.
 
-## 4. Training
+### 2.2. Tokenization
+-   **Byte-Pair Encoding (BPE)**: Replace the simple word-based tokenizer with a subword tokenizer like BPE. This allows the model to handle a much larger vocabulary, out-of-vocabulary words, and morphological variations gracefully.
+-   **Trainable Tokenizer**: Add the capability to train a
 
 -   **Training Loop**: Implement a training loop to train the model on a given dataset.
 -   **Optimizer**: Add an optimizer (e.g., Adam) to update the model weights during training.
