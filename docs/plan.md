@@ -7,9 +7,10 @@ This document outlines the development plan for **QuantaTissu**, a minimal trans
 The goal of this phase is to establish the basic data processing and mathematical utilities required for the model.
 
 ### 1.1. Tokenizer
--   **Vocabulary**: Define a small, fixed vocabulary of common English words, including a special `<unk>` token for unknown words.
--   **`tokenize(text: str) -> list[int]`**: Implement a simple word-based tokenizer that splits text by spaces and converts words to their corresponding token IDs.
--   **`detokenize(token_ids: list[int]) -> str`**: Implement a function to convert a sequence of token IDs back to a space-separated string.
+-   **`Tokenizer` Class**: Create a class to encapsulate tokenization logic.
+    -   **Vocabulary**: Inside the class, define a small, fixed vocabulary of common English words, including a special `<unk>` token.
+    -   **`tokenize(text: str) -> np.ndarray`**: Implement a method that converts text to a NumPy array of token IDs.
+    -   **`detokenize(token_ids: np.ndarray) -> str`**: Implement a method to convert an array of token IDs back to text.
 
 ### 1.2. Core Math and Normalization
 -   **`softmax(x)`**: Implement the softmax function for converting logits to probabilities.
@@ -25,11 +26,27 @@ This phase focuses on building the core architectural components of the Transfor
 
 ### 2.2. Attention Mechanism
 
--   **QuantaTissu Class**: Create the main model class that encapsulates all the components.
--   **Forward Pass**: Implement the forward pass of the model, which takes token IDs as input and produces logits as output.
--   **Inference**: Implement a `predict` method for greedy next-token prediction.
+-   **`scaled_dot_product_attention(Q, K, V, mask=None)`**: Implement the core attention mechanism. It should calculate `softmax(Q @ K.T / sqrt(d_k)) @ V`. Include an optional mask for causal attention (initially unused but good for future training).
+-   **`MultiHeadAttention`**: Implement a multi-head attention class. This class will contain linear layers for Q, K, and V projections, and an output projection layer. It will manage splitting the inputs into multiple heads, applying scaled dot-product attention in parallel, and concatenating the results.
 
-## 4. Example Usage
+### 2.3. Feed-Forward Network
+-   **`FeedForward`**: Implement a position-wise feed-forward network class. This will consist of two linear layers with a ReLU activation function in between.
 
--   Create a simple example script that demonstrates how to use the model to generate text.
--   The script should initialize the model, tokenize a prompt, and generate the next token.
+## Phase 3: Assembling the Transformer Block
+
+-   **`TransformerBlock`**: Create a class for the Transformer block, combining an instance of `MultiHeadAttention` and `FeedForward` with residual connections and layer normalization.
+
+## Phase 4: Final Model Construction and Inference
+
+-   **`QuantaTissu` Class**: Create the main model class that assembles all the components.
+-   **Forward Pass**: Implement the `forward` method. It should be designed to handle **batched inputs** (e.g., `(batch_size, seq_len)`) and produce logits of shape `(batch_size, seq_len, vocab_size)`.
+-   **Inference**: Implement a `predict` method for greedy next-token prediction that operates on a batch of token sequences.
+
+## Phase 5: Demonstration and Documentation
+
+-   **Example Script**: Create a main execution block (`if __name__ == "__main__":`) that demonstrates end-to-end functionality:
+    -   Instantiate the `Tokenizer` and `QuantaTissu` model.
+    -   Tokenize a sample prompt.
+    -   Add a batch dimension to the tokens.
+    -   Generate the next token and print the detokenized result.
+-   **Documentation**: Write the initial `README.md`, `plan.md`, and `enhancements.md`.
