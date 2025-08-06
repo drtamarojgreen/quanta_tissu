@@ -1,7 +1,30 @@
 # QuantaTissu
 
-QuantaTissu is a minimal transformer-based language model inference engine built **from scratch** in Python using only NumPy.  
-It implements basic tokenization, embeddings, positional encoding, multi-head self-attention, feed-forward layers, and output projection.
+QuantaTissu is a minimal transformer-based language model inference engine built **from scratch** in Python using only NumPy. It implements basic tokenization, embeddings, positional encoding, multi-head self-attention, feed-forward layers, and output projection.
+
+This project serves two purposes:
+1.  As an educational tool to understand the inner workings of a transformer model.
+2.  As the foundational first step towards building a sophisticated, agentic coding assistant.
+
+## Project Vision: An Agentic Coding Assistant
+
+The long-term vision for QuantaTissu is to evolve it from a foundational language model into an autonomous agent that can interact with a development environment to write, debug, and test code. This involves enhancing the core model and then building agentic capabilities on top of it.
+
+The roadmap is divided into two main phases:
+1.  **Foundational Model Enhancement**: Scaling up the model, implementing a full-scale training pipeline with backpropagation, and establishing rigorous evaluation benchmarks.
+2.  **Agentic Capabilities Development**: Integrating tools for file system operations and shell command execution, implementing a planning and reasoning engine, and creating a feedback loop for self-correction.
+
+More details can be found in `docs/agent_strategies.md`.
+
+## Ecological Awareness
+
+QuantaTissu aims to be a demonstration of how AI can be developed and used in an environmentally conscious manner. This involves a three-pronged approach to ecological awareness:
+
+1.  **Optimize the model for lower energy consumption.**
+2.  **Generate code that is more energy-efficient.**
+3.  **Have the AI agent reflect on the environmental impact of the code it writes.**
+
+More details on this initiative can be found in `docs/ecological_awareness.md`.
 
 ## Features
 
@@ -22,6 +45,21 @@ It implements basic tokenization, embeddings, positional encoding, multi-head se
 python quanta_tissu.py
 ```
 
+## How it Works
+
+The model takes a sequence of tokens as input and predicts the next token in the sequence. Here's a step-by-step breakdown of the process:
+
+1.  **Tokenization**: The input text is converted into a sequence of token IDs using a simple vocabulary.
+2.  **Embeddings**: Each token ID is mapped to a dense vector representation called an embedding.
+3.  **Positional Encoding**: Sinusoidal positional encodings are added to the embeddings to give the model information about the position of each token in the sequence.
+4.  **Transformer Block**: The sequence of embeddings is processed by a transformer block, which consists of:
+    *   A multi-head self-attention layer, which allows the model to weigh the importance of different tokens in the input sequence when processing each token.
+    *   A layer normalization step.
+    *   A feed-forward neural network.
+    *   Another layer normalization step.
+5.  **Output Projection**: The output of the transformer block is passed through a final linear layer (output projection) to produce a vector of logits for each token in the input sequence.
+6.  **Prediction**: The model uses a greedy approach to predict the next token. It selects the token with the highest logit value from the last position in the output sequence.
+
 ## Code Overview
 
 The `quanta_tissu.py` file contains all the components of the model:
@@ -37,20 +75,16 @@ The `quanta_tissu.py` file contains all the components of the model:
 -   **`QuantaTissu`**: The main model class that orchestrates all components, from input embeddings to the final output projection layer.
 -   **`if __name__ == "__main__"`**: A simple demonstration of initializing the model, tokenizing a prompt, adding a batch dimension, and predicting the next token.
 
-## How it Works
+A detailed implementation plan can be found in `docs/plan.md`.
 
-The model takes a sequence of tokens as input and predicts the next token in the sequence. Here's a step-by-step breakdown of the process:
+## Testing
 
-1.  **Tokenization**: The input text is converted into a sequence of token IDs using a simple vocabulary.
-2.  **Embeddings**: Each token ID is mapped to a dense vector representation called an embedding.
-3.  **Positional Encoding**: Sinusoidal positional encodings are added to the embeddings to give the model information about the position of each token in the sequence.
-4.  **Transformer Block**: The sequence of embeddings is processed by a transformer block, which consists of:
-    *   A multi-head self-attention layer, which allows the model to weigh the importance of different tokens in the input sequence when processing each token.
-    *   A layer normalization step.
-    *   A feed-forward neural network.
-    *   Another layer normalization step.
-5.  **Output Projection**: The output of the transformer block is passed through a final linear layer (output projection) to produce a vector of logits for each token in the input sequence.
-6.  **Prediction**: The model uses a greedy approach to predict the next token. It selects the token with the highest logit value from the last position in the output sequence.
+The project includes a testing plan to ensure the correctness of individual components and the overall behavior of the application. The testing strategy includes:
+
+-   **Unit Tests**: To verify the correctness of individual components like the tokenizer, core math functions, attention mechanism, and transformer block.
+-   **Behavior-Driven Development (BDD) Tests**: To ensure the application behaves as expected from a user's perspective, with scenarios for text generation and handling of unknown words.
+
+The full test plan is available in `docs/test.md`.
 
 ## Limitations
 
@@ -70,7 +104,9 @@ This project serves as a foundation. The `docs/enhancements.md` file contains a 
     -   Generalize the model to stack multiple transformer blocks.
     -   Implement performance optimizations like **KV Caching** to accelerate generation.
     -   Add support for loading **pre-trained weights**.
+    -   Upgrade components with modern alternatives like **SwiGLU**, **RMSNorm**, and **RoPE**.
 -   **Better Tokenization**: Replace the basic tokenizer with a subword-based method like **Byte-Pair Encoding (BPE)** to handle a larger vocabulary and unknown words effectively.
+-   **Usability and Tooling**: Improve the project structure, add a proper CLI, and create visualization and interactive demo tools.
 
 ## Project Structure
 
