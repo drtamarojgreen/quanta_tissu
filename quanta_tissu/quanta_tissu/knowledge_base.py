@@ -1,11 +1,18 @@
 import numpy as np
 
 class KnowledgeBase:
+    """
+    A vector-based knowledge storage system for efficient similarity search and retrieval.
+    Supports self-updating mechanisms and feedback-based learning.
+    """
+    
     def __init__(self, model_embeddings, tokenizer):
         self.model_embeddings = model_embeddings
         self.tokenizer = tokenizer
         self.documents = []
         self.doc_embeddings = []
+        self.doc_metadata = []  # Store metadata like timestamps, relevance scores, etc.
+        self.feedback_history = []  # Store user feedback for self-improvement
 
     def _embed_text(self, text):
         """Generates an embedding for a text by averaging its token embeddings."""
