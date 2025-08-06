@@ -5,6 +5,7 @@ This document lists potential enhancements for the QuantaTissu application, cate
 ## Core Model and Inference
 
 ### 1.1. Advanced Sampling Strategies
+-   **Status**: Implemented.
 -   **Top-k Sampling**: Instead of greedy decoding, select the next token from the `k` most likely candidates. This introduces more variety in the generated text.
 -   **Nucleus Sampling (Top-p)**: Select the next token from the smallest set of tokens whose cumulative probability exceeds a threshold `p`. This provides a more dynamic and often higher-quality alternative to top-k sampling.
 -   **Temperature Scaling**: Add a `temperature` parameter to the softmax function during sampling. `T > 1` increases randomness (more creative), while `T < 1` decreases it (more deterministic).
@@ -14,8 +15,8 @@ This document lists potential enhancements for the QuantaTissu application, cate
 -   **KV Caching**: During generative inference, cache the Key (K) and Value (V) matrices from the attention layers for previous tokens. This avoids redundant computation and dramatically speeds up the generation of long sequences.
 
 ### 1.3. Architectural Improvements
--   **Multiple Transformer Blocks**: Generalize the model to allow stacking `N` transformer blocks, creating a deeper and more powerful model. This should be a configurable hyperparameter.
--   **Hyperparameter Configuration**: Centralize all model hyperparameters (e.g., `d_model`, `num_heads`, `d_ff`, `n_layers`, `vocab_size`) into a configuration object or file (e.g., `config.py` or a YAML file).
+-   **Multiple Transformer Blocks**: Implemented. The model can now stack `N` transformer blocks, configured via `config.py`.
+-   **Hyperparameter Configuration**: Implemented. All core model hyperparameters are now centralized in a `model_config` dictionary in `quanta_tissu/quanta_tissu/config.py`.
 -   **Pre-trained Weights**: Implement functionality to load pre-trained model weights from a file (e.g., a `.npz` or `.safetensors` file), allowing the model to perform useful tasks without being trained from scratch each time.
 
 ## Training and Data
