@@ -42,7 +42,7 @@ More details on this initiative can be found in `docs/ecological_awareness.md`.
 ## Usage
 
 ```bash
-python quanta_tissu.py
+python quanta_tissu/scripts/run_inference.py
 ```
 
 ## How it Works
@@ -60,21 +60,6 @@ The model takes a sequence of tokens as input and predicts the next token in the
 5.  **Output Projection**: The output of the transformer block is passed through a final linear layer (output projection) to produce a vector of logits for each token in the input sequence.
 6.  **Prediction**: The model uses a greedy approach to predict the next token. It selects the token with the highest logit value from the last position in the output sequence.
 
-## Code Overview
-
-The `quanta_tissu.py` file contains all the components of the model:
-
--   **`Tokenizer`**: A class that encapsulates the vocabulary and provides `tokenize` and `detokenize` methods.
--   **`softmax(x)`**: The core softmax activation function for converting logits to probabilities.
--   **`LayerNorm`**: A layer normalization class to stabilize hidden states.
--   **`scaled_dot_product_attention(Q, K, V)`**: The fundamental attention mechanism.
--   **`MultiHeadAttention`**: The complete multi-head self-attention layer, which runs several attention computations in parallel.
--   **`FeedForward`**: A standard position-wise feed-forward network (two linear layers with a ReLU activation).
--   **`TransformerBlock`**: A single decoder block that encapsulates multi-head attention and a feed-forward network, each followed by a residual connection and layer normalization.
--   **`PositionalEncoding`**: A class to generate and add sinusoidal positional information to the input embeddings.
--   **`QuantaTissu`**: The main model class that orchestrates all components, from input embeddings to the final output projection layer.
--   **`if __name__ == "__main__"`**: A simple demonstration of initializing the model, tokenizing a prompt, adding a batch dimension, and predicting the next token.
-
 A detailed implementation plan can be found in `docs/plan.md`.
 
 ## Testing
@@ -84,7 +69,7 @@ The project includes a testing plan to ensure the correctness of individual comp
 -   **Unit Tests**: To verify the correctness of individual components like the tokenizer, core math functions, attention mechanism, and transformer block.
 -   **Behavior-Driven Development (BDD) Tests**: To ensure the application behaves as expected from a user's perspective, with scenarios for text generation and handling of unknown words.
 
-The full test plan is available in `docs/test.md`.
+The full test plan is available in `docs/test.md`. A `tests/` directory for these tests is planned but not yet implemented.
 
 ## Limitations
 
@@ -110,20 +95,20 @@ This project serves as a foundation. The `docs/enhancements.md` file contains a 
 
 ## Project Structure
 
-Currently, all code resides in a single file for simplicity. A more scalable structure would be:
+The project is organized as a Python package. The code is structured as follows:
 
 ```
 quanta_tissu/
 ├── quanta_tissu/
-│   ├── __init__.py
-│   ├── model.py         # Contains TransformerBlock, QuantaTissu
+│   ├── __init__.py      # Makes the directory a Python package
+│   ├── model.py         # Contains TransformerBlock and QuantaTissu classes
 │   ├── layers.py        # Contains Attention, FeedForward, LayerNorm
 │   ├── tokenizer.py     # Tokenizer implementation
-│   └── config.py        # Model hyperparameters
+│   ├── config.py        # Model hyperparameters and vocabulary
+│   └── knowledge_base.py # Simple vector store for RAG
 ├── scripts/
 │   └── run_inference.py # Example usage script
-├── docs/
-├── tests/
+├── docs/                # Project documentation
 ├── README.md
 └── requirements.txt
 ```
