@@ -6,32 +6,49 @@ import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from quanta_tissu.model import QuantaTissu
-from quanta_tissu.tokenizer import tokenize, detokenize
+from quanta_tissu.tokenizer import detokenize
 from quanta_tissu.config import model_config
 
 def main():
+    # --- Setup ---
+    # For reproducibility, let's seed numpy's random generator
+    np.random.seed(42)
     model = QuantaTissu(model_config)
-    prompt = "hello world"
-    token_ids = tokenize(prompt)
 
-    print(f"--- Prompt: '{prompt}' ---")
-    print(f"Token IDs: {token_ids}\n")
+    # --- Populate Knowledge Base ---
+    print("--- Populating Knowledge Base ---")
+    # Add documents using words from the limited vocabulary
+    model.knowledge_base.add_document("this is a test")
+    model.knowledge_base.add_document("hello world .")
+    print("-" * 20)
 
-    # Greedy prediction
-    greedy_token = model.predict(token_ids, method="greedy")
-    print(f"Greedy prediction: {detokenize([greedy_token])}")
+    # --- Run Inference with Knowledge Base ---
+    # This prompt is designed to be similar to "hello world ."
+    prompt = "world"
+    print(f"\n--- Running Generation with KB ---")
+    print(f"Prompt: '{prompt}'")
 
-    # Top-k sampling
-    top_k_token = model.predict(token_ids, method="top_k", top_k=3, temperature=0.8)
-    print(f"Top-k (k=3) prediction: {detokenize([top_k_token])}")
+    # Use the new method to generate a prediction. The model should retrieve context.
+    kb_token = model.generate_with_kb(prompt, generation_method="greedy")
 
-    # Nucleus sampling
-    nucleus_token = model.predict(token_ids, method="nucleus", top_p=0.5, temperature=0.8)
-    print(f"Nucleus (p=0.5) prediction: {detokenize([nucleus_token])}")
+    if kb_token is not None:
+        print(f"\nGreedy prediction with KB: '{detokenize([kb_token])}'")
+    else:
+        print("\nPrediction failed.")
 
-    # Random sampling with temperature
-    random_token = model.predict(token_ids, method="random", temperature=1.5)
-    print(f"Random (temp=1.5) prediction: {detokenize([random_token])}")
+    # --- Example without relevant context ---
+    # This prompt has a low chance of matching any document well
+    prompt_no_context = "a a"
+    print(f"\n--- Running Generation with a prompt that has no context ---")
+    print(f"Prompt: '{prompt_no_context}'")
+
+    # The model should not find relevant context and will use the prompt as-is
+    kb_token_no_context = model.generate_with_kb(prompt_no_context, generation_method="greedy")
+    if kb_token_no_context is not None:
+        print(f"\nGreedy prediction without KB context: '{detokenize([kb_token_no_context])}'")
+    else:
+        print("\nPrediction failed.")
+
 
 if __name__ == "__main__":
     main()

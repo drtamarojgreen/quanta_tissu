@@ -1,5 +1,7 @@
 import numpy as np
 from .layers import MultiHeadAttention, FeedForward, LayerNorm, softmax
+from .knowledge_base import KnowledgeBase
+from .tokenizer import tokenize
 
 class TransformerBlock:
     def __init__(self, d_model, num_heads, d_ff):
@@ -43,6 +45,33 @@ class QuantaTissu:
             TransformerBlock(d_model, num_heads, d_ff) for _ in range(config["n_layers"])
         ]
         self.output_proj = np.random.randn(d_model, vocab_size) / np.sqrt(d_model)
+
+        # Initialize the knowledge base, providing it with the model's embeddings and tokenizer
+        self.knowledge_base = KnowledgeBase(self.embeddings, tokenize)
+
+    def generate_with_kb(self, prompt, generation_method="greedy", **kwargs):
+        """
+        Generates a token by first retrieving context from the knowledge base.
+        """
+        # 1. Retrieve context from the knowledge base
+        context_docs = self.knowledge_base.retrieve(prompt, k=1)
+
+        # 2. Formulate a new prompt with the retrieved context
+        if context_docs:
+            context = " ".join(context_docs)
+            # Use a simple template for context + question
+            augmented_prompt = f"context: {context} question: {prompt}"
+            print(f"INFO: Augmented prompt with context: '{augmented_prompt}'")
+        else:
+            augmented_prompt = prompt
+
+        # 3. Tokenize the (potentially augmented) prompt and predict the next token
+        token_ids = tokenize(augmented_prompt)
+        if len(token_ids) == 0:
+            print("Warning: Prompt resulted in empty token sequence. Cannot predict.")
+            return None
+
+        return self.predict(token_ids, method=generation_method, **kwargs)
 
     def forward(self, token_ids):
         x = self.embeddings[token_ids]
