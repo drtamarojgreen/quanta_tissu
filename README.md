@@ -8,6 +8,7 @@ It implements basic tokenization, embeddings, positional encoding, multi-head se
 - Tiny toy vocabulary tokenizer
 - Positional encoding (sinusoidal)
 - Single transformer decoder block
+- Batched inference support
 - Greedy next-token prediction
 
 ## Requirements
@@ -26,15 +27,15 @@ python quanta_tissu.py
 The `quanta_tissu.py` file contains all the components of the model:
 
 -   **`tokenize(text)` / `detokenize(token_ids)`**: Functions to convert text to a sequence of token IDs and back.
--   **`softmax(x)`**: The softmax activation function.
--   **`LayerNorm`**: A layer normalization class.
--   **`scaled_dot_product_attention(Q, K, V)`**: The core attention mechanism.
--   **`MultiHeadAttention`**: A multi-head self-attention layer.
--   **`FeedForward`**: A position-wise feed-forward network.
--   **`TransformerBlock`**: A single block of the transformer, combining multi-head attention and a feed-forward network.
--   **`PositionalEncoding`**: A class to add positional information to the input embeddings.
--   **`QuantaTissu`**: The main class that ties everything together. It includes the embedding layer, the transformer block, and the final output projection.
--   **`if __name__ == "__main__"`**: An example of how to use the model to predict the next token for a given prompt.
+-   **`softmax(x)`**: The core softmax activation function for converting logits to probabilities.
+-   **`LayerNorm`**: A layer normalization class to stabilize hidden states.
+-   **`scaled_dot_product_attention(Q, K, V)`**: The fundamental attention mechanism.
+-   **`MultiHeadAttention`**: The complete multi-head self-attention layer, which runs several attention computations in parallel.
+-   **`FeedForward`**: A standard position-wise feed-forward network (two linear layers with a ReLU activation).
+-   **`TransformerBlock`**: A single decoder block that encapsulates multi-head attention and a feed-forward network, each followed by a residual connection and layer normalization.
+-   **`PositionalEncoding`**: A class to generate and add sinusoidal positional information to the input embeddings.
+-   **`QuantaTissu`**: The main model class that orchestrates all components, from input embeddings to the final output projection layer.
+-   **`if __name__ == "__main__"`**: A simple demonstration of initializing the model and using it to predict the next token for a given prompt.
 
 ## How it Works
 
@@ -61,11 +62,32 @@ This is a toy model and is not suitable for any real-world applications. It has 
 -   **Single Transformer Block**: The model has only a single transformer block, which limits its ability to learn complex patterns.
 
 ## Future Work
+This project serves as a foundation. The `docs/enhancements.md` file contains a detailed list of potential improvements. Key areas include:
 
-There are many ways this project could be extended. Here are a few ideas:
+-   **Training Pipeline**: Implement a full training loop, including a cross-entropy loss function, an Adam/AdamW optimizer, and backpropagation to train the model on a real dataset.
+-   **Advanced Inference**: Move beyond greedy decoding by implementing more sophisticated sampling strategies like **top-k**, **nucleus (top-p)**, and **temperature scaling** to generate more diverse and coherent text.
+-   **Architectural Enhancements**:
+    -   Generalize the model to stack multiple transformer blocks.
+    -   Implement performance optimizations like **KV Caching** to accelerate generation.
+    -   Add support for loading **pre-trained weights**.
+-   **Better Tokenization**: Replace the basic tokenizer with a subword-based method like **Byte-Pair Encoding (BPE)** to handle a larger vocabulary and unknown words effectively.
 
--   **Implement a Training Pipeline**: Add a training loop, a loss function (e.g., cross-entropy), and an optimizer (e.g., Adam) to train the model on a real dataset.
--   **Expand the Vocabulary**: Use a more sophisticated tokenizer (e.g., SentencePiece) and a larger vocabulary.
--   **Add More Transformer Blocks**: Stack multiple transformer blocks to create a deeper model.
--   **Implement Beam Search**: Replace the greedy decoding with a more advanced decoding strategy like beam search to improve the quality of the generated text.
--   **Add a Causal Attention Mask**: Implement a causal attention mask to prevent the model from attending to future tokens during training.
+## Project Structure
+
+Currently, all code resides in a single file for simplicity. A more scalable structure would be:
+
+```
+quanta_tissu/
+├── quanta_tissu/
+│   ├── __init__.py
+│   ├── model.py         # Contains TransformerBlock, QuantaTissu
+│   ├── layers.py        # Contains Attention, FeedForward, LayerNorm
+│   ├── tokenizer.py     # Tokenizer implementation
+│   └── config.py        # Model hyperparameters
+├── scripts/
+│   └── run_inference.py # Example usage script
+├── docs/
+├── tests/
+├── README.md
+└── requirements.txt
+```
