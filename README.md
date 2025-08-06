@@ -26,7 +26,7 @@ python quanta_tissu.py
 
 The `quanta_tissu.py` file contains all the components of the model:
 
--   **`tokenize(text)` / `detokenize(token_ids)`**: Functions to convert text to a sequence of token IDs and back.
+-   **`Tokenizer`**: A class that encapsulates the vocabulary and provides `tokenize` and `detokenize` methods.
 -   **`softmax(x)`**: The core softmax activation function for converting logits to probabilities.
 -   **`LayerNorm`**: A layer normalization class to stabilize hidden states.
 -   **`scaled_dot_product_attention(Q, K, V)`**: The fundamental attention mechanism.
@@ -35,7 +35,7 @@ The `quanta_tissu.py` file contains all the components of the model:
 -   **`TransformerBlock`**: A single decoder block that encapsulates multi-head attention and a feed-forward network, each followed by a residual connection and layer normalization.
 -   **`PositionalEncoding`**: A class to generate and add sinusoidal positional information to the input embeddings.
 -   **`QuantaTissu`**: The main model class that orchestrates all components, from input embeddings to the final output projection layer.
--   **`if __name__ == "__main__"`**: A simple demonstration of initializing the model and using it to predict the next token for a given prompt.
+-   **`if __name__ == "__main__"`**: A simple demonstration of initializing the model, tokenizing a prompt, adding a batch dimension, and predicting the next token.
 
 ## How it Works
 
