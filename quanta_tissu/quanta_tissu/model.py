@@ -29,17 +29,26 @@ class PositionalEncoding:
         return x + self.pe[:seq_len]
 
 class QuantaTissu:
-    def __init__(self, vocab_size, d_model=32, num_heads=4, d_ff=128):
+    def __init__(self, config):
+        self.config = config
+        d_model = config["d_model"]
+        vocab_size = config["vocab_size"]
+        num_heads = config["num_heads"]
+        d_ff = config["d_ff"]
+
         self.d_model = d_model
         self.embeddings = np.random.randn(vocab_size, d_model) / np.sqrt(d_model)
         self.pos_encoding = PositionalEncoding(d_model)
-        self.transformer = TransformerBlock(d_model, num_heads, d_ff)
+        self.transformer_blocks = [
+            TransformerBlock(d_model, num_heads, d_ff) for _ in range(config["n_layers"])
+        ]
         self.output_proj = np.random.randn(d_model, vocab_size) / np.sqrt(d_model)
 
     def forward(self, token_ids):
         x = self.embeddings[token_ids]
         x = self.pos_encoding(x)
-        x = self.transformer(x)
+        for block in self.transformer_blocks:
+            x = block(x)
         logits = x @ self.output_proj
         return logits
 

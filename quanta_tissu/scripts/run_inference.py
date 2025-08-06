@@ -7,10 +7,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from quanta_tissu.model import QuantaTissu
 from quanta_tissu.tokenizer import tokenize, detokenize
-from quanta_tissu.config import vocab, inv_vocab
+from quanta_tissu.config import model_config
 
 def main():
-    model = QuantaTissu(vocab_size=len(vocab))
+    model = QuantaTissu(model_config)
     prompt = "hello world"
     token_ids = tokenize(prompt)
 
