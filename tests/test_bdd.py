@@ -48,13 +48,14 @@ def parse_feature_file(file_path):
 
     return features
 
-def run_tests(features):
+def run_bdd_scenarios(features):
+    overall_success = True
     for feature in features:
         print(f"Feature: {feature['name']}")
         for scenario in feature['scenarios']:
             print(f"  Scenario: {scenario['name']}")
             context.clear()
-            success = True
+            scenario_success = True
             for step_text in scenario['steps']:
                 found_step = False
                 for pattern, funcs in step_registry.items():
@@ -69,20 +70,22 @@ def run_tests(features):
                             except Exception as e:
                                 print(f"    - {step_text} [FAILED]")
                                 print(f"      Error: {e}")
-                                success = False
+                                scenario_success = False
                                 break
-                    if found_step or not success:
+                    if found_step or not scenario_success:
                         break
                 if not found_step:
                     print(f"    - {step_text} [SKIPPED] (No matching step implementation)")
-                    success = False
-                if not success:
+                    scenario_success = False
+                if not scenario_success:
                     break
-            if success:
+            if scenario_success:
                 print("  Scenario: PASSED")
             else:
                 print("  Scenario: FAILED")
+                overall_success = False
             print()
+    return overall_success
 
 # --- Step Implementations ---
 
@@ -94,7 +97,7 @@ def given_a_model(context):
 def and_a_prompt(context, prompt):
     context['prompt'] = prompt
 
-@step(r'When I ask the model to predict the next token')
+@step(r'When I ask the model to predict the next token$')
 def when_predict_next_token(context):
     token_ids = tokenize(context['prompt'])
     next_token = context['model'].predict(token_ids)
@@ -103,6 +106,26 @@ def when_predict_next_token(context):
 @step(r'Then the model should return a single token ID')
 def then_return_single_token_id(context):
     assert isinstance(context['next_token'], int)
+
+@step(r'When I ask the model to predict the next token with top_k sampling and k=(\d+)')
+def when_predict_next_token_with_top_k(context, k):
+    token_ids = tokenize(context['prompt'])
+    next_token = context['model'].predict(token_ids, method='top_k', top_k=int(k))
+    context['next_token'] = next_token
+
+@step(r'And the knowledge base contains the document "(.*)"')
+def and_kb_contains_doc(context, doc):
+    context['model'].knowledge_base.add_document(doc)
+
+@step(r'When I ask the model to predict the next token with the prompt "(.*)"')
+def when_predict_with_prompt(context, prompt):
+    context['next_token'] = context['model'].generate_with_kb(prompt)
+
+@step(r'When I ask the model to predict the next token with nucleus sampling and p=([0-9.]+)')
+def when_predict_next_token_with_nucleus(context, p):
+    token_ids = tokenize(context['prompt'])
+    next_token = context['model'].predict(token_ids, method='nucleus', top_p=float(p))
+    context['next_token'] = next_token
 
 @step(r'When I ask the model to generate a sequence of (\d+) tokens')
 def when_generate_sequence(context, num_tokens):

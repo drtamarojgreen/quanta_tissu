@@ -1,4 +1,3 @@
-import numpy as np
 from .config import vocab, inv_vocab
 
 class Tokenizer:
@@ -70,6 +69,7 @@ def tokenize(text):
     """Legacy function for backward compatibility."""
     tokenizer = Tokenizer()
     return tokenizer.tokenize(text)
+
 
 def detokenize(token_ids):
     """Legacy function for backward compatibility."""
