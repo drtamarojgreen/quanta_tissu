@@ -74,12 +74,40 @@ class QuantaTissu:
         return self.predict(token_ids, method=generation_method, **kwargs)
 
     def forward(self, token_ids):
-        x = self.embeddings[token_ids]
-        x = self.pos_encoding(x)
-        for block in self.transformer_blocks:
-            x = block(x)
-        logits = x @ self.output_proj
-        return logits
+        """
+        Forward pass through the model.
+        
+        Args:
+            token_ids: Token IDs of shape (seq_len,) or (batch_size, seq_len)
+            
+        Returns:
+            logits: Output logits of shape (seq_len, vocab_size) or (batch_size, seq_len, vocab_size)
+        """
+        # Handle both single sequence and batched inputs
+        if token_ids.ndim == 1:
+            # Single sequence: (seq_len,)
+            x = self.embeddings[token_ids]  # (seq_len, d_model)
+            x = self.pos_encoding(x)
+            for block in self.transformer_blocks:
+                x = block(x)
+            logits = x @ self.output_proj  # (seq_len, vocab_size)
+            return logits
+        elif token_ids.ndim == 2:
+            # Batched sequences: (batch_size, seq_len)
+            batch_size, seq_len = token_ids.shape
+            batch_logits = []
+            
+            for i in range(batch_size):
+                x = self.embeddings[token_ids[i]]  # (seq_len, d_model)
+                x = self.pos_encoding(x)
+                for block in self.transformer_blocks:
+                    x = block(x)
+                logits = x @ self.output_proj  # (seq_len, vocab_size)
+                batch_logits.append(logits)
+            
+            return np.stack(batch_logits, axis=0)  # (batch_size, seq_len, vocab_size)
+        else:
+            raise ValueError(f"token_ids must be 1D or 2D, got shape {token_ids.shape}")
 
     def predict(self, token_ids, method="greedy", temperature=1.0, top_k=None, top_p=None):
         logits = self.forward(token_ids)

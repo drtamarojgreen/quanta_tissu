@@ -61,3 +61,14 @@ As a user, I want the model to handle words that are not in its vocabulary.
 **And** a sentence "this is a foobar test"
 **When** I tokenize the sentence
 **Then** the token "foobar" should be mapped to the `<unk>` token ID.
+
+### 2.3. Generating Text with Knowledge Base
+
+**Feature**: Text Generation with Knowledge Base
+As a user, I want the model to use a knowledge base to answer my questions.
+
+**Scenario**: Answer a question using the knowledge base
+**Given** a QuantaTissu model with a knowledge base
+**And** the knowledge base contains the document "the sky is blue"
+**When** I ask the model to generate an answer to "what color is the sky" using the knowledge base
+**Then** the model should generate an answer containing the word "blue"
