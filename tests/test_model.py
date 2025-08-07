@@ -11,7 +11,7 @@ from quanta_tissu.quanta_tissu.model import (
     QuantaTissu,
 )
 from quanta_tissu.quanta_tissu.config import model_config
-from tests.test_utils import assert_equal, assert_true
+from tests.test_utils import assert_equal, assert_true, assert_raises
 
 # Set a seed for reproducibility of random inputs
 np.random.seed(42)
@@ -29,6 +29,19 @@ def test_positional_encoding():
     assert_true(np.any(encoded_x[0] != 0), "First position should have non-zero encoding")
     # Different positions should have different encodings
     assert_true(np.any(encoded_x[0] != encoded_x[1]), "Different positions should have different encodings")
+
+
+def test_positional_encoding_long_sequence():
+    """Tests that positional encoding fails for sequences longer than max_len."""
+    d_model = 16
+    max_len = 50
+    pos_encoder = PositionalEncoding(d_model, max_len=max_len)
+
+    # This sequence is too long
+    x_long = np.zeros((max_len + 1, d_model))
+
+    # Expect a ValueError because the slice self.pe[:seq_len] will be out of bounds
+    assert_raises(ValueError, pos_encoder, x_long)
 
 
 def test_transformer_block():
@@ -94,3 +107,50 @@ def test_quanta_tissu_generate_sequence():
     # The total length should be the initial length plus the number generated
     expected_length = len(initial_ids) + num_to_generate
     assert_equal(len(generated_ids), expected_length, "Generated sequence has incorrect length")
+
+def test_quanta_tissu_predict_top_k():
+    """Tests the top-k sampling method of the predict function."""
+    model = QuantaTissu(model_config)
+    token_ids = np.random.randint(0, model_config["vocab_size"], size=5)
+    k = 5
+
+    # Get the logits to find the actual top k tokens
+    logits = model.forward(token_ids)
+    top_k_true_indices = np.argsort(logits[-1])[-k:]
+
+    # Run top-k prediction multiple times to increase chance of catching errors
+    for _ in range(10):
+        next_token_id = model.predict(token_ids, method="top_k", top_k=k)
+        assert_true(isinstance(next_token_id, (int, np.integer)), "Top-k should return an integer ID")
+        assert_true(next_token_id in top_k_true_indices, "Token from top-k must be in the true top-k set")
+
+def test_quanta_tissu_predict_nucleus():
+    """Tests the nucleus sampling method of the predict function."""
+    model = QuantaTissu(model_config)
+    token_ids = np.random.randint(0, model_config["vocab_size"], size=5)
+    p = 0.9
+
+    # Run nucleus prediction multiple times
+    for _ in range(10):
+        next_token_id = model.predict(token_ids, method="nucleus", top_p=p)
+        assert_true(isinstance(next_token_id, (int, np.integer)), "Nucleus sampling should return an integer ID")
+        # It's hard to verify correctness without re-implementing the logic,
+        # so we mainly test that it runs and returns a valid token ID.
+        assert_true(0 <= next_token_id < model_config["vocab_size"], "Token ID from nucleus must be in vocab range")
+
+
+def test_predict_raises_for_missing_args():
+    """Tests that predict raises ValueError for missing arguments."""
+    model = QuantaTissu(model_config)
+    token_ids = np.array([1, 2, 3])
+
+    # Test top_k
+    assert_raises(ValueError, model.predict, token_ids, method="top_k")
+    assert_raises(ValueError, model.predict, token_ids, method="top_k", top_k=None)
+
+    # Test nucleus
+    assert_raises(ValueError, model.predict, token_ids, method="nucleus")
+    assert_raises(ValueError, model.predict, token_ids, method="nucleus", top_p=None)
+
+    # Test unknown method
+    assert_raises(ValueError, model.predict, token_ids, method="unknown_method")
