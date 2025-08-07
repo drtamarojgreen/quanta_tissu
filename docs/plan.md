@@ -12,7 +12,7 @@ The goal of this phase is to establish the basic data processing and mathematica
     -   **`tokenize(text: str) -> np.ndarray`**: Implement a method that converts text to a NumPy array of token IDs.
     -   **`detokenize(token_ids: np.ndarray) -> str`**: Implement a method to convert an array of token IDs back to text.
 
-### 1.2. Core Math and Normalization
+### 1.2. Core Mgath and Normalization
 -   **`softmax(x)`**: Implement the softmax function for converting logits to probabilities.
 -   **`LayerNorm`**: Implement a layer normalization class to stabilize the network. It should handle learnable gain and bias parameters.
 
