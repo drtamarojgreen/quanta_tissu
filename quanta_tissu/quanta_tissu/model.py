@@ -87,7 +87,7 @@ class QuantaTissu:
 
         if method == "greedy":
             next_token = np.argmax(last_logit)
-            return next_token
+            return int(next_token)
 
         probs = softmax(last_logit, temperature=temperature)
 
@@ -126,4 +126,4 @@ class QuantaTissu:
         else:
             raise ValueError(f"Unknown sampling method: {method}")
 
-        return next_token
+        return int(next_token)

@@ -5,6 +5,8 @@ import traceback
 import time
 import sys
 
+from tests.test_bdd import parse_feature_file, run_bdd_scenarios
+
 def discover_and_run_tests():
     """
     Discovers and runs all tests in the 'tests/' directory.
@@ -25,19 +27,17 @@ def discover_and_run_tests():
     print("=" * 70)
     start_time = time.time()
 
+    # Run standard tests
     for file_name in test_files:
         module_name = file_name[:-3]
         file_path = os.path.join(tests_dir, file_name)
 
         try:
-            # Dynamically import the module
             spec = importlib.util.spec_from_file_location(module_name, file_path)
             module = importlib.util.module_from_spec(spec)
-            # Add the module to sys.modules to handle imports within tests
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
 
-            # Find all test functions in the module
             for name, func in inspect.getmembers(module, inspect.isfunction):
                 if name.startswith('test_'):
                     try:
@@ -46,9 +46,8 @@ def discover_and_run_tests():
                         passed_count += 1
                     except AssertionError as e:
                         print(f"FAIL: {module_name}.{name}")
-                        # Get a cleaner traceback
                         tb = traceback.format_exc()
-                        clean_tb = "\n".join(tb.splitlines()[3:]) # Hide the runner's frames
+                        clean_tb = "\n".join(tb.splitlines()[3:])
                         failed_tests.append((f"{module_name}.{name}", str(e), clean_tb))
                         failed_count += 1
                     except Exception as e:
@@ -62,6 +61,22 @@ def discover_and_run_tests():
             failed_tests.append((f"{file_name}", str(e), tb))
             failed_count += 1
 
+    # Run BDD tests
+    features_dir = os.path.join(tests_dir, 'features')
+    if os.path.isdir(features_dir):
+        feature_files = [f for f in os.listdir(features_dir) if f.endswith('.feature')]
+        for file_name in feature_files:
+            file_path = os.path.join(features_dir, file_name)
+            print("-" * 70)
+            print(f"Running BDD tests from {file_name}...")
+            features = parse_feature_file(file_path)
+            if run_bdd_scenarios(features):
+                passed_count += len(features) # Count each feature as one test
+            else:
+                failed_count += len(features)
+                failed_tests.append((file_name, "One or more BDD scenarios failed.", ""))
+
+
     end_time = time.time()
     duration = end_time - start_time
 
@@ -72,7 +87,8 @@ def discover_and_run_tests():
         for name, error_msg, tb in failed_tests:
             print(f"\n[FAIL] {name}")
             print(f"  Error: {error_msg}")
-            print(f"  Traceback:\n{tb}")
+            if tb:
+                print(f"  Traceback:\n{tb}")
         print("-" * 70)
 
     print(f"Ran {passed_count + failed_count} tests in {duration:.4f}s")
