@@ -1,98 +1,100 @@
 # QuantaTissu Agentic Development Roadmap
-
-This document outlines a strategic roadmap for evolving QuantaTissu from a foundational language model into a sophisticated, agentic coding assistant capable of understanding, planning, and executing complex software development tasks.
+This roadmap outlines a strategic plan to evolve QuantaTissu from a foundational language model into a fully agentic coding assistant — one capable of autonomously understanding, planning, and executing complex software development tasks in real-world environments.
 
 ## Introduction
-
-The goal is to transform QuantaTissu into an autonomous agent that can interact with a development environment to write, debug, and test code. This requires augmenting the core language model with capabilities for reasoning, tool use, and self-correction. This evolution will proceed in two major phases: enhancing the foundational model and then building agentic capabilities on top of it.
-
----
+The long-term vision is to transform QuantaTissu into a self-directed software engineer: a system that can interpret high-level goals, interact with development tools, and iteratively refine its own output through reasoning and feedback. Achieving this requires a two-phase approach:
+- Phase 1: Build a robust, code-specialized foundational model.
+- Phase 2: Layer agentic capabilities on top — including tool use, planning, and self-correction.
 
 ## Phase 1: Foundational Model Enhancement
-
-Before QuantaTissu can function as an agent, its core language model must be powerful, robust, and specialized for code. The focus of this phase is to elevate the model from a toy project to a capable code LLM.
+Before QuantaTissu can act, it must first understand. This phase focuses on upgrading the model’s core architecture, training infrastructure, and evaluation framework to ensure it can generate high-quality code reliably.
 
 ### 1.1. Implement a Full-Scale Training Pipeline
--   **Objective**: Build the infrastructure to train QuantaTissu on a large-scale dataset.
--   **Key Actions**:
-    -   Implement backpropagation to enable gradient-based learning.
-    -   Integrate a modern optimizer like AdamW.
-    -   Develop a data loading and preprocessing pipeline for handling massive code datasets (e.g., The Stack).
-    -   Implement a robust training loop with support for checkpointing, logging, and metrics tracking.
+**Goal:** Establish a scalable, production-grade training system.
+
+**Key Actions:**
+-   Implement backpropagation and gradient-based learning for model optimization.
+-   Integrate AdamW or similar optimizers for stable convergence.
+-   Build a data ingestion pipeline capable of handling massive code datasets (e.g., The Stack, CodeSearchNet).
+-   Design a training loop with:
+    -   Checkpointing for fault tolerance
+    -   Logging for traceability
+    -   Metrics tracking (loss, accuracy, perplexity) for performance monitoring
 
 ### 1.2. Upgrade Model Architecture and Tokenization
--   **Objective**: Modernize the model architecture for better performance and scalability.
--   **Key Actions**:
-    -   **Scale Up**: Increase model depth (more transformer blocks) and width (`d_model`) significantly.
-    -   **Tokenizer**: Replace the basic word-level tokenizer with a **Byte-Pair Encoding (BPE)** tokenizer trained on a large code corpus. This is critical for handling the vast and complex vocabulary of programming languages.
-    -   **Efficiency**: Implement **KV Caching** and other optimizations to ensure efficient inference, which is crucial for an interactive agent.
+**Goal:** Modernize the model for scale, efficiency, and code-specific understanding.
+
+**Key Actions:**
+-   **Scale Up:** Increase depth (transformer layers) and width (d_model) to support richer representations.
+-   **Tokenizer Overhaul:**
+    -   Replace word-level tokenization with Byte-Pair Encoding (BPE) or Unigram LM.
+    -   Train tokenizer on multilingual code corpora to handle syntax diversity.
+-   **Inference Optimizations:**
+    -   Implement KV Caching for faster autoregressive decoding.
+    -   Explore FlashAttention, quantization, and model parallelism for deployment efficiency.
 
 ### 1.3. Establish Rigorous Evaluation
--   **Objective**: Develop a framework for measuring the model's coding capabilities.
--   **Key Actions**:
-    -   Implement standard code generation benchmarks (e.g., HumanEval, MBPP).
-    -   Set up an evaluation suite to continuously track performance on tasks like code completion, bug fixing, and test generation.
+**Goal:** Quantify and track the model’s coding proficiency.
 
----
+**Key Actions:**
+-   Integrate standard benchmarks:
+    -   HumanEval for code generation
+    -   MBPP for multi-step programming tasks
+-   Build a custom evaluation suite for:
+    -   Code completion
+    -   Bug fixing
+    -   Unit test generation
+    -   Refactoring and documentation synthesis
 
 ## Phase 2: Developing Agentic Capabilities
+Once the model understands code, it must learn to act. This phase introduces the agentic scaffolding that enables QuantaTissu to interact with tools, reason through tasks, and self-correct.
+🛠️ 2.1. Tool Integration (Tool-Use)
+Goal: Allow the model to interact with a developer’s environment via APIs.
+Key Actions:
+- Build a Tool API — a secure, extensible interface for issuing commands.
+- Implement core tools:
+- read_file(path): Load source code
+- write_file(path, content): Modify or create files
+- run_shell(command): Compile, test, or execute code
+- Fine-tune the model on examples of tool invocation, teaching it to request actions contextually and responsibly.
+🧩 2.2. Planning and Reasoning Engine
+Goal: Enable the model to decompose goals into actionable steps.
+Key Actions:
+- Start with Chain of Thought (CoT) prompting:
+- Encourage the model to “think aloud” and structure its approach.
+- Advance to Tree of Thoughts (ToT):
+- Let the model explore multiple solution paths, evaluate them, and choose the best.
+- Implement State Management:
+- Track open files, recent actions, and current objectives.
+- Maintain a working memory for multi-step tasks.
+🔄 2.3. Feedback and Self-Correction Loop
+Goal: Teach the agent to learn from its own mistakes in real-time.
+Key Actions:
+- Build output parsers for:
+- Compiler errors
+- Test failures
+- Runtime exceptions
+- Design self-correction prompts:
+- Feed error messages back into the model
+- Ask it to analyze, explain, and revise its code
+- Example:
+Your previous code failed with the following error: `TypeError: unsupported operand type(s)`.  
+Please analyze the error and provide a corrected version of the file.
 
-With a strong foundation, the next step is to build the agentic framework that allows the model to act.
+
 
-### 2.1. Tool Integration (Tool-Use)
--   **Objective**: Enable the model to interact with a developer's environment.
--   **Key Actions**:
-    -   **Develop a Tool API**: Create a simple, robust interface that allows the model to issue commands.
-    -   **Implement Core Tools**:
-        -   `read_file(path)`: To read existing code.
-        -   `write_file(path, content)`: To create or modify files.
-        -   `run_shell(command)`: To execute shell commands for compilation, running tests, etc.
-    -   **Fine-tuning for Tool Use**: Fine-tune the model on examples of "thinking" and "tool invocation" to teach it how to request actions.
+⚠️ Key Challenges and Mitigations
+| Challenge | Mitigation Strategies | 
+| Computational Resources | Start with small models for rapid iteration.<br>Use LoRA or QLoRA for efficient fine-tuning.<br>Leverage cloud platforms (e.g., AWS, GCP) for scalable training. | 
+| High-Quality Code Data | Curate datasets from trusted repositories.<br>Apply aggressive filtering and deduplication.<br>Generate synthetic examples for tool use and planning. | 
+| Safety and Reliability | Run agents in sandboxed containers.<br>Require user confirmation for risky actions.<br>Limit permissions to prevent unintended side effects. | 
+| Scalability | Begin with narrow tasks (e.g., linting fixes).<br>Design modular components for planning, execution, and memory.<br>Enable independent upgrades to each subsystem. | 
 
-### 2.2. Planning and Reasoning Engine
--   **Objective**: Give the model the ability to break down high-level goals into executable steps.
--   **Key Actions**:
-    -   **Implement a Planning Module**: Start with simple prompting techniques like **Chain of Thought (CoT)** where the model "thinks out loud" to structure its plan.
-    -   **Advanced Planning**: Explore more complex strategies like **Tree of Thoughts (ToT)**, allowing the model to explore multiple plans and self-correct.
-    -   **State Management**: Develop a system for the agent to maintain an understanding of its current state (files open, recent actions, etc.).
 
-### 2.3. Feedback and Self-Correction Loop
--   **Objective**: Create a mechanism for the agent to learn from its mistakes in real-time.
--   **Key Actions**:
-    -   **Output Parsing**: Implement parsers to capture the output of tools (e.g., compiler errors, test failures).
-    -   **Self-Correction Prompting**: Develop prompts that feed back the error messages to the model and ask it to generate a fix. For example: "Your previous code failed with the following error: `[error message]`. Please analyze the error and provide a corrected version of the file."
 
----
-
-## Key Challenges and Mitigations
-
-| Challenge | Mitigation Strategies |
-| :--- | :--- |
-| **Computational Resources** | **Start Small**: Begin with smaller-scale models to iterate quickly.<br>**Efficient Training**: Explore techniques like LoRA for fine-tuning.<br>**Cloud Resources**: Utilize cloud platforms for scalable training. |
-| **High-Quality Code Data** | **Curated Datasets**: Focus on high-quality, well-documented code repositories.<br>**Data Cleaning**: Implement aggressive filtering and cleaning pipelines.<br>**Synthetic Data**: Generate synthetic examples of planning and tool use. |
-| **Safety and Reliability** | **Sandboxing**: Run the agent in a secure, containerized environment to prevent unintended side effects.<br>**User Confirmation**: Require user approval for potentially destructive actions (e.g., deleting files, running risky commands).<br>**Limited Permissions**: Grant the agent minimal necessary permissions. |
-| **Scalability** | **Incremental Development**: Start with narrow, well-defined tasks (e.g., "fix this specific linting error") before tackling open-ended problems.<br>**Modular Design**: Keep the agent's components (planning, execution, memory) modular and independently improvable. |
-
----
-
-## High-Level Roadmap
-
--   **Q1-Q2**: **Foundational Model Development**.
-    -   Complete the training pipeline and tokenizer.
-    -   Train a baseline code model (e.g., 1B parameters).
-    -   Set up HumanEval and MBPP evaluation.
-
--   **Q3**: **Initial Agent and Tool Integration**.
-    -   Implement the core tool API (file I/O, shell).
-    -   Fine-tune the model for basic tool use.
-    -   Develop a simple CoT-based planning module.
-
--   **Q4**: **Self-Correction and Advanced Planning**.
-    -   Implement the feedback loop for parsing errors.
-    -   Begin experiments with more advanced planning techniques.
-    -   Launch an internal alpha for dogfooding on simple tasks.
-
--   **Year 2 and Beyond**: **Scaling and Refinement**.
-    -   Scale up the model size and training data.
-    -   Expand the toolset and tackle more complex tasks.
-    -   Improve reliability and user experience based on feedback.
+🗺️ High-Level Roadmap
+| Quarter | Milestones | 
+| Q1–Q2 | Build training pipeline and tokenizer.<br>Train baseline model (1B parameters).<br>Set up HumanEval and MBPP evaluation. | 
+| Q3 | Implement Tool API (file I/O, shell).<br>Fine-tune for basic tool use.<br>Develop CoT-based planning module. | 
+| Q4 | Build feedback loop for error parsing.<br>Experiment with Tree of Thoughts.<br>Launch internal alpha for dogfooding. | 
+| Year 2+ | Scale model size and training data.<br>Expand toolset (e.g., git, linting, testing).<br>Refine UX and reliability based on feedback. | 

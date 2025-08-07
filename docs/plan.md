@@ -12,7 +12,7 @@ The goal of this phase is to establish the basic data processing and mathematica
     -   **`tokenize(text: str) -> np.ndarray`**: Implement a method that converts text to a NumPy array of token IDs.
     -   **`detokenize(token_ids: np.ndarray) -> str`**: Implement a method to convert an array of token IDs back to text.
 
-### 1.2. Core Math and Normalization
+### 1.2. Core Mgath and Normalization
 -   **`softmax(x)`**: Implement the softmax function for converting logits to probabilities.
 -   **`LayerNorm`**: Implement a layer normalization class to stabilize the network. It should handle learnable gain and bias parameters.
 
@@ -50,3 +50,20 @@ This phase focuses on building the core architectural components of the Transfor
     -   Add a batch dimension to the tokens.
     -   Generate the next token and print the detokenized result.
 -   **Documentation**: Write the initial `README.md`, `plan.md`, and `enhancements.md`.
+
+## Phase 6: Agentic Control with TissLang
+
+With the core inference engine established, this phase introduces **TissLang**, a dedicated command language for directing the QuantaTissu agent. This moves the project from a simple text generator to a system capable of executing complex, multi-step tasks in a structured and reviewable manner.
+
+### 6.1. TissLang Specification and Parser
+-   **Objective**: Define and parse the TissLang language.
+-   **Tasks**:
+    -   **Grammar Definition**: Specify the syntax for core commands like `TASK`, `STEP`, `RUN`, `WRITE`, `READ`, and `ASSERT`.
+    -   **Parser Implementation**: Build a line-by-line parser that converts a `.tiss` script into a JSON-serializable Abstract Syntax Tree (AST).
+
+### 6.2. Execution Engine
+-   **Objective**: Create an interpreter to execute the parsed TissLang AST.
+-   **Tasks**:
+    -   **AST Walker**: Develop an engine that traverses the AST and invokes corresponding agent tools for each command.
+    -   **State Management**: Implement a state object to track the results of commands (e.g., `LAST_RUN.STDOUT`) for use in `ASSERT` conditions.
+    -   **Tool Integration**: Connect the engine to the agent's core capabilities for file I/O and shell command execution.
