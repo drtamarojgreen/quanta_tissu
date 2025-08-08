@@ -19,26 +19,28 @@ np.random.seed(42)
 def test_positional_encoding():
     """Tests the PositionalEncoding class."""
     d_model = 16
+    batch_size = 1
     seq_len = 10
     pos_encoder = PositionalEncoding(d_model)
-    x = np.zeros((seq_len, d_model))
+    x = np.zeros((batch_size, seq_len, d_model))
     encoded_x = pos_encoder(x)
 
     assert_equal(encoded_x.shape, x.shape, "PositionalEncoding should not change shape")
     # The encoding for the first element should not be all zeros
-    assert_true(np.any(encoded_x[0] != 0), "First position should have non-zero encoding")
+    assert_true(np.any(encoded_x[0, 0] != 0), "First position should have non-zero encoding")
     # Different positions should have different encodings
-    assert_true(np.any(encoded_x[0] != encoded_x[1]), "Different positions should have different encodings")
+    assert_true(np.any(encoded_x[0, 0] != encoded_x[0, 1]), "Different positions should have different encodings")
 
 
 def test_positional_encoding_long_sequence():
     """Tests that positional encoding fails for sequences longer than max_len."""
     d_model = 16
+    batch_size = 1
     max_len = 50
     pos_encoder = PositionalEncoding(d_model, max_len=max_len)
 
     # This sequence is too long
-    x_long = np.zeros((max_len + 1, d_model))
+    x_long = np.zeros((batch_size, max_len + 1, d_model))
 
     # Expect a ValueError because the slice self.pe[:seq_len] will be out of bounds
     assert_raises(ValueError, pos_encoder, x_long)
@@ -49,10 +51,11 @@ def test_transformer_block():
     d_model = 32
     num_heads = 4
     d_ff = 128
+    batch_size = 1
     seq_len = 10
 
     block = TransformerBlock(d_model, num_heads, d_ff)
-    x = np.random.randn(seq_len, d_model)
+    x = np.random.randn(batch_size, seq_len, d_model)
     output = block(x)
 
     assert_equal(output.shape, x.shape, "TransformerBlock output shape should match input shape")
@@ -63,13 +66,14 @@ def test_quanta_tissu_forward_pass():
     # Use the model_config from the project's config file
     model = QuantaTissu(model_config)
 
+    batch_size = 1
     seq_len = 5
     # Create a random sequence of token IDs within the vocab size
-    token_ids = np.random.randint(0, model_config["vocab_size"], size=seq_len)
+    token_ids = np.random.randint(0, model_config["vocab_size"], size=(batch_size, seq_len))
 
     logits = model.forward(token_ids)
 
-    expected_shape = (seq_len, model_config["vocab_size"])
+    expected_shape = (batch_size, seq_len, model_config["vocab_size"])
     assert_equal(logits.shape, expected_shape, f"Logits shape should be {expected_shape}")
 
 
@@ -111,16 +115,19 @@ def test_quanta_tissu_generate_sequence():
 def test_quanta_tissu_predict_top_k():
     """Tests the top-k sampling method of the predict function."""
     model = QuantaTissu(model_config)
-    token_ids = np.random.randint(0, model_config["vocab_size"], size=5)
+    batch_size = 1
+    seq_len = 5
+    token_ids = np.random.randint(0, model_config["vocab_size"], size=(batch_size, seq_len))
     k = 5
 
     # Get the logits to find the actual top k tokens
     logits = model.forward(token_ids)
-    top_k_true_indices = np.argsort(logits[-1])[-k:]
+    top_k_true_indices = np.argsort(logits[0, -1, :])[-k:]
 
     # Run top-k prediction multiple times to increase chance of catching errors
+    # Note: model.predict adds the batch dim itself, so we pass a 1D array
     for _ in range(10):
-        next_token_id = model.predict(token_ids, method="top_k", top_k=k)
+        next_token_id = model.predict(token_ids[0], method="top_k", top_k=k)
         assert_true(isinstance(next_token_id, (int, np.integer)), "Top-k should return an integer ID")
         assert_true(next_token_id in top_k_true_indices, "Token from top-k must be in the true top-k set")
 

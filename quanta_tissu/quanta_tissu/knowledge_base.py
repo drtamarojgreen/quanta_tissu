@@ -17,7 +17,7 @@ class KnowledgeBase:
     def _embed_text(self, text):
         """Generates an embedding for a text by averaging its token embeddings."""
         token_ids = self.tokenizer(text)
-        if not token_ids:
+        if token_ids.size == 0:
             # Return a zero vector if the text is empty or has no known tokens
             return np.zeros(self.model_embeddings.shape[1])
 
