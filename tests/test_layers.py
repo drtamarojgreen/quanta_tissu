@@ -45,21 +45,25 @@ def test_softmax_invalid_temperature():
 def test_layer_norm():
     """Tests the LayerNorm layer."""
     d_model = 16
+    batch_size = 1
+    seq_len = 10
     ln = LayerNorm(d_model)
-    x = np.random.randn(10, d_model) # (seq_len, d_model)
+    x = np.random.randn(batch_size, seq_len, d_model) # (batch_size, seq_len, d_model)
     normed_x = ln(x)
     assert_equal(x.shape, normed_x.shape, "LayerNorm should not change shape")
     # The mean of the output should be close to 0
-    assert_allclose(np.mean(normed_x, axis=-1), np.zeros(x.shape[0]), atol=1e-7, msg="Mean of LayerNorm output should be 0")
+    assert_allclose(np.mean(normed_x, axis=-1), np.zeros(x.shape[:-1]), atol=1e-7, msg="Mean of LayerNorm output should be 0")
     # The variance of the output should be close to 1
-    assert_allclose(np.var(normed_x, axis=-1), np.ones(x.shape[0]), atol=1e-7, msg="Variance of LayerNorm output should be 1")
+    assert_allclose(np.var(normed_x, axis=-1), np.ones(x.shape[:-1]), atol=1e-7, msg="Variance of LayerNorm output should be 1")
 
 def test_layer_norm_zero_variance():
     """Tests LayerNorm with input that has zero variance."""
     d_model = 16
+    batch_size = 1
+    seq_len = 10
     ln = LayerNorm(d_model)
     # Create an input where all vectors are identical
-    x = np.ones((10, d_model))
+    x = np.ones((batch_size, seq_len, d_model))
     normed_x = ln(x)
     # The output should be all zeros, and not contain NaNs or Infs
     assert_allclose(normed_x, np.zeros_like(x), msg="LayerNorm with zero variance should output zeros")
@@ -71,7 +75,7 @@ def test_scaled_dot_product_attention():
     q = np.random.randn(batch_size, num_heads, seq_len, d_k)
     k = np.random.randn(batch_size, num_heads, seq_len, d_k)
     v = np.random.randn(batch_size, num_heads, seq_len, d_k)
-    output = scaled_dot_product_attention(q, k, v)
+    output, _ = scaled_dot_product_attention(q, k, v)
     assert_equal(output.shape, v.shape, "Attention output shape should match value shape")
 
 
@@ -79,9 +83,10 @@ def test_multi_head_attention():
     """Tests the MultiHeadAttention layer."""
     d_model = 32
     num_heads = 4
+    batch_size = 1
     seq_len = 10
     mha = MultiHeadAttention(d_model, num_heads)
-    x = np.random.randn(seq_len, d_model)
+    x = np.random.randn(batch_size, seq_len, d_model)
     output = mha(x)
     assert_equal(output.shape, x.shape, "MHA output shape should match input shape")
 
@@ -96,8 +101,9 @@ def test_feed_forward():
     """Tests the FeedForward layer."""
     d_model = 32
     d_ff = 64
+    batch_size = 1
     seq_len = 10
     ffn = FeedForward(d_model, d_ff)
-    x = np.random.randn(seq_len, d_model)
+    x = np.random.randn(batch_size, seq_len, d_model)
     output = ffn(x)
     assert_equal(output.shape, x.shape, "FeedForward output shape should match input shape")
