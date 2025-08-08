@@ -1,215 +1,112 @@
 # TissLang Programming Reference
 
----
-
-## 1. Data Structures
-
-### Lists (Bracket-Free)
-
-- Start with `TTLS` and end with `SLTT`
-- Items separated by spaces or new lines
-
-Example:
-
-List myList = TTLS 1 2 3 4 SLTT
-List names = TTLS Alice Bob Charlie SLTT
-
-- `List myList = ...`: Defines a list named `myList` containing the integers 1, 2, 3, and 4.
-- `List names = ...`: Defines a list named `names` containing the strings "Alice", "Bob", and "Charlie".
-
+This document provides a reference for **TissLang**, a high-level, declarative language designed for instructing the QuantaTissu agent. The syntax is designed to be human-readable and structured for defining agentic workflows.
 
 ---
 
-### Maps / Dictionaries
+## 1. Core Structure
 
-- Use `TTLS` and `SLTT` to start/end
-- Key-value pairs separated by `->`
-- Can be multiline or single line
+A TissLang script defines a high-level task and breaks it down into sequential steps.
 
-Example:
+### `TASK`
+- Defines the overall goal of the script. There should be only one `TASK` per script.
+- **Syntax**: `TASK "A descriptive name for the overall goal"`
 
-Map user = TTLS
-name -> Alice
-age -> 30
-active -> true
-SLTT
-
-
-or
-
-Map user = TTLS name->Alice age->30 active->true SLTT
-
-- The first example defines a map named `user` with three key-value pairs: `name` is "Alice", `age` is 30, and `active` is true. The definition is spread across multiple lines for readability.
-- The second example shows the same map defined on a single line.
-
-
----
-
-### Tuples
-
-- Fixed length, ordered values
-
-Example:
-
-Tuple point = TTLS 10 20 SLTT
-
-- `Tuple point = ...`: Defines a tuple named `point` containing the ordered values 10 and 20.
-
-
----
-
-### Error Codes
-
-Named constants for error handling:
-
-Error = E_NOT_FOUND = 404
-Error = E_PERMISSION_DENIED = 403
-
-- `Error = E_NOT_FOUND = 404`: Defines a named error constant `E_NOT_FOUND` with the integer value 404.
-
-
----
-
-## 2. Switch Statements
-
-### Syntax
-
-Switch variable = <variable_name>
-Cases = TTLS
-<case_value1> -> <action1>
-<case_value2> -> <action2>
-...
-SLTT
-Default = <default_action>
-
+### `STEP`
+- Defines a distinct, logical step within the task.
+- **Syntax**: `STEP "A description of this specific step" { ... }`
+- The body of the step, enclosed in curly braces `{}`, contains one or more commands.
 
 ### Example
 
-Switch variable = status
-Cases = TTLS
-200 -> Print Success
-404 -> Print Not Found
-500 -> Print Server Error
-SLTT
-Default = Print Unknown Status
+```tiss
+#TISS! Language=Python
 
-- This example evaluates the `status` variable. If `status` is 200, it prints "Success". If it's 404, it prints "Not Found". If no case matches, it executes the `Default` action and prints "Unknown Status".
+TASK "Create and test a simple Python hello world script"
 
+STEP "Create the main application file" {
+    # Commands go here
+}
 
----
-
-## 3. Function Definitions
-
-### Syntax
-
-Function <function_name> Params = TTLS <param1> <param2> ... SLTT
-Body =
-<instruction_1>
-<instruction_2>
-...
-
-
-### Example
-
-Function greet Params = TTLS name SLTT
-Body =
-Print Hello, name
-
-- This defines a function named `greet` that accepts a single parameter, `name`.
-- The body of the function contains one instruction: to print a string that includes the value of the `name` parameter.
-
-
-Quick inline example:
-
-Function add Params = TTLS x y SLTT Body = TTLS Return x + y SLTT
-- This shows a more compact, single-line function definition for `add` that takes two parameters, `x` and `y`, and returns their sum.
-
+STEP "Run the script and verify its output" {
+    # More commands go here
+}
+```
+- This example outlines a task to create and test a Python script, broken into two logical steps.
 
 ---
 
-## 4. Import Commands
+## 2. Commands
 
-### Syntax
+Commands are the specific actions the agent will take within a `STEP`.
 
-Single import:
+### `WRITE`
+- Writes a block of content to a specified file.
+- **Syntax**: `WRITE "path/to/file.py" <<LANG ... LANG>>`
+- The `<<LANG ... LANG>>` block is a heredoc that contains the content to be written. `LANG` is an optional language hint (e.g., `PYTHON`, `MARKDOWN`).
 
-Import <module_name>
+#### Example
+```tiss
+WRITE "main.py" <<PYTHON
+import sys
 
+def main():
+    print(f"Hello, {sys.argv[1]}!")
 
-Multiple imports:
+if __name__ == "__main__":
+    main()
+PYTHON
+```
+- This command writes a simple Python script into the file `main.py`.
 
-Import TTLS
-module1
-module2
-SLTT
+### `RUN`
+- Executes a shell command and captures its output (`stdout`, `stderr`, `exit_code`).
+- **Syntax**: `RUN "shell command to execute"`
 
-- `Import <module_name>`: Loads a single module into the current scope.
-- `Import TTLS ... SLTT`: Loads multiple specified modules (`module1`, `module2`) at once.
+#### Example
+```tiss
+RUN "python main.py TissLang"
+```
+- This command executes the `main.py` script with the argument "TissLang". The results of this run are stored in a special `LAST_RUN` context variable.
 
+### `ASSERT`
+- Checks if a condition is true and halts execution if it's false. Assertions are crucial for verifying the outcome of a `STEP`.
+- **Syntax**: `ASSERT [condition]`
+- Conditions operate on the state of the last `RUN` command or the file system.
 
----
+#### Available Assertions:
+- `LAST_RUN.STDOUT CONTAINS "some string"`
+- `LAST_RUN.STDERR IS_EMPTY`
+- `LAST_RUN.EXIT_CODE == 0`
+- `FILE "path/to/file" EXISTS`
 
-## 5. Variable Definitions
+#### Example
+```tiss
+ASSERT LAST_RUN.EXIT_CODE == 0
+ASSERT LAST_RUN.STDOUT CONTAINS "Hello, TissLang!"
+```
+- These commands verify that the previous `RUN` command executed successfully and that its standard output contained the expected greeting.
 
-### Syntax
-
-Var <variable_name> = <value>
-
-
-or with structured data:
-
-Var myList = TTLS 1 2 3 4 SLTT
-
-Var user = TTLS
-name->Alice
-age->30
-active->true
-SLTT
-
-- `Var <variable_name> = <value>`: The basic syntax for assigning a value to a variable.
-- `Var myList = ...`: Assigns a newly created list to the variable `myList`.
-- `Var user = ...`: Assigns a newly created map to the variable `user`.
-
-
----
-
-## 6. Indentation Dependence
-
-- Indentation defines block boundaries (functions, conditionals, switch cases)
-- Increase indent to start block, reduce to close
-- Use consistent spaces or tabs (not mixed)
-- Works with TTLS/SLTT tokens for lists and complex blocks
-
-Example:
-
-Function greet Params = TTLS name SLTT
-Body =
-Print Hello, name
-If name == "Alice" T
-Print Welcome back, Alice!
-Else T
-Print Nice to meet you
-
-- This `greet` function includes a conditional. The `If` block is executed only if `name` is "Alice".
-- The `T` token appears to mark the beginning of a code block.
-- The indented line `Print Welcome back, Alice!` belongs to the `If` block. The `Else` block has its own indented line.
-
+### `READ`
+- Reads the content of a file into the agent's working context, assigning it to a variable.
+- **Syntax**: `READ "path/to/file.py" AS my_python_code`
 
 ---
 
-## 7. Fibonacci Function Example
+## 3. Advanced Features (Planned)
 
-Function fibonacci Params = TTLS n SLTT
-Body =
-If n <= 1 T
-Return n
-Else T
-Return fibonacci(n - 1) + fibonacci(n - 2)
+The following features are part of the TissLang roadmap and will be added in future phases.
 
-- This example implements the classic recursive Fibonacci sequence.
-- `If n <= 1 T`: This is the base case. If the input `n` is 1 or 0, the function returns `n`.
-- `Else T`: This is the recursive step. The function calls itself with `n - 1` and `n - 2` and returns the sum of their results.
+### `IF / ELSE`
+- Conditional execution of command blocks.
+- **Syntax**: `IF [condition] { ... } ELSE { ... }`
+
+### `PROMPT_AGENT`
+- Explicitly invokes the underlying LLM for reasoning or generation tasks.
+- **Syntax**: `PROMPT_AGENT "Natural language query" INTO [variable_name]`
+
+### `PAUSE`
+- Pauses execution and waits for human input, facilitating human-in-the-loop collaboration.
+- **Syntax**: `PAUSE "Reason for pausing. Please review and type 'continue'."`
 
 ---
-
-This document captures your current TissLang syntax ideas in a concise format for reference and future expansion.
