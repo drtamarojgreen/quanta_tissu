@@ -1,3 +1,4 @@
+import numpy as np
 from .config import vocab, inv_vocab
 
 class Tokenizer:

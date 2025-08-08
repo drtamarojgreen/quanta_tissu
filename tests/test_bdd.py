@@ -1,6 +1,7 @@
 import re
 import sys
 import os
+import numpy as np
 from collections import defaultdict
 
 # Add the project root to the Python path
@@ -135,7 +136,7 @@ def when_generate_sequence(context, num_tokens):
     generated_tokens = []
     model = context['model']
     for _ in range(int(num_tokens)):
-        next_token = model.predict(token_ids)
+        next_token = model.predict(np.array(token_ids))
         generated_tokens.append(next_token)
         token_ids.append(next_token)
     context['generated_tokens'] = generated_tokens
