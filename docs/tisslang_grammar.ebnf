@@ -1,0 +1,160 @@
+(*
+  TissLang: A DSL for Agentic AI Orchestration
+  Version: 0.3
+  This grammar synthesizes concepts from across the QuantaTissu documentation,
+  including directives, ecological strategies, and agentic control flow.
+*)
+
+program      = { directive, ws }, task ;
+
+task         = "TASK", ws, string, ws, [ block ] ;
+
+block        = "{", ws, { statement, ws }, "}" ;
+
+statement    = step | parallel_step | choice_step | cost_estimation_step | command | directive | comment ;
+
+step         = "STEP", ws, string, ws, block ;
+
+parallel_step= "PARALLEL", ws, block ;
+
+choice_step  = "CHOOSE", ws, block ;
+
+cost_estimation_step = "ESTIMATE_COST", ws, block ;
+
+command      = run_cmd | write_cmd | read_cmd | prompt_cmd | assert_cmd | budget_cmd | review_cmd ;
+
+(* Core Commands *)
+run_cmd      = "RUN", ws, string ;
+write_cmd    = "WRITE", ws, string, ws, heredoc ;
+read_cmd     = "READ", ws, string, ws, "AS", ws, identifier ;
+prompt_cmd   = "PROMPT_AGENT", ws, string, ws, [ "INTO", ws, identifier ] ;
+assert_cmd   = "ASSERT", ws, expression ; (* `expression` grammar is TBD *)
+budget_cmd   = "SET_BUDGET", ws, identifier, ws, "=", ws, value ;
+review_cmd   = "REQUEST_REVIEW", ws, string ;
+
+(* Directives for controlling the runtime environment *)
+directive    = "@", identifier, ws, value ;
+
+(* Basic data types *)
+value        = string
+             | number
+             | boolean
+             | object
+             | list ;
+
+object       = "{", ws, [ pair, { ",", ws, pair } ], ws, "}" ;
+pair         = identifier, ws, ":", ws, value ;
+list         = "[", ws, [ value, { ",", ws, value } ], ws, "]" ;
+
+string       = '"', { character - '"' }, '"' ;
+heredoc      = "<<", identifier, EOL, { character }, EOL, identifier ; (* Simplified heredoc syntax *)
+number       = [ "-" ], digit, { digit }, [ ".", { digit } ] ;
+boolean      = "true" | "false" ;
+
+(* Lexical elements *)
+identifier   = letter, { letter | digit | "_" | "." } ;
+letter       = "a"..."z" | "A"..."Z";
+digit        = "0"..."9";
+character    = ? any unicode character ?;
+comment      = "#", { character - EOL } ;
+
+(* Whitespace and End of Line *)
+ws           = { " " | "\t" | EOL } ;
+EOL          = "\n" | "\r\n" | "\r";
+
+
+(* --- Sample Pipelines --- *)
+
+# Sample 1: Green-Aware Planning
+# The agent chooses between two options based on estimated cost.
+
+TASK "Find the most computationally efficient way to sort a large dataset" {
+  CHOOSE {
+    STEP "Option A: Quicksort" {
+      @persona "performance_engineer"
+      ESTIMATE_COST {
+        PROMPT_AGENT "Implement a quicksort algorithm in Python for a large list."
+      }
+    }
+    STEP "Option B: Mergesort" {
+      @persona "systems_engineer"
+      ESTIMATE_COST {
+        PROMPT_AGENT "Implement a memory-efficient mergesort algorithm in Python."
+      }
+    }
+  }
+}
+
+# Sample 2: Parallel Execution for Rich Content Generation
+# This pipeline runs two prompts in parallel and synthesizes the results.
+
+TASK "Explain quantum computing" {
+    PARALLEL {
+        STEP "Explain with rigor" {
+            @persona "physicist"
+            PROMPT_AGENT "Explain quantum superposition and entanglement." INTO rigorous_explanation
+        }
+        STEP "Explain with analogy" {
+            @persona "teacher"
+            PROMPT_AGENT "Create a simple analogy for quantum superposition." INTO simple_analogy
+        }
+    }
+
+    STEP "Synthesize final answer" {
+        @persona "editor"
+        PROMPT_AGENT "Combine the rigorous explanation ({{rigorous_explanation}}) with the simple analogy ({{simple_analogy}}) to create a clear, comprehensive answer."
+    }
+}
+
+# Sample 3: Self-Correcting Code Refactoring
+# The agent attempts to refactor code, runs tests, and verifies the outcome.
+# A real interpreter could loop back to the "refactor" step on assertion failure.
+
+TASK "Refactor the 'utils.py' module and ensure tests pass" {
+    STEP "Read the original file" {
+        READ "./project/utils.py" AS original_code
+    }
+
+    STEP "Prompt agent to refactor for clarity" {
+        @persona "senior_developer"
+        PROMPT_AGENT "Refactor this Python code for better readability and add docstrings: {{original_code}}" INTO refactored_code
+    }
+
+    STEP "Write the new code to the file" {
+        WRITE "./project/utils.py" <<PYTHON
+{{refactored_code}}
+PYTHON
+    }
+
+    STEP "Run unit tests" {
+        RUN "pytest ./tests/test_utils.py"
+    }
+
+    STEP "Verify test success" {
+        ASSERT LAST_RUN.EXIT_CODE == 0
+    }
+}
+
+# Sample 4: Resource-Constrained Task with Human-in-the-Loop
+# The agent must perform a task within a budget and asks for help if it can't.
+
+TASK "Analyze user activity from the past 24 hours" {
+    SET_BUDGET EXECUTION_TIME = "5m"
+    SET_BUDGET API_CALLS = 5
+
+    STEP "Run the analysis script" {
+        RUN "scripts/daily_user_analysis.sh"
+    }
+
+    STEP "Review budget and decide next steps" {
+        CHOOSE {
+            STEP "If within budget" {
+                ASSERT LAST_RUN.EXECUTION_TIME < 300
+                PROMPT_AGENT "Summarize the analysis results."
+            }
+            STEP "If over budget" {
+                REQUEST_REVIEW "Analysis took over 5 minutes. Should I proceed with generating the summary, or should the budget be increased for next time?"
+            }
+        }
+    }
+}
