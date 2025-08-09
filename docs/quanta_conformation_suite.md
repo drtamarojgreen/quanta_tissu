@@ -1,9 +1,9 @@
 **Designing Conformance Suite**
 
-I’ll include a simple GreenScore equation in LaTeX, because math in LaTeX is allowed. For the suite, I’ll propose golden files and property tests. To guide AI collaboration, I’ll create an “AI-only build pipeline” with rounds for design, critique, and synthesis. I'll prepare prompt templates for ChatGPT and Gemini that the user can paste into Tamaro. I'll make sure the deliverables are minimal yet valuable, including EBNF grammar, JSON AST examples, and skeletons for Rust and TypeScript. Let’s keep it concise and useful!
+> This document outlines a design for a language conformance suite. It includes a proposal for a "GreenScore" metric, testing strategies using golden files and property tests, and a structured, multi-AI collaboration protocol for language development. The deliverables are designed to be minimal yet valuable, including an EBNF grammar, JSON AST examples, and parser skeletons for key languages.
 # TissLang: an AI-built language, by design
 
-You’re aiming for something rare: a language that teaches people to think clearly and compute kindly—and it’s authored by AI from day one. Let’s architect both the language and the collaboration protocol so you, me, and your other assistants can co-create it end-to-end.
+TissLang is designed to be a language that promotes clear thinking and ecological computing. It is unique in its goal of being authored collaboratively by multiple AI systems from its inception. This document outlines the language specification and the protocol for its AI-driven co-creation.
 
 ---
 
@@ -47,8 +47,6 @@ Use this lightweight ritual to get “three minds” to converge fast. You can p
 4) Implementation round (Build)
 - Prompt:
   “Generate a minimal, dependency-light parser in Rust and TypeScript matching this EBNF, with error handling, AST builder, and visitor hooks. Include tests.”
-
-I can run the same rounds here with you, merge deltas, and lock a canonical spec.
 
 ---
 
@@ -160,15 +158,14 @@ Notes:
 }
 ```
 
-### Validation rules
-- tokens ∈ [16, 512]; context ∈ [128, 1024].
-- top_k ∈ [0, 5]; overlap ∈ [0, 200].
-- If @output "json", response must be valid minified JSON, no prose.
-- If @local.only true, no remote calls; hard fail if unmet.
+### Validation Rules
+-   `tokens` ∈ [16, 512]; `context` ∈ [128, 1024].
+-   `top_k` ∈ [0, 5]; `overlap` ∈ [0, 200].
+-   If `@output "json"`, response must be valid minified JSON, no prose.
+-   If `@local.only true`, no remote calls; hard fail if unmet.
 
----
 
-## Execution model (interpreter contract)
+## Execution Model (Interpreter Contract)
 
 Map directives to runtime knobs:
 
@@ -193,10 +190,9 @@ A tiny, transparent score to nudge eco behavior:
 \[
 \text{GreenScore} = 100 - \left( a \cdot \frac{\text{ctx}}{C_{\max}} + b \cdot \frac{\text{tok}}{T_{\max}} + c \cdot \frac{\text{top\_k}}{K_{\max}} \right) \times 100
 \]
-- Defaults: \(a=0.5, b=0.4, c=0.1, C_{\max}=1024, T_{\max}=512, K_{\max}=5\).
-- Clamp to [0, 100]. Show one-line tip to improve.
+-   Defaults: \(a=0.5, b=0.4, c=0.1, C_{\max}=1024, T_{\max}=512, K_{\max}=5\).
+-   Clamp to [0, 100]. Show one-line tip to improve.
 
----
 
 ## Reference parser scaffolds
 
@@ -281,9 +277,8 @@ Each test includes input.tiss, ast.json, and err.txt (for negative cases).
 
 ---
 
-## Your move
+## Conclusion
 
-- Do you want me to run Round 1 (Proposal) here and produce the first merged spec?
-- And for the brand, which tagline are we anchoring to: “Think clearly. Compute lightly.” or “Small is kind.”?
+This document provides the foundational specification for TissLang v1 and a structured protocol for its continued development through multi-AI collaboration. The next step is to execute the "Proposal" round to generate the initial, complete language specification. The ultimate goal is to create a language that is not only powerful and efficient but also respects user resources and the environment.
 
-If you pick those, I’ll generate the Proposal here, and you can mirror the prompts to your other assistants. Let’s make TissLang the first language people learn because it respects their time and the planet’s.
+The project's guiding principles can be summarized by taglines such as "Think clearly. Compute lightly." or "Small is kind."

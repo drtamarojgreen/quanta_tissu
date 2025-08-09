@@ -1,6 +1,4 @@
-**Planning API Design and Task Breakdown**
-
-I’m thinking through the task and API design for the modules: Attention, MLP, LayerNorm, and ResidualAdd. I’ll define interfaces with shapes and a config dataclass for flexibility. I want to provide code stubs and a checklist for each milestone with acceptance criteria and tests. For risks, I’ll include complexity considerations and time estimates. The project will move from basic config creation to implementing different components like LayerNorm and MultiBlock. I'll also touch on decoding strategies and set up benchmarks for testing and performance. Eco factor’s not a must, but could be included. Let’s proceed!
+> This document outlines a functional roadmap for enhancing the QuantaTissu model. It details the API design, task breakdown, and acceptance criteria for modularizing the core components, including Attention, MLP, and LayerNorm. The roadmap proceeds from establishing a configuration object to implementing multi-block architecture and advanced decoding strategies, with considerations for testing and performance benchmarking.
 # Roadmap for modularizing blocks, stacking multiple blocks, and adding decoding strategies
 
 This roadmap is structured into focused milestones with clear deliverables, acceptance criteria, tests, and example APIs. It assumes a NumPy-only codebase.
