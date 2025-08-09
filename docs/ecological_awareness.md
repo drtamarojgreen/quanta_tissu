@@ -27,7 +27,7 @@ QuantaTissu will not only write code—it will write code that respects the plan
 
 **Key Capabilities:**
 -   **Code Analysis:**
-    -   Detect energy-intensive patterns such as:
+    -   The agent will be trained to detect energy-intensive patterns such as:
     -   **Busy-wait loops** vs. event-driven callbacks.
     -   **Inefficient data structures** (e.g., using a list for frequent lookups where a dictionary or set would be O(1)).
     -   **Excessive disk or network I/O** in tight loops.
