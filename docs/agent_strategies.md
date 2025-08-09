@@ -48,7 +48,7 @@ Before QuantaTissu can act, it must first understand. This phase focuses on upgr
 
 ## Phase 2: Developing Agentic Capabilities
 Once the model understands code, it must learn to act. This phase introduces the agentic scaffolding that enables QuantaTissu to interact with tools, reason through tasks, and self-correct.
-🛠️ 2.1. Tool Integration (Tool-Use)
+### 2.1. Tool Integration (Tool-Use)
 Goal: Allow the model to interact with a developer’s environment via APIs.
 Key Actions:
 - Build a Tool API — a secure, extensible interface for issuing commands.
@@ -57,7 +57,7 @@ Key Actions:
 - write_file(path, content): Modify or create files
 - run_shell(command): Compile, test, or execute code
 - Fine-tune the model on examples of tool invocation, teaching it to request actions contextually and responsibly.
-🧩 2.2. Planning and Reasoning Engine
+### 2.2. Planning and Reasoning Engine
 Goal: Enable the model to decompose goals into actionable steps.
 Key Actions:
 - Start with Chain of Thought (CoT) prompting:
@@ -67,7 +67,7 @@ Key Actions:
 - Implement State Management:
 - Track open files, recent actions, and current objectives.
 - Maintain a working memory for multi-step tasks.
-🔄 2.3. Feedback and Self-Correction Loop
+### 2.3. Feedback and Self-Correction Loop
 Goal: Teach the agent to learn from its own mistakes in real-time.
 Key Actions:
 - Build output parsers for:
@@ -81,9 +81,7 @@ Key Actions:
 Your previous code failed with the following error: `TypeError: unsupported operand type(s)`.  
 Please analyze the error and provide a corrected version of the file.
 
-
-
-⚠️ Key Challenges and Mitigations
+### Key Challenges and Mitigations
 | Challenge | Mitigation Strategies | 
 | Computational Resources | Start with small models for rapid iteration.<br>Use LoRA or QLoRA for efficient fine-tuning.<br>Leverage cloud platforms (e.g., AWS, GCP) for scalable training. | 
 | High-Quality Code Data | Curate datasets from trusted repositories.<br>Apply aggressive filtering and deduplication.<br>Generate synthetic examples for tool use and planning. | 
@@ -92,7 +90,7 @@ Please analyze the error and provide a corrected version of the file.
 
 
 
-🗺️ High-Level Roadmap
+### High-Level Roadmap
 | Quarter | Milestones | 
 | Q1–Q2 | Build training pipeline and tokenizer.<br>Train baseline model (1B parameters).<br>Set up HumanEval and MBPP evaluation. | 
 | Q3 | Implement Tool API (file I/O, shell).<br>Fine-tune for basic tool use.<br>Develop CoT-based planning module. | 
