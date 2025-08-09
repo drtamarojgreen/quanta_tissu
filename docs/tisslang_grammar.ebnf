@@ -158,3 +158,61 @@ TASK "Analyze user activity from the past 24 hours" {
         }
     }
 }
+
+# Sample 5: Multi-Agent Collaboration (TissNet)
+# Agent 1 prepares a structured artifact. Agent 2 (in a separate process)
+# would consume this artifact to continue the work.
+
+TASK "Prepare code analysis report for documentation team" {
+    @persona "code_analyzer"
+    @output "json"
+
+    STEP "Read source file" {
+        READ "./src/main.py" AS source_code
+    }
+
+    STEP "Identify public functions and classes" {
+        PROMPT_AGENT "Extract all public function and class names from this Python code: {{source_code}}" INTO api_surface
+    }
+
+    STEP "Write TissLang Artifact for next agent" {
+        # This artifact contains the result and the context for the next agent.
+        WRITE "./artifacts/analysis_report.tiss" <<TISS_ARTIFACT
+@source_task "Prepare code analysis report"
+@source_agent "code_analyzer_v1"
+
+TASK "Generate user-friendly documentation from API surface" {
+    SET_BUDGET API_CALLS = 5
+
+    STEP "Generate documentation" {
+        @persona "technical_writer"
+        PROMPT_AGENT "Write documentation for the following API surface: {{LAST_RUN_RESULT}}"
+    }
+}
+
+LAST_RUN_RESULT = {{api_surface}}
+TISS_ARTIFACT
+    }
+}
+
+# Sample 6: A/B Testing Prompts
+# The agent tests two different prompts in parallel and then evaluates the results.
+
+TASK "Find the best prompt to summarize a complex article" {
+    READ "./articles/quantum_mechanics.txt" AS article_text
+
+    PARALLEL {
+        STEP "Test Prompt A (Simple)" {
+            PROMPT_AGENT "Summarize this article: {{article_text}}" INTO summary_a
+        }
+        STEP "Test Prompt B (Role-based)" {
+            @persona "science_journalist"
+            PROMPT_AGENT "Summarize this article for a general audience, focusing on the key takeaways: {{article_text}}" INTO summary_b
+        }
+    }
+
+    STEP "Evaluate which summary is better" {
+        @persona "editor_in_chief"
+        PROMPT_AGENT "Review these two summaries and determine which is clearer and more helpful for a non-expert reader. Summary A: {{summary_a}}. Summary B: {{summary_b}}."
+    }
+}
