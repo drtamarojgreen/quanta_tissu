@@ -16,6 +16,51 @@ The roadmap is divided into two main phases:
 
 More details can be found in `docs/agent_strategies.md`.
 
+## TissLang: The Agentic Language
+
+To steer the agent, we are developing **TissLang**, a high-level, declarative language designed specifically for orchestrating agentic workflows. It allows developers to define complex tasks in a structured, human-readable format.
+
+A TissLang script breaks a high-level goal into sequential steps, with commands to execute actions and assertions to verify outcomes.
+
+### Core Concepts
+
+-   **`TASK`**: Defines the overall objective.
+-   **`STEP`**: A logical unit of work within the task.
+-   **Commands**: Specific actions like `WRITE` (to the file system), `RUN` (a shell command), or `PROMPT_AGENT` (to invoke the LLM).
+-   **`ASSERT`**: Verifies the outcome of commands (e.g., `ASSERT LAST_RUN.EXIT_CODE == 0`).
+-   **Directives**: Metadata, like `@persona`, to guide the agent's behavior.
+-   **Advanced Control Flow**: Features like `PARALLEL` for concurrent execution and `CHOOSE` for conditional logic.
+
+### Example
+
+Here is a simple TissLang script to create and test a Python file:
+
+```tiss
+#TISS! Language=Python
+
+TASK "Create and test a simple Python hello world script"
+
+STEP "Create the main application file" {
+    WRITE "main.py" <<PYTHON
+import sys
+
+def main():
+    print(f"Hello, {sys.argv[1]}!")
+
+if __name__ == "__main__":
+    main()
+PYTHON
+}
+
+STEP "Run the script and verify its output" {
+    RUN "python main.py TissLang"
+    ASSERT LAST_RUN.EXIT_CODE == 0
+    ASSERT LAST_RUN.STDOUT CONTAINS "Hello, TissLang!"
+}
+```
+
+This structured approach is key to enabling the agent to handle complex, multi-step tasks autonomously.
+
 ## Ecological Awareness
 
 QuantaTissu aims to be a demonstration of how AI can be developed and used in an environmentally conscious manner. This involves a three-pronged approach to ecological awareness:
