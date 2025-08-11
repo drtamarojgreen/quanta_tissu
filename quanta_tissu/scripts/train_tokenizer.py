@@ -53,13 +53,20 @@ def main():
     tokenizer.train(text, args.vocab_size, verbose=args.verbose)
     
     print(f"\nTraining complete. Saving tokenizer to files with prefix: {args.save_prefix}")
+    tokenizer.save(args.save_prefix)
     
-    # In a real project, you would save the tokenizer's state here.
-    # For this prototype, we'll just demonstrate its use.
-    print("\n--- Testing Tokenizer ---")
+    print(f"\n--- Testing Saved and Loaded Tokenizer ---")
+    
+    # Create a new tokenizer instance and load the saved state
+    loaded_tokenizer = BPETokenizer()
+    loaded_tokenizer.load(args.save_prefix)
+    
+    print(f"Loaded tokenizer with vocab size: {len(loaded_tokenizer.vocab)}")
+    
+    # Test encoding and decoding with the loaded tokenizer
     sample_text = "This is a test of the new tokenizer, demonstrating resilience."
-    encoded = tokenizer.encode(sample_text)
-    decoded = tokenizer.decode(encoded)
+    encoded = loaded_tokenizer.encode(sample_text)
+    decoded = loaded_tokenizer.decode(encoded)
     
     print(f"Original: '{sample_text}'")
     print(f"Encoded: {encoded}")
@@ -67,6 +74,11 @@ def main():
     
     assert sample_text == decoded
     print("\nTest successful: Decoded text matches original.")
+    
+    # Verify that the loaded tokenizer is identical to the trained one
+    assert tokenizer.vocab == loaded_tokenizer.vocab
+    assert tokenizer.merges == loaded_tokenizer.merges
+    print("Verification successful: Loaded tokenizer matches the trained one.")
 
 if __name__ == "__main__":
     main()
