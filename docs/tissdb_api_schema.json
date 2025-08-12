@@ -1,0 +1,272 @@
+[
+    {
+        "name": "create_collection",
+        "description": "Create a new collection to store documents. Collections are analogous to tables in a SQL database.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The name for the new collection. Must be unique within the database."
+                }
+            },
+            "required": [
+                "collection_name"
+            ]
+        }
+    },
+    {
+        "name": "delete_collection",
+        "description": "Permanently delete an entire collection and all documents within it. This action cannot be undone.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The name of the collection to delete."
+                }
+            },
+            "required": [
+                "collection_name"
+            ]
+        }
+    },
+    {
+        "name": "create_index",
+        "description": "Create an index on a specific field within a collection to significantly speed up query performance.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The collection on which to create the index."
+                },
+                "field_name": {
+                    "type": "string",
+                    "description": "The name of the field to index. For nested fields, use dot notation (e.g., 'user.address.zipcode')."
+                },
+                "unique": {
+                    "type": "boolean",
+                    "description": "Optional. If true, enforces that all values for this field in the collection must be unique."
+                }
+            },
+            "required": [
+                "collection_name",
+                "field_name"
+            ]
+        }
+    },
+    {
+        "name": "create_document",
+        "description": "Add a new document to a specified collection. The document should be a valid JSON object.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The name of the collection where the document will be stored."
+                },
+                "document_data": {
+                    "type": "object",
+                    "description": "A JSON object representing the document to be created. The database will automatically assign a unique ID."
+                },
+                "document_id": {
+                    "type": "string",
+                    "description": "Optional. A specific unique ID for the document. If not provided, the database will generate one."
+                }
+            },
+            "required": [
+                "collection_name",
+                "document_data"
+            ]
+        }
+    },
+    {
+        "name": "get_document",
+        "description": "Retrieve a single document from a collection by its unique ID.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The collection containing the document."
+                },
+                "document_id": {
+                    "type": "string",
+                    "description": "The unique ID of the document to retrieve."
+                }
+            },
+            "required": [
+                "collection_name",
+                "document_id"
+            ]
+        }
+    },
+    {
+        "name": "update_document",
+        "description": "Update an existing document in a collection. This replaces the entire document with the new data provided.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The collection containing the document to update."
+                },
+                "document_id": {
+                    "type": "string",
+                    "description": "The unique ID of the document to update."
+                },
+                "update_data": {
+                    "type": "object",
+                    "description": "A JSON object representing the new state of the document."
+                }
+            },
+            "required": [
+                "collection_name",
+                "document_id",
+                "update_data"
+            ]
+        }
+    },
+    {
+        "name": "delete_document",
+        "description": "Permanently delete a single document from a collection by its unique ID.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The collection containing the document to delete."
+                },
+                "document_id": {
+                    "type": "string",
+                    "description": "The unique ID of the document to delete."
+                }
+            },
+            "required": [
+                "collection_name",
+                "document_id"
+            ]
+        }
+    },
+    {
+        "name": "query_documents",
+        "description": "Execute a TissQL query against a collection to find, filter, and retrieve multiple documents.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The collection to run the query against."
+                },
+                "tissql_query": {
+                    "type": "string",
+                    "description": "The TissQL query string. Example: \"SELECT name, price FROM products WHERE brand = 'TechGear' AND price < 300\""
+                },
+                "limit": {
+                    "type": "number",
+                    "description": "Optional. The maximum number of documents to return. Used for pagination."
+                },
+                "offset": {
+                    "type": "number",
+                    "description": "Optional. The number of documents to skip from the beginning of the result set. Used for pagination."
+                }
+            },
+            "required": [
+                "collection_name",
+                "tissql_query"
+            ]
+        }
+    },
+    {
+        "name": "list_collections",
+        "description": "List all collections currently in the database.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "get_collection_stats",
+        "description": "Retrieve statistics for a specific collection, such as document count, total size, and index information.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The name of the collection to get statistics for."
+                }
+            },
+            "required": [
+                "collection_name"
+            ]
+        }
+    },
+    {
+        "name": "list_indexes",
+        "description": "List all indexes created on a specific collection.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The name of the collection to list indexes for."
+                }
+            },
+            "required": [
+                "collection_name"
+            ]
+        }
+    },
+    {
+        "name": "patch_document",
+        "description": "Partially update an existing document with new field values. This only modifies the specified fields, leaving others untouched.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The collection containing the document to patch."
+                },
+                "document_id": {
+                    "type": "string",
+                    "description": "The unique ID of the document to patch."
+                },
+                "patch_data": {
+                    "type": "object",
+                    "description": "A JSON object containing the fields and new values to apply to the document."
+                }
+            },
+            "required": [
+                "collection_name",
+                "document_id",
+                "patch_data"
+            ]
+        }
+    },
+    {
+        "name": "bulk_create_documents",
+        "description": "Add multiple new documents to a specified collection in a single operation for improved performance.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "collection_name": {
+                    "type": "string",
+                    "description": "The name of the collection where the documents will be stored."
+                },
+                "documents": {
+                    "type": "array",
+                    "description": "An array of JSON objects, where each object represents a document to be created.",
+                    "items": {
+                        "type": "object"
+                    }
+                }
+            },
+            "required": [
+                "collection_name",
+                "documents"
+            ]
+        }
+    }
+]
