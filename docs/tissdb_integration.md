@@ -134,6 +134,55 @@ Be prepared to handle standard HTTP status codes:
 -   **`404 Not Found`**: The requested document or collection does not exist.
 -   **`500 Internal Server Error`**: An error occurred on the TissDB server.
 
+## Advanced Integration: Data Synchronization Strategies
+
+For complex systems, it's often necessary to actively synchronize data between services. TissDB can support this through several patterns.
+
+### 1. Change Data Capture (CDC) Streams
+The most robust method for real-time synchronization. Services can subscribe to a dedicated change stream for a collection.
+
+*   **How it works**: A service establishes a persistent connection to a TissDB endpoint like `GET /inventory/_changes`. TissDB streams every create, update, and delete event happening in the `inventory` collection to the client in real-time.
+*   **Use Case**: A `reporting-service` needs an immediate, up-to-date copy of all `order` documents to maintain live analytics dashboards. It subscribes to the `orders` change stream and updates its own aggregates as events arrive.
+
+### 2. Webhooks
+A simpler, push-based alternative to CDC for services that only need to be notified of changes.
+
+*   **How it works**: A service registers a webhook with TissDB, providing a URL and specifying a collection and event type (e.g., `document:created`). When a matching event occurs, TissDB sends an HTTP POST request to the registered URL with a payload describing the event.
+*   **Use Case**: An `notification-service` registers a webhook for new documents in the `support_tickets` collection. When a new ticket is created, TissDB notifies the service, which then sends an email alert to the support team.
+
+### 3. Batch Synchronization
+Suitable for non-critical data where near real-time updates are not required.
+
+*   **How it works**: A service runs a scheduled job (e.g., every hour) that executes a TissQL query to pull data modified since the last run. This typically involves querying against a timestamp field.
+*   **Use Case**: A `recommendation-engine` updates its models once a day. It runs a nightly query like `SELECT * FROM user_activity WHERE timestamp > 'yesterdays_date'` to fetch all new user activity and retrain its models.
+
+## Data Governance and Schema Management
+
+While TissDB's schema flexibility is a key feature, in a multi-repository environment, establishing clear data contracts is crucial for system stability.
+
+### 1. Shared Schema Repository
+It is highly recommended to maintain a central, version-controlled repository (e.g., a Git repo) that holds the canonical schemas for all shared data collections.
+
+*   **Example**: A `schemas/user.xml` file in a shared `quanta-contracts` repository would define the official structure of a `user` document. Any service that interacts with the `users` collection should refer to this contract.
+
+### 2. Schema Evolution Strategy
+Services must be able to evolve their data structures without breaking downstream consumers. The following strategies are recommended:
+
+*   **Additive Changes Only**: The most common and safest strategy. Never remove or rename fields that other services might be using. Only add new, optional fields. This ensures that older clients who are unaware of the new fields will not break.
+*   **Document Versioning**: For significant, breaking changes, introduce a version number directly in the document.
+
+    ```xml
+    <document id="user_456">
+      <schema_version>2.0</schema_version>
+      <name>
+        <first>Jane</first>
+        <last>Doe</last>
+      </name>
+      ...
+    </document>
+    ```
+    This allows consumer services to identify the document version and apply the correct parsing and handling logic, enabling multiple versions of a schema to coexist within the same collection.
+
 ## Security and Authentication
 
 All communication with TissDB must be secured.

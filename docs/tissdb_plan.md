@@ -2,19 +2,26 @@
 
 ## 1. Introduction & Vision
 
-Tissdb is a new NoSQL database designed for storing and querying data in a flexible, XML-like format. The vision for Tissdb is to provide a highly intuitive and human-readable data storage solution, ideal for applications where data structure is fluid and evolves over time. It prioritizes developer experience with a simple, powerful query language and a straightforward API. The core design philosophy is to keep the database simple, maintainable, and easy to reason about.
+Tissdb is a new database designed to serve as a high-performance, flexible data backbone for the Quanta ecosystem. The vision for Tissdb is to provide a powerful data integration layer that supports multiple data formats and enables complex, graph-based analysis.
+
+It utilizes a hybrid storage model supporting both **compressed XML** for complex, hierarchical documents and **CSV-style formats** for efficient, tabular knowledge storage. The query engine is built on algorithms that model the data as a **3D graph network**, allowing for powerful queries that can traverse relationships between disparate data sources.
+
+Development will follow a two-layer security strategy:
+1.  **Unsecured Knowledge Layer (Phase 1):** The initial version will be an open, unsecured layer designed for rapid development and seamless knowledge sharing between trusted services.
+2.  **Secure Transactional Layer (Phase 3):** A later version will add a robust, secure layer on top, with features like RBAC, encryption, and ACID transactions for sensitive data and critical workloads.
 
 ## 2. Data Model
 
-Tissdb's data model is based on an XML-like structure, but with a simpler, more modern syntax and a richer set of data types.
+Tissdb's data model is a graph where both documents and records are treated as "nodes".
 
-*   **Database**: The top-level container for collections.
-*   **Collection**: A group of related documents. Collections do not enforce a schema by default, but optional schema validation can be enabled on a per-collection basis.
-*   **Document**: A single record in a collection, identified by a unique ID (UUID by default). A document is composed of elements.
+### 2.1 XML-style Documents
+Ideal for complex, hierarchical data with nested structures.
+
+*   **Document**: A single record in a collection, identified by a unique ID. A document is composed of elements.
 *   **Element**: A key-value pair. The key is a tag, and the value can be a primitive, a nested element, or a list of primitives/elements.
 *   **Primitive Types**: `string`, `number` (integer and float), `boolean`, `datetime` (ISO 8601), and `binary` (Base64 encoded).
 
-**More Complex Example Document:**
+**Example XML Document:**
 ```xml
 <document id="product_789">
   <name>Wireless Headphones</name>
@@ -129,12 +136,21 @@ Tissdb's layered architecture is designed for modularity and separation of conce
 
 ## 6. Security Considerations
 
-Security is a first-class citizen in Tissdb's design.
+TissDB will be developed with a two-layer security model to balance the need for rapid, frictionless development with the requirement for robust security for sensitive workloads.
 
-*   **Encryption at Rest**: All data files on disk (segments, indexes, WAL) will be encrypted using AES-256. Master keys will be managed by an external system (e.g., HashiCorp Vault) to avoid storing keys with the data.
-*   **Encryption in Transit**: The REST API will require TLS 1.2 or higher to ensure all communication is encrypted. Communication between nodes in a future clustered environment will also be secured with TLS.
-*   **Access Control**: Role-Based Access Control (RBAC) will be implemented as a core feature. Administrators will be able to define roles with granular permissions (e.g., `read`, `write`, `delete`) on a per-collection basis.
+### Layer 1: Unsecured Knowledge Layer (Phases 1 & 2)
+The initial focus is on creating an open, unsecured data layer. This is designed for trusted internal environments where services and agents in the Quanta ecosystem need to share knowledge and data with minimal friction.
+*   **No Authentication/Authorization**: The API will not enforce any authentication or authorization. All clients will have full access.
+*   **No Encryption**: Data will not be encrypted at rest or in transit by default. This simplifies development, debugging, and performance for the knowledge-sharing use case.
+*   **Focus**: The priority for this layer is functionality, performance, and ease of integration.
+
+### Layer 2: Secure Transactional Layer (Phase 3)
+This layer will be built on top of the knowledge layer and will introduce robust, configurable security features for sensitive data and critical applications.
+*   **Encryption at Rest**: All data files on disk (segments, indexes, WAL) will be optionally encrypted using AES-256. Master keys will be managed by an external system (e.g., HashiCorp Vault).
+*   **Encryption in Transit**: The REST API will support TLS 1.2 or higher to ensure all communication can be encrypted.
+*   **Access Control**: Role-Based Access Control (RBAC) will be implemented. Administrators will be able to define roles with granular permissions (e.g., `read`, `write`, `delete`) on a per-collection basis.
 *   **Injection Prevention**: The TissQL query engine will exclusively use parameterized queries internally. All user input will be treated as data, not executable code, to eliminate the risk of injection attacks.
+This is a core design principle and applies to both layers.
 
 ## 7. Detailed Development Roadmap
 
@@ -158,3 +174,182 @@ Security is a first-class citizen in Tissdb's design.
     *   Task 3.3: Implement RBAC as defined in the Security section.
     *   Task 3.4: Develop official client libraries for Python and JavaScript.
     *   Task 3.5: Implement encryption at rest.
+
+## 8. Phase 1: MVP - Detailed Breakdown
+
+This section provides a more granular breakdown of the tasks required to deliver the Minimum Viable Product (MVP).
+
+### Objective
+Deliver a functional, single-node TissDB instance capable of basic document CRUD operations, simple TissQL queries, and single-field indexing. The focus is on core functionality and stability.
+
+---
+
+### Task 1.1: Document Serialization with MessagePack
+*   **Sub-tasks**:
+    1.  Evaluate and select a C++ MessagePack library (e.g., `msgpack-c`).
+    2.  Define a canonical mapping from the TissDB Document model (elements, primitives) to MessagePack's format.
+    3.  Implement `serialize()` and `deserialize()` functions.
+    4.  Write comprehensive unit tests covering all data types and nested structures.
+*   **Acceptance Criteria**:
+    *   A TissDB document can be serialized to a MessagePack byte array and deserialized back into its original structure without any data loss or type corruption.
+
+### Task 1.2: Core Append-Only Storage Layer
+*   **Sub-tasks**:
+    1.  Design the on-disk format for segment files, including document entries and a file header.
+    2.  Implement a Write-Ahead Log (WAL) for durability. Writes will first go to the WAL, then to an in-memory table (`memtable`).
+    3.  Implement the `memtable` flush mechanism, which writes the sorted contents of the `memtable` to a new, immutable segment file on disk.
+*   **Acceptance Criteria**:
+    *   The server can be shut down unexpectedly during a write operation and recover its state from the WAL upon restart.
+    *   Data written to the database is correctly persisted in segment files.
+
+### Task 1.3: Basic REST API for Document CRUD
+*   **Sub-tasks**:
+    1.  Select and integrate a lightweight C++ HTTP server library (e.g., `cpp-httplib`).
+    2.  Implement the `POST /<collection>` endpoint to create new documents.
+    3.  Implement the `GET /<collection>/<id>` endpoint to retrieve a document by its ID (requiring a full scan initially).
+    4.  Implement `PUT /<collection>/<id>` (full update) and `DELETE /<collection>/<id>` (tombstone write).
+*   **Acceptance Criteria**:
+    *   All CRUD endpoints can be successfully tested using a tool like `curl` or Postman.
+    *   Appropriate HTTP status codes (200, 201, 404, etc.) are returned.
+
+### Task 1.4: TissQL Parser for Basic SELECT
+*   **Sub-tasks**:
+    1.  Define a formal grammar (e.g., in EBNF) for a subset of TissQL: `SELECT <fields> FROM <collection> WHERE <field> = <value>`.
+    2.  Use a parser generator tool (e.g., ANTLR, Bison/Flex) to generate the parser code from the grammar.
+    3.  The parser must produce a simple Abstract Syntax Tree (AST) representing the query.
+    4.  Implement a basic query executor that walks the AST and performs a full collection scan, filtering documents based on the `WHERE` clause.
+*   **Acceptance Criteria**:
+    *   The `POST /<collection>/_query` endpoint correctly parses and executes valid `SELECT` queries.
+    *   Malformed queries result in a `400 Bad Request` error with a descriptive message.
+
+### Task 1.5: Single-Field B-Tree Indexing
+*   **Sub-tasks**:
+    1.  Implement or integrate a persistent B-Tree library.
+    2.  Create an API endpoint `POST /<collection>/_index` to trigger the creation of an index on a specific field.
+    3.  Modify the write path to automatically update the relevant index whenever a document is created, updated, or deleted.
+    4.  Update the query planner to detect when a `WHERE` clause can use an index, and direct the executor to use the index instead of a full scan.
+*   **Acceptance Criteria**:
+    *   Creating an index on a field is successful.
+    *   A `SELECT` query using an indexed field in the `WHERE` clause shows a significant performance improvement over a query on a non-indexed field.
+
+## 9. Phase 2: V1.1 - Detailed Breakdown
+
+This section provides a more granular breakdown of the tasks required to deliver Version 1.1.
+
+### Objective
+Evolve the MVP into a more robust database by implementing background data management (compaction), full query language support for writes, and foundational transactional and analytical capabilities.
+
+---
+
+### Task 2.1: LSM Tree Compaction
+*   **Sub-tasks**:
+    1.  Design and implement a compaction strategy (e.g., size-tiered or level-tiered).
+    2.  Implement a dedicated background thread pool to manage compaction tasks without blocking foreground operations.
+    3.  Develop the logic to merge multiple sorted segment files into a new segment, correctly handling overwritten values and removing entries marked with a tombstone.
+    4.  Update the database manifest atomically upon successful completion of a compaction to reflect the new segment state.
+*   **Acceptance Criteria**:
+    *   Deleted documents are physically purged from disk after a compaction cycle completes.
+    *   The total number of segment files is managed effectively, preventing performance degradation on reads.
+    *   The database remains fully available for reads and writes during the compaction process.
+
+### Task 2.2: TissQL UPDATE and DELETE Support
+*   **Sub-tasks**:
+    1.  Extend the TissQL grammar and parser to support `UPDATE ... SET ... WHERE ...` and `DELETE FROM ... WHERE ...` statements.
+    2.  Update the query planner and executor to handle these new statement types.
+    3.  The `DELETE` executor will find matching documents and write new entries with a "tombstone" marker.
+    4.  The `UPDATE` executor will effectively perform a read-modify-write operation, creating a new version of the document and writing it to the current memtable.
+*   **Acceptance Criteria**:
+    *   `UPDATE` queries correctly modify the specified fields in all matching documents.
+    *   `DELETE` queries make matching documents inaccessible for all subsequent reads.
+    *   The `WHERE` clause in both `UPDATE` and `DELETE` statements correctly utilizes existing indexes to find target documents.
+
+### Task 2.3: Compound Indexing
+*   **Sub-tasks**:
+    1.  Update the `POST /<collection>/_index` endpoint to accept an array of field names.
+    2.  Modify the B-Tree implementation to handle composite keys, where key values are concatenated from multiple document fields.
+    3.  Enhance the query planner to detect when a query's `WHERE` clause can be partially or fully satisfied by a compound index.
+*   **Acceptance Criteria**:
+    *   An index can be successfully created on `(brand, price)`.
+    *   A query like `SELECT * FROM products WHERE brand = 'AudioPhonic' AND price < 200` uses the compound index to narrow the search space efficiently.
+
+### Task 2.4: TissQL Aggregate Functions
+*   **Sub-tasks**:
+    1.  Extend the TissQL grammar to support aggregate functions (`COUNT`, `AVG`, `SUM`, `MIN`, `MAX`) and the `GROUP BY` clause.
+    2.  Implement an aggregation operator in the query executor that can process rows and compute aggregate values.
+    3.  Implement the `GROUP BY` logic, likely using a hash table to group results before aggregation.
+*   **Acceptance Criteria**:
+    *   `SELECT COUNT(*) FROM products WHERE is_available = true` returns the correct count.
+    *   `SELECT brand, AVG(price) FROM products GROUP BY brand` returns the correct average price for each brand.
+
+### Task 2.5: Multi-Document Transactions
+*   **Sub-tasks**:
+    1.  Implement API endpoints for transaction control: `POST /_transaction/begin`, `POST /_transaction/commit`, `POST /_transaction/rollback`.
+    2.  Implement a transaction manager that assigns a transaction ID and tracks the read and write sets for each active transaction.
+    3.  Implement a concurrency control mechanism (e.g., two-phase locking) to ensure serializable isolation.
+    4.  Modify the WAL to log transaction boundaries (`BEGIN`, `COMMIT`) to enable atomic commits and recovery.
+*   **Acceptance Criteria**:
+    *   A transaction that updates two separate documents can be committed atomically; either both updates are visible, or neither is.
+    *   If a transaction is rolled back, none of its changes are visible.
+    *   The server can recover from a crash mid-transaction, correctly rolling back any uncommitted changes upon restart.
+
+## 10. Phase 3: V2.0 - Detailed Breakdown
+
+This section provides a more granular breakdown of the tasks required to deliver Version 2.0.
+
+### Objective
+Transform TissDB from a single-node database into a distributed, scalable, and secure system. This phase also includes developing client libraries to improve developer experience.
+
+---
+
+### Task 3.1: Leader-Follower Replication
+*   **Sub-tasks**:
+    1.  Implement a leader election mechanism using a proven consensus algorithm like Raft.
+    2.  Extend the Write-Ahead Log (WAL) to become a replicated log that the leader streams to followers.
+    3.  Implement the follower logic to receive, acknowledge, and apply log entries to their local storage engine.
+    4.  Develop a robust failover mechanism. If a leader becomes unresponsive, the remaining nodes must elect a new leader with a fully up-to-date log.
+*   **Acceptance Criteria**:
+    *   Writes to the leader are successfully replicated to a configurable quorum of followers before the write is acknowledged to the client.
+    *   In the event of a leader failure, a new leader is elected within seconds and the database remains available for writes.
+    *   Follower nodes can be taken offline and brought back online, automatically catching up with the leader's state.
+
+### Task 3.2: Range-Based Sharding
+*   **Sub-tasks**:
+    1.  Design a sharding strategy based on ranges of a designated shard key within each collection.
+    2.  Implement a cluster metadata service (or use the Raft cluster itself) to manage the mapping of key ranges to shard-hosting nodes.
+    3.  Update the query router in the API layer to inspect incoming requests, determine the target shard(s), and proxy the request to the correct node(s).
+    4.  Implement an administrative API for shard splitting and rebalancing to allow for cluster expansion.
+*   **Acceptance Criteria**:
+    *   A collection's data is successfully distributed across multiple nodes.
+    *   Queries are correctly routed to the appropriate nodes, and cross-shard queries are aggregated correctly.
+    *   The cluster can be expanded with new nodes, and existing shards can be rebalanced onto them without downtime.
+
+### Task 3.3: Role-Based Access Control (RBAC)
+*   **Sub-tasks**:
+    1.  Design and implement internal system collections to store user, role, and permission data.
+    2.  Create secure administrative API endpoints for managing users and roles (e.g., `POST /_admin/users`, `POST /_admin/roles`).
+    3.  Integrate an authentication middleware into the API layer that validates bearer tokens (API Keys).
+    4.  Implement an authorization middleware that checks the authenticated user's permissions for the target collection and operation before passing the request to the query engine.
+*   **Acceptance Criteria**:
+    *   An administrator can create a role with specific permissions (e.g., read-only on `collection_a`, write on `collection_b`).
+    *   A user with an API key linked to that role is denied access when attempting an unauthorized operation.
+
+### Task 3.4: Official Client Libraries
+*   **Sub-tasks**:
+    1.  Develop an idiomatic Python client library that provides a clean, high-level interface over the REST API.
+    2.  The library must handle connection pooling, request serialization, and response deserialization.
+    3.  Package the library and publish it to the Python Package Index (PyPI).
+    4.  Repeat the process for a JavaScript/TypeScript client library, publishing it to the npm registry.
+*   **Acceptance Criteria**:
+    *   A developer can `pip install tissdb` or `npm install tissdb` and interact with the database without writing raw HTTP requests.
+    *   Both libraries are well-documented and include comprehensive examples.
+
+### Task 3.5: Encryption at Rest
+*   **Sub-tasks**:
+    1.  Integrate a robust cryptographic library (e.g., OpenSSL `libcrypto` or libsodium).
+    2.  Modify the storage engine's file manager to encrypt segment files, index files, and WAL files before writing them to disk.
+    3.  Implement a secure key management architecture that integrates with an external KMS (like HashiCorp Vault) for managing the master encryption key.
+    4.  Ensure the encryption/decryption process has minimal performance overhead on database operations.
+*   **Acceptance Criteria**:
+    *   All data files on disk are fully encrypted.
+    *   Manual inspection of disk files (e.g., with a hex editor) reveals no plaintext data.
+    *   The database cannot be started without access to the master key from the configured KMS.
