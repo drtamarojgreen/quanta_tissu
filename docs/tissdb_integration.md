@@ -253,11 +253,11 @@ A robust backup and recovery strategy is critical for data durability. TissDB pr
 
 Beyond serving as a transactional database, TissDB is designed with powerful features to support analytical queries and business intelligence reporting directly on your operational data.
 
-### 1. Advanced Analytical Queries with TissQL
-TissQL's support for aggregations and joins makes it a powerful tool for data analysis. You can perform complex calculations directly within the database, reducing the need to move large amounts of data to a separate analytics system.
+### 1. Advanced Analytical Queries
+TissQL's support for aggregations, joins, and window functions makes it a powerful tool for data analysis. You can perform complex calculations directly within the database, reducing the need to move large amounts of data to a separate analytics system.
 
-**Example: Monthly Sales Report**
-This query joins `orders` with `products` to calculate total revenue per product category for a given month.
+**Example: Monthly Sales Report (Join & Aggregation)**
+This query joins `orders` with `products` to calculate total revenue per product category.
 
 ```json
 // POST /_query
@@ -314,5 +314,12 @@ You can build automated reporting services on top of TissDB.
 *   **Use Case**: A daily report of new user sign-ups is automatically generated and emailed to the marketing team every morning at 8 AM.
 
 ## Conclusion
+---
+
+## The TissDB Business Intelligence Suite
+
+To fully leverage the unique graph and hybrid-data capabilities of TissDB, a custom Business Intelligence (BI) suite is being developed. While external connectors provide broad compatibility, this native suite offers unparalleled insight into TissDB's data structures. It includes a **Query Workbench** for power users, a **Dashboard Builder** for business users, and a **Graph Explorer** for deep relationship analysis.
+
+For a complete overview of these components, please see the TissDB BI Suite Vision document.
 
 The development of TissDB is a strategic investment in our engineering ecosystem. By providing a flexible, powerful, and centralized data integration point, TissDB will break down data barriers, reduce architectural complexity, and empower our development teams to build more cohesive and capable applications.
