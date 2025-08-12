@@ -1,4 +1,5 @@
 #include "memtable.h"
+#include "../common/serialization.h" // For calculating document size accurately
 
 namespace TissDB {
 namespace Storage {
@@ -6,21 +7,59 @@ namespace Storage {
 Memtable::Memtable() : estimated_size(0) {}
 
 void Memtable::put(const std::string& key, const Document& doc) {
-    // Placeholder: In a real implementation, we would calculate the size
-    // of the key and document to update estimated_size.
-    (void)key;
-    (void)doc;
+    // To accurately track memory usage, we account for the change in size.
+    size_t old_value_size = 0;
+    auto it = data.find(key);
+    if (it != data.end()) {
+        // If the key already exists, find the size of the old value.
+        if (it->second) { // If it's a document, not a tombstone
+            old_value_size = TissDB::serialize(*(it->second)).size();
+        }
+    } else {
+        // If the key is new, it adds the key's size to the total.
+        estimated_size += key.size();
+    }
+
+    // Create the new document and calculate its size.
+    auto new_doc_ptr = std::make_shared<Document>(doc);
+    size_t new_value_size = TissDB::serialize(*new_doc_ptr).size();
+
+    // Update the total estimated size.
+    estimated_size -= old_value_size;
+    estimated_size += new_value_size;
+
+    // Insert the new document into the map.
+    data[key] = new_doc_ptr;
 }
 
 void Memtable::del(const std::string& key) {
-    // Placeholder: This would insert a tombstone marker.
-    (void)key;
+    size_t old_value_size = 0;
+    auto it = data.find(key);
+    if (it != data.end()) {
+        // If the key exists, get the size of the document being replaced.
+        if (it->second) {
+            old_value_size = TissDB::serialize(*(it->second)).size();
+        }
+    } else {
+        // If the key is new, it adds its own size.
+        estimated_size += key.size();
+    }
+
+    // A tombstone has no value, so the new value size is 0.
+    estimated_size -= old_value_size;
+
+    // Insert a null pointer as a tombstone marker.
+    data[key] = nullptr;
 }
 
 std::optional<std::shared_ptr<Document>> Memtable::get(const std::string& key) {
-    // Placeholder.
-    (void)key;
-    return std::nullopt;
+    auto it = data.find(key);
+    if (it == data.end()) {
+        // The key is not in the memtable at all.
+        return std::nullopt;
+    }
+    // The key is in the memtable. The value could be a document or a tombstone (nullptr).
+    return it->second;
 }
 
 const std::map<std::string, std::shared_ptr<Document>>& Memtable::get_all() const {
