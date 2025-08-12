@@ -191,6 +191,128 @@ All communication with TissDB must be secured.
 *   **Authentication**: Services must authenticate using a bearer token (API Key) in the `Authorization` header of every request.
 *   **Authorization**: Access is controlled via Role-Based Access Control (RBAC). Roles are defined with granular permissions (e.g., `read`, `write`, `delete`) on a per-collection basis. Ensure your service's API key is associated with a role that has the minimum required permissions.
 
+---
+
+## Best Practices for Integration
+
+To ensure a stable, scalable, and maintainable integration, please adhere to the following best practices.
+
+### Performance Optimization
+*   **Use Indexes**: For any field that will be used in a `WHERE` clause for queries, ensure an index is created. Querying non-indexed fields will result in a full collection scan, which is significantly slower.
+*   **Be Specific with Projections**: Always specify the exact fields you need in a `SELECT` statement (e.g., `SELECT sku, stock_level` instead of `SELECT *`). This reduces the amount of data transferred over the network and the processing load on both the client and server.
+*   **Batch Your Operations**: When creating or updating many documents, use the bulk endpoints (e.g., `bulk_create_documents`) instead of sending hundreds of individual requests. This significantly reduces network overhead and allows the database to perform more efficient writes.
+*   **Cache Frequently Accessed Data**: If your service repeatedly fetches the same static or slowly changing data, implement a caching layer (e.g., Redis, Memcached, or a simple in-memory cache) on the client side to reduce load on TissDB.
+
+### API Versioning
+The TissDB API will follow a versioning scheme to manage changes and ensure client stability.
+
+*   **Non-Breaking Changes**: Adding new, optional fields to API responses or adding new API endpoints are considered non-breaking changes and will not result in a version bump. Clients should be designed to ignore unexpected fields in JSON responses.
+*   **Breaking Changes**: Any change that removes a field, renames a field, or alters the fundamental behavior of an existing endpoint is a breaking change. These changes will only be introduced in a new version of the API.
+*   **Versioning Scheme**: The API will be versioned via the URL path (e.g., `/api/v1/users`, `/api/v2/users`). We are committed to maintaining older versions for a reasonable deprecation period to allow clients to migrate gracefully.
+
+### Using Client Libraries
+While it is possible to interact with TissDB via direct HTTP requests, it is highly recommended to use the official client libraries once they become available (see Phase 3 of the development plan).
+
+*   **Benefits**: Client libraries will handle the complexities of authentication, request serialization, response parsing, and error handling, leading to cleaner and more reliable application code.
+
+## Conclusion
+---
+
+## Monitoring and Observability
+
+To ensure the health and performance of TissDB and its integrations, it is essential to monitor key metrics. TissDB exposes a dedicated endpoint for this purpose.
+
+*   **Metrics Endpoint**: TissDB provides a Prometheus-compatible metrics endpoint at `GET /metrics`. This endpoint exposes real-time data on:
+    *   **Query Performance**: Latency percentiles (p50, p90, p99) for read and write queries.
+    *   **Throughput**: The number of read/write operations per second.
+    *   **Error Rates**: The rate of HTTP 4xx and 5xx errors.
+    *   **Resource Usage**: CPU load, memory usage, and disk space utilization.
+*   **Structured Logging**: TissDB outputs structured logs (in JSON format) that can be ingested by log management systems like Splunk, Elasticsearch, or Loki. These logs provide detailed context for debugging failed queries or performance issues.
+*   **Distributed Tracing**: For services integrating with TissDB, it is recommended to use distributed tracing (e.g., OpenTelemetry). TissDB is designed to propagate trace contexts, allowing you to visualize the entire lifecycle of a request as it flows from your service to the database and back.
+
+## Backup and Recovery
+
+A robust backup and recovery strategy is critical for data durability. TissDB provides mechanisms for creating consistent snapshots of the database.
+
+### Backup Strategy
+*   **Online Snapshots**: The recommended approach is to take regular online snapshots. A snapshot captures a consistent, point-in-time view of the entire database without requiring downtime.
+*   **API Endpoint**: Snapshots can be triggered via an administrative API call:
+    ```bash
+    curl -X POST http://tissdb.internal:8080/_admin/snapshots -H "Authorization: Bearer <admin_api_key>"
+    ```
+*   **Automation**: It is recommended to automate this process using a cron job or a scheduled task that triggers the snapshot and copies the resulting artifact to a secure, off-site storage location (e.g., an S3 bucket).
+
+### Recovery Process
+*   **Restoring from a Snapshot**: In the event of data loss or corruption, TissDB can be restored from a snapshot. This involves stopping the TissDB service, replacing the data directory with the contents of the snapshot, and restarting the service.
+*   **Point-in-Time Recovery (PITR)**: For more granular recovery, TissDB's Write-Ahead Log (WAL) can be used in conjunction with a snapshot to restore the database to a specific point in time. This is an advanced procedure detailed in the TissDB administration guide.
+
+## Conclusion
+---
+
+## Analytics and Reporting Capabilities
+
+Beyond serving as a transactional database, TissDB is designed with powerful features to support analytical queries and business intelligence reporting directly on your operational data.
+
+### 1. Advanced Analytical Queries with TissQL
+TissQL's support for aggregations and joins makes it a powerful tool for data analysis. You can perform complex calculations directly within the database, reducing the need to move large amounts of data to a separate analytics system.
+
+**Example: Monthly Sales Report**
+This query joins `orders` with `products` to calculate total revenue per product category for a given month.
+
+```json
+// POST /_query
+{
+  "query": "SELECT p.category, SUM(o.quantity * p.price) AS total_revenue FROM orders o JOIN products p ON o.product_id = p.id WHERE o.order_date >= '2023-10-01' AND o.order_date < '2023-11-01' GROUP BY p.category ORDER BY total_revenue DESC"
+}
+```
+
+### 1.1. Time-Series and Window Functions
+TissQL also supports window functions, which are essential for time-series analysis. These functions allow you to perform calculations across a set of rows that are related to the current row.
+
+**Example: 7-Day Moving Average of Sales**
+This query calculates the 7-day moving average of total sales from a `daily_sales` collection.
+
+```json
+// POST /_query
+{
+  "query": "SELECT sale_date, total_sales, AVG(total_sales) OVER (ORDER BY sale_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS seven_day_moving_avg FROM daily_sales"
+}
+```
+
+### 2. Materialized Views for Performance
+For frequently run, complex analytical queries, TissDB supports **materialized views**. A materialized view pre-computes and stores the result of a query, allowing for near-instantaneous access to complex aggregations.
+
+*   **How it works**: You define a materialized view using a standard TissQL `SELECT` query. TissDB runs this query periodically in the background and stores the results in a special, read-only collection.
+*   **API Endpoint**:
+    ```bash
+    # Create or update a materialized view
+    curl -X PUT http://tissdb.internal:8080/_views/monthly_sales_by_category \
+         -H "Authorization: Bearer <admin_api_key>" \
+         -d '{
+               "query": "SELECT p.category, ...",
+               "refresh_interval": "24h"
+             }'
+    ```
+*   **Use Case**: A business dashboard needs to display monthly sales figures. Instead of running the expensive join query every time the dashboard loads, it can simply query the `monthly_sales_by_category` materialized view for instant results.
+
+### 3. Integration with Business Intelligence (BI) Tools
+TissDB is designed to integrate with standard BI and data visualization tools like Tableau, Power BI, or Metabase.
+
+*   **TissDB Connector**: A dedicated JDBC/ODBC connector will be provided, allowing BI tools to connect to TissDB as they would to a traditional SQL database. The connector translates the BI tool's queries into TissQL.
+*   **REST API for Analytics**: For tools that can consume REST APIs, TissDB provides a simple way to fetch query results in standard formats.
+    ```bash
+    # Request data as CSV for easy import into analytics tools
+    curl -X POST http://tissdb.internal:8080/orders/_query \
+         -H "Accept: text/csv" \
+         -d '{"query": "SELECT id, order_date, total_amount FROM orders"}'
+    ```
+
+### 4. Scheduled Reporting
+You can build automated reporting services on top of TissDB.
+
+*   **How it works**: A scheduled service (e.g., a Python script running on a cron job) periodically executes a TissQL query against the API. The service then formats the results into a report (e.g., a PDF, an Excel file, or an email body) and distributes it to stakeholders.
+*   **Use Case**: A daily report of new user sign-ups is automatically generated and emailed to the marketing team every morning at 8 AM.
+
 ## Conclusion
 
 The development of TissDB is a strategic investment in our engineering ecosystem. By providing a flexible, powerful, and centralized data integration point, TissDB will break down data barriers, reduce architectural complexity, and empower our development teams to build more cohesive and capable applications.
