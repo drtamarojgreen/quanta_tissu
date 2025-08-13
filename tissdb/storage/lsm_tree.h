@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <vector>
+#include "sstable.h" // Include the new SSTable header
 
 namespace TissDB {
 namespace Storage {
@@ -34,12 +35,12 @@ private:
     // Flushes the current memtable to a new SSTable on disk when it's full.
     void flush_memtable();
 
-    std::string data_directory;
-    std::unique_ptr<Memtable> memtable;
-    std::unique_ptr<WriteAheadLog> wal;
+    std::string data_directory_;
+    std::unique_ptr<Memtable> memtable_;
+    std::unique_ptr<WriteAheadLog> wal_;
 
-    // In a real implementation, this would hold metadata about the SSTable files on disk.
-    // std::vector<SSTableMeta> sstables;
+    // A list of all SSTables currently managed by the LSM Tree, ordered from newest to oldest.
+    std::vector<std::unique_ptr<SSTable>> sstables_;
 };
 
 } // namespace Storage
