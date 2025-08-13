@@ -102,7 +102,7 @@ Before writing any code, identify the structure of the data your service will re
 ```
 
 ### 2. Implement an API Client
-Your service will need a client to communicate with the TissDB REST API. Here is a basic example in Python using the `requests` library.
+Your service will need a client to communicate with the TissDB REST API. Here is a basic example in Python using an HTTP client library.
 
 ```python
 import requests

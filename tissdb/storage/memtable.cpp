@@ -71,9 +71,26 @@ void Memtable::clear() {
     estimated_size = 0;
 }
 
+
 size_t Memtable::approximate_size() const {
     return estimated_size;
 }
+
+std::vector<Document> Memtable::scan() const {
+    std::vector<Document> documents;
+    for (const auto& pair : data) {
+        if (pair.second) { // If it's a document, not a tombstone
+            documents.push_back(*pair.second);
+        } else {
+            // Tombstone
+            Document tombstone;
+            tombstone.id = pair.first;
+            documents.push_back(tombstone);
+        }
+    }
+    return documents;
+}
+
 
 } // namespace Storage
 } // namespace TissDB

@@ -2,20 +2,42 @@
 
 #include "ast.h"
 #include <string>
+#include <vector>
 
 namespace TissDB {
 namespace Query {
 
-// The Parser class is responsible for converting a raw TissQL query string
-// into an Abstract Syntax Tree (AST).
+// Represents a token from the query string
+struct Token {
+    enum class Type { IDENTIFIER, KEYWORD, LITERAL, OPERATOR, EOI };
+    Type type;
+    std::string value;
+};
+
 class Parser {
 public:
     Parser();
-
-    // Parses a TissQL query string.
-    // If the query is valid, it returns the corresponding AST.
-    // If the query is malformed, it throws a std::runtime_error.
     AST parse(const std::string& query_string);
+
+private:
+    std::vector<Token> tokens;
+    size_t pos = 0;
+
+    // Tokenizer
+    std::vector<Token> tokenize(const std::string& query_string);
+
+    // Parser methods
+    SelectStatement parse_select_statement();
+    std::vector<std::string> parse_select_list();
+    std::string parse_table_name();
+    std::optional<Expression> parse_where_clause();
+    Expression parse_expression(int precedence = 0);
+    Expression parse_primary_expression();
+
+    // Helper methods
+    Token peek();
+    Token consume();
+    void expect(Token::Type type, const std::string& value = "");
 };
 
 } // namespace Query
