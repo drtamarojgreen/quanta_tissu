@@ -1,5 +1,9 @@
 #include "lsm_tree.h"
+#include "../common/serialization.h" // For TissDB::deserialize
 #include <filesystem>
+#include <iostream>
+#include <algorithm>
+#include <vector>
 
 namespace TissDB {
 namespace Storage {
@@ -7,84 +11,104 @@ namespace Storage {
 // A reasonable threshold for flushing the memtable to disk.
 const size_t MEMTABLE_FLUSH_THRESHOLD = 4 * 1024 * 1024; // 4MB
 
-LSMTree::LSMTree(const std::string& data_dir) : data_directory(data_dir) {
-    std::filesystem::create_directories(data_directory);
+LSMTree::LSMTree(const std::string& data_dir) : data_directory_(data_dir) {
+    std::filesystem::create_directories(data_directory_);
 
-    // Initialize the components.
-    wal = std::make_unique<WriteAheadLog>(data_directory + "/wal.log");
-    memtable = std::make_unique<Memtable>();
+    wal_ = std::make_unique<WriteAheadLog>(data_directory_ + "/wal.log");
+    memtable_ = std::make_unique<Memtable>();
 
-    // In a real database, we would recover state from the WAL here.
-    // auto log_entries = wal->recover();
-    // for (const auto& entry : log_entries) { ... }
+    // Load existing SSTables from the data directory on startup.
+    std::vector<std::string> sstable_paths;
+    for (const auto& entry : std::filesystem::directory_iterator(data_directory_)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".db" && entry.path().filename().string().rfind("sstable_", 0) == 0) {
+            sstable_paths.push_back(entry.path().string());
+        }
+    }
+    // Sort paths descending based on the timestamp in the filename to have newest files first.
+    std::sort(sstable_paths.rbegin(), sstable_paths.rend());
+
+    for(const auto& path : sstable_paths) {
+        sstables_.push_back(std::make_unique<SSTable>(path));
+    }
+
+    // A full implementation would also recover from the WAL here to rebuild the memtable
+    // in case of a crash before a flush.
 }
 
 void LSMTree::put(const std::string& key, const Document& doc) {
-    // The write-path for an LSM-Tree:
-    // 1. First, write the operation to the Write-Ahead Log for durability.
-    //    If the server crashes, we can recover from this log.
     LogEntry entry;
     entry.type = LogEntryType::PUT;
-    entry.document_id = key; // The key is needed for recovery
+    entry.document_id = key;
     entry.doc = doc;
-    wal->append(entry);
+    wal_->append(entry);
 
-    // 2. Second, write the data to the in-memory Memtable.
-    memtable->put(key, doc);
+    memtable_->put(key, doc);
 
-    // 3. Finally, check if the memtable has grown too large.
-    //    If so, it should be scheduled for flushing to disk.
-    if (memtable->approximate_size() > MEMTABLE_FLUSH_THRESHOLD) {
-        // flush_memtable(); // This complex operation will be implemented later.
+    if (memtable_->approximate_size() > MEMTABLE_FLUSH_THRESHOLD) {
+        flush_memtable();
     }
 }
 
 std::optional<Document> LSMTree::get(const std::string& key) {
     // The read-path for an LSM-Tree:
     // 1. Check the Memtable first, as it contains the most recent data.
-    auto mem_result = memtable->get(key);
+    auto mem_result = memtable_->get(key);
     if (mem_result.has_value()) {
-        if (mem_result.value() == nullptr) {
-            // A tombstone was found, which means the document is deleted.
+        if (mem_result.value() == nullptr) { // Tombstone found
             return std::nullopt;
         }
-        // Document was found in the memtable.
-        return *(mem_result.value());
+        return *(mem_result.value()); // Document found in memtable
     }
 
-    // 2. If not in the memtable, search the on-disk SSTables.
-    //    This search must go from the newest SSTable to the oldest.
-    //    This functionality will be implemented in a future task.
-    //    For now, if it's not in the memtable, it's not found.
+    // 2. If not in memtable, search the on-disk SSTables, from newest to oldest.
+    for (const auto& sstable : sstables_) {
+        auto sst_result = sstable->find(key);
+        if (sst_result.has_value()) {
+            // The key was found in this SSTable.
+            if (sst_result->empty()) {
+                // An empty vector signifies a tombstone. The document is deleted.
+                return std::nullopt;
+            }
+            // Found the serialized document data. Deserialize and return it.
+            return TissDB::deserialize(*sst_result);
+        }
+        // If sst_result is nullopt, the key is not in this SSTable, so we continue to the next.
+    }
+
+    // 3. If the key is not found in the memtable or any SSTable, it doesn't exist.
     return std::nullopt;
 }
 
 void LSMTree::del(const std::string& key) {
-    // Deletion follows the same write-path as a put.
-    // 1. Write a "tombstone" record to the Write-Ahead Log.
     LogEntry entry;
     entry.type = LogEntryType::DELETE;
     entry.document_id = key;
-    wal->append(entry);
+    wal_->append(entry);
 
-    // 2. Write the tombstone to the Memtable.
-    memtable->del(key);
+    memtable_->del(key);
 
-    // 3. Check if the memtable needs flushing.
-    if (memtable->approximate_size() > MEMTABLE_FLUSH_THRESHOLD) {
-        // flush_memtable();
+    if (memtable_->approximate_size() > MEMTABLE_FLUSH_THRESHOLD) {
+        flush_memtable();
     }
 }
 
 void LSMTree::flush_memtable() {
-    // This is a placeholder for the memtable flush operation.
-    // In a real implementation, this would be a complex process:
-    // 1. Swap the active memtable with a new empty one.
-    // 2. Make the old memtable immutable.
-    // 3. In a background thread:
-    //    a. Write the sorted contents of the immutable memtable to a new SSTable file.
-    //    b. When the write is complete, update a manifest file with the new SSTable.
-    //    c. The corresponding WAL entries can now be safely discarded.
+    // 1. Write the contents of the current (full) memtable to a new SSTable file.
+    //    The static method handles file creation and returns the new path.
+    std::string new_sstable_path = SSTable::write_from_memtable(data_directory_, *memtable_);
+
+    // 2. Create a new SSTable object representing the new file and add it to the front
+    //    of our list to maintain the newest-to-oldest order.
+    sstables_.insert(sstables_.begin(), std::make_unique<SSTable>(new_sstable_path));
+
+    // 3. Atomically swap the old memtable with a new empty one for incoming writes.
+    memtable_ = std::make_unique<Memtable>();
+
+    // 4. Since the data is now safely persisted in an SSTable, we can clear the
+    //    Write-Ahead Log.
+    wal_->clear();
+
+    std::cout << "Memtable flushed to " << new_sstable_path << std::endl;
 }
 
 } // namespace Storage
