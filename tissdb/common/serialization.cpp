@@ -1,3 +1,4 @@
+
 #include "serialization.h"
 #include <sstream>
 #include <stdexcept>
@@ -179,4 +180,4 @@ Document deserialize(const std::vector<uint8_t>& bytes) {
     return doc;
 }
 
-} // namespace TissDB
+}
