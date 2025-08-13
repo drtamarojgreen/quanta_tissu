@@ -162,7 +162,8 @@ This is a core design principle and applies to both layers.
     *   Task 1.5: Implement single-field B-tree indexing.
 
 *   **Phase 2 (V1.1) - 3 Months**:
-    *   Task 2.1: Implement the LSM tree with background compaction.
+    *   Task 2.1: Implement collection management.
+    *   Task 2.2: Implement the LSM tree with background compaction.
     *   Task 2.2: Add support for `UPDATE` and `DELETE` in TissQL.
     *   Task 2.3: Introduce compound indexes.
     *   Task 2.4: Enhance TissQL with aggregate functions (`COUNT`, `AVG`).
@@ -186,7 +187,7 @@ Deliver a functional, single-node TissDB instance capable of basic document CRUD
 
 ### Task 1.1: Document Serialization with MessagePack
 *   **Sub-tasks**:
-    1.  Evaluate and select a C++ MessagePack library (e.g., `msgpack-c`).
+    1.  Implement a C++ MessagePack library.
     2.  Define a canonical mapping from the TissDB Document model (elements, primitives) to MessagePack's format.
     3.  Implement `serialize()` and `deserialize()` functions.
     4.  Write comprehensive unit tests covering all data types and nested structures.
@@ -204,7 +205,7 @@ Deliver a functional, single-node TissDB instance capable of basic document CRUD
 
 ### Task 1.3: Basic REST API for Document CRUD
 *   **Sub-tasks**:
-    1.  Select and integrate a lightweight C++ HTTP server library (e.g., `cpp-httplib`).
+    1.  Implement a lightweight C++ HTTP server.
     2.  Implement the `POST /<collection>` endpoint to create new documents.
     3.  Implement the `GET /<collection>/<id>` endpoint to retrieve a document by its ID (requiring a full scan initially).
     4.  Implement `PUT /<collection>/<id>` (full update) and `DELETE /<collection>/<id>` (tombstone write).
@@ -215,7 +216,7 @@ Deliver a functional, single-node TissDB instance capable of basic document CRUD
 ### Task 1.4: TissQL Parser for Basic SELECT
 *   **Sub-tasks**:
     1.  Define a formal grammar (e.g., in EBNF) for a subset of TissQL: `SELECT <fields> FROM <collection> WHERE <field> = <value>`.
-    2.  Use a parser generator tool (e.g., ANTLR, Bison/Flex) to generate the parser code from the grammar.
+    2.  Implement a parser from the grammar.
     3.  The parser must produce a simple Abstract Syntax Tree (AST) representing the query.
     4.  Implement a basic query executor that walks the AST and performs a full collection scan, filtering documents based on the `WHERE` clause.
 *   **Acceptance Criteria**:
@@ -345,9 +346,9 @@ Transform TissDB from a single-node database into a distributed, scalable, and s
 
 ### Task 3.5: Encryption at Rest
 *   **Sub-tasks**:
-    1.  Integrate a robust cryptographic library (e.g., OpenSSL `libcrypto` or libsodium).
+    1.  Implement a robust cryptographic library.
     2.  Modify the storage engine's file manager to encrypt segment files, index files, and WAL files before writing them to disk.
-    3.  Implement a secure key management architecture that integrates with an external KMS (like HashiCorp Vault) for managing the master encryption key.
+    3.  Implement a secure key management architecture for managing the master encryption key.
     4.  Ensure the encryption/decryption process has minimal performance overhead on database operations.
 *   **Acceptance Criteria**:
     *   All data files on disk are fully encrypted.

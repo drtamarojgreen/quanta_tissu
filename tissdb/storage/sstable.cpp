@@ -57,6 +57,35 @@ std::optional<std::vector<uint8_t>> SSTable::find(const std::string& key) {
     return std::nullopt; // Key not found
 }
 
+std::vector<Document> SSTable::scan() {
+    std::vector<Document> documents;
+    std::ifstream sst_file(file_path_, std::ios::binary);
+    if (!sst_file.is_open()) {
+        return documents;
+    }
+
+    size_t key_len;
+    while (sst_file.read(reinterpret_cast<char*>(&key_len), sizeof(key_len))) {
+        std::string current_key(key_len, '\0');
+        sst_file.read(&current_key[0], key_len);
+
+        size_t val_len;
+        sst_file.read(reinterpret_cast<char*>(&val_len), sizeof(val_len));
+
+        if (val_len != static_cast<size_t>(-1)) { // Not a tombstone
+            std::vector<uint8_t> value(val_len);
+            sst_file.read(reinterpret_cast<char*>(value.data()), val_len);
+            documents.push_back(deserialize(value));
+        } else {
+            // Tombstone
+            Document tombstone;
+            tombstone.id = current_key;
+            documents.push_back(tombstone);
+        }
+    }
+    return documents;
+}
+
 std::string SSTable::write_from_memtable(const std::string& data_dir, const Memtable& memtable) {
     // Generate a unique filename for the new SSTable using a timestamp.
     long long timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
