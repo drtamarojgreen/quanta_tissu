@@ -24,12 +24,9 @@ public:
     void stop();
 
 private:
-    // A private method to configure all the API endpoints.
-    void setup_routes();
-
-    // PIMPL (Pointer to Implementation) idiom to hide the httplib implementation
-    // details from this public header file. This reduces compile times and
-    // decouples our interface from the specific library used.
+    // PIMPL (Pointer to Implementation) idiom to hide the low-level socket
+    // implementation details from this public header file. This reduces compile
+    // times and decouples our interface from the specific implementation.
     class Impl;
     std::unique_ptr<Impl> pimpl;
 };

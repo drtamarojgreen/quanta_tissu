@@ -17,17 +17,13 @@ using Boolean = bool;
 using DateTime = std::chrono::time_point<std::chrono::system_clock>;
 using BinaryData = std::vector<uint8_t>;
 
-// A list of primitive values. Note: nested lists are not supported.
-using PrimitiveList = std::vector<std::variant<std::string, Number, Boolean>>;
-
-// An Element's value can be a single primitive, a list of primitives, or a list of nested Elements.
+// An Element's value can be a single primitive or a list of nested Elements.
 using Value = std::variant<
     std::string,
     Number,
     Boolean,
     DateTime,
     BinaryData,
-    PrimitiveList,
     std::vector<Element> // For nested elements like <specs> or <reviews> in the example
 >;
 
