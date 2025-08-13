@@ -66,11 +66,36 @@ void WriteAheadLog::append(const LogEntry& entry) {
 }
 
 std::vector<LogEntry> WriteAheadLog::recover() {
-    // Placeholder: Recovery logic is complex. It involves reading the log file
-    // from the beginning, parsing each length-prefixed record, deserializing
-    // the payload back into a LogEntry, and adding it to a vector.
-    // This will be implemented in a future task.
-    return {};
+    std::vector<LogEntry> recovered_entries;
+    std::ifstream read_file(log_path, std::ios::in | std::ios::binary);
+    if (!read_file.is_open()) {
+        // If the file doesn't exist or can't be opened for reading, return empty.
+        return recovered_entries;
+    }
+
+    size_t record_size;
+    while (read_file.read(reinterpret_cast<char*>(&record_size), sizeof(record_size))) {
+        std::vector<uint8_t> record_data(record_size);
+        read_file.read(reinterpret_cast<char*>(record_data.data()), record_size);
+
+        if (record_data.empty()) continue;
+
+        LogEntry entry;
+        entry.type = static_cast<LogEntryType>(record_data[0]);
+
+        if (entry.type == LogEntryType::PUT) {
+            std::vector<uint8_t> doc_bytes(record_data.begin() + 1, record_data.end());
+            entry.doc = TissDB::deserialize(doc_bytes);
+            entry.document_id = entry.doc.id;
+        } else if (entry.type == LogEntryType::DELETE) {
+            size_t id_len;
+            memcpy(&id_len, record_data.data() + 1, sizeof(id_len));
+            entry.document_id.assign(reinterpret_cast<const char*>(record_data.data() + 1 + sizeof(id_len)), id_len);
+        }
+        recovered_entries.push_back(entry);
+    }
+    read_file.close();
+    return recovered_entries;
 }
 
 void WriteAheadLog::clear() {

@@ -23,6 +23,9 @@ public:
     // Returns an empty vector to represent a tombstone.
     std::optional<std::vector<uint8_t>> find(const std::string& key);
 
+    // Scans all documents in the SSTable.
+    std::vector<Document> scan();
+
     // Static method to create a new SSTable file from a Memtable.
     // Returns the path to the newly created SSTable file.
     static std::string write_from_memtable(const std::string& data_dir, const Memtable& memtable);

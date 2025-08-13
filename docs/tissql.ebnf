@@ -1,0 +1,28 @@
+
+(* TissQL EBNF Grammar for SELECT statements *)
+
+query     ::= select_statement
+
+select_statement ::= "SELECT" select_list "FROM" table_name (where_clause)?
+
+select_list ::= "*" | column_list
+
+column_list ::= column_name ("," column_name)*
+
+column_name ::= IDENTIFIER
+
+table_name ::= IDENTIFIER
+
+where_clause ::= "WHERE" expression
+
+expression ::= term (("AND" | "OR") term)*
+
+term ::= factor (("=" | "!=" | "<" | ">" | "<=" | ">=") factor)*
+
+factor ::= IDENTIFIER | STRING_LITERAL | NUMERIC_LITERAL
+
+IDENTIFIER ::= [a-zA-Z_] [a-zA-Z0-9_]*
+
+STRING_LITERAL ::= "'" [^']* "'"
+
+NUMERIC_LITERAL ::= [0-9]+ ('.' [0-9]+)?

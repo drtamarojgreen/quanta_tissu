@@ -1,0 +1,337 @@
+openapi: 3.0.3
+info:
+  title: TissDB Business Intelligence Service API
+  description: API for managing reports and alerts within the TissDB BI Suite.
+  version: 1.0.0
+servers:
+  - url: http://tissdb.internal:8080/
+    description: Internal Development Server
+
+paths:
+  /_bi/reports:
+    get:
+      summary: List all report configurations
+      tags: [Reports]
+      operationId: listReports
+      responses:
+        '200':
+          description: A list of report configurations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+    post:
+      summary: Create a new report configuration
+      tags: [Reports]
+      operationId: createReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportInput'
+      responses:
+        '201':
+          description: Report created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /_bi/reports/{reportId}:
+    get:
+      summary: Get a specific report configuration by ID
+      tags: [Reports]
+      operationId: getReportById
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The report configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '404':
+          description: Report not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update a specific report configuration
+      tags: [Reports]
+      operationId: updateReport
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportInput'
+      responses:
+        '200':
+          description: Report updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '404':
+          description: Report not found.
+        '400':
+          description: Invalid input.
+    delete:
+      summary: Delete a specific report configuration
+      tags: [Reports]
+      operationId: deleteReport
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Report deleted successfully.
+        '404':
+          description: Report not found.
+
+  /_bi/alerts:
+    get:
+      summary: List all alert configurations
+      tags: [Alerts]
+      operationId: listAlerts
+      responses:
+        '200':
+          description: A list of alert configurations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
+    post:
+      summary: Create a new alert configuration
+      tags: [Alerts]
+      operationId: createAlert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertInput'
+      responses:
+        '201':
+          description: Alert created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '400':
+          description: Invalid input.
+
+  /_bi/alerts/{alertId}:
+    get:
+      summary: Get a specific alert configuration by ID
+      tags: [Alerts]
+      operationId: getAlertById
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The alert configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '404':
+          description: Alert not found.
+    put:
+      summary: Update a specific alert configuration
+      tags: [Alerts]
+      operationId: updateAlert
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertInput'
+      responses:
+        '200':
+          description: Alert updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '404':
+          description: Alert not found.
+    delete:
+      summary: Delete a specific alert configuration
+      tags: [Alerts]
+      operationId: deleteAlert
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Alert deleted successfully.
+        '404':
+          description: Alert not found.
+
+components:
+  schemas:
+    ReportInput:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Weekly High-Value Orders"
+        tissql_query:
+          type: string
+          example: "SELECT customer_id, order_date, total FROM orders WHERE total > 5000"
+        schedule:
+          type: string
+          description: "Cron syntax for the schedule."
+          example: "0 9 * * 1"
+        format:
+          type: string
+          enum: [csv, json, pdf]
+          example: "csv"
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Channel'
+      required: [name, tissql_query, schedule, format, channels]
+
+    Report:
+      allOf:
+        - $ref: '#/components/schemas/ReportInput'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "a1b2c3d4-e5f6-4a3b-8c2d-1e9f8a7b6c5d"
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+            last_run_status:
+              type: string
+              enum: [success, failed, pending]
+              example: "success"
+            last_run_at:
+              type: string
+              format: date-time
+          required: [id, created_at, updated_at]
+
+    AlertInput:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Error Log Spike"
+        tissql_query:
+          type: string
+          example: "SELECT COUNT(*) FROM app_logs WHERE level = 'ERROR' AND timestamp > 'last_5_minutes'"
+        frequency_minutes:
+          type: integer
+          example: 5
+        condition:
+          type: object
+          properties:
+            operator:
+              type: string
+              enum: [>, <, ==, !=, contains, is_empty]
+              example: ">"
+            value:
+              type: string
+              example: "0"
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Channel'
+      required: [name, tissql_query, frequency_minutes, condition, channels]
+
+    Alert:
+      allOf:
+        - $ref: '#/components/schemas/AlertInput'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "b2c3d4e5-f6a7-4b3c-8d2e-1f9f8a7b6c5d"
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+            current_state:
+              type: string
+              enum: [ok, triggered]
+              example: "ok"
+            last_triggered_at:
+              type: string
+              format: date-time
+          required: [id, created_at, updated_at, current_state]
+
+    Channel:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [email, slack, webhook]
+        target:
+          type: string
+          description: "Email address, Slack webhook URL, or generic webhook URL."
+          example: "ops-alerts@example.com"
+      required: [type, target]
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+      required: [code, message]

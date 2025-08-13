@@ -4,29 +4,47 @@
 #include <vector>
 #include <variant>
 #include <optional>
+#include <memory>
 
 namespace TissDB {
 namespace Query {
 
-// Represents a simple WHERE clause: `field = value`.
-// More complex conditions (AND, OR, >, <) will be added later.
-struct WhereClause {
-    std::string field;
-    // For now, we'll treat all values in the WHERE clause as strings for simplicity.
-    // A proper implementation would use a variant for different types.
-    std::string value;
+// Forward declaration
+struct Expression;
+
+// Represents a literal value in a query
+using Literal = std::variant<std::string, double>;
+
+// Represents a binary expression (e.g., field = 'value', price > 100)
+struct BinaryExpression {
+    std::unique_ptr<Expression> left;
+    std::string op;
+    std::unique_ptr<Expression> right;
 };
+
+// Represents a logical expression (e.g., ... AND ...)
+struct LogicalExpression {
+    std::unique_ptr<Expression> left;
+    std::string op;
+    std::unique_ptr<Expression> right;
+};
+
+// Represents a column identifier
+struct Identifier {
+    std::string name;
+};
+
+// The Expression variant represents any kind of expression in the WHERE clause
+using Expression = std::variant<Identifier, Literal, BinaryExpression, LogicalExpression>;
 
 // Represents a TissQL SELECT statement.
 struct SelectStatement {
     std::vector<std::string> fields;
     std::string collection_name;
-    std::optional<WhereClause> where_clause;
+    std::optional<Expression> where_clause;
 };
 
 // The Abstract Syntax Tree (AST) for a query.
-// It's a variant that can hold any type of statement.
-// For now, it only supports SELECT.
 using AST = std::variant<SelectStatement>;
 
 } // namespace Query

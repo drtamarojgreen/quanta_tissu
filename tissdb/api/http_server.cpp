@@ -172,38 +172,109 @@ void HttpServer::Impl::handle_client(int client_socket) {
        if(!segment.empty()) path_parts.push_back(segment);
     }
 
-    if (req.method == "GET" && path_parts.size() == 2) {
-        // GET /<collection>/<id>
-        std::string key = path_parts[0] + "/" + path_parts[1];
-        auto doc_opt = storage_engine.get(key);
-        if (doc_opt) {
-            Json::JsonValue json_doc(document_to_json(*doc_opt));
-            send_response(client_socket, "200 OK", "application/json", json_doc.serialize());
-        } else {
-            send_response(client_socket, "404 Not Found", "text/plain", "Document not found.");
-        }
-    } else if (req.method == "POST" && path_parts.size() == 1) {
-        // POST /<collection>
-        try {
-            Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
-            Document doc = json_to_document(parsed_body.as_object());
-            // Generate a simple ID
-            std::string id = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
-            doc.id = id;
-            std::string key = path_parts[0] + "/" + id;
-            storage_engine.put(key, doc);
-            send_response(client_socket, "201 Created", "text/plain", "Document created with ID: " + id);
-        } catch (const std::exception& e) {
-            send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
-        }
-    } else if (req.method == "DELETE" && path_parts.size() == 2) {
-        // DELETE /<collection>/<id>
-        std::string key = path_parts[0] + "/" + path_parts[1];
-        storage_engine.del(key);
-        send_response(client_socket, "204 No Content", "text/plain", "");
+    // All API calls now require a collection name as the first path part
+    if (path_parts.empty()) {
+        send_response(client_socket, "400 Bad Request", "text/plain", "Collection name missing from URL.");
+        close(client_socket);
+        return;
     }
-    else {
-        send_response(client_socket, "404 Not Found", "text/plain", "Endpoint not found.");
+
+    std::string collection_name = path_parts[0];
+
+    try {
+        if (req.method == "GET" && path_parts.size() == 2) {
+            // GET /<collection>/<id>
+            std::string doc_id = path_parts[1];
+            auto doc_opt = storage_engine.get(collection_name, doc_id);
+            if (doc_opt) {
+                Json::JsonValue json_doc(document_to_json(*doc_opt));
+                send_response(client_socket, "200 OK", "application/json", json_doc.serialize());
+            } else {
+                send_response(client_socket, "404 Not Found", "text/plain", "Document not found.");
+            }
+        } else if (req.method == "POST" && path_parts.size() == 1) {
+            // POST /<collection>
+            try {
+                Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                Document doc = json_to_document(parsed_body.as_object());
+                // Generate a simple ID
+                std::string id = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+                doc.id = id;
+                storage_engine.put(collection_name, id, doc);
+                send_response(client_socket, "201 Created", "text/plain", "Document created with ID: " + id);
+            } catch (const std::exception& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
+            }
+        } else if (req.method == "PUT" && path_parts.size() == 2) {
+            // PUT /<collection>/<id>
+            try {
+                Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                Document doc = json_to_document(parsed_body.as_object());
+                doc.id = path_parts[1];
+                storage_engine.put(collection_name, path_parts[1], doc);
+                send_response(client_socket, "200 OK", "application/json", parsed_body.serialize());
+            } catch (const std::exception& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
+            }
+        } else if (req.method == "DELETE" && path_parts.size() == 2) {
+            // DELETE /<collection>/<id>
+            std::string doc_id = path_parts[1];
+            storage_engine.del(collection_name, doc_id);
+            send_response(client_socket, "204 No Content", "text/plain", "");
+        } else if (req.method == "POST" && path_parts.size() == 2 && path_parts[1] == "_query") {
+            // POST /<collection>/_query
+            try {
+                Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                std::string query_string = parsed_body.as_object()["query"].as_string();
+
+                Query::Parser parser;
+                Query::AST ast = parser.parse(query_string);
+
+                Query::Executor executor(storage_engine);
+                Query::QueryResult result = executor.execute(ast);
+
+                Json::JsonArray result_array;
+                for (const auto& doc : result.documents) {
+                    result_array.push_back(Json::JsonValue(document_to_json(doc)));
+                }
+
+                send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
+            } catch (const std::exception& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid query: " + std::string(e.what()));
+            }
+        } else if (req.method == "POST" && path_parts.size() == 2 && path_parts[1] == "_index") {
+            // POST /<collection>/_index
+            try {
+                Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                std::string field_name = parsed_body.as_object()["field"].as_string();
+
+                storage_engine.create_index(collection_name, field_name);
+
+                send_response(client_socket, "200 OK", "text/plain", "Index created on field: " + field_name);
+            } catch (const std::exception& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid index request: " + std::string(e.what()));
+            }
+        } else if (req.method == "PUT" && path_parts.size() == 1) {
+            // PUT /<collection> (Create collection)
+            try {
+                storage_engine.create_collection(collection_name);
+                send_response(client_socket, "201 Created", "text/plain", "Collection '" + collection_name + "' created.");
+            } catch (const std::exception& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", "Failed to create collection: " + std::string(e.what()));
+            }
+        } else if (req.method == "DELETE" && path_parts.size() == 1) {
+            // DELETE /<collection> (Delete collection)
+            try {
+                storage_engine.delete_collection(collection_name);
+                send_response(client_socket, "204 No Content", "text/plain", "");
+            } catch (const std::exception& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", "Failed to delete collection: " + std::string(e.what()));
+            }
+        } else {
+            send_response(client_socket, "404 Not Found", "text/plain", "Endpoint not found.");
+        }
+    } catch (const std::exception& e) {
+        send_response(client_socket, "500 Internal Server Error", "text/plain", "Server error: " + std::string(e.what()));
     }
 
     close(client_socket);
