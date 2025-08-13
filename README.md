@@ -61,6 +61,20 @@ STEP "Run the script and verify its output" {
 
 This structured approach is key to enabling the agent to handle complex, multi-step tasks autonomously.
 
+## TissDB: A High-Performance NoSQL Database
+
+TissDB is a lightweight, high-performance NoSQL database built from scratch in C++. It is designed to be a simple, embeddable database for C++ applications.
+
+### Features
+
+*   **LSM-Tree Storage Engine:** TissDB uses a log-structured merge-tree (LSM-Tree) for high write throughput.
+*   **JSON-like Document Model:** TissDB stores data in a flexible, JSON-like document model.
+*   **TissQL Query Language:** TissDB provides a simple, SQL-like query language called TissQL for querying data.
+*   **B-Tree Indexing:** TissDB supports B-Tree indexing for fast lookups.
+*   **RESTful API:** TissDB provides a RESTful API for interacting with the database.
+
+More details can be found in `tissdb/README.md` and the documents in the `docs/` directory.
+
 ## Ecological Awareness
 
 QuantaTissu aims to be a demonstration of how AI can be developed and used in an environmentally conscious manner. This involves a three-pronged approach to ecological awareness:
@@ -140,20 +154,22 @@ This project serves as a foundation. The `docs/enhancements.md` file contains a 
 
 ## Project Structure
 
-The project is organized as a Python package. The code is structured as follows:
+The repository is organized into several key directories:
 
 ```
-quanta_tissu/
-├── quanta_tissu/
-│   ├── __init__.py      # Makes the directory a Python package
-│   ├── model.py         # Contains TransformerBlock and QuantaTissu classes
-│   ├── layers.py        # Contains Attention, FeedForward, LayerNorm
-│   ├── tokenizer.py     # Tokenizer implementation
-│   ├── config.py        # Model hyperparameters and vocabulary
-│   └── knowledge_base.py # Simple vector store for RAG
-├── scripts/
-│   └── run_inference.py # Example usage script
-├── docs/                # Project documentation
-├── README.md
-└── requirements.txt
+.
+├── docs/              # Documentation, design docs, and specifications
+├── quanta_tissu/      # Python-based language model (QuantaTissu)
+│   ├── quanta_tissu/  # Source code for the QuantaTissu model
+│   └── scripts/       # Scripts to run and interact with the model
+├── tissdb/            # C++ NoSQL database (TissDB)
+│   ├── api/           # RESTful API implementation
+│   ├── common/        # Shared data structures
+│   ├── json/          # JSON parser
+│   ├── query/         # TissQL query parser and executor
+│   └── storage/       # LSM-Tree storage engine
+├── tests/             # Unit and integration tests
+│   ├── db/            # C++ tests for TissDB
+│   └── features/      # BDD tests for TissLang
+└── README.md
 ```
