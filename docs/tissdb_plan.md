@@ -55,7 +55,6 @@ Ideal for complex, hierarchical data with nested structures.
 
 The storage engine will use a log-structured merge-tree (LSM) approach for high write throughput.
 
-*   **Serialization**: Documents will be serialized using **MessagePack** for a compact and fast binary representation.
 *   **File Structure**: Each collection will be stored as a set of segmented, append-only files. A write-ahead log (WAL) will ensure durability and atomic writes.
 *   **Compaction**: A background process will periodically run compaction on the segment files to merge data, remove deleted entries, and improve read performance.
 *   **Indexing**: Indexes will be implemented using B-trees. When a document is written, both the data and corresponding index entries are updated atomically.
@@ -155,7 +154,6 @@ This is a core design principle and applies to both layers.
 ## 7. Detailed Development Roadmap
 
 *   **Phase 1 (MVP) - 3 Months**:
-    *   Task 1.1: Implement document serialization/deserialization with MessagePack.
     *   Task 1.2: Build the core append-only storage layer for a single collection.
     *   Task 1.3: Implement the basic REST API for document CRUD.
     *   Task 1.4: Develop the TissQL parser for basic `SELECT` queries.
@@ -184,15 +182,6 @@ This section provides a more granular breakdown of the tasks required to deliver
 Deliver a functional, single-node TissDB instance capable of basic document CRUD operations, simple TissQL queries, and single-field indexing. The focus is on core functionality and stability.
 
 ---
-
-### Task 1.1: Document Serialization with MessagePack
-*   **Sub-tasks**:
-    1.  Implement a C++ MessagePack library.
-    2.  Define a canonical mapping from the TissDB Document model (elements, primitives) to MessagePack's format.
-    3.  Implement `serialize()` and `deserialize()` functions.
-    4.  Write comprehensive unit tests covering all data types and nested structures.
-*   **Acceptance Criteria**:
-    *   A TissDB document can be serialized to a MessagePack byte array and deserialized back into its original structure without any data loss or type corruption.
 
 ### Task 1.2: Core Append-Only Storage Layer
 *   **Sub-tasks**:
