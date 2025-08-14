@@ -1,31 +1,14 @@
 #include "wal.h"
-#include "../common/serialization.h" // For TissDB::serialize
-#include <stdexcept>
-#include <vector>
-#include <cstring> // For memcpy
+#include "../common/serialization.h"
+#include <iostream>
 
 namespace TissDB {
 namespace Storage {
 
-// Anonymous namespace for helpers private to this file.
-namespace {
-
-// Helper to write a length-prefixed record to the log file.
-void write_record(std::ofstream& os, const std::vector<uint8_t>& data) {
-    size_t data_size = data.size();
-    os.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
-    os.write(reinterpret_cast<const char*>(data.data()), data_size);
-}
-
-} // anonymous namespace
-
-
 WriteAheadLog::WriteAheadLog(const std::string& path) : log_path(path) {
-    // Open the file in binary append mode. This allows us to add to the end
-    // of the log without overwriting existing content.
-    log_file.open(log_path, std::ios::out | std::ios::binary | std::ios::app);
+    log_file.open(log_path, std::ios::app | std::ios::binary);
     if (!log_file.is_open()) {
-        throw std::runtime_error("Failed to open WAL file for appending: " + path);
+        throw std::runtime_error("Failed to open WAL file: " + log_path);
     }
 }
 
@@ -37,77 +20,77 @@ WriteAheadLog::~WriteAheadLog() {
 
 void WriteAheadLog::append(const LogEntry& entry) {
     if (!log_file.is_open()) {
-        throw std::runtime_error("WAL file is not open for writing.");
+        throw std::runtime_error("WAL file is not open.");
     }
 
-    // Serialize the log entry into a byte vector.
-    // For a PUT operation, this involves serializing the entire document.
-    // For a DELETE, we just need the document ID.
-    std::vector<uint8_t> entry_payload;
-    entry_payload.push_back(static_cast<uint8_t>(entry.type));
+    // Write entry type
+    log_file.write(reinterpret_cast<const char*>(&entry.type), sizeof(entry.type));
 
+    // Write transaction ID
+    log_file.write(reinterpret_cast<const char*>(&entry.transaction_id), sizeof(entry.transaction_id));
+
+    // Write document ID
+    size_t id_len = entry.document_id.length();
+    log_file.write(reinterpret_cast<const char*>(&id_len), sizeof(id_len));
+    log_file.write(entry.document_id.data(), id_len);
+
+    // Write document data (if PUT operation)
     if (entry.type == LogEntryType::PUT) {
         std::vector<uint8_t> doc_bytes = TissDB::serialize(entry.doc);
-        entry_payload.insert(entry_payload.end(), doc_bytes.begin(), doc_bytes.end());
-    } else if (entry.type == LogEntryType::DELETE) {
-        // For delete, the "document" is just its ID. We can use our string serialization.
-        std::vector<uint8_t> id_bytes(entry.document_id.begin(), entry.document_id.end());
-        size_t id_len = id_bytes.size();
-        entry_payload.resize(1 + sizeof(id_len) + id_len);
-        memcpy(entry_payload.data() + 1, &id_len, sizeof(id_len));
-        memcpy(entry_payload.data() + 1 + sizeof(id_len), id_bytes.data(), id_len);
+        size_t doc_len = doc_bytes.size();
+        log_file.write(reinterpret_cast<const char*>(&doc_len), sizeof(doc_len));
+        log_file.write(reinterpret_cast<const char*>(doc_bytes.data()), doc_len);
+    } else { // For DELETE operations, write a marker for no document data
+        size_t zero_len = 0;
+        log_file.write(reinterpret_cast<const char*>(&zero_len), sizeof(zero_len));
     }
 
-    // Write the serialized entry as a single length-prefixed record to the log.
-    write_record(log_file, entry_payload);
-
-    // Flush the buffer to disk to ensure durability. This is critical for the WAL.
-    log_file.flush();
+    log_file.flush(); // Ensure data is written to disk immediately
 }
 
 std::vector<LogEntry> WriteAheadLog::recover() {
     std::vector<LogEntry> recovered_entries;
-    std::ifstream read_file(log_path, std::ios::in | std::ios::binary);
-    if (!read_file.is_open()) {
-        // If the file doesn't exist or can't be opened for reading, return empty.
-        return recovered_entries;
+    std::ifstream input_log_file(log_path, std::ios::binary);
+    if (!input_log_file.is_open()) {
+        return recovered_entries; // No log file, nothing to recover
     }
 
-    size_t record_size;
-    while (read_file.read(reinterpret_cast<char*>(&record_size), sizeof(record_size))) {
-        std::vector<uint8_t> record_data(record_size);
-        read_file.read(reinterpret_cast<char*>(record_data.data()), record_size);
-
-        if (record_data.empty()) continue;
-
+    while (input_log_file.peek() != EOF) {
         LogEntry entry;
-        entry.type = static_cast<LogEntryType>(record_data[0]);
+        // Read entry type
+        input_log_file.read(reinterpret_cast<char*>(&entry.type), sizeof(entry.type));
 
+        // Read transaction ID
+        input_log_file.read(reinterpret_cast<char*>(&entry.transaction_id), sizeof(entry.transaction_id));
+
+        // Read document ID
+        size_t id_len;
+        input_log_file.read(reinterpret_cast<char*>(&id_len), sizeof(id_len));
+        entry.document_id.resize(id_len);
+        input_log_file.read(&entry.document_id[0], id_len);
+
+        // Read document data (if PUT operation)
+        size_t doc_len;
+        input_log_file.read(reinterpret_cast<char*>(&doc_len), sizeof(doc_len));
         if (entry.type == LogEntryType::PUT) {
-            std::vector<uint8_t> doc_bytes(record_data.begin() + 1, record_data.end());
+            std::vector<uint8_t> doc_bytes(doc_len);
+            input_log_file.read(reinterpret_cast<char*>(doc_bytes.data()), doc_len);
             entry.doc = TissDB::deserialize(doc_bytes);
-            entry.document_id = entry.doc.id;
-        } else if (entry.type == LogEntryType::DELETE) {
-            size_t id_len;
-            memcpy(&id_len, record_data.data() + 1, sizeof(id_len));
-            entry.document_id.assign(reinterpret_cast<const char*>(record_data.data() + 1 + sizeof(id_len)), id_len);
         }
         recovered_entries.push_back(entry);
     }
-    read_file.close();
+    input_log_file.close();
     return recovered_entries;
 }
 
 void WriteAheadLog::clear() {
-    // Close the current file handle and re-open the file in truncate mode
-    // to effectively erase its contents.
     if (log_file.is_open()) {
         log_file.close();
     }
-    // std::ios::trunc will delete the file content.
+    // Truncate the file by opening it in truncate mode
     log_file.open(log_path, std::ios::out | std::ios::binary | std::ios::trunc);
     if (!log_file.is_open()) {
-        throw std::runtime_error("Failed to open WAL file for truncation: " + log_path);
+        throw std::runtime_error("Failed to clear WAL file: " + log_path);
     }
 }
 

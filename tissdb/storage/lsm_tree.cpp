@@ -1,4 +1,3 @@
-
 #include "lsm_tree.h"
 #include <filesystem>
 #include <iostream>
@@ -47,28 +46,61 @@ std::vector<std::string> LSMTree::list_collections() const {
     return names;
 }
 
-void LSMTree::put(const std::string& collection_name, const std::string& key, const Document& doc) {
-    get_collection(collection_name).put(key, doc);
+void LSMTree::put(const std::string& collection_name, const std::string& key, const Document& doc, int transaction_id) {
+    if (transaction_id != -1) {
+        transaction_manager_.add_operation(transaction_id, {OperationType::PUT, collection_name, key, doc});
+    } else {
+        get_collection(collection_name).put(key, doc);
+    }
 }
 
 std::optional<Document> LSMTree::get(const std::string& collection_name, const std::string& key) {
     return get_collection(collection_name).get(key);
 }
 
-void LSMTree::del(const std::string& collection_name, const std::string& key) {
-    get_collection(collection_name).del(key);
+void LSMTree::del(const std::string& collection_name, const std::string& key, int transaction_id) {
+    if (transaction_id != -1) {
+        transaction_manager_.add_operation(transaction_id, {OperationType::DELETE, collection_name, key, Document{}});
+    } else {
+        get_collection(collection_name).del(key);
+    }
 }
 
 std::vector<Document> LSMTree::scan(const std::string& collection_name) {
     return get_collection(collection_name).scan();
 }
 
-void LSMTree::create_index(const std::string& collection_name, const std::string& field_name) {
-    get_collection(collection_name).create_index(field_name);
+void LSMTree::create_index(const std::string& collection_name, const std::vector<std::string>& field_names) {
+    get_collection(collection_name).create_index(field_names);
 }
 
 std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::string& field_name, const std::string& value) {
     return get_collection(collection_name).find_by_index(field_name, value);
+}
+
+std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::string& value) {
+    return get_collection(collection_name).find_by_index(field_names, value);
+}
+
+int LSMTree::begin_transaction() {
+    return transaction_manager_.begin_transaction();
+}
+
+void LSMTree::commit_transaction(int transaction_id) {
+    // Apply all operations in the transaction to the storage engine
+    const auto& operations = transaction_manager_.get_transactions().at(transaction_id)->get_operations();
+    for (const auto& op : operations) {
+        if (op.type == OperationType::PUT) {
+            get_collection(op.collection_name).put(op.key, op.doc);
+        } else if (op.type == OperationType::DELETE) {
+            get_collection(op.collection_name).del(op.key);
+        }
+    }
+    transaction_manager_.commit_transaction(transaction_id);
+}
+
+void LSMTree::rollback_transaction(int transaction_id) {
+    transaction_manager_.rollback_transaction(transaction_id);
 }
 
 void LSMTree::shutdown() {

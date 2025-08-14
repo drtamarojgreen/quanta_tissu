@@ -89,6 +89,7 @@ private:
     int server_port;
     std::atomic<bool> is_running{false};
     std::thread server_thread;
+    std::map<int, int> client_transactions_;
 };
 
 // --- Implementation ---
@@ -172,16 +173,40 @@ void HttpServer::Impl::handle_client(int client_socket) {
        if(!segment.empty()) path_parts.push_back(segment);
     }
 
-    // All API calls now require a collection name as the first path part
-    if (path_parts.empty()) {
-        send_response(client_socket, "400 Bad Request", "text/plain", "Collection name missing from URL.");
-        close(client_socket);
-        return;
+    int transaction_id = -1;
+    if (client_transactions_.count(client_socket)) {
+        transaction_id = client_transactions_[client_socket];
     }
 
-    std::string collection_name = path_parts[0];
-
     try {
+        if (req.method == "POST" && path_parts.size() == 1 && path_parts[0] == "_begin") {
+            int new_transaction_id = storage_engine.begin_transaction();
+            client_transactions_[client_socket] = new_transaction_id;
+            send_response(client_socket, "200 OK", "text/plain", "Transaction started with ID: " + std::to_string(new_transaction_id));
+        } else if (req.method == "POST" && path_parts.size() == 1 && path_parts[0] == "_commit") {
+            if (transaction_id != -1) {
+                storage_engine.commit_transaction(transaction_id);
+                client_transactions_.erase(client_socket);
+                send_response(client_socket, "200 OK", "text/plain", "Transaction committed.");
+            } else {
+                send_response(client_socket, "400 Bad Request", "text/plain", "No active transaction.");
+            }
+        } else if (req.method == "POST" && path_parts.size() == 1 && path_parts[0] == "_rollback") {
+            if (transaction_id != -1) {
+                storage_engine.rollback_transaction(transaction_id);
+                client_transactions_.erase(client_socket);
+                send_response(client_socket, "200 OK", "text/plain", "Transaction rolled back.");
+            } else {
+                send_response(client_socket, "400 Bad Request", "text/plain", "No active transaction.");
+            }
+        } else if (path_parts.empty()) {
+            send_response(client_socket, "400 Bad Request", "text/plain", "Collection name missing from URL.");
+            close(client_socket);
+            return;
+        }
+
+        std::string collection_name = path_parts[0];
+
         if (req.method == "GET" && path_parts.size() == 2) {
             // GET /<collection>/<id>
             std::string doc_id = path_parts[1];
@@ -200,7 +225,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 // Generate a simple ID
                 std::string id = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
                 doc.id = id;
-                storage_engine.put(collection_name, id, doc);
+                storage_engine.put(collection_name, id, doc, transaction_id);
                 send_response(client_socket, "201 Created", "text/plain", "Document created with ID: " + id);
             } catch (const std::exception& e) {
                 send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
@@ -211,7 +236,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
                 Document doc = json_to_document(parsed_body.as_object());
                 doc.id = path_parts[1];
-                storage_engine.put(collection_name, path_parts[1], doc);
+                storage_engine.put(collection_name, path_parts[1], doc, transaction_id);
                 send_response(client_socket, "200 OK", "application/json", parsed_body.serialize());
             } catch (const std::exception& e) {
                 send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
@@ -219,7 +244,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
         } else if (req.method == "DELETE" && path_parts.size() == 2) {
             // DELETE /<collection>/<id>
             std::string doc_id = path_parts[1];
-            storage_engine.del(collection_name, doc_id);
+            storage_engine.del(collection_name, doc_id, transaction_id);
             send_response(client_socket, "204 No Content", "text/plain", "");
         } else if (req.method == "POST" && path_parts.size() == 2 && path_parts[1] == "_query") {
             // POST /<collection>/_query
@@ -246,11 +271,18 @@ void HttpServer::Impl::handle_client(int client_socket) {
             // POST /<collection>/_index
             try {
                 Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
-                std::string field_name = parsed_body.as_object()["field"].as_string();
+                std::vector<std::string> field_names;
+                if (parsed_body.as_object().count("field")) {
+                    field_names.push_back(parsed_body.as_object()["field"].as_string());
+                } else if (parsed_body.as_object().count("fields")) {
+                    for (const auto& field : parsed_body.as_object()["fields"].as_array()) {
+                        field_names.push_back(field.as_string());
+                    }
+                }
 
-                storage_engine.create_index(collection_name, field_name);
+                storage_engine.create_index(collection_name, field_names);
 
-                send_response(client_socket, "200 OK", "text/plain", "Index created on field: " + field_name);
+                send_response(client_socket, "200 OK", "text/plain", "Index created on fields: " + parsed_body.serialize());
             } catch (const std::exception& e) {
                 send_response(client_socket, "400 Bad Request", "text/plain", "Invalid index request: " + std::string(e.what()));
             }

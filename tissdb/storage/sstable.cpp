@@ -2,6 +2,7 @@
 #include "../common/serialization.h"
 #include <iostream>
 #include <chrono>
+#include <map>
 
 namespace TissDB {
 namespace Storage {
@@ -109,6 +110,63 @@ std::string SSTable::write_from_memtable(const std::string& data_dir, const Memt
             std::vector<uint8_t> value_bytes = TissDB::serialize(*(pair.second));
             write_prefixed(sst_file, reinterpret_cast<const char*>(value_bytes.data()), value_bytes.size());
         } else { // If it's a tombstone (nullptr)
+            size_t tombstone_marker = static_cast<size_t>(-1);
+            sst_file.write(reinterpret_cast<const char*>(&tombstone_marker), sizeof(tombstone_marker));
+        }
+    }
+
+    sst_file.close();
+    return file_path;
+}
+
+std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTable*>& sstables) {
+    // Generate a unique filename for the new SSTable using a timestamp.
+    long long timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+    std::string file_path = data_dir + "/sstable_" + std::to_string(timestamp) + ".db";
+
+    std::ofstream sst_file(file_path, std::ios::binary | std::ios::trunc);
+    if (!sst_file.is_open()) {
+        throw std::runtime_error("Failed to create SSTable file: " + file_path);
+    }
+
+    // Use a map to merge and sort all key-value pairs from the SSTables.
+    // The map will automatically handle duplicates, keeping the value from the last SSTable (newest).
+    std::map<std::string, std::optional<std::vector<uint8_t>>> merged_data;
+
+    for (const auto& sstable : sstables) {
+        std::ifstream current_sst_file(sstable->get_path(), std::ios::binary);
+        if (!current_sst_file.is_open()) {
+            continue;
+        }
+
+        size_t key_len;
+        while (current_sst_file.read(reinterpret_cast<char*>(&key_len), sizeof(key_len))) {
+            std::string current_key(key_len, '\0');
+            current_sst_file.read(&current_key[0], key_len);
+
+            size_t val_len;
+            current_sst_file.read(reinterpret_cast<char*>(&val_len), sizeof(val_len));
+
+            if (val_len == static_cast<size_t>(-1)) { // Tombstone
+                merged_data[current_key] = std::nullopt;
+            } else {
+                std::vector<uint8_t> value(val_len);
+                current_sst_file.read(reinterpret_cast<char*>(value.data()), val_len);
+                merged_data[current_key] = value;
+            }
+        }
+    }
+
+    // Write the merged data to the new SSTable.
+    for (const auto& pair : merged_data) {
+        write_prefixed(sst_file, pair.first.data(), pair.first.size());
+
+        if (pair.second.has_value()) {
+            const auto& value_bytes = pair.second.value();
+            write_prefixed(sst_file, reinterpret_cast<const char*>(value_bytes.data()), value_bytes.size());
+        } else {
             size_t tombstone_marker = static_cast<size_t>(-1);
             sst_file.write(reinterpret_cast<const char*>(&tombstone_marker), sizeof(tombstone_marker));
         }

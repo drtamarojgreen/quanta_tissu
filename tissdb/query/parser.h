@@ -28,9 +28,13 @@ private:
 
     // Parser methods
     SelectStatement parse_select_statement();
-    std::vector<std::string> parse_select_list();
+    UpdateStatement parse_update_statement();
+    DeleteStatement parse_delete_statement();
+    std::vector<std::variant<std::string, AggregateFunction>> parse_select_list();
     std::string parse_table_name();
     std::optional<Expression> parse_where_clause();
+    std::vector<std::pair<std::string, Literal>> parse_set_clause();
+    std::vector<std::string> parse_group_by_clause();
     Expression parse_expression(int precedence = 0);
     Expression parse_primary_expression();
 

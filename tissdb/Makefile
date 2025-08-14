@@ -19,7 +19,7 @@ SRCS = main.cpp \
        storage/memtable.cpp \
        storage/sstable.cpp \
        storage/wal.cpp \
-       storage/btree.cpp \
+       
        storage/collection.cpp
 
 # Object files
@@ -47,7 +47,7 @@ test: $(TEST_TARGET)
 $(TEST_TARGET): $(OBJS) tests/db/test_main.o \
 	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(OBJS) tests/db/test_main.o
 
-tests/db/test_main.o: tests/db/test_main.cpp
+tests/db/test_main.o: tests/db/test_main.cpp tests/db/test_bpp_tree.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Rule to clean the compiled files

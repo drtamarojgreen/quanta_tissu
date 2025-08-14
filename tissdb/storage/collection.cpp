@@ -3,11 +3,12 @@
 #include "../common/serialization.h"
 #include <iostream>
 #include <algorithm>
+#include <chrono>
 
 namespace TissDB {
 namespace Storage {
 
-Collection::Collection(const std::string& collection_path) : collection_path_(collection_path) {
+Collection::Collection(const std::string& collection_path) : collection_path_(collection_path), stop_compaction_(false) {
     std::filesystem::create_directories(collection_path_);
 
     wal_ = std::make_unique<WriteAheadLog>(collection_path_ + "/wal.log");
@@ -39,6 +40,12 @@ Collection::Collection(const std::string& collection_path) : collection_path_(co
         }
     }
     wal_->clear();
+
+    start_compaction_thread();
+}
+
+Collection::~Collection() {
+    stop_compaction_thread();
 }
 
 void Collection::put(const std::string& key, const Document& doc) {
@@ -137,8 +144,8 @@ void Collection::shutdown() {
     indexer_.save_indexes(collection_path_);
 }
 
-void Collection::create_index(const std::string& field_name) {
-    indexer_.create_index(field_name);
+void Collection::create_index(const std::vector<std::string>& field_names) {
+    indexer_.create_index(field_names);
 }
 
 std::vector<std::string> Collection::find_by_index(const std::string& field_name, const std::string& value) {
@@ -151,6 +158,58 @@ void Collection::flush_memtable() {
     memtable_ = std::make_unique<Memtable>();
     wal_->clear();
     std::cout << "Memtable flushed to " << new_sstable_path << std::endl;
+}
+
+void Collection::start_compaction_thread() {
+    compaction_thread_ = std::thread([this]() {
+        while (!stop_compaction_) {
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+            compact();
+        }
+    });
+}
+
+void Collection::stop_compaction_thread() {
+    stop_compaction_ = true;
+    if (compaction_thread_.joinable()) {
+        compaction_thread_.join();
+    }
+}
+
+void Collection::compact() {
+    // Size-tiered compaction strategy:
+    // 1. Find SSTables of similar size.
+    // 2. Merge them into a new SSTable.
+    // 3. Remove the old SSTables.
+
+    if (sstables_.size() < 2) {
+        return;
+    }
+
+    // For simplicity, we'll just merge the two oldest SSTables.
+    // A more sophisticated strategy would consider table sizes and levels.
+    auto& sstable1 = sstables_[sstables_.size() - 1];
+    auto& sstable2 = sstables_[sstables_.size() - 2];
+
+    std::cout << "Compacting " << sstable1->get_path() << " and " << sstable2->get_path() << std::endl;
+
+    // Merge the two SSTables
+    std::string new_sstable_path = SSTable::merge(collection_path_, {sstable1.get(), sstable2.get()});
+
+    // Create a new vector of SSTables, excluding the compacted ones and adding the new one.
+    std::vector<std::unique_ptr<SSTable>> new_sstables;
+    new_sstables.push_back(std::make_unique<SSTable>(new_sstable_path));
+    for (size_t i = 0; i < sstables_.size() - 2; ++i) {
+        new_sstables.push_back(std::move(sstables_[i]));
+    }
+
+    // Delete the old SSTable files
+    std::filesystem::remove(sstable1->get_path());
+    std::filesystem::remove(sstable2->get_path());
+
+    sstables_ = std::move(new_sstables);
+
+    std::cout << "Compaction complete. New SSTable: " << new_sstable_path << std::endl;
 }
 
 } // namespace Storage

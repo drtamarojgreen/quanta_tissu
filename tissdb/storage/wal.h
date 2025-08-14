@@ -17,6 +17,7 @@ enum class LogEntryType : uint8_t {
 // Represents a single entry in the Write-Ahead Log.
 struct LogEntry {
     LogEntryType type;
+    int transaction_id = -1; // -1 for non-transactional operations
     // For PUT operations, the full document is stored.
     // For DELETE, only the document_id is needed.
     // We can use std::optional or a union for optimization later.
