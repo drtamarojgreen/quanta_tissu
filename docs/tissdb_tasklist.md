@@ -25,11 +25,11 @@ The goal of this phase is to deliver a functional, single-node TissDB instance c
     -   [x] Implement a basic query executor that can perform full collection scans based on the AST.
     -   [x] Implement the `POST /<collection>/_query` endpoint.
 
--   [x] **Task 1.5: Single-Field B-Tree Indexing**
-    -   [x] Implement or integrate a **persistent** B-Tree library.
-    -   [x] Create an API endpoint (`POST /<collection>/_index`) to create an index.
-    -   [x] Modify the write path to automatically update the index.
-    -   [x] Update the query planner to use the index for lookups.
+-   [ ] **Task 1.5: Single-Field B-Tree Indexing**
+    -   [ ] Implement or integrate a **persistent** B-Tree library.
+    -   [ ] Create an API endpoint (`POST /<collection>/_index`) to create an index.
+    -   [ ] Modify the write path to automatically update the index.
+    -   [ ] Update the query planner to use the index for lookups.
 
 ## Phase 2: V1.1
 
@@ -49,96 +49,96 @@ This phase focuses on evolving the MVP into a more robust database with better d
     -   [x] Update the query executor to handle `UPDATE` (read-modify-write) and `DELETE` (tombstone) operations.
     -   [x] Ensure `WHERE` clauses in these statements can leverage indexes.
 
--   [x] **Task 2.4: Compound Indexing**
-    -   [x] Update the index creation endpoint to accept multiple field names.
-    -   [x] Modify the B-Tree implementation to handle composite keys.
-    -   [x] Enhance the query planner to use compound indexes.
+-   [ ] **Task 2.4: Compound Indexing**
+    -   [ ] Update the index creation endpoint to accept multiple field names.
+    -   [ ] Modify the B-Tree implementation to handle composite keys.
+    -   [ ] Enhance the query planner to use compound indexes.
 
--   [x] **Task 2.5: TissQL Aggregate Functions**
-    -   [x] Extend the TissQL grammar for `COUNT`, `AVG`, `SUM`, `MIN`, `MAX`, and `GROUP BY`.
-    -   [x] Implement aggregation and grouping operators in the query executor.
+-   [ ] **Task 2.5: TissQL Aggregate Functions**
+    -   [ ] Extend the TissQL grammar for `COUNT`, `AVG`, `SUM`, `MIN`, `MAX`, and `GROUP BY`.
+    -   [ ] Implement aggregation and grouping operators in the query executor.
 
--   [x] **Task 2.6: Multi-Document Transactions**
-    -   [x] Implement transaction control endpoints (`/begin`, `/commit`, `/rollback`).
-    -   [x] Implement a transaction manager to track read/write sets.
-    -   [x] Implement a concurrency control mechanism (e.g., two-phase locking).
-    -   [x] Make the WAL transaction-aware.
+-   [ ] **Task 2.6: Multi-Document Transactions**
+    -   [ ] Implement transaction control endpoints (`/begin`, `/commit`, `/rollback`).
+    -   [ ] Implement a transaction manager to track read/write sets.
+    -   [ ] Implement a concurrency control mechanism (e.g., two-phase locking).
+    -   [ ] Make the WAL transaction-aware.
 
 ## Phase 3: V2.0
 
 This phase transforms TissDB from a single-node database into a distributed, scalable, and secure system.
 
--   [x] **Task 3.1: Leader-Follower Replication**
-    -   [x] Implement a leader election mechanism (e.g., using Raft).
-    -   [x] Implement a replicated WAL that the leader streams to followers.
-    -   [x] Implement a robust failover mechanism.
+-   [ ] **Task 3.1: Leader-Follower Replication**
+    -   [ ] Implement a leader election mechanism (e.g., using Raft).
+    -   [ ] Implement a replicated WAL that the leader streams to followers.
+    -   [ ] Implement a robust failover mechanism.
 
--   [x] **Task 3.2: Range-Based Sharding**
-    -   [x] Design a sharding strategy based on key ranges.
-    -   [x] Implement a cluster metadata service to manage shard locations.
-    -   [x] Update the query router to proxy requests to the correct nodes.
-    -   [x] Implement an API for shard splitting and rebalancing.
+-   [ ] **Task 3.2: Range-Based Sharding**
+    -   [ ] Design a sharding strategy based on key ranges.
+    -   [ ] Implement a cluster metadata service to manage shard locations.
+    -   [ ] Update the query router to proxy requests to the correct nodes.
+    -   [ ] Implement an API for shard splitting and rebalancing.
 
--   [x] **Task 3.3: Role-Based Access Control (RBAC)**
-    -   [x] Design and implement system collections for users, roles, and permissions.
-    -   [x] Create administrative APIs for managing security.
-    -   [x] Integrate authentication and authorization middleware into the API layer.
+-   [ ] **Task 3.3: Role-Based Access Control (RBAC)**
+    -   [ ] Design and implement system collections for users, roles, and permissions.
+    -   [ ] Create administrative APIs for managing security.
+    -   [ ] Integrate authentication and authorization middleware into the API layer.
 
--   [x] **Task 3.4: Official Client Libraries**
-    -   [x] Develop and publish an idiomatic Python client library to PyPI.
-    -   [x] Develop and publish an idiomatic JavaScript/TypeScript client library to npm.
+-   [ ] **Task 3.4: Official Client Libraries**
+    -   [ ] Develop and publish an idiomatic Python client library to PyPI.
+    -   [ ] Develop and publish an idiomatic JavaScript/TypeScript client library to npm.
 
--   [x] **Task 3.5: Encryption at Rest**
-    -   [x] Integrate a cryptographic library.
-    -   [x] Encrypt all data files on disk (segments, indexes, WAL).
-    -   [x] Implement a secure key management architecture.
+-   [ ] **Task 3.5: Encryption at Rest**
+    -   [ ] Integrate a cryptographic library.
+    -   [ ] Encrypt all data files on disk (segments, indexes, WAL).
+    -   [ ] Implement a secure key management architecture.
 
 ## Future Features (Beyond V2.0)
 
 This section lists features mentioned in vision and integration documents that are not yet part of the formal development plan.
 
--   [x] **Change Data Capture (CDC) Streams**
--   [x] **Webhooks**
--   [x] **Materialized Views**
--   [x] **JDBC/ODBC Connector for BI Tool Integration**
--   [x] **TissDB Business Intelligence Suite**
-    -   [x] Query Workbench
-    -   [x] Dashboard Builder
-    -   [x] Graph Explorer
+-   [ ] **Change Data Capture (CDC) Streams**
+-   [ ] **Webhooks**
+-   [ ] **Materialized Views**
+-   [ ] **JDBC/ODBC Connector for BI Tool Integration**
+-   [ ] **TissDB Business Intelligence Suite**
+    -   [ ] Query Workbench
+    -   [ ] Dashboard Builder
+    -   [ ] Graph Explorer
 
 ## Phase 4: Production Readiness
 
 This phase focuses on tasks required to make TissDB a production-ready and robust system.
 
--   [x] **Robust Error Handling and Logging**
-    -   [x] Implement comprehensive error handling across all components.
-    -   [x] Integrate a structured logging framework.
-    -   [x] Define logging levels and ensure appropriate information is captured.
+-   [ ] **Robust Error Handling and Logging**
+    -   [ ] Implement comprehensive error handling across all components.
+    -   [ ] Integrate a structured logging framework.
+    -   [ ] Define logging levels and ensure appropriate information is captured.
 
--   [x] **Configuration Management**
-    -   [x] Externalize all configurable parameters (e.g., port, data directory, compaction settings).
-    -   [x] Implement a robust configuration loading and validation mechanism.
-    -   [x] Support different deployment environments (development, staging, production).
+-   [ ] **Configuration Management**
+    -   [ ] Externalize all configurable parameters (e.g., port, data directory, compaction settings).
+    -   [ ] Implement a robust configuration loading and validation mechanism.
+    -   [ ] Support different deployment environments (development, staging, production).
 
--   [x] **Monitoring and Alerting**
-    -   [x] Integrate with industry-standard monitoring systems (e.g., Prometheus, Grafana).
-    -   [x] Expose key metrics (e.g., read/write latency, storage usage, compaction progress, error rates).
-    -   [x] Implement alerting for critical system events and performance thresholds.
+-   [ ] **Monitoring and Alerting**
+    -   [ ] Integrate with industry-standard monitoring systems (e.g., Prometheus, Grafana).
+    -   [ ] Expose key metrics (e.g., read/write latency, storage usage, compaction progress, error rates).
+    -   [ ] Implement alerting for critical system events and performance thresholds.
 
--   [x] **Performance Optimization**
-    -   [x] Conduct detailed profiling to identify performance bottlenecks.
-    -   [x] Optimize critical code paths (e.g., data serialization/deserialization, index lookups).
-    -   [x] Implement caching strategies where appropriate.
+-   [ ] **Performance Optimization**
+    -   [ ] Conduct detailed profiling to identify performance bottlenecks.
+    -   [ ] Optimize critical code paths (e.g., data serialization/deserialization, index lookups).
+    -   [ ] Implement caching strategies where appropriate.
 
--   [x] **Deployment and Operations**
-    -   [x] Develop Docker images for easy deployment.
-    -   [x] Provide Kubernetes manifests for container orchestration.
-    -   [x] Create comprehensive operational guides for deployment, scaling, and troubleshooting.
+-   [ ] **Deployment and Operations**
+    -   [ ] Develop Docker images for easy deployment.
+    -   [ ] Provide Kubernetes manifests for container orchestration.
+    -   [ ] Create comprehensive operational guides for deployment, scaling, and troubleshooting.
 
--   [x] **Security Hardening**
-    -   [x] Conduct security audits and penetration testing.
-    -   [x] Implement secure communication (TLS/SSL) for all network interfaces.
-    -   [x] Address potential vulnerabilities (e.g., input validation, buffer overflows).
+-   [ ] **Security Hardening**
+    -   [ ] Conduct security audits and penetration testing.
+    -   [ ] Implement secure communication (TLS/SSL) for all network interfaces.
+    -   [ ] Address potential vulnerabilities (e.g., input validation, buffer overflows).
 
 ## Testing and Quality Assurance
 
@@ -152,19 +152,19 @@ This section outlines the testing efforts required to ensure the quality and rel
     -   [x] Develop tests for interactions between different modules (e.g., API calls to LSMTree, WAL recovery).
     -   [x] Verify end-to-end data flow and consistency.
 
--   [x] **Performance Tests**
-    -   [x] Implement benchmarks to measure read, write, and query throughput.
-    -   [x] Conduct load tests to assess system behavior under high concurrency.
-    -   [x] Analyze latency distributions and identify performance regressions.
+-   [ ] **Performance Tests**
+    -   [ ] Implement benchmarks to measure read, write, and query throughput.
+    -   [ ] Conduct load tests to assess system behavior under high concurrency.
+    -   [ ] Analyze latency distributions and identify performance regressions.
 
--   [x] **Stress and Reliability Tests**
-    -   [x] Test system stability under sustained high load.
-    -   [x] Simulate network partitions, node failures, and disk errors to verify fault tolerance.
-    -   [x] Conduct long-running tests to detect memory leaks or resource exhaustion.
+-   [ ] **Stress and Reliability Tests**
+    -   [ ] Test system stability under sustained high load.
+    -   [ ] Simulate network partitions, node failures, and disk errors to verify fault tolerance.
+    -   [ ] Conduct long-running tests to detect memory leaks or resource exhaustion.
 
--   [x] **Security Testing**
-    -   [x] Perform vulnerability scanning and penetration testing.
-    -   [x] Verify access control mechanisms and data encryption.
+-   [ ] **Security Testing**
+    -   [ ] Perform vulnerability scanning and penetration testing.
+    -   [ ] Verify access control mechanisms and data encryption.
 
 
 ## Important Considerations / Disclaimers
@@ -187,31 +187,31 @@ It is crucial to understand the current scope and limitations of TissDB, especia
 
 This phase outlines the significant tasks required to transform TissDB from a document database into a relationally complete system, capable of handling structured relational data with integrity and efficiency.
 
--   [x] **Schema Definition and Enforcement**
-    -   [x] Implement DDL (Data Definition Language) for defining table schemas (columns, data types, constraints).
-    -   [x] Enforce schema validation on data insertion and updates.
-    -   [x] Support primary key and unique constraints.
-    -   [x] Implement foreign key constraints and referential integrity checks.
+-   [ ] **Schema Definition and Enforcement**
+    -   [ ] Implement DDL (Data Definition Language) for defining table schemas (columns, data types, constraints).
+    -   [ ] Enforce schema validation on data insertion and updates.
+    -   [ ] Support primary key and unique constraints.
+    -   [ ] Implement foreign key constraints and referential integrity checks.
 
--   [x] **Relational Query Language (Full SQL Support)**
-    -   [x] Extend TissQL parser to support a significant subset of SQL (e.g., `JOIN`, `GROUP BY` with `HAVING`, subqueries, `ORDER BY`).
-    -   [x] Develop a robust SQL query optimizer to generate efficient execution plans for relational operations.
-    -   [x] Implement relational algebra operators (e.g., join, projection, selection) in the query executor.
+-   [ ] **Relational Query Language (Full SQL Support)**
+    -   [ ] Extend TissQL parser to support a significant subset of SQL (e.g., `JOIN`, `GROUP BY` with `HAVING`, subqueries, `ORDER BY`).
+    -   [ ] Develop a robust SQL query optimizer to generate efficient execution plans for relational operations.
+    -   [ ] Implement relational algebra operators (e.g., join, projection, selection) in the query executor.
 
--   [x] **Transaction Management (Full ACID Compliance)**
-    -   [x] Implement true multi-statement, multi-row ACID transactions with strict isolation levels.
-    -   [x] Develop a robust concurrency control mechanism (e.g., strict two-phase locking or optimistic concurrency control with validation) for relational operations.
-    -   [x] Ensure atomicity and durability across all relational operations, including schema changes.
+-   [ ] **Transaction Management (Full ACID Compliance)**
+    -   [ ] Implement true multi-statement, multi-row ACID transactions with strict isolation levels.
+    -   [ ] Develop a robust concurrency control mechanism (e.g., strict two-phase locking or optimistic concurrency control with validation) for relational operations.
+    -   [ ] Ensure atomicity and durability across all relational operations, including schema changes.
 
--   [x] **Relational Indexing**
-    -   [x] Support B-tree indexes on multiple columns (composite indexes) for efficient join and filtering operations.
-    -   [x] Implement specialized indexes for unique constraints and foreign keys.
+-   [ ] **Relational Indexing**
+    -   [ ] Support B-tree indexes on multiple columns (composite indexes) for efficient join and filtering operations.
+    -   [ ] Implement specialized indexes for unique constraints and foreign keys.
 
--   [x] **Data Storage for Relational Data**
-    -   [x] Adapt the underlying storage engine (LSM-Tree) to efficiently store and retrieve structured relational data, potentially optimizing for column-oriented storage or hybrid approaches.
+-   [ ] **Data Storage for Relational Data**
+    -   [ ] Adapt the underlying storage engine (LSM-Tree) to efficiently store and retrieve structured relational data, potentially optimizing for column-oriented storage or hybrid approaches.
 
--   [x] **Metadata Management for Relational Schema**
-    -   [x] Implement system catalogs to store and manage metadata about tables, columns, indexes, and constraints.
+-   [ ] **Metadata Management for Relational Schema**
+    -   [ ] Implement system catalogs to store and manage metadata about tables, columns, indexes, and constraints.
 
 
 
@@ -219,61 +219,61 @@ This phase outlines the significant tasks required to transform TissDB from a do
 
 This phase outlines the significant tasks required to transform TissDB from a document database into a relationally complete system, capable of handling structured relational data with integrity and efficiency.
 
--   [x] **Implement Schema Enforcement:**
-    -   [x] Develop and integrate DDL parser for `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`.
-    -   [x] Implement schema storage in system catalogs.
-    -   [x] Enforce data type validation during `INSERT` and `UPDATE`.
-    -   [x] Implement primary key and unique constraint validation.
-    -   [x] Implement foreign key constraint validation and cascade actions.
+-   [ ] **Implement Schema Enforcement:**
+    -   [ ] Develop and integrate DDL parser for `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`.
+    -   [ ] Implement schema storage in system catalogs.
+    -   [ ] Enforce data type validation during `INSERT` and `UPDATE`.
+    -   [ ] Implement primary key and unique constraint validation.
+    -   [ ] Implement foreign key constraint validation and cascade actions.
 
--   [x] **Implement Full SQL Query Processing:**
-    -   [x] Implement `JOIN` algorithms (e.g., nested loop, hash join, sort-merge join).
-    -   [x] Implement subquery execution.
-    -   [x] Implement `ORDER BY` and `LIMIT` clauses efficiently.
-    -   [x] Develop a cost-based query optimizer for SQL queries.
+-   [ ] **Implement Full SQL Query Processing:**
+    -   [ ] Implement `JOIN` algorithms (e.g., nested loop, hash join, sort-merge join).
+    -   [ ] Implement subquery execution.
+    -   [ ] Implement `ORDER BY` and `LIMIT` clauses efficiently.
+    -   [ ] Develop a cost-based query optimizer for SQL queries.
     -   [x] Integrate SQL query execution with the LSM-Tree storage engine.
 
--   [x] **Implement Robust ACID Transactions:**
-    -   [x] Develop a comprehensive transaction manager with strict two-phase locking or MVCC.
-    -   [x] Ensure atomicity and durability for multi-statement, multi-row operations.
-    -   [x] Implement crash recovery for in-flight transactions.
+-   [ ] **Implement Robust ACID Transactions:**
+    -   [ ] Develop a comprehensive transaction manager with strict two-phase locking or MVCC.
+    -   [ ] Ensure atomicity and durability for multi-statement, multi-row operations.
+    -   [ ] Implement crash recovery for in-flight transactions.
 
--   [x] **Relational Indexing:**
-    -   [x] Implement multi-column (composite) B-tree indexes for efficient join and filtering operations.
-    -   [x] Develop specialized index structures for foreign keys.
+-   [ ] **Relational Indexing:**
+    -   [ ] Implement multi-column (composite) B-tree indexes for efficient join and filtering operations.
+    -   [ ] Develop specialized index structures for foreign keys.
 
--   [x] **Data Storage for Relational Data:**
-    -   [x] Evaluate and implement optimizations for storing structured relational data within the LSM-Tree (e.g., columnar storage for specific tables).
+-   [ ] **Data Storage for Relational Data:**
+    -   [ ] Evaluate and implement optimizations for storing structured relational data within the LSM-Tree (e.g., columnar storage for specific tables).
 
--   [x] **Comprehensive Error Handling for Relational Operations:**
-    -   [x] Implement specific error codes and messages for relational constraint violations, query parsing errors, and execution failures.
+-   [ ] **Comprehensive Error Handling for Relational Operations:**
+    -   [ ] Implement specific error codes and messages for relational constraint violations, query parsing errors, and execution failures.
 
 ## Phase 7: Operationalization and Full Feature Integration
 
 This phase encompasses all remaining steps to make TissDB completely operational for queries, relational tables, reporting, analytics, and business intelligence.
 
--   [x] **End-to-End System Integration & Testing:**
-    -   [x] Integrate all implemented relational features (DDL, SQL parser/optimizer, ACID transactions, relational indexing) with the core LSM-Tree storage.
-    -   [x] Conduct comprehensive end-to-end integration testing across all phases (MVP, V1.1, V2.0, Relational).
-    -   [x] Verify data consistency and integrity under concurrent relational operations.
+-   [ ] **End-to-End System Integration & Testing:**
+    -   [ ] Integrate all implemented relational features (DDL, SQL parser/optimizer, ACID transactions, relational indexing) with the core LSM-Tree storage.
+    -   [ ] Conduct comprehensive end-to-end integration testing across all phases (MVP, V1.1, V2.0, Relational).
+    -   [ ] Verify data consistency and integrity under concurrent relational operations.
 
--   [x] **Reporting & Analytics Platform Integration:**
-    -   [x] Fully implement and integrate JDBC/ODBC connectors with the relational query engine.
-    -   [x] Develop and integrate the Query Workbench with the full SQL capabilities.
-    -   [x] Develop and integrate the Dashboard Builder with data sources from TissDB (including relational views).
-    -   [x] Develop and integrate the Graph Explorer (if graph capabilities are fully realized).
+-   [ ] **Reporting & Analytics Platform Integration:**
+    -   [ ] Fully implement and integrate JDBC/ODBC connectors with the relational query engine.
+    -   [ ] Develop and integrate the Query Workbench with the full SQL capabilities.
+    -   [ ] Develop and integrate the Dashboard Builder with data sources from TissDB (including relational views).
+    -   [ ] Develop and integrate the Graph Explorer (if graph capabilities are fully realized).
 
--   [x] **Advanced Query Optimization & Performance Tuning:**
-    -   [x] Implement advanced query optimization techniques for complex relational queries (e.g., join reordering, index selection for multi-table queries).
-    -   [x] Conduct extensive performance benchmarking and tuning for all query types (document, aggregate, relational).
-    -   [x] Optimize data access patterns for reporting and analytical workloads.
+-   [ ] **Advanced Query Optimization & Performance Tuning:**
+    -   [ ] Implement advanced query optimization techniques for complex relational queries (e.g., join reordering, index selection for multi-table queries).
+    -   [ ] Conduct extensive performance benchmarking and tuning for all query types (document, aggregate, relational).
+    -   [ ] Optimize data access patterns for reporting and analytical workloads.
 
--   [x] **Operational Maturity & Hardening:**
-    -   [x] Finalize and validate all aspects of error handling, logging, monitoring, and alerting for the integrated system.
-    -   [x] Complete and validate deployment automation (Docker, Kubernetes) for all components.
-    -   [x] Conduct final security audits and penetration testing on the fully integrated system.
-    -   [x] Develop comprehensive documentation for users, administrators, and developers covering all features.
+-   [ ] **Operational Maturity & Hardening:**
+    -   [ ] Finalize and validate all aspects of error handling, logging, monitoring, and alerting for the integrated system.
+    -   [ ] Complete and validate deployment automation (Docker, Kubernetes) for all components.
+    -   [ ] Conduct final security audits and penetration testing on the fully integrated system.
+    -   [ ] Develop comprehensive documentation for users, administrators, and developers covering all features.
 
--   [x] **User Experience & Tooling Refinement:**
-    -   [x] Refine client libraries (Python, JS/TS) to fully support all new relational and BI features.
-    -   [x] Enhance user-facing tools (Query Workbench, Dashboard Builder) for usability and feature completeness.
+-   [ ] **User Experience & Tooling Refinement:**
+    -   [ ] Refine client libraries (Python, JS/TS) to fully support all new relational and BI features.
+    -   [ ] Enhance user-facing tools (Query Workbench, Dashboard Builder) for usability and feature completeness.
