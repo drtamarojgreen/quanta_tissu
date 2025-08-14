@@ -1,6 +1,6 @@
 
 
-#include "test_main.cpp"
+#include "test_framework.h"
 #include "../../../tissdb/storage/bpp_tree.h"
 #include <filesystem>
 

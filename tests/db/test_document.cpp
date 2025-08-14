@@ -1,5 +1,5 @@
 
-#include "test_main.cpp"
+#include "test_framework.h"
 #include "../../../tissdb/common/document.h"
 #include "../../../tissdb/common/serialization.h"
 #include <chrono>
