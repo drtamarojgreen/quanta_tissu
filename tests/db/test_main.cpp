@@ -76,7 +76,7 @@ void run_all_tests() {
 #include "test_wal.cpp"
 #include "test_memtable.cpp"
 #include "test_sstable.cpp"
-#include "test_btree.cpp"
+#include "test_bpp_tree.cpp"
 #include "test_indexer.cpp"
 #include "test_collection.cpp"
 #include "test_lsm_tree.cpp"

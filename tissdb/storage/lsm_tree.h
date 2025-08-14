@@ -1,6 +1,7 @@
 #pragma once
 
 #include "collection.h"
+#include "transaction_manager.h"
 #include <string>
 #include <memory>
 #include <map>
@@ -24,13 +25,20 @@ public:
     std::optional<Document> get(const std::string& collection_name, const std::string& key);
     void del(const std::string& collection_name, const std::string& key);
     std::vector<Document> scan(const std::string& collection_name);
-    void create_index(const std::string& collection_name, const std::string& field_name);
+    void create_index(const std::string& collection_name, const std::vector<std::string>& field_names);
 
     std::vector<std::string> find_by_index(const std::string& collection_name, const std::string& field_name, const std::string& value);
+    std::vector<std::string> find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::string& value);
+
+    // Transaction management
+    int begin_transaction();
+    void commit_transaction(int transaction_id);
+    void rollback_transaction(int transaction_id);
 
 private:
     std::string data_directory_;
     std::map<std::string, std::unique_ptr<Collection>> collections_;
+    TransactionManager transaction_manager_;
 
     // Helper to get a collection, throws if not found
     Collection& get_collection(const std::string& name);

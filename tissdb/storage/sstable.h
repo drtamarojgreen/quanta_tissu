@@ -30,6 +30,12 @@ public:
     // Returns the path to the newly created SSTable file.
     static std::string write_from_memtable(const std::string& data_dir, const Memtable& memtable);
 
+    // Static method to merge multiple SSTables into a new one.
+    // Returns the path to the newly created SSTable file.
+    static std::string merge(const std::string& data_dir, const std::vector<SSTable*>& sstables);
+
+    const std::string& get_path() const { return file_path_; }
+
 private:
     void load_index();
 

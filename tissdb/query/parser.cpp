@@ -18,7 +18,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
                 i++;
             }
             std::string value = query_string.substr(start, i - start + 1);
-            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR") {
+            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX") {
                 new_tokens.push_back({Token::Type::KEYWORD, value});
             } else {
                 new_tokens.push_back({Token::Type::IDENTIFIER, value});
@@ -41,8 +41,8 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
                 i++;
             }
             new_tokens.push_back({Token::Type::OPERATOR, query_string.substr(start, i - start + 1)});
-        } else if (query_string[i] == ',') {
-            new_tokens.push_back({Token::Type::OPERATOR, ","});
+        } else if (query_string[i] == ',' || query_string[i] == '(' || query_string[i] == ')') {
+            new_tokens.push_back({Token::Type::OPERATOR, std::string(1, query_string[i])});
         } else if (query_string[i] == '*') {
             new_tokens.push_back({Token::Type::OPERATOR, "*"});
         }
@@ -58,7 +58,18 @@ Parser::Parser() = default;
 AST Parser::parse(const std::string& query_string) {
     tokens = tokenize(query_string);
     pos = 0;
-    return parse_select_statement();
+
+    if (peek().type == Token::Type::KEYWORD) {
+        if (peek().value == "SELECT") {
+            return parse_select_statement();
+        } else if (peek().value == "UPDATE") {
+            return parse_update_statement();
+        } else if (peek().value == "DELETE") {
+            return parse_delete_statement();
+        }
+    }
+
+    throw std::runtime_error("Unsupported statement type");
 }
 
 SelectStatement Parser::parse_select_statement() {
@@ -67,19 +78,40 @@ SelectStatement Parser::parse_select_statement() {
     expect(Token::Type::KEYWORD, "FROM");
     auto table = parse_table_name();
     auto where = parse_where_clause();
-    return {fields, table, where};
+    auto group_by = parse_group_by_clause();
+    return {fields, table, where, group_by};
 }
 
-std::vector<std::string> Parser::parse_select_list() {
-    std::vector<std::string> fields;
-    if (peek().type == Token::Type::OPERATOR && peek().value == "*") {
-        consume();
-        fields.push_back("*");
-        return fields;
-    }
+UpdateStatement Parser::parse_update_statement() {
+    expect(Token::Type::KEYWORD, "UPDATE");
+    auto table = parse_table_name();
+    expect(Token::Type::KEYWORD, "SET");
+    auto set = parse_set_clause();
+    auto where = parse_where_clause();
+    return {table, set, where};
+}
 
+DeleteStatement Parser::parse_delete_statement() {
+    expect(Token::Type::KEYWORD, "DELETE");
+    expect(Token::Type::KEYWORD, "FROM");
+    auto table = parse_table_name();
+    auto where = parse_where_clause();
+    return {table, where};
+}
+
+std::vector<std::variant<std::string, AggregateFunction>> Parser::parse_select_list() {
+    std::vector<std::variant<std::string, AggregateFunction>> fields;
     do {
-        fields.push_back(consume().value);
+        if (peek().type == Token::Type::KEYWORD && (peek().value == "COUNT" || peek().value == "AVG" || peek().value == "SUM" || peek().value == "MIN" || peek().value == "MAX")) {
+            std::string func_name = consume().value;
+            expect(Token::Type::OPERATOR, "(");
+            std::string field_name = consume().value;
+            expect(Token::Type::OPERATOR, ")");
+            fields.push_back(AggregateFunction{func_name, field_name});
+        } else {
+            fields.push_back(consume().value);
+        }
+
         if (peek().type == Token::Type::OPERATOR && peek().value == ",") {
             consume();
         } else {
@@ -99,6 +131,39 @@ std::optional<Expression> Parser::parse_where_clause() {
         return parse_expression();
     }
     return std::nullopt;
+}
+
+std::vector<std::pair<std::string, Literal>> Parser::parse_set_clause() {
+    std::vector<std::pair<std::string, Literal>> set_clause;
+    do {
+        auto identifier = consume();
+        expect(Token::Type::OPERATOR, "=");
+        auto literal = consume();
+        set_clause.push_back({identifier.value, literal.value});
+        if (peek().type == Token::Type::OPERATOR && peek().value == ",") {
+            consume();
+        } else {
+            break;
+        }
+    } while (true);
+    return set_clause;
+}
+
+std::vector<std::string> Parser::parse_group_by_clause() {
+    std::vector<std::string> group_by_fields;
+    if (peek().type == Token::Type::KEYWORD && peek().value == "GROUP") {
+        consume();
+        expect(Token::Type::KEYWORD, "BY");
+        do {
+            group_by_fields.push_back(consume().value);
+            if (peek().type == Token::Type::OPERATOR && peek().value == ",") {
+                consume();
+            } else {
+                break;
+            }
+        } while (true);
+    }
+    return group_by_fields;
 }
 
 Expression Parser::parse_expression(int precedence) {
