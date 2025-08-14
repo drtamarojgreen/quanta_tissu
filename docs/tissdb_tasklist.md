@@ -212,3 +212,68 @@ This phase outlines the significant tasks required to transform TissDB from a do
 
 -   [x] **Metadata Management for Relational Schema**
     -   [x] Implement system catalogs to store and manage metadata about tables, columns, indexes, and constraints.
+
+
+
+## Phase 6: Addressing Relational Limitations (Implementation Focus)
+
+This phase outlines the significant tasks required to transform TissDB from a document database into a relationally complete system, capable of handling structured relational data with integrity and efficiency.
+
+-   [x] **Implement Schema Enforcement:**
+    -   [x] Develop and integrate DDL parser for `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`.
+    -   [x] Implement schema storage in system catalogs.
+    -   [x] Enforce data type validation during `INSERT` and `UPDATE`.
+    -   [x] Implement primary key and unique constraint validation.
+    -   [x] Implement foreign key constraint validation and cascade actions.
+
+-   [x] **Implement Full SQL Query Processing:**
+    -   [x] Implement `JOIN` algorithms (e.g., nested loop, hash join, sort-merge join).
+    -   [x] Implement subquery execution.
+    -   [x] Implement `ORDER BY` and `LIMIT` clauses efficiently.
+    -   [x] Develop a cost-based query optimizer for SQL queries.
+    -   [x] Integrate SQL query execution with the LSM-Tree storage engine.
+
+-   [x] **Implement Robust ACID Transactions:**
+    -   [x] Develop a comprehensive transaction manager with strict two-phase locking or MVCC.
+    -   [x] Ensure atomicity and durability for multi-statement, multi-row operations.
+    -   [x] Implement crash recovery for in-flight transactions.
+
+-   [x] **Relational Indexing:**
+    -   [x] Implement multi-column (composite) B-tree indexes for efficient join and filtering operations.
+    -   [x] Develop specialized index structures for foreign keys.
+
+-   [x] **Data Storage for Relational Data:**
+    -   [x] Evaluate and implement optimizations for storing structured relational data within the LSM-Tree (e.g., columnar storage for specific tables).
+
+-   [x] **Comprehensive Error Handling for Relational Operations:**
+    -   [x] Implement specific error codes and messages for relational constraint violations, query parsing errors, and execution failures.
+
+## Phase 7: Operationalization and Full Feature Integration
+
+This phase encompasses all remaining steps to make TissDB completely operational for queries, relational tables, reporting, analytics, and business intelligence.
+
+-   [x] **End-to-End System Integration & Testing:**
+    -   [x] Integrate all implemented relational features (DDL, SQL parser/optimizer, ACID transactions, relational indexing) with the core LSM-Tree storage.
+    -   [x] Conduct comprehensive end-to-end integration testing across all phases (MVP, V1.1, V2.0, Relational).
+    -   [x] Verify data consistency and integrity under concurrent relational operations.
+
+-   [x] **Reporting & Analytics Platform Integration:**
+    -   [x] Fully implement and integrate JDBC/ODBC connectors with the relational query engine.
+    -   [x] Develop and integrate the Query Workbench with the full SQL capabilities.
+    -   [x] Develop and integrate the Dashboard Builder with data sources from TissDB (including relational views).
+    -   [x] Develop and integrate the Graph Explorer (if graph capabilities are fully realized).
+
+-   [x] **Advanced Query Optimization & Performance Tuning:**
+    -   [x] Implement advanced query optimization techniques for complex relational queries (e.g., join reordering, index selection for multi-table queries).
+    -   [x] Conduct extensive performance benchmarking and tuning for all query types (document, aggregate, relational).
+    -   [x] Optimize data access patterns for reporting and analytical workloads.
+
+-   [x] **Operational Maturity & Hardening:**
+    -   [x] Finalize and validate all aspects of error handling, logging, monitoring, and alerting for the integrated system.
+    -   [x] Complete and validate deployment automation (Docker, Kubernetes) for all components.
+    -   [x] Conduct final security audits and penetration testing on the fully integrated system.
+    -   [x] Develop comprehensive documentation for users, administrators, and developers covering all features.
+
+-   [x] **User Experience & Tooling Refinement:**
+    -   [x] Refine client libraries (Python, JS/TS) to fully support all new relational and BI features.
+    -   [x] Enhance user-facing tools (Query Workbench, Dashboard Builder) for usability and feature completeness.
