@@ -7,91 +7,163 @@ This document outlines the development tasks for TissDB, derived from the offici
 The goal of this phase is to deliver a functional, single-node TissDB instance capable of basic document CRUD operations, simple TissQL queries, and single-field indexing.
 
 -   [x] **Task 1.2: Core Append-Only Storage Layer**
-    -   [x] Design the on-disk format for segment files.
-    -   [x] Implement a Write-Ahead Log (WAL) for durability.
-    -   [x] Implement the `memtable` and its flush-to-disk mechanism.
-    -   [x] Ensure the server can recover from the WAL after a crash.
+    -   **Sub-tasks**:
+        -   [x] Design the on-disk format for segment files, including document entries and a file header.
+        -   [x] Implement a Write-Ahead Log (WAL) for durability. Writes will first go to the WAL, then to an in-memory table (`memtable`).
+        -   [x] Implement the `memtable` flush mechanism, which writes the sorted contents of the `memtable` to a new, immutable segment file on disk.
+    -   **Acceptance Criteria**:
+        -   [x] The server can be shut down unexpectedly during a write operation and recover its state from the WAL upon restart.
+        -   [x] Data written to the database is correctly persisted in segment files.
 
 -   [x] **Task 1.3: Basic REST API for Document CRUD**
-    -   [x] Implement a lightweight C++ HTTP server.
-    -   [x] Implement `POST /<collection>` to create documents.
-    -   [x] Implement `GET /<collection>/<id>` to retrieve documents.
-    -   [x] Implement `PUT /<collection>/<id>` for full document updates.
-    -   [x] Implement `DELETE /<collection>/<id>` for document deletion (tombstones).
+    -   **Sub-tasks**:
+        -   [x] Implement a lightweight C++ HTTP server.
+        -   [x] Implement the `POST /<collection>` endpoint to create new documents.
+        -   [x] Implement the `GET /<collection>/<id>` endpoint to retrieve a document by its ID (requiring a full scan initially).
+        -   [x] Implement `PUT /<collection>/<id>` (full update) and `DELETE /<collection>/<id>` (tombstone write).
+    -   **Acceptance Criteria**:
+        -   [x] All CRUD endpoints can be successfully tested using a tool like `curl` or Postman.
+        -   [x] Appropriate HTTP status codes (200, 201, 404, etc.) are returned.
 
 -   [x] **Task 1.4: TissQL Parser for Basic SELECT**
-    -   [x] Define a formal grammar (EBNF) for basic `SELECT` queries.
-    -   [x] Implement a parser to generate an Abstract Syntax Tree (AST).
-    -   [x] Implement a basic query executor that can perform full collection scans based on the AST.
-    -   [x] Implement the `POST /<collection>/_query` endpoint.
+    -   **Sub-tasks**:
+        -   [x] Define a formal grammar (e.g., in EBNF) for a subset of TissQL: `SELECT <fields> FROM <collection> WHERE <field> = <value>`.
+        -   [x] Implement a parser from the grammar.
+        -   [x] The parser must produce a simple Abstract Syntax Tree (AST) representing the query.
+        -   [x] Implement a basic query executor that walks the AST and performs a full collection scan, filtering documents based on the `WHERE` clause.
+    -   **Acceptance Criteria**:
+        -   [x] The `POST /<collection>/_query` endpoint correctly parses and executes valid `SELECT` queries.
+        -   [x] Malformed queries result in a `400 Bad Request` error with a descriptive message.
 
 -   [x] **Task 1.5: Single-Field B-Tree Indexing**
-    -   [x] Implement or integrate a **persistent** B-Tree library.
-    -   [x] Create an API endpoint (`POST /<collection>/_index`) to create an index.
-    -   [x] Modify the write path to automatically update the index.
-    -   [x] Update the query planner to use the index for lookups.
+    -   **Sub-tasks**:
+        -   [x] Implement or integrate a persistent B-Tree library.
+        -   [x] Create an API endpoint `POST /<collection>/_index` to trigger the creation of an index on a specific field.
+        -   [x] Modify the write path to automatically update the relevant index whenever a document is created, updated, or deleted.
+        -   [x] Update the query planner to detect when a `WHERE` clause can use an index, and direct the executor to use the index instead of a full scan.
+    -   **Acceptance Criteria**:
+        -   [x] Creating an index on a field is successful.
+        -   [x] A `SELECT` query using an indexed field in the `WHERE` clause shows a significant performance improvement over a query on a non-indexed field.
 
 ## Phase 2: V1.1
 
 This phase focuses on evolving the MVP into a more robust database with better data management, full query language support, and transactional capabilities.
 
 -   [x] **Task 2.1: Collection Management**
-    -   [x] Implement logic to manage multiple collections within the database.
-    -   [x] Create API endpoints for collection management (`PUT /<collection>`, `DELETE /<collection>`).
+    -   **Sub-tasks**:
+        -   [x] Implement logic to manage multiple collections within the database.
+        -   [x] Create API endpoints for collection management (`PUT /<collection>`, `DELETE /<collection>`).
+    -   **Acceptance Criteria**:
+        -   [x] Multiple collections can be created and deleted.
+        -   [x] CRUD operations on one collection do not affect others.
 
 -   [x] **Task 2.2: LSM Tree Compaction**
-    -   [x] Design and implement a compaction strategy (e.g., size-tiered or level-tiered).
-    -   [x] Implement a background thread pool for compaction.
-    -   [x] Implement logic to merge segments, handle overwrites, and purge tombstones.
+    -   **Sub-tasks**:
+        -   [x] Design and implement a compaction strategy (e.g., size-tiered or level-tiered).
+        -   [x] Implement a dedicated background thread pool to manage compaction tasks without blocking foreground operations.
+        -   [x] Develop the logic to merge multiple sorted segment files into a new segment, correctly handling overwritten values and removing entries marked with a tombstone.
+        -   [x] Update the database manifest atomically upon successful completion of a compaction to reflect the new segment state.
+    -   **Acceptance Criteria**:
+        -   [x] Deleted documents are physically purged from disk after a compaction cycle completes.
+        -   [x] The total number of segment files is managed effectively, preventing performance degradation on reads.
+        -   [x] The database remains fully available for reads and writes during the compaction process.
 
 -   [x] **Task 2.3: TissQL UPDATE and DELETE Support**
-    -   [x] Extend the TissQL grammar and parser for `UPDATE` and `DELETE` statements.
-    -   [x] Update the query executor to handle `UPDATE` (read-modify-write) and `DELETE` (tombstone) operations.
-    -   [x] Ensure `WHERE` clauses in these statements can leverage indexes.
+    -   **Sub-tasks**:
+        -   [x] Extend the TissQL grammar and parser to support `UPDATE ... SET ... WHERE ...` and `DELETE FROM ... WHERE ...` statements.
+        -   [x] Update the query planner and executor to handle these new statement types.
+        -   [x] The `DELETE` executor will find matching documents and write new entries with a "tombstone" marker.
+        -   [x] The `UPDATE` executor will effectively perform a read-modify-write operation, creating a new version of the document and writing it to the current memtable.
+    -   **Acceptance Criteria**:
+        -   [x] `UPDATE` queries correctly modify the specified fields in all matching documents.
+        -   [x] `DELETE` queries make matching documents inaccessible for all subsequent reads.
+        -   [x] The `WHERE` clause in both `UPDATE` and `DELETE` statements correctly utilizes existing indexes to find target documents.
 
 -   [ ] **Task 2.4: Compound Indexing**
-    -   [ ] Update the index creation endpoint to accept multiple field names.
-    -   [ ] Modify the B-Tree implementation to handle composite keys.
-    -   [ ] Enhance the query planner to use compound indexes.
+    -   **Sub-tasks**:
+        -   [ ] Update the `POST /<collection>/_index` endpoint to accept an array of field names.
+        -   [ ] Modify the B-Tree implementation to handle composite keys, where key values are concatenated from multiple document fields.
+        -   [ ] Enhance the query planner to detect when a query's `WHERE` clause can be partially or fully satisfied by a compound index.
+    -   **Acceptance Criteria**:
+        -   [ ] An index can be successfully created on `(brand, price)`.
+        -   [ ] A query like `SELECT * FROM products WHERE brand = 'AudioPhonic' AND price < 200` uses the compound index to narrow the search space efficiently.
 
 -   [ ] **Task 2.5: TissQL Aggregate Functions**
-    -   [ ] Extend the TissQL grammar for `COUNT`, `AVG`, `SUM`, `MIN`, `MAX`, and `GROUP BY`.
-    -   [ ] Implement aggregation and grouping operators in the query executor.
+    -   **Sub-tasks**:
+        -   [ ] Extend the TissQL grammar to support aggregate functions (`COUNT`, `AVG`, `SUM`, `MIN`, `MAX`) and the `GROUP BY` clause.
+        -   [ ] Implement an aggregation operator in the query executor that can process rows and compute aggregate values.
+        -   [ ] Implement the `GROUP BY` logic, likely using a hash table to group results before aggregation.
+    -   **Acceptance Criteria**:
+        -   [ ] `SELECT COUNT(*) FROM products WHERE is_available = true` returns the correct count.
+        -   [ ] `SELECT brand, AVG(price) FROM products GROUP BY brand` returns the correct average price for each brand.
 
 -   [ ] **Task 2.6: Multi-Document Transactions**
-    -   [ ] Implement transaction control endpoints (`/begin`, `/commit`, `/rollback`).
-    -   [ ] Implement a transaction manager to track read/write sets.
-    -   [ ] Implement a concurrency control mechanism (e.g., two-phase locking).
-    -   [ ] Make the WAL transaction-aware.
+    -   **Sub-tasks**:
+        -   [ ] Implement API endpoints for transaction control: `POST /_transaction/begin`, `POST /_transaction/commit`, `POST /_transaction/rollback`.
+        -   [ ] Implement a transaction manager that assigns a transaction ID and tracks the read and write sets for each active transaction.
+        -   [ ] Implement a concurrency control mechanism (e.g., two-phase locking) to ensure serializable isolation.
+        -   [ ] Modify the WAL to log transaction boundaries (`BEGIN`, `COMMIT`) to enable atomic commits and recovery.
+    -   **Acceptance Criteria**:
+        -   [ ] A transaction that updates two separate documents can be committed atomically; either both updates are visible, or neither is.
+        -   [ ] If a transaction is rolled back, none of its changes are visible.
+        -   [ ] The server can recover from a crash mid-transaction, correctly rolling back any uncommitted changes upon restart.
 
 ## Phase 3: V2.0
 
 This phase transforms TissDB from a single-node database into a distributed, scalable, and secure system.
 
 -   [ ] **Task 3.1: Leader-Follower Replication**
-    -   [ ] Implement a leader election mechanism (e.g., using Raft).
-    -   [ ] Implement a replicated WAL that the leader streams to followers.
-    -   [ ] Implement a robust failover mechanism.
+    -   **Sub-tasks**:
+        -   [ ] Implement a leader election mechanism using a proven consensus algorithm like Raft.
+        -   [ ] Extend the Write-Ahead Log (WAL) to become a replicated log that the leader streams to followers.
+        -   [ ] Implement the follower logic to receive, acknowledge, and apply log entries to their local storage engine.
+        -   [ ] Develop a robust failover mechanism. If a leader becomes unresponsive, the remaining nodes must elect a new leader with a fully up-to-date log.
+    -   **Acceptance Criteria**:
+        -   [ ] Writes to the leader are successfully replicated to a configurable quorum of followers before the write is acknowledged to the client.
+        -   [ ] In the event of a leader failure, a new leader is elected within seconds and the database remains available for writes.
+        -   [ ] Follower nodes can be taken offline and brought back online, automatically catching up with the leader's state.
 
 -   [ ] **Task 3.2: Range-Based Sharding**
-    -   [ ] Design a sharding strategy based on key ranges.
-    -   [ ] Implement a cluster metadata service to manage shard locations.
-    -   [ ] Update the query router to proxy requests to the correct nodes.
-    -   [ ] Implement an API for shard splitting and rebalancing.
+    -   **Sub-tasks**:
+        -   [ ] Design a sharding strategy based on ranges of a designated shard key within each collection.
+        -   [ ] Implement a cluster metadata service (or use the Raft cluster itself) to manage the mapping of key ranges to shard-hosting nodes.
+        -   [ ] Update the query router in the API layer to inspect incoming requests, determine the target shard(s), and proxy the request to the correct node(s).
+        -   [ ] Implement an administrative API for shard splitting and rebalancing to allow for cluster expansion.
+    -   **Acceptance Criteria**:
+        -   [ ] A collection's data is successfully distributed across multiple nodes.
+        -   [ ] Queries are correctly routed to the appropriate nodes, and cross-shard queries are aggregated correctly.
+        -   [ ] The cluster can be expanded with new nodes, and existing shards can be rebalanced onto them without downtime.
 
 -   [ ] **Task 3.3: Role-Based Access Control (RBAC)**
-    -   [ ] Design and implement system collections for users, roles, and permissions.
-    -   [ ] Create administrative APIs for managing security.
-    -   [ ] Integrate authentication and authorization middleware into the API layer.
+    -   **Sub-tasks**:
+        -   [ ] Design and implement internal system collections to store user, role, and permission data.
+        -   [ ] Create secure administrative API endpoints for managing users and roles (e.g., `POST /_admin/users`, `POST /_admin/roles`).
+        -   [ ] Integrate an authentication middleware into the API layer that validates bearer tokens (API Keys).
+        -   [ ] Implement an authorization middleware that checks the authenticated user's permissions for the target collection and operation before passing the request to the query engine.
+    -   **Acceptance Criteria**:
+        -   [ ] An administrator can create a role with specific permissions (e.g., read-only on `collection_a`, write on `collection_b`).
+        -   [ ] A user with an API key linked to that role is denied access when attempting an unauthorized operation.
 
 -   [ ] **Task 3.4: Official Client Libraries**
-    -   [ ] Develop and publish an idiomatic Python client library to PyPI.
-    -   [ ] Develop and publish an idiomatic JavaScript/TypeScript client library to npm.
+    -   **Sub-tasks**:
+        -   [ ] Develop an idiomatic Python client library that provides a clean, high-level interface over the REST API.
+        -   [ ] The library must handle connection pooling, request serialization, and response deserialization.
+        -   [ ] Package the library and publish it to the Python Package Index (PyPI).
+        -   [ ] Repeat the process for a JavaScript/TypeScript client library, publishing it to the npm registry.
+    -   **Acceptance Criteria**:
+        -   [ ] A developer can `pip install tissdb` or `npm install tissdb` and interact with the database without writing raw HTTP requests.
+        -   [ ] Both libraries are well-documented and include comprehensive examples.
 
 -   [ ] **Task 3.5: Encryption at Rest**
-    -   [ ] Integrate a cryptographic library.
-    -   [ ] Encrypt all data files on disk (segments, indexes, WAL).
-    -   [ ] Implement a secure key management architecture.
+    -   **Sub-tasks**:
+        -   [ ] Implement a robust cryptographic library.
+        -   [ ] Modify the storage engine's file manager to encrypt segment files, index files, and WAL files before writing them to disk.
+        -   [ ] Implement a secure key management architecture for managing the master encryption key.
+        -   [ ] Ensure the encryption/decryption process has minimal performance overhead on database operations.
+    -   **Acceptance Criteria**:
+        -   [ ] All data files on disk are fully encrypted.
+        -   [ ] Manual inspection of disk files (e.g., with a hex editor) reveals no plaintext data.
+        -   [ ] The database cannot be started without access to the master key from the configured KMS.
 
 ## Future Features (Beyond V2.0)
 
@@ -208,7 +280,7 @@ This phase outlines the significant tasks required to transform TissDB from a do
     -   [ ] Implement specialized indexes for unique constraints and foreign keys.
 
 -   [ ] **Data Storage for Relational Data**
-    -   [ ] Adapt the underlying storage engine (LSM-Tree) to efficiently store and retrieve structured relational data, potentially optimizing for column-oriented storage or hybrid approaches.
+    -   [ ] Adapt the underlying storage engine (LSM-Tree) to efficiently store and retrieve structured relational data, a aynchronously optimizing for column-oriented storage or hybrid approaches.
 
 -   [ ] **Metadata Management for Relational Schema**
     -   [ ] Implement system catalogs to store and manage metadata about tables, columns, indexes, and constraints.
