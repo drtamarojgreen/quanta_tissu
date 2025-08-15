@@ -297,6 +297,43 @@ void HttpServer::Impl::handle_client(int client_socket) {
             } catch (const std::exception& e) {
                 send_response(client_socket, "400 Bad Request", "text/plain", "Failed to create collection: " + std::string(e.what()));
             }
+        } else if (req.method == "PUT" && path_parts.size() == 2 && path_parts[1] == "_schema") {
+            // PUT /<collection>/_schema
+            try {
+                const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                const Json::JsonObject& schema_json = parsed_body.as_object();
+                
+                Schema schema;
+                if (schema_json.count("fields")) {
+                    const Json::JsonArray& fields = schema_json.at("fields").as_array();
+                    for (const auto& field_val : fields) {
+                        const Json::JsonObject& field_obj = field_val.as_object();
+                        std::string name = field_obj.at("name").as_string();
+                        std::string type_str = field_obj.at("type").as_string();
+                        bool required = field_obj.count("required") ? field_obj.at("required").as_bool() : false;
+                        
+                        FieldType type;
+                        if (type_str == "String") type = FieldType::String;
+                        else if (type_str == "Number") type = FieldType::Number;
+                        else if (type_str == "Boolean") type = FieldType::Boolean;
+                        else if (type_str == "DateTime") type = FieldType::DateTime;
+                        else if (type_str == "Binary") type = FieldType::Binary;
+                        else if (type_str == "Object") type = FieldType::Object;
+                        else if (type_str == "Array") type = FieldType::Array;
+                        else {
+                            throw std::runtime_error("Unknown field type: " + type_str);
+                        }
+                        
+                        schema.add_field(name, type, required);
+                    }
+                }
+                
+                storage_engine.get_collection(collection_name)->set_schema(schema);
+                send_response(client_socket, "200 OK", "text/plain", "Schema updated for collection '" + collection_name + "'.");
+
+            } catch (const std::exception& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid schema format: " + std::string(e.what()));
+            }
         } else if (req.method == "DELETE" && path_parts.size() == 1) {
             // DELETE /<collection> (Delete collection)
             try {

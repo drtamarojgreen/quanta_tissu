@@ -34,8 +34,11 @@ private:
     SelectStatement parse_select_statement();
     UpdateStatement parse_update_statement();
     DeleteStatement parse_delete_statement();
+    InsertStatement parse_insert_statement();
     std::vector<std::variant<std::string, AggregateFunction>> parse_select_list();
     std::string parse_table_name();
+    std::vector<std::string> parse_column_list();
+    std::vector<Literal> parse_value_list();
     std::optional<Expression> parse_where_clause();
     std::vector<std::pair<std::string, Literal>> parse_set_clause();
     std::vector<std::string> parse_group_by_clause();

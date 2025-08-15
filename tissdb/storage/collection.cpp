@@ -44,11 +44,21 @@ Collection::Collection(const std::string& collection_path) : collection_path_(co
     start_compaction_thread();
 }
 
+#include <stdexcept>
+
 Collection::~Collection() {
     stop_compaction_thread();
 }
 
+void Collection::set_schema(const Schema& schema) {
+    schema_ = schema;
+}
+
 void Collection::put(const std::string& key, const Document& doc) {
+    if (schema_ && !SchemaValidator::validate(doc, *schema_)) {
+        throw std::runtime_error("Schema validation failed for document " + doc.id);
+    }
+
     LogEntry entry;
     entry.type = LogEntryType::PUT;
     entry.document_id = key;

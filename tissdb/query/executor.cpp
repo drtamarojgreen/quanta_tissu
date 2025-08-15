@@ -98,19 +98,37 @@ QueryResult Executor::execute(const AST& ast) {
 
         // --- Index Selection Logic ---
         if (select_stmt->where_clause) {
-            if (auto* binary_expr = std::get_if<BinaryExpression>(&*select_stmt->where_clause)) {
-                if (binary_expr->op == "=") {
-                    if (auto* left_ident = std::get_if<Identifier>(&*binary_expr->left)) {
-                        if (auto* right_literal = std::get_if<Literal>(&*binary_expr->right)) {
-                            if (auto* lit_val = std::get_if<std::string>(right_literal)) {
-                                if (storage_engine.has_index(select_stmt->from_collection, {left_ident->name})) {
-                                    doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, left_ident->name, *lit_val);
-                                    index_used = true;
+            std::vector<std::string> indexable_fields;
+            std::vector<std::string> indexable_values;
+
+            // This is a simplified traversal for `field = 'value' AND field2 = 'value2'`
+            std::function<void(const Expression&)> extract_conditions =
+                [&](const Expression& expr) {
+                if (auto* logical = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
+                    if ((*logical)->op == "AND") {
+                        extract_conditions((*logical)->left);
+                        extract_conditions((*logical)->right);
+                    }
+                } else if (auto* binary = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
+                    if ((*binary)->op == "=") {
+                        if (auto* ident = std::get_if<Identifier>(&(*binary)->left)) {
+                            if (auto* lit = std::get_if<Literal>(&(*binary)->right)) {
+                                if (auto* str_lit = std::get_if<std::string>(lit)) {
+                                    indexable_fields.push_back(ident->name);
+                                    indexable_values.push_back(*str_lit);
                                 }
                             }
                         }
                     }
                 }
+            };
+
+            extract_conditions(*select_stmt->where_clause);
+
+            if (!indexable_fields.empty() && storage_engine.has_index(select_stmt->from_collection, indexable_fields)) {
+                 doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, indexable_fields, indexable_values);
+                 index_used = true;
+                 std::cout << "Using compound index for query." << std::endl;
             }
         }
 

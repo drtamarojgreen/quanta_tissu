@@ -14,6 +14,8 @@
 #include "sstable.h"
 #include "indexer.h"
 #include "../common/document.h"
+#include "../common/schema.h"
+#include "../common/schema_validator.h"
 
 namespace TissDB {
 namespace Storage {
@@ -26,6 +28,7 @@ public:
     explicit Collection(const std::string& collection_path);
     ~Collection();
 
+    void set_schema(const Schema& schema);
     void put(const std::string& key, const Document& doc);
     std::optional<Document> get(const std::string& key);
     void del(const std::string& key);
@@ -47,6 +50,7 @@ private:
     std::vector<std::unique_ptr<SSTable>> sstables_;
     std::thread compaction_thread_;
     std::atomic<bool> stop_compaction_;
+    std::optional<Schema> schema_;
 };
 
 } // namespace Storage

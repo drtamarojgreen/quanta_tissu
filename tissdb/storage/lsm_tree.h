@@ -31,7 +31,7 @@ public:
     void create_index(const std::string& collection_name, const std::vector<std::string>& field_names);
 
     std::vector<std::string> find_by_index(const std::string& collection_name, const std::string& field_name, const std::string& value);
-    std::vector<std::string> find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::string& value);
+    std::vector<std::string> find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::vector<std::string>& values);
 
     // Transaction management
     int begin_transaction();

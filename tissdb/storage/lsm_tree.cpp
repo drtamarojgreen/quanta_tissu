@@ -78,8 +78,8 @@ std::vector<std::string> LSMTree::find_by_index(const std::string& collection_na
     return get_collection(collection_name).find_by_index(field_name, value);
 }
 
-std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::string& value) {
-    return get_collection(collection_name).find_by_index(field_names, value);
+std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::vector<std::string>& values) {
+    return get_collection(collection_name).find_by_index(field_names, values);
 }
 
 int LSMTree::begin_transaction() {
