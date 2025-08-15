@@ -162,6 +162,10 @@ std::vector<std::string> Collection::find_by_index(const std::string& field_name
     return indexer_.find_by_index(field_name, value);
 }
 
+std::vector<std::string> Collection::find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) {
+    return indexer_.find_by_index(field_names, values);
+}
+
 void Collection::flush_memtable() {
     std::string new_sstable_path = SSTable::write_from_memtable(collection_path_, *memtable_);
     sstables_.insert(sstables_.begin(), std::make_unique<SSTable>(new_sstable_path));
