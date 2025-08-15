@@ -57,7 +57,14 @@ public:
 
     // Constructors
     TissValue() : value_(nullptr) {}
-    TissValue(const char* v) : value_(std::string(v)) {}
+    TissValue(std::nullptr_t) : value_(nullptr) {}
+    TissValue(const char* v) {
+        if (v) {
+            value_ = std::string(v);
+        } else {
+            value_ = nullptr;
+        }
+    }
     TissValue(std::string v) : value_(std::move(v)) {}
     TissValue(int64_t v) : value_(v) {}
     TissValue(int v) : value_(static_cast<int64_t>(v)) {}
