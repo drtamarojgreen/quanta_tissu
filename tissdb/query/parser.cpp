@@ -180,9 +180,9 @@ Expression Parser::parse_expression(int precedence) {
         consume();
         auto right = parse_expression(new_precedence);
         if (op == "AND" || op == "OR") {
-            left = LogicalExpression{std::make_unique<Expression>(std::move(left)), op, std::make_unique<Expression>(std::move(right))};
+            left = std::make_unique<LogicalExpression>(LogicalExpression{std::move(left), op, std::move(right)});
         } else {
-            left = BinaryExpression{std::make_unique<Expression>(std::move(left)), op, std::make_unique<Expression>(std::move(right))};
+            left = std::make_unique<BinaryExpression>(BinaryExpression{std::move(left), op, std::move(right)});
         }
     }
 
