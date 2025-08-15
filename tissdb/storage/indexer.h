@@ -1,5 +1,11 @@
 #pragma once
 
+#include <cstddef>
+#include <string>
+#include <vector>
+#include <map>
+#include <memory>
+
 #include "bpp_tree.h"
 
 // Forward declaration of the btree class from the B++ tree library
@@ -9,10 +15,6 @@ namespace bpp {
 }
 
 #include "../common/document.h"
-#include <string>
-#include <vector>
-#include <map>
-#include <memory>
 
 namespace TissDB {
 namespace Storage {

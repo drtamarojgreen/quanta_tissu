@@ -1,7 +1,6 @@
-
 #include "test_framework.h"
-#include "../../../tissdb/storage/wal.h"
-#include "../../../tissdb/common/document.h"
+#include "../../tissdb/storage/wal.h"
+#include "../../tissdb/common/document.h"
 #include <filesystem>
 
 TEST_CASE(WALAppendAndRecover) {

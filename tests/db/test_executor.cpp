@@ -1,8 +1,8 @@
 
 #include "test_framework.h"
-#include "../../../tissdb/query/executor.h"
-#include "../../../tissdb/query/parser.h"
-#include "../../../tissdb/storage/lsm_tree.h"
+#include "../../tissdb/query/executor.h"
+#include "../../tissdb/query/parser.h"
+#include "../../tissdb/storage/lsm_tree.h"
 #include <filesystem>
 
 // Mock LSMTree for testing executor in isolation

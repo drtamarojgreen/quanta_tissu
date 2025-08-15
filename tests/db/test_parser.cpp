@@ -1,6 +1,6 @@
 
 #include "test_framework.h"
-#include "../../../tissdb/query/parser.h"
+#include "../../tissdb/query/parser.h"
 
 TEST_CASE(ParserSelectAll) {
     TissDB::Query::Parser parser;

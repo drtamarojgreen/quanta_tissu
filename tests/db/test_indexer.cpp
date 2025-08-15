@@ -1,7 +1,7 @@
 
 #include "test_framework.h"
-#include "../../../tissdb/storage/indexer.h"
-#include "../../../tissdb/common/document.h"
+#include "../../tissdb/storage/indexer.h"
+#include "../../tissdb/common/document.h"
 #include <filesystem>
 
 TEST_CASE(IndexerCreateIndex) {
