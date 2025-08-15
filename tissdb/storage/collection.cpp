@@ -46,17 +46,21 @@ Collection::Collection(const std::string& collection_path) : collection_path_(co
 
 #include <stdexcept>
 
+#include "../common/schema_validator.h"
+
+
 Collection::~Collection() {
     stop_compaction_thread();
 }
 
 void Collection::set_schema(const Schema& schema) {
-    schema_ = schema;
+    schema_ = std::make_unique<Schema>(schema);
+    schema_validator_ = std::make_unique<SchemaValidator>(indexer_);
 }
 
 void Collection::put(const std::string& key, const Document& doc) {
-    if (schema_ && !SchemaValidator::validate(doc, *schema_)) {
-        throw std::runtime_error("Schema validation failed for document " + doc.id);
+    if (schema_validator_) {
+        schema_validator_->validate(doc, *schema_);
     }
 
     LogEntry entry;
@@ -160,10 +164,6 @@ void Collection::create_index(const std::vector<std::string>& field_names) {
 
 std::vector<std::string> Collection::find_by_index(const std::string& field_name, const std::string& value) {
     return indexer_.find_by_index(field_name, value);
-}
-
-bool Collection::has_index(const std::vector<std::string>& field_names) const {
-    return indexer_.has_index(field_names);
 }
 
 void Collection::flush_memtable() {
