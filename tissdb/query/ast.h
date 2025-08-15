@@ -70,8 +70,15 @@ struct DeleteStatement {
     std::optional<Expression> where_clause;
 };
 
+// Represents a TissQL INSERT statement.
+struct InsertStatement {
+    std::string collection_name;
+    std::vector<std::string> columns;
+    std::vector<Literal> values;
+};
+
 // The Abstract Syntax Tree (AST) for a query.
-using AST = std::variant<SelectStatement, UpdateStatement, DeleteStatement>;
+using AST = std::variant<SelectStatement, UpdateStatement, DeleteStatement, InsertStatement>;
 
 } // namespace Query
 } // namespace TissDB

@@ -18,7 +18,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
                 i++;
             }
             std::string value = query_string.substr(start, i - start + 1);
-            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX") {
+            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX" || value == "INSERT" || value == "INTO" || value == "VALUES") {
                 new_tokens.push_back({Token::Type::KEYWORD, value});
             } else {
                 new_tokens.push_back({Token::Type::IDENTIFIER, value});
@@ -66,6 +66,8 @@ AST Parser::parse(const std::string& query_string) {
             return parse_update_statement();
         } else if (peek().value == "DELETE") {
             return parse_delete_statement();
+        } else if (peek().value == "INSERT") {
+            return parse_insert_statement();
         }
     }
 
@@ -99,8 +101,31 @@ DeleteStatement Parser::parse_delete_statement() {
     return {table, std::move(where)};
 }
 
+InsertStatement Parser::parse_insert_statement() {
+    expect(Token::Type::KEYWORD, "INSERT");
+    expect(Token::Type::KEYWORD, "INTO");
+    auto table = parse_table_name();
+    std::vector<std::string> columns;
+    if (peek().type == Token::Type::OPERATOR && peek().value == "(") {
+        consume();
+        columns = parse_column_list();
+        expect(Token::Type::OPERATOR, ")");
+    }
+    expect(Token::Type::KEYWORD, "VALUES");
+    expect(Token::Type::OPERATOR, "(");
+    auto values = parse_value_list();
+    expect(Token::Type::OPERATOR, ")");
+    return {table, columns, values};
+}
+
 std::vector<std::variant<std::string, AggregateFunction>> Parser::parse_select_list() {
     std::vector<std::variant<std::string, AggregateFunction>> fields;
+    if (peek().type == Token::Type::OPERATOR && peek().value == "*") {
+        consume();
+        fields.push_back("*");
+        return fields;
+    }
+
     do {
         if (peek().type == Token::Type::KEYWORD && (peek().value == "COUNT" || peek().value == "AVG" || peek().value == "SUM" || peek().value == "MIN" || peek().value == "MAX")) {
             std::string func_name = consume().value;
@@ -123,6 +148,42 @@ std::vector<std::variant<std::string, AggregateFunction>> Parser::parse_select_l
 
 std::string Parser::parse_table_name() {
     return consume().value;
+}
+
+std::vector<std::string> Parser::parse_column_list() {
+    std::vector<std::string> columns;
+    do {
+        columns.push_back(consume().value);
+        if (peek().type == Token::Type::OPERATOR && peek().value == ",") {
+            consume();
+        } else {
+            break;
+        }
+    } while (true);
+    return columns;
+}
+
+std::vector<Literal> Parser::parse_value_list() {
+    std::vector<Literal> values;
+    do {
+        auto token = consume();
+        if (token.type == Token::Type::LITERAL) {
+            if (token.value.find('.') != std::string::npos) {
+                values.push_back(std::stod(token.value));
+            } else {
+                values.push_back(token.value);
+            }
+        } else {
+            throw std::runtime_error("Expected a literal value.");
+        }
+
+        if (peek().type == Token::Type::OPERATOR && peek().value == ",") {
+            consume();
+        } else {
+            break;
+        }
+    } while (true);
+    return values;
 }
 
 std::optional<Expression> Parser::parse_where_clause() {
@@ -216,7 +277,8 @@ Token Parser::consume() {
 void Parser::expect(Token::Type type, const std::string& value) {
     auto token = consume();
     if (token.type != type || (!value.empty() && token.value != value)) {
-        throw std::runtime_error("Unexpected token");
+        std::string error_msg = "Expected token " + value + " but got " + token.value;
+        throw std::runtime_error(error_msg);
     }
 }
 

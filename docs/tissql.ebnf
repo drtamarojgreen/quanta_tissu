@@ -1,13 +1,25 @@
 
-(* TissQL EBNF Grammar for SELECT statements *)
+(* TissQL EBNF Grammar for TissDB *)
 
-query     ::= select_statement
+query     ::= select_statement | insert_statement | update_statement | delete_statement
 
-select_statement ::= "SELECT" select_list "FROM" table_name (where_clause)?
+select_statement ::= "SELECT" select_list "FROM" table_name (where_clause)? (groupby_clause)?
 
-select_list ::= "*" | column_list
+insert_statement ::= "INSERT" "INTO" table_name ["(" column_list ")"] "VALUES" "(" value_list ")"
+
+update_statement ::= "UPDATE" table_name "SET" set_clause (where_clause)?
+
+delete_statement ::= "DELETE" "FROM" table_name (where_clause)?
+
+select_list ::= "*" | column_list | aggregate_function_list
+
+aggregate_function_list ::= aggregate_function ("," aggregate_function)*
+
+aggregate_function ::= ("COUNT" | "AVG" | "SUM" | "MIN" | "MAX") "(" IDENTIFIER ")"
 
 column_list ::= column_name ("," column_name)*
+
+value_list ::= literal ("," literal)*
 
 column_name ::= IDENTIFIER
 
@@ -15,11 +27,19 @@ table_name ::= IDENTIFIER
 
 where_clause ::= "WHERE" expression
 
+groupby_clause ::= "GROUP" "BY" column_list
+
+set_clause ::= set_expression ("," set_expression)*
+
+set_expression ::= IDENTIFIER "=" literal
+
 expression ::= term (("AND" | "OR") term)*
 
 term ::= factor (("=" | "!=" | "<" | ">" | "<=" | ">=") factor)*
 
-factor ::= IDENTIFIER | STRING_LITERAL | NUMERIC_LITERAL
+factor ::= IDENTIFIER | literal
+
+literal ::= STRING_LITERAL | NUMERIC_LITERAL
 
 IDENTIFIER ::= [a-zA-Z_] [a-zA-Z0-9_]*
 

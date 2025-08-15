@@ -72,3 +72,42 @@ As a user, I want the model to use a knowledge base to answer my questions.
 **And** the knowledge base contains the document "the sky is blue"
 **When** I ask the model to generate an answer to "what color is the sky" using the knowledge base
 **Then** the model should generate an answer containing the word "blue"
+
+### 2.4. TissDB Document Management
+
+**Feature**: TissDB Document Management
+As a user, I want to be able to manage documents in TissDB.
+
+**Scenario**: Create a new document
+**Given** a running TissDB instance
+**When** I send a POST request to "/documents" with the following JSON:
+"""
+{
+  "name": "John Doe",
+  "age": 30
+}
+"""
+**Then** the response should have a status code of 201
+**And** the response should contain a JSON object with the created document's ID
+
+**Scenario**: Retrieve an existing document
+**Given** a document with ID "1234" exists in TissDB
+**When** I send a GET request to "/documents/1234"
+**Then** the response should have a status code of 200
+**And** the response should contain a JSON object with the document's data
+
+**Scenario**: Update an existing document
+**Given** a document with ID "1234" exists in TissDB
+**When** I send a PUT request to "/documents/1234" with the following JSON:
+"""
+{
+  "age": 31
+}
+"""
+**Then** the response should have a status code of 200
+**And** the response should contain a JSON object with the updated document's data
+
+**Scenario**: Delete an existing document
+**Given** a document with ID "1234" exists in TissDB
+**When** I send a DELETE request to "/documents/1234"
+**Then** the response should have a status code of 204
