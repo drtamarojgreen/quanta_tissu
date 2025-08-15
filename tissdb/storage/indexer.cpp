@@ -153,7 +153,7 @@ void Indexer::load_indexes(const std::string& data_dir) {
         if (entry.path().extension() == ".idx") {
             std::string index_name = entry.path().stem().string();
             if (index_fields_.count(index_name)) {
-                indexes_[index_name] = std::make_unique<bpp::btree<std::string, std::string>>();
+                indexes_[index_name] = std::make_unique<BTree<std::string, std::string>>();
                 std::ifstream ifs(entry.path(), std::ios::binary);
                 indexes_[index_name]->load(ifs);
             }
