@@ -75,6 +75,12 @@ TissDB is a lightweight, high-performance NoSQL database built from scratch in C
 
 More details can be found in `tissdb/README.md` and the documents in the `docs/` directory.
 
+## Tissu Sinew: C++ Connector for TissDB
+
+Tissu Sinew is a lightweight, high-performance C++ connector for TissDB. It provides a native C++ interface for applications to communicate with the database server, featuring a thread-safe client with connection pooling and RAII-based session management.
+
+A comprehensive guide to building and using the connector, including API reference and code examples, can be found in `docs/tissu_sinew_plan.md`.
+
 ## Ecological Awareness
 
 QuantaTissu aims to be a demonstration of how AI can be developed and used in an environmentally conscious manner. This involves a three-pronged approach to ecological awareness:
