@@ -41,7 +41,9 @@ struct AggregateFunction {
 };
 
 // The Expression variant represents any kind of expression in the WHERE clause
-using Expression = std::variant<Identifier, Literal, BinaryExpression, LogicalExpression>;
+struct Expression : std::variant<Identifier, Literal, BinaryExpression, LogicalExpression> {
+    using variant::variant;
+};
 
 // Represents a TissQL SELECT statement.
 struct SelectStatement {
