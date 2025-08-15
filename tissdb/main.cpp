@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
             std::this_thread::sleep_for(std::chrono::hours(1));
         }
 
-        storage.shutdown();
+        // storage.shutdown(); // This method does not exist and the line is unreachable.
 
     } catch (const std::exception& e) {
         std::cerr << "A critical error occurred during startup: " << e.what() << std::endl;
