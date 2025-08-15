@@ -1,15 +1,10 @@
 import numpy as np
 
 class Dataset:
-    def __init__(self, tokenizer, file_path, batch_size, seq_len):
-        self.tokenizer = tokenizer
+    def __init__(self, token_ids, batch_size, seq_len):
+        self.token_ids = token_ids
         self.batch_size = batch_size
         self.seq_len = seq_len
-
-        with open(file_path, 'r', encoding='utf-8') as f:
-            text = f.read()
-
-        self.token_ids = self.tokenizer.tokenize(text)
 
         # Calculate how many full batches we can make
         self.num_tokens = len(self.token_ids)

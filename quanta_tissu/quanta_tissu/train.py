@@ -5,11 +5,11 @@ from tokenizers.models import BPE
 from tokenizers.trainers import BpeTrainer
 from tokenizers.pre_tokenizers import Whitespace
 
-from config import tokenizer_config, training_config, model_config, system_config
-from data import TissuDataset, TissuDataLoader
-from model import Transformer
-from loss import CrossEntropyLoss
-from optimizer import Adam
+from .config import tokenizer_config, training_config, model_config, system_config
+from .data import Dataset
+from .model import QuantaTissu
+from .loss import CrossEntropyLoss
+from .optimizer import AdamW
 
 
 def train():
@@ -26,7 +26,9 @@ def train():
     tokenizer.pre_tokenizer = Whitespace()
     trainer = BpeTrainer(special_tokens=["<unk>", "<pad>"], vocab_size=model_config["vocab_size"])
     tokenizer.train_from_iterator([text], trainer=trainer)
-    tokenizer_path = os.path.join(os.path.dirname(__file__), '..', '..', 'models', 'tokenizer.json')
+    models_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'models')
+    os.makedirs(models_dir, exist_ok=True)
+    tokenizer_path = os.path.join(models_dir, 'tokenizer.json')
     tokenizer.save(tokenizer_path)
 
     print(f"Tokenizer trained and saved to {tokenizer_path}")
@@ -35,19 +37,18 @@ def train():
     tokenized_data = tokenizer.encode(text).ids
 
     # 4. Create a data loader
-    dataset = TissuDataset(tokenized_data, tokenizer_config["max_len"])
-    dataloader = TissuDataLoader(dataset, training_config["batch_size"])
+    dataset = Dataset(tokenized_data, training_config["batch_size"], tokenizer_config["max_len"])
 
     # 5. Initialize the model
-    model = Transformer(model_config)
+    model = QuantaTissu(model_config)
 
     # 6. Initialize the optimizer and loss function
-    optimizer = Adam(model.params(), learning_rate=training_config["learning_rate"], weight_decay=training_config["weight_decay"])
+    optimizer = AdamW(model.parameters(), lr=training_config["learning_rate"], weight_decay=training_config["weight_decay"])
     loss_fn = CrossEntropyLoss()
 
     # 7. Train the model
     for epoch in range(training_config["num_epochs"]):
-        for i, (x, y) in enumerate(dataloader):
+        for i, (x, y) in enumerate(dataset):
             # Forward pass
             logits = model.forward(x)
 
@@ -65,8 +66,10 @@ def train():
                 print(f"Epoch {epoch+1}/{training_config['num_epochs']}, Step {i}, Loss: {loss}")
 
     # 8. Save the model
-    model_path = os.path.join(os.path.dirname(__file__), '..', '..', 'models', 'quanta_tissu.npz')
-    np.savez(model_path, **{k: v.data for k, v in model.params().items()})
+    model_path = os.path.join(models_dir, 'quanta_tissu.npz')
+    # Create a dictionary of parameters to save
+    model_params_to_save = {p.name: p.value for p in model.parameters()}
+    np.savez(model_path, **model_params_to_save)
 
     print(f"Model trained and saved to {model_path}")
 

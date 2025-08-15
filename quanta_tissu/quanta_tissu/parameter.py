@@ -5,6 +5,7 @@ import numpy as np
 class Parameter:
     """A container for a trainable parameter in the model."""
     value: np.ndarray
+    name: str # Add name attribute
     grad: np.ndarray = None
 
     def __post_init__(self):

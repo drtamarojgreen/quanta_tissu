@@ -4,6 +4,7 @@ from .layers import softmax
 class CrossEntropyLoss:
     def __init__(self):
         self.cache = {}
+        self.d_inputs = None # Initialize d_inputs
 
     def forward(self, logits, targets):
         """
@@ -52,5 +53,7 @@ class CrossEntropyLoss:
 
         # Normalize the gradient by the batch size
         d_logits /= batch_size
+
+        self.d_inputs = d_logits # Store d_inputs
 
         return d_logits
