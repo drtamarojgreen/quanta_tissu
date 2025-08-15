@@ -14,6 +14,7 @@
 #include "test_executor.cpp"
 #include "test_serialization.cpp"
 #include "test_json.cpp"
+#include "test_transactions.cpp"
 
 // Tissu Sinew Client Library Tests
 #include "../test_tissu_sinew.cpp"

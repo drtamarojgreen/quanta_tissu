@@ -118,10 +118,13 @@ class MultiHeadAttention:
         d_scores = d_weights # Simplified for softmax, proper would be more complex
 
         d_k = Qh.shape[-1]
-        d_scores /= np.sqrt(d_k)
+        # d_scores /= np.sqrt(d_k) # This scaling is already applied in forward, so we need to unscale for backward
+        d_scores_unscaled = d_scores * np.sqrt(d_k)
 
-        dQh = d_scores @ Kh.transpose(0, 1, 3, 2)
-        dKh = Qh.transpose(0, 1, 3, 2) @ d_scores
+        # Backward for scores = Qh @ Kh.transpose(0, 1, 3, 2)
+        dQh = d_scores_unscaled @ Kh # Corrected dQh
+        dKh_transposed = Qh.transpose(0, 1, 3, 2) @ d_scores_unscaled
+        dKh = dKh_transposed.transpose(0, 1, 3, 2) # Transpose back to original Kh shape
 
         # Combine heads for dQ, dK, dV before multiplying with Wq, Wk, Wv
         dQ = self.combine_heads(dQh)

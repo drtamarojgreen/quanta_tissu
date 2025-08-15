@@ -146,7 +146,7 @@ QueryResult Executor::execute(const AST& ast) {
             }
         } else {
             // Full scan if no index is used
-            all_docs = storage_engine.get_all(select_stmt->from_collection);
+            all_docs = storage_engine.scan(select_stmt->from_collection);
         }
 
 

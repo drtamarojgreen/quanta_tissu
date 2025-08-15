@@ -1,16 +1,14 @@
 #include "lsm_tree.h"
-#include "transaction_manager.h"
 #include <filesystem>
 #include <iostream>
 #include <algorithm>
+#include <stdexcept>
 
 namespace TissDB {
 namespace Storage {
 
-LSMTree::LSMTree(const std::string& data_dir) : data_directory_(data_dir) {
+LSMTree::LSMTree(const std::string& data_dir) : data_directory_(data_dir), transaction_manager_() {
     std::filesystem::create_directories(data_directory_);
-    transaction_manager_ = new Transactions::TransactionManager();
-
     // Load existing collections from the data directory on startup.
     for (const auto& entry : std::filesystem::directory_iterator(data_directory_)) {
         if (entry.is_directory()) {
@@ -21,7 +19,6 @@ LSMTree::LSMTree(const std::string& data_dir) : data_directory_(data_dir) {
 
 LSMTree::~LSMTree() {
     shutdown();
-    delete transaction_manager_;
 }
 
 void LSMTree::create_collection(const std::string& name, const TissDB::Schema& schema) {
@@ -51,16 +48,27 @@ std::vector<std::string> LSMTree::list_collections() const {
     return names;
 }
 
-void LSMTree::put(const std::string& collection_name, const std::string& key, const Document& doc) {
-    get_collection(collection_name).put(key, doc);
+void LSMTree::put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID tid) {
+    if (tid != -1) {
+        transaction_manager_.add_put_operation(tid, collection_name, key, doc);
+    } else {
+        get_collection(collection_name).put(key, doc);
+    }
 }
 
-std::optional<Document> LSMTree::get(const std::string& collection_name, const std::string& key) {
+std::optional<Document> LSMTree::get(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid) {
+    // Transactional GET is complex (snapshot isolation). For now, all reads are from the committed state.
+    // A real implementation would need to check the transaction's write set first.
+    (void)tid; // Unused parameter
     return get_collection(collection_name).get(key);
 }
 
-void LSMTree::del(const std::string& collection_name, const std::string& key) {
-    get_collection(collection_name).del(key);
+void LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid) {
+    if (tid != -1) {
+        transaction_manager_.add_delete_operation(tid, collection_name, key);
+    } else {
+        get_collection(collection_name).del(key);
+    }
 }
 
 std::vector<Document> LSMTree::scan(const std::string& collection_name) {
@@ -87,25 +95,32 @@ bool LSMTree::has_index(const std::string& collection_name, const std::vector<st
     return get_collection(collection_name).has_index(field_names);
 }
 
-int LSMTree::begin_transaction() {
-    return transaction_manager_->begin_transaction();
+Transactions::TransactionID LSMTree::begin_transaction() {
+    return transaction_manager_.begin_transaction();
 }
 
-void LSMTree::commit_transaction(int transaction_id) {
+void LSMTree::commit_transaction(Transactions::TransactionID transaction_id) {
+    const auto& transactions = transaction_manager_.get_transactions();
+    auto it = transactions.find(transaction_id);
+    if (it == transactions.end()) {
+        throw std::runtime_error("Transaction to commit not found.");
+    }
+
     // Apply all operations in the transaction to the storage engine
-    const auto& operations = transaction_manager_->get_transactions().at(transaction_id)->get_operations();
+    const auto& operations = it->second->get_operations();
     for (const auto& op : operations) {
-        if (op.type == TissDB::Transactions::OperationType::PUT) {
+        if (op.type == Transactions::OperationType::PUT) {
             get_collection(op.collection_name).put(op.key, op.doc);
-        } else if (op.type == TissDB::Transactions::OperationType::DELETE) {
+        } else if (op.type == Transactions::OperationType::DELETE) {
             get_collection(op.collection_name).del(op.key);
         }
     }
-    transaction_manager_->commit_transaction(transaction_id);
+    // If all succeed, commit the transaction in the manager
+    transaction_manager_.commit_transaction(transaction_id);
 }
 
-void LSMTree::rollback_transaction(int transaction_id) {
-    transaction_manager_->rollback_transaction(transaction_id);
+void LSMTree::rollback_transaction(Transactions::TransactionID transaction_id) {
+    transaction_manager_.rollback_transaction(transaction_id);
 }
 
 void LSMTree::shutdown() {

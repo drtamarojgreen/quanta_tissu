@@ -104,7 +104,7 @@ More details on this initiative can be found in `docs/ecological_awareness.md`.
 ## Requirements
 
 - Python 3.7+
-- NumPy, Tokenizers, Regex
+- NumPy, Regex
 - See `requirements.txt` for specific versions.
 
 ## Usage

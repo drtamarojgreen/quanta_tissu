@@ -1,4 +1,21 @@
 import numpy as np
+import os
+from .tokenizer import Tokenizer
+
+def load_corpus(corpus_path: str):
+    """
+    Loads text from all .txt files in the specified corpus path and tokenizes it.
+    """
+    full_text = ""
+    for filename in os.listdir(corpus_path):
+        if filename.endswith(".txt"):
+            file_path = os.path.join(corpus_path, filename)
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                full_text += f.read() + "\n" # Add newline to separate content from different files
+
+    tokenizer = Tokenizer()
+    token_ids = tokenizer.tokenize(full_text)
+    return token_ids
 
 class Dataset:
     def __init__(self, token_ids, batch_size, seq_len):
