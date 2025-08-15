@@ -2,6 +2,8 @@
 #include "../storage/lsm_tree.h"
 #include "../json/json.h"
 #include "../common/document.h"
+#include "../query/parser.h"
+#include "../query/executor.h"
 #include <iostream>
 #include <string>
 #include <vector>
