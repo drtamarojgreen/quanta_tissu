@@ -11,6 +11,11 @@
 #include "test_lsm_tree.cpp"
 #include "test_parser.cpp"
 #include "test_executor.cpp"
+#include "test_serialization.cpp"
+#include "test_json.cpp"
+
+// Tissu Sinew Client Library Tests
+#include "../test_tissu_sinew.cpp"
 
 int main() {
     TestFramework::run_all_tests();

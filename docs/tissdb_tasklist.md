@@ -25,11 +25,11 @@ The goal of this phase is to deliver a functional, single-node TissDB instance c
     -   [x] Implement a basic query executor that can perform full collection scans based on the AST.
     -   [x] Implement the `POST /<collection>/_query` endpoint.
 
--   [ ] **Task 1.5: Single-Field B-Tree Indexing**
-    -   [ ] Implement or integrate a **persistent** B-Tree library.
-    -   [ ] Create an API endpoint (`POST /<collection>/_index`) to create an index.
-    -   [ ] Modify the write path to automatically update the index.
-    -   [ ] Update the query planner to use the index for lookups.
+-   [x] **Task 1.5: Single-Field B-Tree Indexing**
+    -   [x] Implement or integrate a **persistent** B-Tree library.
+    -   [x] Create an API endpoint (`POST /<collection>/_index`) to create an index.
+    -   [x] Modify the write path to automatically update the index.
+    -   [x] Update the query planner to use the index for lookups.
 
 ## Phase 2: V1.1
 

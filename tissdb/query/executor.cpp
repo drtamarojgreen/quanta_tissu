@@ -14,15 +14,17 @@ namespace Query {
 
 // Evaluate an expression against a document
 bool evaluate_expression(const Expression& expr, const Document& doc) {
-    if (auto* logical_expr = std::get_if<LogicalExpression>(&expr)) {
+    if (auto* logical_expr_ptr = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
+        const auto& logical_expr = *logical_expr_ptr;
         if (logical_expr->op == "AND") {
-            return evaluate_expression(*logical_expr->left, doc) && evaluate_expression(*logical_expr->right, doc);
+            return evaluate_expression(logical_expr->left, doc) && evaluate_expression(logical_expr->right, doc);
         } else if (logical_expr->op == "OR") {
-            return evaluate_expression(*logical_expr->left, doc) || evaluate_expression(*logical_expr->right, doc);
+            return evaluate_expression(logical_expr->left, doc) || evaluate_expression(logical_expr->right, doc);
         }
-    } else if (auto* binary_expr = std::get_if<BinaryExpression>(&expr)) {
-        auto* left_ident = std::get_if<Identifier>(&*binary_expr->left);
-        auto* right_literal = std::get_if<Literal>(&*binary_expr->right);
+    } else if (auto* binary_expr_ptr = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
+        const auto& binary_expr = *binary_expr_ptr;
+        auto* left_ident = std::get_if<Identifier>(&binary_expr->left);
+        auto* right_literal = std::get_if<Literal>(&binary_expr->right);
 
         if (left_ident && right_literal) {
             for (const auto& elem : doc.elements) {
@@ -92,16 +94,54 @@ QueryResult Executor::execute(const AST& ast) {
     if (auto* select_stmt = std::get_if<SelectStatement>(&ast)) {
         std::vector<Document> result_docs;
         std::vector<std::string> doc_ids_from_index;
+        bool index_used = false;
 
-        // ... (index selection logic remains the same)
+        // --- Index Selection Logic ---
+        if (select_stmt->where_clause) {
+            if (auto* binary_expr = std::get_if<BinaryExpression>(&*select_stmt->where_clause)) {
+                if (binary_expr->op == "=") {
+                    if (auto* left_ident = std::get_if<Identifier>(&*binary_expr->left)) {
+                        if (auto* right_literal = std::get_if<Literal>(&*binary_expr->right)) {
+                            if (auto* lit_val = std::get_if<std::string>(right_literal)) {
+                                if (storage_engine.has_index(select_stmt->from_collection, {left_ident->name})) {
+                                    doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, left_ident->name, *lit_val);
+                                    index_used = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
 
         // --- Data retrieval ---
         std::vector<Document> all_docs;
-        // ... (data retrieval logic remains the same)
+        if (index_used) {
+            for (const auto& doc_id : doc_ids_from_index) {
+                auto doc = storage_engine.get(select_stmt->from_collection, doc_id);
+                if (doc) {
+                    all_docs.push_back(*doc);
+                }
+            }
+        } else {
+            // Full scan if no index is used
+            all_docs = storage_engine.get_all(select_stmt->from_collection);
+        }
+
 
         // --- Filtering ---
         std::vector<Document> filtered_docs;
-        // ... (filtering logic remains the same)
+        if (select_stmt->where_clause) {
+            for (const auto& doc : all_docs) {
+                if (evaluate_expression(*select_stmt->where_clause, doc)) {
+                    filtered_docs.push_back(doc);
+                }
+            }
+        } else {
+            filtered_docs = all_docs;
+        }
+
 
         // --- Aggregation and Grouping ---
         if (!select_stmt->group_by_clause.empty()) {
@@ -153,7 +193,26 @@ QueryResult Executor::execute(const AST& ast) {
         }
 
         // --- Projection ---
-        // ... (projection logic remains the same)
+        if (select_stmt->fields[0] == "*") {
+            return {filtered_docs};
+        } else {
+            std::vector<Document> projected_docs;
+            for (const auto& doc : filtered_docs) {
+                Document projected_doc;
+                projected_doc.id = doc.id;
+                for (const auto& field_variant : select_stmt->fields) {
+                     if (auto* ident = std::get_if<Identifier>(&field_variant)) {
+                        for (const auto& elem : doc.elements) {
+                            if (elem.key == ident->name) {
+                                projected_doc.elements.push_back(elem);
+                            }
+                        }
+                    }
+                }
+                projected_docs.push_back(projected_doc);
+            }
+            return {projected_docs};
+        }
 
     } else if (auto* update_stmt = std::get_if<UpdateStatement>(&ast)) {
         // ... (UPDATE logic remains the same)

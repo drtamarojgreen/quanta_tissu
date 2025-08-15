@@ -128,7 +128,7 @@ The project includes a testing plan to ensure the correctness of individual comp
 -   **Unit Tests**: To verify the correctness of individual components like the tokenizer, core math functions, attention mechanism, and transformer block.
 -   **Behavior-Driven Development (BDD) Tests**: To ensure the application behaves as expected from a user's perspective, with scenarios for text generation and handling of unknown words.
 
-The full test plan is available in `docs/test.md`. A `tests/` directory for these tests is planned but not yet implemented.
+The full test plan is available in `docs/test.md`. A `tests/` directory has been created, and work is ongoing to implement comprehensive tests, including those for model accuracy and agent capabilities.
 
 ## Limitations
 
