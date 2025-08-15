@@ -189,13 +189,15 @@ std::unique_ptr<TissuResult> TissuSession::run(const std::string& query, const s
     std::string final_query = query;
     for (const auto& [key, value] : params) {
         std::string placeholder = "$" + key;
-        size_t pos = final_query.find(placeholder);
-        if (pos != std::string::npos) {
-            final_query.replace(pos, placeholder.length(), value.toQueryString());
+        std::string value_str = value.toQueryString();
+        size_t pos = 0;
+        while ((pos = final_query.find(placeholder, pos)) != std::string::npos) {
+            final_query.replace(pos, placeholder.length(), value_str);
+            pos += value_str.length(); // Move past the replaced part
         }
     }
-    // This is a simple implementation. A robust version would handle multiple occurrences
-    // and avoid replacing substrings (e.g., if a key is "name" and another is "lastname").
+    // This is a simple implementation. A robust version would avoid replacing substrings
+    // (e.g., if a key is "name" and another is "lastname").
 
     return run(final_query);
 }

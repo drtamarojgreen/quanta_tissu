@@ -15,10 +15,17 @@
 #include <sstream>
 #include <map>
 
-// POSIX Socket headers
+// Socket headers
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#define close closesocket
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#endif
 
 namespace TissDB {
 namespace API {
@@ -98,6 +105,12 @@ private:
 // --- Implementation ---
 
 HttpServer::Impl::Impl(Storage::LSMTree& storage, int port) : storage_engine(storage), server_port(port) {
+#ifdef _WIN32
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        throw std::runtime_error("WSAStartup failed.");
+    }
+#endif
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == -1) throw std::runtime_error("Socket creation failed.");
     int opt = 1;
@@ -115,6 +128,9 @@ HttpServer::Impl::Impl(Storage::LSMTree& storage, int port) : storage_engine(sto
 HttpServer::Impl::~Impl() {
     stop();
     if (server_fd != -1) close(server_fd);
+#ifdef _WIN32
+    WSACleanup();
+#endif
 }
 
 void HttpServer::Impl::start() {
@@ -328,7 +344,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
                     }
                 }
                 
-                storage_engine.get_collection(collection_name)->set_schema(schema);
+                storage_engine.get_collection(collection_name).set_schema(schema);
                 send_response(client_socket, "200 OK", "text/plain", "Schema updated for collection '" + collection_name + "'.");
 
             } catch (const std::exception& e) {

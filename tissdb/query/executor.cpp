@@ -98,24 +98,25 @@ QueryResult Executor::execute(const AST& ast) {
 
         // --- Index Selection Logic ---
         if (select_stmt->where_clause) {
-            std::vector<std::string> indexable_fields;
-            std::vector<std::string> indexable_values;
+            std::string indexable_field;
+            std::string indexable_value;
+            bool found_indexable_condition = false;
 
-            // This is a simplified traversal for `field = 'value' AND field2 = 'value2'`
-            std::function<void(const Expression&)> extract_conditions =
+            std::function<void(const Expression&)> find_first_condition =
                 [&](const Expression& expr) {
+                if (found_indexable_condition) return; // Stop after finding one
                 if (auto* logical = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
-                    if ((*logical)->op == "AND") {
-                        extract_conditions((*logical)->left);
-                        extract_conditions((*logical)->right);
-                    }
+                    // Search left then right
+                    find_first_condition((*logical)->left);
+                    find_first_condition((*logical)->right);
                 } else if (auto* binary = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
                     if ((*binary)->op == "=") {
                         if (auto* ident = std::get_if<Identifier>(&(*binary)->left)) {
                             if (auto* lit = std::get_if<Literal>(&(*binary)->right)) {
                                 if (auto* str_lit = std::get_if<std::string>(lit)) {
-                                    indexable_fields.push_back(ident->name);
-                                    indexable_values.push_back(*str_lit);
+                                    indexable_field = ident->name;
+                                    indexable_value = *str_lit;
+                                    found_indexable_condition = true;
                                 }
                             }
                         }
@@ -123,12 +124,12 @@ QueryResult Executor::execute(const AST& ast) {
                 }
             };
 
-            extract_conditions(*select_stmt->where_clause);
+            find_first_condition(*select_stmt->where_clause);
 
-            if (!indexable_fields.empty() && storage_engine.has_index(select_stmt->from_collection, indexable_fields)) {
-                 doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, indexable_fields, indexable_values);
+            if (found_indexable_condition && storage_engine.has_index(select_stmt->from_collection, {indexable_field})) {
+                 doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, indexable_field, indexable_value);
                  index_used = true;
-                 std::cout << "Using compound index for query." << std::endl;
+                 std::cout << "Using index for query on field " << indexable_field << std::endl;
             }
         }
 
