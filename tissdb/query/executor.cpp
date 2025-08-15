@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <map>
+#include <functional>
 
 // Required for the executor to interact with storage
 #include "../storage/lsm_tree.h"
@@ -17,14 +18,14 @@ bool evaluate_expression(const Expression& expr, const Document& doc) {
     if (auto* logical_expr_ptr = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
         const auto& logical_expr = *logical_expr_ptr;
         if (logical_expr->op == "AND") {
-            return evaluate_expression(logical_expr->left, doc) && evaluate_expression(logical_expr->right, doc);
+            return evaluate_expression(*logical_expr->left, doc) && evaluate_expression(*logical_expr->right, doc);
         } else if (logical_expr->op == "OR") {
-            return evaluate_expression(logical_expr->left, doc) || evaluate_expression(logical_expr->right, doc);
+            return evaluate_expression(*logical_expr->left, doc) || evaluate_expression(*logical_expr->right, doc);
         }
     } else if (auto* binary_expr_ptr = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
         const auto& binary_expr = *binary_expr_ptr;
-        auto* left_ident = std::get_if<Identifier>(&binary_expr->left);
-        auto* right_literal = std::get_if<Literal>(&binary_expr->right);
+        auto* left_ident = std::get_if<Identifier>(&*binary_expr->left);
+        auto* right_literal = std::get_if<Literal>(&*binary_expr->right);
 
         if (left_ident && right_literal) {
             for (const auto& elem : doc.elements) {
@@ -98,26 +99,24 @@ QueryResult Executor::execute(const AST& ast) {
 
         // --- Index Selection Logic ---
         if (select_stmt->where_clause) {
-            std::map<std::string, std::string> indexable_conditions;
+            std::vector<std::string> indexable_fields;
+            std::vector<std::string> indexable_values;
 
-            // Find all equality conditions connected by AND
-            std::function<void(const Expression&)> find_all_conditions =
+            // This is a simplified traversal for `field = 'value' AND field2 = 'value2'`
+            std::function<void(const Expression&)> extract_conditions =
                 [&](const Expression& expr) {
                 if (auto* logical = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
                     if ((*logical)->op == "AND") {
-                        find_all_conditions((*logical)->left);
-                        find_all_conditions((*logical)->right);
+                        extract_conditions(*(*logical)->left);
+                        extract_conditions(*(*logical)->right);
                     }
                 } else if (auto* binary = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
                     if ((*binary)->op == "=") {
-                        if (auto* ident = std::get_if<Identifier>(&(*binary)->left)) {
-                            if (auto* lit = std::get_if<Literal>(&(*binary)->right)) {
+                        if (auto* ident = std::get_if<Identifier>(&*(*binary)->left)) {
+                            if (auto* lit = std::get_if<Literal>(&*(*binary)->right)) {
                                 if (auto* str_lit = std::get_if<std::string>(lit)) {
-                                    indexable_conditions[ident->name] = *str_lit;
-                                } else if (auto* num_lit = std::get_if<double>(lit)) {
-                                    std::stringstream ss;
-                                    ss << *num_lit;
-                                    indexable_conditions[ident->name] = ss.str();
+                                    indexable_fields.push_back(ident->name);
+                                    indexable_values.push_back(*str_lit);
                                 }
                             }
                         }
@@ -125,29 +124,12 @@ QueryResult Executor::execute(const AST& ast) {
                 }
             };
 
-            find_all_conditions(*select_stmt->where_clause);
+            extract_conditions(*select_stmt->where_clause);
 
-            if (!indexable_conditions.empty()) {
-                std::vector<std::string> fields;
-                std::vector<std::string> values;
-                for (const auto& pair : indexable_conditions) {
-                    fields.push_back(pair.first);
-                    values.push_back(pair.second);
-                }
-
-                // Try to find a compound index that matches all fields
-                if (storage_engine.has_index(select_stmt->from_collection, fields)) {
-                    doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, fields, values);
-                    index_used = true;
-                    std::cout << "Using compound index for query." << std::endl;
-                } else {
-                    // Fallback: try to find an index on the first field
-                    if (storage_engine.has_index(select_stmt->from_collection, {fields[0]})) {
-                        doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, fields[0], values[0]);
-                        index_used = true;
-                        std::cout << "Using single-field index for query on field " << fields[0] << std::endl;
-                    }
-                }
+            if (!indexable_fields.empty() && storage_engine.has_index(select_stmt->collection_name, indexable_fields)) {
+                 doc_ids_from_index = storage_engine.find_by_index(select_stmt->collection_name, indexable_fields, indexable_values);
+                 index_used = true;
+                 std::cout << "Using compound index for query." << std::endl;
             }
         }
 
@@ -156,14 +138,14 @@ QueryResult Executor::execute(const AST& ast) {
         std::vector<Document> all_docs;
         if (index_used) {
             for (const auto& doc_id : doc_ids_from_index) {
-                auto doc = storage_engine.get(select_stmt->from_collection, doc_id);
+                auto doc = storage_engine.get(select_stmt->collection_name, doc_id);
                 if (doc) {
                     all_docs.push_back(*doc);
                 }
             }
         } else {
             // Full scan if no index is used
-            all_docs = storage_engine.get_all(select_stmt->from_collection);
+            all_docs = storage_engine.scan(select_stmt->collection_name);
         }
 
 
@@ -230,7 +212,7 @@ QueryResult Executor::execute(const AST& ast) {
         }
 
         // --- Projection ---
-        if (select_stmt->fields[0] == "*") {
+        if (std::holds_alternative<std::string>(select_stmt->fields[0]) && std::get<std::string>(select_stmt->fields[0]) == "*") {
             return {filtered_docs};
         } else {
             std::vector<Document> projected_docs;
@@ -238,9 +220,9 @@ QueryResult Executor::execute(const AST& ast) {
                 Document projected_doc;
                 projected_doc.id = doc.id;
                 for (const auto& field_variant : select_stmt->fields) {
-                     if (auto* ident = std::get_if<Identifier>(&field_variant)) {
+                     if (auto* str_field = std::get_if<std::string>(&field_variant)) {
                         for (const auto& elem : doc.elements) {
-                            if (elem.key == ident->name) {
+                            if (elem.key == *str_field) {
                                 projected_doc.elements.push_back(elem);
                             }
                         }
@@ -251,9 +233,9 @@ QueryResult Executor::execute(const AST& ast) {
             return {projected_docs};
         }
 
-    } else if (auto* update_stmt = std::get_if<UpdateStatement>(&ast)) {
+    } else if ([[maybe_unused]] auto* update_stmt = std::get_if<UpdateStatement>(&ast)) {
         // ... (UPDATE logic remains the same)
-    } else if (auto* delete_stmt = std::get_if<DeleteStatement>(&ast)) {
+    } else if ([[maybe_unused]] auto* delete_stmt = std::get_if<DeleteStatement>(&ast)) {
         // ... (DELETE logic remains the same)
     }
     return {};

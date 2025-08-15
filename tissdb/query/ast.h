@@ -22,20 +22,24 @@ struct Identifier {
 };
 
 // The Expression variant represents any kind of expression in the WHERE clause
-using Expression = std::variant<Identifier, Literal, std::unique_ptr<BinaryExpression>, std::unique_ptr<LogicalExpression>>;
+struct Expression;
 
 // Represents a binary expression (e.g., field = 'value', price > 100)
 struct BinaryExpression {
-    Expression left;
+    std::unique_ptr<Expression> left;
     std::string op;
-    Expression right;
+    std::unique_ptr<Expression> right;
 };
 
 // Represents a logical expression (e.g., ... AND ...)
 struct LogicalExpression {
-    Expression left;
+    std::unique_ptr<Expression> left;
     std::string op;
-    Expression right;
+    std::unique_ptr<Expression> right;
+};
+
+struct Expression : std::variant<Identifier, Literal, std::unique_ptr<BinaryExpression>, std::unique_ptr<LogicalExpression>> {
+    using variant::variant;
 };
 
 // Represents an aggregate function call
@@ -43,7 +47,6 @@ struct AggregateFunction {
     std::string function_name;
     std::string field_name;
 };
-
 
 // Represents a TissQL SELECT statement.
 struct SelectStatement {
