@@ -98,25 +98,26 @@ QueryResult Executor::execute(const AST& ast) {
 
         // --- Index Selection Logic ---
         if (select_stmt->where_clause) {
-            std::string indexable_field;
-            std::string indexable_value;
-            bool found_indexable_condition = false;
+            std::map<std::string, std::string> indexable_conditions;
 
-            std::function<void(const Expression&)> find_first_condition =
+            // Find all equality conditions connected by AND
+            std::function<void(const Expression&)> find_all_conditions =
                 [&](const Expression& expr) {
-                if (found_indexable_condition) return; // Stop after finding one
                 if (auto* logical = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
-                    // Search left then right
-                    find_first_condition((*logical)->left);
-                    find_first_condition((*logical)->right);
+                    if ((*logical)->op == "AND") {
+                        find_all_conditions((*logical)->left);
+                        find_all_conditions((*logical)->right);
+                    }
                 } else if (auto* binary = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
                     if ((*binary)->op == "=") {
                         if (auto* ident = std::get_if<Identifier>(&(*binary)->left)) {
                             if (auto* lit = std::get_if<Literal>(&(*binary)->right)) {
                                 if (auto* str_lit = std::get_if<std::string>(lit)) {
-                                    indexable_field = ident->name;
-                                    indexable_value = *str_lit;
-                                    found_indexable_condition = true;
+                                    indexable_conditions[ident->name] = *str_lit;
+                                } else if (auto* num_lit = std::get_if<double>(lit)) {
+                                    std::stringstream ss;
+                                    ss << *num_lit;
+                                    indexable_conditions[ident->name] = ss.str();
                                 }
                             }
                         }
@@ -124,12 +125,29 @@ QueryResult Executor::execute(const AST& ast) {
                 }
             };
 
-            find_first_condition(*select_stmt->where_clause);
+            find_all_conditions(*select_stmt->where_clause);
 
-            if (found_indexable_condition && storage_engine.has_index(select_stmt->from_collection, {indexable_field})) {
-                 doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, indexable_field, indexable_value);
-                 index_used = true;
-                 std::cout << "Using index for query on field " << indexable_field << std::endl;
+            if (!indexable_conditions.empty()) {
+                std::vector<std::string> fields;
+                std::vector<std::string> values;
+                for (const auto& pair : indexable_conditions) {
+                    fields.push_back(pair.first);
+                    values.push_back(pair.second);
+                }
+
+                // Try to find a compound index that matches all fields
+                if (storage_engine.has_index(select_stmt->from_collection, fields)) {
+                    doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, fields, values);
+                    index_used = true;
+                    std::cout << "Using compound index for query." << std::endl;
+                } else {
+                    // Fallback: try to find an index on the first field
+                    if (storage_engine.has_index(select_stmt->from_collection, {fields[0]})) {
+                        doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, fields[0], values[0]);
+                        index_used = true;
+                        std::cout << "Using single-field index for query on field " << fields[0] << std::endl;
+                    }
+                }
             }
         }
 
