@@ -59,4 +59,32 @@ clean:
 run: all
 	./$(TARGET)
 
-.PHONY: all clean run test
+.PHONY: all clean run test analysis
+
+# Analysis rule
+ANALYSIS_SRCS = analysis/ACID_analysis.cpp \
+                analysis/relational_analysis.cpp \
+                analysis/schema_analysis.cpp \
+                analysis/transaction_analysis.cpp
+ANALYSIS_TARGETS = $(ANALYSIS_SRCS:.cpp=)
+
+analysis: $(ANALYSIS_TARGETS)
+	@echo "\n\n--- Running TissDB Analysis ---"
+	@./analysis/ACID_analysis
+	@./analysis/relational_analysis
+	@./analysis/schema_analysis
+	@./analysis/transaction_analysis
+	@echo "\n--- Analysis Complete ---\n"
+	@rm -f $(ANALYSIS_TARGETS)
+
+analysis/ACID_analysis: analysis/ACID_analysis.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+analysis/relational_analysis: analysis/relational_analysis.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+analysis/schema_analysis: analysis/schema_analysis.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+analysis/transaction_analysis: analysis/transaction_analysis.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $<
