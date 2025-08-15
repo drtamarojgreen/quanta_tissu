@@ -5,8 +5,12 @@
 #include <map>
 
 // A mock session for testing purposes
-class MockSession : public tissudb::ISession {
+class MockSession : public tissudb::TissuSession {
 public:
+    // We need a constructor that calls the base class constructor.
+    // The arguments don't matter for the test since we won't use the connection.
+    MockSession() : tissudb::TissuSession(0, nullptr) {}
+
     std::vector<std::string> received_queries;
 
     std::unique_ptr<tissudb::TissuResult> run(const std::string& query) override {
@@ -14,11 +18,8 @@ public:
         return std::make_unique<tissudb::TissuResult>("mock_response");
     }
 
-    std::unique_ptr<tissudb::TissuResult> run(const std::string& query, const std::map<std::string, tissudb::TissValue>& params) override {
-        // For testing transactions, we just delegate to the simple run method.
-        // The parameterized run method is tested separately.
-        return run(query);
-    }
+    // By not overriding the parameterized run, we let the TissuSession implementation run,
+    // which will then call our overridden version of the simple run method.
 
     std::unique_ptr<tissudb::TissuTransaction> beginTransaction() override {
         run("BEGIN");
@@ -61,20 +62,19 @@ TEST_CASE(Transaction_AutoRollbackOnDestruction) {
 }
 
 TEST_CASE(ParameterizedQuery_Substitution) {
-    tissudb::TissuSession session(0, nullptr); // We are not using the connection, just the substitution logic.
+    MockSession mock_session;
     std::map<std::string, tissudb::TissValue> params;
-    params["name"] = "John Doe";
+    params["name"] = "John \"The Rock\" Doe";
     params["age"] = 42;
     params["cash"] = 123.45;
     params["is_active"] = true;
+    params["data"] = nullptr;
 
-    // We can't test the private substitution method directly, so we test the public run method.
-    // Since we can't mock the non-virtual run(string) method it calls, this test is more of a compile-check
-    // and a placeholder for when we can test against a server or with more advanced mocking.
-    // For now, we will test the TissValue formatting directly.
-    ASSERT_EQ("\"John Doe\"", tissudb::TissValue("John Doe").toQueryString());
-    ASSERT_EQ("42", tissudb::TissValue(42).toQueryString());
-    ASSERT_EQ("123.450000", tissudb::TissValue(123.45).toQueryString());
-    ASSERT_EQ("true", tissudb::TissValue(true).toQueryString());
-    ASSERT_EQ("null", tissudb::TissValue().toQueryString());
+    // Call the parameterized run method. TissuSession's implementation will be used.
+    mock_session.run("INSERT INTO users (name, age, cash, is_active, data) VALUES ($name, $age, $cash, $is_active, $data)", params);
+
+    // Assert that the simple run method was called with the correct substituted query.
+    ASSERT_EQ(1, mock_session.received_queries.size());
+    std::string expected_query = "INSERT INTO users (name, age, cash, is_active, data) VALUES (\"John \\\"The Rock\\\" Doe\", 42, 123.450000, true, null)";
+    ASSERT_EQ(expected_query, mock_session.received_queries[0]);
 }

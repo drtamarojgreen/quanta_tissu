@@ -102,6 +102,246 @@ TEST_CASE(ExecutorSelectAll) {
     std::filesystem::remove_all("mock_data");
 }
 
+TEST_CASE(ExecutorDeleteAll) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users");
+
+    // 1. Setup initial data
+    TissDB::Document doc1;
+    doc1.id = "user1";
+    doc1.elements.push_back({"name", std::string("Victor")});
+    mock_lsm_tree.put("users", "user1", doc1);
+
+    TissDB::Document doc2;
+    doc2.id = "user2";
+    doc2.elements.push_back({"name", std::string("Wendy")});
+    mock_lsm_tree.put("users", "user2", doc2);
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    // 2. Execute the DELETE query
+    TissDB::Query::AST ast = parser.parse("DELETE FROM users");
+    executor.execute(ast);
+
+    // 3. Verify the data was deleted from mock storage
+    ASSERT_EQ(0, mock_lsm_tree.mock_data_["users"].size());
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorDeleteWithWhere) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users");
+
+    // 1. Setup initial data
+    TissDB::Document doc1;
+    doc1.id = "user_to_delete";
+    doc1.elements.push_back({"name", std::string("Mallory")});
+    mock_lsm_tree.put("users", "user_to_delete", doc1);
+
+    TissDB::Document doc2;
+    doc2.id = "user_to_keep";
+    doc2.elements.push_back({"name", std::string("Trudy")});
+    mock_lsm_tree.put("users", "user_to_keep", doc2);
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    // 2. Execute the DELETE query
+    TissDB::Query::AST ast = parser.parse("DELETE FROM users WHERE name = 'Mallory'");
+    executor.execute(ast);
+
+    // 3. Verify the data was deleted from mock storage
+    auto deleted_doc_opt = mock_lsm_tree.get("users", "user_to_delete");
+    ASSERT_FALSE(deleted_doc_opt.has_value());
+
+    // 4. Verify that other documents were not affected
+    auto other_doc_opt = mock_lsm_tree.get("users", "user_to_keep");
+    ASSERT_TRUE(other_doc_opt.has_value());
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorUpdateAddField) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users");
+
+    TissDB::Document doc1;
+    doc1.id = "user1";
+    doc1.elements.push_back({"name", std::string("Frank")});
+    mock_lsm_tree.put("users", "user1", doc1);
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("UPDATE users SET status = 'active' WHERE name = 'Frank'");
+    executor.execute(ast);
+
+    auto updated_doc_opt = mock_lsm_tree.get("users", "user1");
+    ASSERT_TRUE(updated_doc_opt.has_value());
+    const auto& updated_doc = updated_doc_opt.value();
+
+    ASSERT_EQ(2, updated_doc.elements.size()); // name and status
+    bool status_is_added = false;
+    for (const auto& elem : updated_doc.elements) {
+        if (elem.key == "status") {
+            if (auto* str_val = std::get_if<std::string>(&elem.value)) {
+                if (*str_val == "active") {
+                    status_is_added = true;
+                }
+            }
+        }
+    }
+    ASSERT_TRUE(status_is_added);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorUpdateAll) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users");
+
+    TissDB::Document doc1;
+    doc1.id = "user1";
+    doc1.elements.push_back({"name", std::string("Grace")});
+    doc1.elements.push_back({"level", 5.0});
+    mock_lsm_tree.put("users", "user1", doc1);
+
+    TissDB::Document doc2;
+    doc2.id = "user2";
+    doc2.elements.push_back({"name", std::string("Heidi")});
+    doc2.elements.push_back({"level", 6.0});
+    mock_lsm_tree.put("users", "user2", doc2);
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("UPDATE users SET level = 10.0");
+    executor.execute(ast);
+
+    // Verify doc1 was updated
+    auto updated_doc1_opt = mock_lsm_tree.get("users", "user1");
+    ASSERT_TRUE(updated_doc1_opt.has_value());
+    for (const auto& elem : updated_doc1_opt.value().elements) {
+        if (elem.key == "level") {
+            ASSERT_EQ(std::get<double>(elem.value), 10.0);
+        }
+    }
+
+    // Verify doc2 was updated
+    auto updated_doc2_opt = mock_lsm_tree.get("users", "user2");
+    ASSERT_TRUE(updated_doc2_opt.has_value());
+    for (const auto& elem : updated_doc2_opt.value().elements) {
+        if (elem.key == "level") {
+            ASSERT_EQ(std::get<double>(elem.value), 10.0);
+        }
+    }
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorUpdateWithWhere) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users");
+
+    // 1. Setup initial data
+    TissDB::Document doc1;
+    doc1.id = "user1";
+    doc1.elements.push_back({"name", std::string("David")});
+    doc1.elements.push_back({"age", 40.0});
+    mock_lsm_tree.put("users", "user1", doc1);
+
+    TissDB::Document doc2;
+    doc2.id = "user2";
+    doc2.elements.push_back({"name", std::string("Eve")});
+    doc2.elements.push_back({"age", 50.0});
+    mock_lsm_tree.put("users", "user2", doc2);
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    // 2. Execute the UPDATE query
+    TissDB::Query::AST ast = parser.parse("UPDATE users SET age = 41.0 WHERE name = 'David'");
+    executor.execute(ast);
+
+    // 3. Verify the data was updated in mock storage
+    auto updated_doc_opt = mock_lsm_tree.get("users", "user1");
+    ASSERT_TRUE(updated_doc_opt.has_value());
+    const auto& updated_doc = updated_doc_opt.value();
+
+    bool age_is_updated = false;
+    for (const auto& elem : updated_doc.elements) {
+        if (elem.key == "age") {
+            if (auto* num_val = std::get_if<double>(&elem.value)) {
+                if (*num_val == 41.0) {
+                    age_is_updated = true;
+                }
+            }
+        }
+    }
+    ASSERT_TRUE(age_is_updated);
+
+    // 4. Verify that other documents were not affected
+    auto other_doc_opt = mock_lsm_tree.get("users", "user2");
+    ASSERT_TRUE(other_doc_opt.has_value());
+    const auto& other_doc = other_doc_opt.value();
+     for (const auto& elem : other_doc.elements) {
+        if (elem.key == "age") {
+            if (auto* num_val = std::get_if<double>(&elem.value)) {
+                ASSERT_EQ(*num_val, 50.0);
+            }
+        }
+    }
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorInsert) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users");
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    // 1. Execute the INSERT query
+    TissDB::Query::AST ast = parser.parse("INSERT INTO users (name, age) VALUES ('Charlie', 30.0)");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    // 2. INSERT should return an empty result, but the QueryResult struct is not designed for that.
+    // We will check the side-effect in the mock storage instead.
+
+    // 3. Verify the data was inserted into the mock storage
+    const auto& users_collection = mock_lsm_tree.mock_data_["users"];
+    ASSERT_EQ(1, users_collection.size());
+
+    // 4. Verify the content of the inserted document
+    const auto& inserted_doc = users_collection.begin()->second;
+    ASSERT_EQ(2, inserted_doc.elements.size());
+
+    bool found_name = false;
+    bool found_age = false;
+    for (const auto& elem : inserted_doc.elements) {
+        if (elem.key == "name") {
+            if (auto* str_val = std::get_if<std::string>(&elem.value)) {
+                if (*str_val == "Charlie") {
+                    found_name = true;
+                }
+            }
+        } else if (elem.key == "age") {
+            if (auto* num_val = std::get_if<double>(&elem.value)) {
+                if (*num_val == 30.0) {
+                    found_age = true;
+                }
+            }
+        }
+    }
+    ASSERT_TRUE(found_name);
+    ASSERT_TRUE(found_age);
+
+    std::filesystem::remove_all("mock_data");
+}
+
 TEST_CASE(ExecutorSelectWithWhere) {
     MockLSMTree mock_lsm_tree;
     mock_lsm_tree.create_collection("products");
