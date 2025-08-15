@@ -2,6 +2,9 @@
 #include "../storage/lsm_tree.h"
 #include "../json/json.h"
 #include "../common/document.h"
+#include "../query/parser.h"
+#include "../query/ast.h"
+#include "../query/executor.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -225,7 +228,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 // Generate a simple ID
                 std::string id = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
                 doc.id = id;
-                storage_engine.put(collection_name, id, doc, transaction_id);
+                storage_engine.put(collection_name, id, doc);
                 send_response(client_socket, "201 Created", "text/plain", "Document created with ID: " + id);
             } catch (const std::exception& e) {
                 send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
@@ -236,7 +239,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
                 Document doc = json_to_document(parsed_body.as_object());
                 doc.id = path_parts[1];
-                storage_engine.put(collection_name, path_parts[1], doc, transaction_id);
+                storage_engine.put(collection_name, path_parts[1], doc);
                 send_response(client_socket, "200 OK", "application/json", parsed_body.serialize());
             } catch (const std::exception& e) {
                 send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
@@ -244,13 +247,13 @@ void HttpServer::Impl::handle_client(int client_socket) {
         } else if (req.method == "DELETE" && path_parts.size() == 2) {
             // DELETE /<collection>/<id>
             std::string doc_id = path_parts[1];
-            storage_engine.del(collection_name, doc_id, transaction_id);
+            storage_engine.del(collection_name, doc_id);
             send_response(client_socket, "204 No Content", "text/plain", "");
         } else if (req.method == "POST" && path_parts.size() == 2 && path_parts[1] == "_query") {
             // POST /<collection>/_query
             try {
-                Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
-                std::string query_string = parsed_body.as_object()["query"].as_string();
+                const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                std::string query_string = parsed_body.as_object().at("query").as_string();
 
                 Query::Parser parser;
                 Query::AST ast = parser.parse(query_string);
@@ -259,7 +262,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 Query::QueryResult result = executor.execute(ast);
 
                 Json::JsonArray result_array;
-                for (const auto& doc : result.documents) {
+                for (const auto& doc : result) {
                     result_array.push_back(Json::JsonValue(document_to_json(doc)));
                 }
 
@@ -270,12 +273,12 @@ void HttpServer::Impl::handle_client(int client_socket) {
         } else if (req.method == "POST" && path_parts.size() == 2 && path_parts[1] == "_index") {
             // POST /<collection>/_index
             try {
-                Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
                 std::vector<std::string> field_names;
                 if (parsed_body.as_object().count("field")) {
-                    field_names.push_back(parsed_body.as_object()["field"].as_string());
+                    field_names.push_back(parsed_body.as_object().at("field").as_string());
                 } else if (parsed_body.as_object().count("fields")) {
-                    for (const auto& field : parsed_body.as_object()["fields"].as_array()) {
+                    for (const auto& field : parsed_body.as_object().at("fields").as_array()) {
                         field_names.push_back(field.as_string());
                     }
                 }
