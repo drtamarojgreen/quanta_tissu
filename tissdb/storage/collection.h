@@ -15,9 +15,11 @@
 #include "indexer.h"
 #include "../common/document.h"
 #include "../common/schema.h"
-#include "../common/schema_validator.h"
 
 namespace TissDB {
+
+class SchemaValidator; // Forward declaration
+
 namespace Storage {
 
 // A reasonable threshold for flushing the memtable to disk.
@@ -35,7 +37,6 @@ public:
     std::vector<Document> scan();
     void shutdown();
     void create_index(const std::vector<std::string>& field_names);
-    bool has_index(const std::vector<std::string>& field_names) const;
     std::vector<std::string> find_by_index(const std::string& field_name, const std::string& value);
 
 private:
@@ -51,7 +52,8 @@ private:
     std::vector<std::unique_ptr<SSTable>> sstables_;
     std::thread compaction_thread_;
     std::atomic<bool> stop_compaction_;
-    std::optional<Schema> schema_;
+    std::unique_ptr<Schema> schema_;
+    std::unique_ptr<SchemaValidator> schema_validator_;
 };
 
 } // namespace Storage

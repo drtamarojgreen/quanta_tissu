@@ -8,6 +8,7 @@
 #include "test_bpp_tree.cpp"
 #include "test_indexer.cpp"
 #include "test_collection.cpp"
+#include "test_constraints.cpp"
 #include "test_lsm_tree.cpp"
 #include "test_parser.cpp"
 #include "test_executor.cpp"
