@@ -1,8 +1,12 @@
 #pragma once
 
-#include "ast.h"
+#include <cstddef>
 #include <string>
 #include <vector>
+#include <variant>
+#include <optional>
+
+#include "ast.h"
 
 namespace TissDB {
 namespace Query {

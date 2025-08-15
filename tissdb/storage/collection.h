@@ -1,11 +1,6 @@
-
 #pragma once
 
-#include "memtable.h"
-#include "wal.h"
-#include "sstable.h"
-#include "indexer.h"
-#include "../common/document.h"
+#include <cstddef>
 #include <string>
 #include <memory>
 #include <optional>
@@ -13,6 +8,12 @@
 #include <filesystem>
 #include <thread>
 #include <atomic>
+
+#include "memtable.h"
+#include "wal.h"
+#include "sstable.h"
+#include "indexer.h"
+#include "../common/document.h"
 
 namespace TissDB {
 namespace Storage {

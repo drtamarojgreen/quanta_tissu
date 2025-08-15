@@ -1,7 +1,7 @@
 
 
 #include "test_framework.h"
-#include "../../../tissdb/storage/bpp_tree.h"
+#include "../../tissdb/storage/bpp_tree.h"
 #include <filesystem>
 
 TEST_CASE(BppTreeInsertAndFind) {
