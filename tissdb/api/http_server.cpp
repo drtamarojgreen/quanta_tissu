@@ -177,16 +177,16 @@ void HttpServer::Impl::handle_client(int client_socket) {
        if(!segment.empty()) path_parts.push_back(segment);
     }
 
-    int transaction_id = -1;
+    Transactions::TransactionID transaction_id = -1;
     if (client_transactions_.count(client_socket)) {
         transaction_id = client_transactions_[client_socket];
     }
 
     try {
         if (req.method == "POST" && path_parts.size() == 1 && path_parts[0] == "_begin") {
-            int new_transaction_id = storage_engine.begin_transaction();
-            client_transactions_[client_socket] = new_transaction_id;
-            send_response(client_socket, "200 OK", "text/plain", "Transaction started with ID: " + std::to_string(new_transaction_id));
+            transaction_id = storage_engine.begin_transaction();
+            client_transactions_[client_socket] = transaction_id;
+            send_response(client_socket, "200 OK", "text/plain", "Transaction started with ID: " + std::to_string(transaction_id));
         } else if (req.method == "POST" && path_parts.size() == 1 && path_parts[0] == "_commit") {
             if (transaction_id != -1) {
                 storage_engine.commit_transaction(transaction_id);
@@ -214,7 +214,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
         if (req.method == "GET" && path_parts.size() == 2) {
             // GET /<collection>/<id>
             std::string doc_id = path_parts[1];
-            auto doc_opt = storage_engine.get(collection_name, doc_id);
+            auto doc_opt = storage_engine.get(collection_name, doc_id, transaction_id);
             if (doc_opt) {
                 Json::JsonValue json_doc(document_to_json(*doc_opt));
                 send_response(client_socket, "200 OK", "application/json", json_doc.serialize());
@@ -229,7 +229,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 // Generate a simple ID
                 std::string id = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
                 doc.id = id;
-                storage_engine.put(collection_name, id, doc);
+                storage_engine.put(collection_name, id, doc, transaction_id);
                 send_response(client_socket, "201 Created", "text/plain", "Document created with ID: " + id);
             } catch (const std::exception& e) {
                 send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
@@ -240,7 +240,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
                 Document doc = json_to_document(parsed_body.as_object());
                 doc.id = path_parts[1];
-                storage_engine.put(collection_name, path_parts[1], doc);
+                storage_engine.put(collection_name, path_parts[1], doc, transaction_id);
                 send_response(client_socket, "200 OK", "application/json", parsed_body.serialize());
             } catch (const std::exception& e) {
                 send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
@@ -248,7 +248,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
         } else if (req.method == "DELETE" && path_parts.size() == 2) {
             // DELETE /<collection>/<id>
             std::string doc_id = path_parts[1];
-            storage_engine.del(collection_name, doc_id);
+            storage_engine.del(collection_name, doc_id, transaction_id);
             send_response(client_socket, "204 No Content", "text/plain", "");
         } else if (req.method == "POST" && path_parts.size() == 2 && path_parts[1] == "_query") {
             // POST /<collection>/_query

@@ -102,6 +102,60 @@ TEST_CASE(ExecutorSelectAll) {
     std::filesystem::remove_all("mock_data");
 }
 
+TEST_CASE(ExecutorAggregateGroupBy) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("sales");
+
+    // Setup initial data
+    mock_lsm_tree.put("sales", "1", TissDB::Document{"1", {{"category", std::string("books")}, {"amount", 15.0}}});
+    mock_lsm_tree.put("sales", "2", TissDB::Document{"2", {{"category", std::string("electronics")}, {"amount", 100.0}}});
+    mock_lsm_tree.put("sales", "3", TissDB::Document{"3", {{"category", std::string("books")}, {"amount", 25.0}}});
+    mock_lsm_tree.put("sales", "4", TissDB::Document{"4", {{"category", std::string("electronics")}, {"amount", 150.0}}});
+    mock_lsm_tree.put("sales", "5", TissDB::Document{"5", {{"category", std::string("books")}, {"amount", 20.0}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    // Execute the query
+    TissDB::Query::AST ast = parser.parse("SELECT COUNT(amount), SUM(amount), AVG(amount), MIN(amount), MAX(amount) FROM sales GROUP BY category");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    // Verify the results
+    ASSERT_EQ(2, result.documents.size()); // Two groups: books and electronics
+
+    bool found_books = false;
+    bool found_electronics = false;
+
+    for (const auto& doc : result.documents) {
+        if (doc.id == "books") {
+            found_books = true;
+            ASSERT_EQ(5, doc.elements.size()); // count, sum, avg, min, max
+            for (const auto& elem : doc.elements) {
+                if (elem.key == "count") ASSERT_EQ(std::get<double>(elem.value), 3.0);
+                if (elem.key == "sum") ASSERT_EQ(std::get<double>(elem.value), 60.0);
+                if (elem.key == "avg") ASSERT_EQ(std::get<double>(elem.value), 20.0);
+                if (elem.key == "min") ASSERT_EQ(std::get<double>(elem.value), 15.0);
+                if (elem.key == "max") ASSERT_EQ(std::get<double>(elem.value), 25.0);
+            }
+        } else if (doc.id == "electronics") {
+            found_electronics = true;
+            ASSERT_EQ(5, doc.elements.size());
+            for (const auto& elem : doc.elements) {
+                if (elem.key == "count") ASSERT_EQ(std::get<double>(elem.value), 2.0);
+                if (elem.key == "sum") ASSERT_EQ(std::get<double>(elem.value), 250.0);
+                if (elem.key == "avg") ASSERT_EQ(std::get<double>(elem.value), 125.0);
+                if (elem.key == "min") ASSERT_EQ(std::get<double>(elem.value), 100.0);
+                if (elem.key == "max") ASSERT_EQ(std::get<double>(elem.value), 150.0);
+            }
+        }
+    }
+
+    ASSERT_TRUE(found_books);
+    ASSERT_TRUE(found_electronics);
+
+    std::filesystem::remove_all("mock_data");
+}
+
 TEST_CASE(ExecutorDeleteAll) {
     MockLSMTree mock_lsm_tree;
     mock_lsm_tree.create_collection("users");

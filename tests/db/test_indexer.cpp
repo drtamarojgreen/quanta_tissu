@@ -123,3 +123,44 @@ TEST_CASE(IndexerSaveLoad) {
 
     std::filesystem::remove_all(data_dir);
 }
+
+TEST_CASE(IndexerCompoundIndex) {
+    TissDB::Storage::Indexer indexer;
+    indexer.create_index({"city", "state"});
+
+    TissDB::Document doc1;
+    doc1.id = "doc1";
+    doc1.elements.push_back({"city", "New York"});
+    doc1.elements.push_back({"state", "NY"});
+    indexer.update_indexes("doc1", doc1);
+
+    TissDB::Document doc2;
+    doc2.id = "doc2";
+    doc2.elements.push_back({"city", "New York"});
+    doc2.elements.push_back({"state", "CA"}); // Should not be found
+    indexer.update_indexes("doc2", doc2);
+
+    TissDB::Document doc3;
+    doc3.id = "doc3";
+    doc3.elements.push_back({"city", "Los Angeles"});
+    doc3.elements.push_back({"state", "CA"});
+    indexer.update_indexes("doc3", doc3);
+
+    // Find with correct compound key
+    std::vector<std::string> results = indexer.find_by_index({"city", "state"}, {"New York", "NY"});
+    ASSERT_EQ(1, results.size());
+    ASSERT_EQ("doc1", results[0]);
+
+    // Find with different compound key
+    results = indexer.find_by_index({"city", "state"}, {"Los Angeles", "CA"});
+    ASSERT_EQ(1, results.size());
+    ASSERT_EQ("doc3", results[0]);
+
+    // Attempt to find with non-existent key
+    results = indexer.find_by_index({"city", "state"}, {"New York", "FL"});
+    ASSERT_EQ(0, results.size());
+
+    // Attempt to find with a non-existent index (wrong order)
+    results = indexer.find_by_index({"state", "city"}, {"NY", "New York"});
+    ASSERT_EQ(0, results.size());
+}

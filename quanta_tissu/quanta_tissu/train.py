@@ -1,12 +1,8 @@
 import os
 import numpy as np
-from tokenizers import Tokenizer
-from tokenizers.models import BPE
-from tokenizers.trainers import BpeTrainer
-from tokenizers.pre_tokenizers import Whitespace
 
 from .config import tokenizer_config, training_config, model_config, system_config
-from .data import Dataset
+from .data import Dataset, load_corpus
 from .model import QuantaTissu
 from .loss import CrossEntropyLoss
 from .optimizer import AdamW
@@ -17,24 +13,10 @@ def train():
     Main training loop for the Tiss LLM.
     """
     # 1. Load the data
-    corpus_path = os.path.join(os.path.dirname(__file__), '..', '..', 'corpus', 'full_corpus.txt')
-    with open(corpus_path, "r", encoding="utf-8") as f:
-        text = f.read()
+    corpus_path = os.path.join(os.path.dirname(__file__), '..', '..', 'corpus')
+    tokenized_data = load_corpus(corpus_path)
 
-    # 2. Train the tokenizer
-    tokenizer = Tokenizer(BPE(unk_token="<unk>"))
-    tokenizer.pre_tokenizer = Whitespace()
-    trainer = BpeTrainer(special_tokens=["<unk>", "<pad>"], vocab_size=model_config["vocab_size"])
-    tokenizer.train_from_iterator([text], trainer=trainer)
-    models_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'models')
-    os.makedirs(models_dir, exist_ok=True)
-    tokenizer_path = os.path.join(models_dir, 'tokenizer.json')
-    tokenizer.save(tokenizer_path)
-
-    print(f"Tokenizer trained and saved to {tokenizer_path}")
-
-    # 3. Tokenize the data
-    tokenized_data = tokenizer.encode(text).ids
+    print(f"Corpus loaded and tokenized. Number of tokens: {len(tokenized_data)}")
 
     # 4. Create a data loader
     dataset = Dataset(tokenized_data, training_config["batch_size"], tokenizer_config["max_len"])
