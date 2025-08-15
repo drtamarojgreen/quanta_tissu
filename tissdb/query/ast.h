@@ -9,29 +9,33 @@
 namespace TissDB {
 namespace Query {
 
-// Forward declaration
-struct Expression;
-
 // Represents a literal value in a query
 using Literal = std::variant<std::string, double>;
 
-// Represents a binary expression (e.g., field = 'value', price > 100)
-struct BinaryExpression {
-    std::unique_ptr<Expression> left;
-    std::string op;
-    std::unique_ptr<Expression> right;
-};
-
-// Represents a logical expression (e.g., ... AND ...)
-struct LogicalExpression {
-    std::unique_ptr<Expression> left;
-    std::string op;
-    std::unique_ptr<Expression> right;
-};
+// Forward-declare recursive types
+struct BinaryExpression;
+struct LogicalExpression;
 
 // Represents a column identifier
 struct Identifier {
     std::string name;
+};
+
+// The Expression variant represents any kind of expression in the WHERE clause
+using Expression = std::variant<Identifier, Literal, std::unique_ptr<BinaryExpression>, std::unique_ptr<LogicalExpression>>;
+
+// Represents a binary expression (e.g., field = 'value', price > 100)
+struct BinaryExpression {
+    Expression left;
+    std::string op;
+    Expression right;
+};
+
+// Represents a logical expression (e.g., ... AND ...)
+struct LogicalExpression {
+    Expression left;
+    std::string op;
+    Expression right;
 };
 
 // Represents an aggregate function call
@@ -39,9 +43,6 @@ struct AggregateFunction {
     std::string function_name;
     std::string field_name;
 };
-
-// The Expression variant represents any kind of expression in the WHERE clause
-using Expression = std::variant<Identifier, Literal, BinaryExpression, LogicalExpression>;
 
 // Represents a TissQL SELECT statement.
 struct SelectStatement {

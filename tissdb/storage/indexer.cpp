@@ -1,17 +1,11 @@
 #include "indexer.h"
 #include <algorithm>
-#include <fstream>
 #include <sstream>
 #include <filesystem>
 #include "../json/json.h"
 
-// This is a placeholder for the actual B++ tree library
-#include "bpp_tree.h"
-
 namespace TissDB {
 namespace Storage {
-
-Indexer::Indexer() = default;
 
 std::string Indexer::get_index_name(const std::vector<std::string>& field_names) const {
     std::stringstream ss;
@@ -27,7 +21,7 @@ std::string Indexer::get_index_name(const std::vector<std::string>& field_names)
 void Indexer::create_index(const std::vector<std::string>& field_names) {
     std::string index_name = get_index_name(field_names);
     if (indexes_.find(index_name) == indexes_.end()) {
-        indexes_[index_name] = std::make_unique<bpp::btree<std::string, std::string>>();
+        indexes_[index_name] = {};
         index_fields_[index_name] = field_names;
     }
 }
@@ -37,8 +31,10 @@ bool Indexer::has_index(const std::vector<std::string>& field_names) const {
 }
 
 void Indexer::update_indexes(const std::string& document_id, const Document& doc) {
-    for (const auto& pair : indexes_) {
-        const auto& field_names = index_fields_.at(pair.first);
+    for (const auto& pair : index_fields_) {
+        const std::string& index_name = pair.first;
+        const auto& field_names = pair.second;
+
         std::stringstream key_ss;
         bool all_fields_present = true;
         for (const auto& field_name : field_names) {
@@ -59,14 +55,19 @@ void Indexer::update_indexes(const std::string& document_id, const Document& doc
         }
 
         if (all_fields_present) {
-            pair.second->insert(key_ss.str(), document_id);
+            indexes_[index_name][key_ss.str()] = document_id;
         }
     }
 }
 
 void Indexer::remove_from_indexes(const std::string& document_id, const Document& doc) {
-    for (const auto& pair : indexes_) {
-        const auto& field_names = index_fields_.at(pair.first);
+    // This is a simplified implementation for the stub.
+    // A real implementation would need to handle document removal more robustly.
+    (void)document_id; // Unused
+    for (const auto& pair : index_fields_) {
+        const std::string& index_name = pair.first;
+        const auto& field_names = pair.second;
+
         std::stringstream key_ss;
         bool all_fields_present = true;
         for (const auto& field_name : field_names) {
@@ -87,19 +88,21 @@ void Indexer::remove_from_indexes(const std::string& document_id, const Document
         }
 
         if (all_fields_present) {
-            pair.second->erase(key_ss.str());
+            auto it = indexes_.find(index_name);
+            if (it != indexes_.end()) {
+                it->second.erase(key_ss.str());
+            }
         }
     }
 }
 
 std::vector<std::string> Indexer::find_by_index(const std::string& field_name, const std::string& value) const {
-    // This method now only supports single-field indexes for simplicity.
-    // A more advanced implementation would be needed to support compound index lookups.
+    // This stub only supports single-field indexes.
     auto it = indexes_.find(field_name);
     if (it != indexes_.end()) {
-        auto result = it->second->find(value);
-        if (result) {
-            return {*result};
+        auto doc_it = it->second.find(value);
+        if (doc_it != it->second.end()) {
+            return {doc_it->second};
         }
     }
     return {};
