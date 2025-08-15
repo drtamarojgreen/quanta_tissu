@@ -1,1 +1,3 @@
-// Placeholder for B++ Tree library
+#pragma once
+
+#include "bpp_tree_wrapper.h"
