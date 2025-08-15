@@ -79,7 +79,7 @@ SelectStatement Parser::parse_select_statement() {
     auto table = parse_table_name();
     auto where = parse_where_clause();
     auto group_by = parse_group_by_clause();
-    return {fields, table, where, group_by};
+    return {fields, table, std::move(where), group_by};
 }
 
 UpdateStatement Parser::parse_update_statement() {
@@ -88,7 +88,7 @@ UpdateStatement Parser::parse_update_statement() {
     expect(Token::Type::KEYWORD, "SET");
     auto set = parse_set_clause();
     auto where = parse_where_clause();
-    return {table, set, where};
+    return {table, set, std::move(where)};
 }
 
 DeleteStatement Parser::parse_delete_statement() {
@@ -96,7 +96,7 @@ DeleteStatement Parser::parse_delete_statement() {
     expect(Token::Type::KEYWORD, "FROM");
     auto table = parse_table_name();
     auto where = parse_where_clause();
-    return {table, where};
+    return {table, std::move(where)};
 }
 
 std::vector<std::variant<std::string, AggregateFunction>> Parser::parse_select_list() {
