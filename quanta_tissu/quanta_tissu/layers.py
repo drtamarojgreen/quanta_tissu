@@ -120,20 +120,13 @@ class MultiHeadAttention:
         d_k = Qh.shape[-1]
         d_scores /= np.sqrt(d_k)
 
+        dQh = d_scores @ Kh.transpose(0, 1, 3, 2)
         dKh = Qh.transpose(0, 1, 3, 2) @ d_scores
-        dQh = d_scores @ Kh
 
         # Combine heads for dQ, dK, dV before multiplying with Wq, Wk, Wv
         dQ = self.combine_heads(dQh)
         dK = self.combine_heads(dKh)
         dV = self.combine_heads(dVh)
-
-        print(f"Shape of dQ: {dQ.shape}")
-        print(f"Shape of self.Wq.value.T: {self.Wq.value.T.shape}")
-        print(f"Shape of dK: {dK.shape}")
-        print(f"Shape of self.Wk.value.T: {self.Wk.value.T.shape}")
-        print(f"Shape of dV: {dV.shape}")
-        print(f"Shape of self.Wv.value.T: {self.Wv.value.T.shape}")
 
         # Backward pass for input projections
         self.Wq.grad += x.transpose(0, 1, 2).reshape(-1, d_model).T @ dQ.reshape(-1, d_model)
