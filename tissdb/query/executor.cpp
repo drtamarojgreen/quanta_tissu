@@ -14,15 +14,17 @@ namespace Query {
 
 // Evaluate an expression against a document
 bool evaluate_expression(const Expression& expr, const Document& doc) {
-    if (auto* logical_expr = std::get_if<LogicalExpression>(&expr)) {
+    if (auto* logical_expr_ptr = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
+        const auto& logical_expr = *logical_expr_ptr;
         if (logical_expr->op == "AND") {
-            return evaluate_expression(*logical_expr->left, doc) && evaluate_expression(*logical_expr->right, doc);
+            return evaluate_expression(logical_expr->left, doc) && evaluate_expression(logical_expr->right, doc);
         } else if (logical_expr->op == "OR") {
-            return evaluate_expression(*logical_expr->left, doc) || evaluate_expression(*logical_expr->right, doc);
+            return evaluate_expression(logical_expr->left, doc) || evaluate_expression(logical_expr->right, doc);
         }
-    } else if (auto* binary_expr = std::get_if<BinaryExpression>(&expr)) {
-        auto* left_ident = std::get_if<Identifier>(&*binary_expr->left);
-        auto* right_literal = std::get_if<Literal>(&*binary_expr->right);
+    } else if (auto* binary_expr_ptr = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
+        const auto& binary_expr = *binary_expr_ptr;
+        auto* left_ident = std::get_if<Identifier>(&binary_expr->left);
+        auto* right_literal = std::get_if<Literal>(&binary_expr->right);
 
         if (left_ident && right_literal) {
             for (const auto& elem : doc.elements) {
