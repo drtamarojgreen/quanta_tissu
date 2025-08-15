@@ -28,13 +28,13 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             while (i + 1 < query_string.length() && (std::isdigit(query_string[i + 1]) || query_string[i + 1] == '.')) {
                 i++;
             }
-            new_tokens.push_back({Token::Type::NUMERIC_LITERAL, query_string.substr(start, i - start + 1)});
+            new_tokens.push_back({Token::Type::LITERAL, query_string.substr(start, i - start + 1)});
         } else if (query_string[i] == '\'') {
             size_t start = ++i;
             while (i < query_string.length() && query_string[i] != '\'') {
                 i++;
             }
-            new_tokens.push_back({Token::Type::STRING_LITERAL, query_string.substr(start, i - start)});
+            new_tokens.push_back({Token::Type::LITERAL, query_string.substr(start, i - start)});
         } else if (query_string[i] == '=' || query_string[i] == '!' || query_string[i] == '<' || query_string[i] == '>') {
             size_t start = i;
             if (i + 1 < query_string.length() && query_string[i + 1] == '=') {
@@ -167,10 +167,12 @@ std::vector<Literal> Parser::parse_value_list() {
     std::vector<Literal> values;
     do {
         auto token = consume();
-        if (token.type == Token::Type::NUMERIC_LITERAL) {
-            values.push_back(std::stod(token.value));
-        } else if (token.type == Token::Type::STRING_LITERAL) {
-            values.push_back(token.value);
+        if (token.type == Token::Type::LITERAL) {
+            if (token.value.find('.') != std::string::npos) {
+                values.push_back(std::stod(token.value));
+            } else {
+                values.push_back(token.value);
+            }
         } else {
             throw std::runtime_error("Expected a literal value.");
         }
@@ -239,9 +241,9 @@ Expression Parser::parse_expression(int precedence) {
         consume();
         auto right = parse_expression(new_precedence);
         if (op == "AND" || op == "OR") {
-            left = std::make_unique<LogicalExpression>(LogicalExpression{std::move(left), op, std::move(right)});
+            left = std::make_unique<LogicalExpression>(LogicalExpression{std::make_unique<Expression>(std::move(left)), op, std::make_unique<Expression>(std::move(right))});
         } else {
-            left = std::make_unique<BinaryExpression>(BinaryExpression{std::move(left), op, std::move(right)});
+            left = std::make_unique<BinaryExpression>(BinaryExpression{std::make_unique<Expression>(std::move(left)), op, std::make_unique<Expression>(std::move(right))});
         }
     }
 
@@ -249,20 +251,15 @@ Expression Parser::parse_expression(int precedence) {
 }
 
 Expression Parser::parse_primary_expression() {
-    if (peek().type == Token::Type::OPERATOR && peek().value == "(") {
-        consume(); // consume '('
-        auto expr = parse_expression();
-        expect(Token::Type::OPERATOR, ")"); // consume ')'
-        return expr;
-    }
-
     auto token = consume();
     if (token.type == Token::Type::IDENTIFIER) {
         return Identifier{token.value};
-    } else if (token.type == Token::Type::NUMERIC_LITERAL) {
-        return Literal{std::stod(token.value)};
-    } else if (token.type == Token::Type::STRING_LITERAL) {
-        return Literal{token.value};
+    } else if (token.type == Token::Type::LITERAL) {
+        if (token.value.find('.') != std::string::npos) {
+            return Literal{std::stod(token.value)};
+        } else {
+            return Literal{token.value};
+        }
     }
     throw std::runtime_error("Unexpected token in expression");
 }

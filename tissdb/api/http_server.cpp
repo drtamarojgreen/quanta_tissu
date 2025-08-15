@@ -1,4 +1,5 @@
 #include "http_server.h"
+#include "../common/schema.h"
 #include "../storage/lsm_tree.h"
 #include "../json/json.h"
 #include "../common/document.h"
@@ -15,17 +16,10 @@
 #include <sstream>
 #include <map>
 
-// Socket headers
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#pragma comment(lib, "ws2_32.lib")
-#define close closesocket
-#else
+// POSIX Socket headers
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#endif
 
 namespace TissDB {
 namespace API {
@@ -105,12 +99,6 @@ private:
 // --- Implementation ---
 
 HttpServer::Impl::Impl(Storage::LSMTree& storage, int port) : storage_engine(storage), server_port(port) {
-#ifdef _WIN32
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-        throw std::runtime_error("WSAStartup failed.");
-    }
-#endif
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == -1) throw std::runtime_error("Socket creation failed.");
     int opt = 1;
@@ -128,9 +116,6 @@ HttpServer::Impl::Impl(Storage::LSMTree& storage, int port) : storage_engine(sto
 HttpServer::Impl::~Impl() {
     stop();
     if (server_fd != -1) close(server_fd);
-#ifdef _WIN32
-    WSACleanup();
-#endif
 }
 
 void HttpServer::Impl::start() {
@@ -308,7 +293,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
         } else if (req.method == "PUT" && path_parts.size() == 1) {
             // PUT /<collection> (Create collection)
             try {
-                storage_engine.create_collection(collection_name);
+                storage_engine.create_collection(collection_name, TissDB::Schema());
                 send_response(client_socket, "201 Created", "text/plain", "Collection '" + collection_name + "' created.");
             } catch (const std::exception& e) {
                 send_response(client_socket, "400 Bad Request", "text/plain", "Failed to create collection: " + std::string(e.what()));
@@ -319,7 +304,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
                 const Json::JsonObject& schema_json = parsed_body.as_object();
                 
-                Schema schema;
+                TissDB::Schema schema;
                 if (schema_json.count("fields")) {
                     const Json::JsonArray& fields = schema_json.at("fields").as_array();
                     for (const auto& field_val : fields) {
@@ -328,14 +313,14 @@ void HttpServer::Impl::handle_client(int client_socket) {
                         std::string type_str = field_obj.at("type").as_string();
                         bool required = field_obj.count("required") ? field_obj.at("required").as_bool() : false;
                         
-                        FieldType type;
-                        if (type_str == "String") type = FieldType::String;
-                        else if (type_str == "Number") type = FieldType::Number;
-                        else if (type_str == "Boolean") type = FieldType::Boolean;
-                        else if (type_str == "DateTime") type = FieldType::DateTime;
-                        else if (type_str == "Binary") type = FieldType::Binary;
-                        else if (type_str == "Object") type = FieldType::Object;
-                        else if (type_str == "Array") type = FieldType::Array;
+                        TissDB::FieldType type;
+                        if (type_str == "String") type = TissDB::FieldType::String;
+                        else if (type_str == "Number") type = TissDB::FieldType::Number;
+                        else if (type_str == "Boolean") type = TissDB::FieldType::Boolean;
+                        else if (type_str == "DateTime") type = TissDB::FieldType::DateTime;
+                        else if (type_str == "Binary") type = TissDB::FieldType::Binary;
+                        else if (type_str == "Object") type = TissDB::FieldType::Object;
+                        else if (type_str == "Array") type = TissDB::FieldType::Array;
                         else {
                             throw std::runtime_error("Unknown field type: " + type_str);
                         }
