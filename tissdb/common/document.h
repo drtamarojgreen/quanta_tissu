@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <map>
@@ -39,6 +41,7 @@ class Document {
 public:
     std::string id;
     std::vector<Element> elements;
+    bool is_tombstone() const { return elements.empty() && !id.empty(); }
 };
 
 } // namespace TissDB

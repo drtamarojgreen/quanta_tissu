@@ -1,10 +1,13 @@
 #pragma once
 
-#include "../common/document.h"
+#include <cstddef>
 #include <string>
 #include <map>
 #include <optional>
 #include <memory>
+#include <vector>
+
+#include "../common/document.h"
 
 namespace TissDB {
 namespace Storage {

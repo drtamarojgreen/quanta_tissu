@@ -1,45 +1,56 @@
-#pragma once
+#ifndef TISSDB_TRANSACTION_MANAGER_H
+#define TISSDB_TRANSACTION_MANAGER_H
 
-#include "../common/document.h"
-#include <string>
+#include <atomic>
+#include <mutex>
+#include <unordered_map>
 #include <vector>
-#include <map>
-#include <memory>
 
 namespace TissDB {
-namespace Storage {
+namespace Transactions {
 
-enum class OperationType { PUT, DELETE };
+// Represents a transaction ID
+typedef int TransactionID;
 
-struct TransactionOperation {
-    OperationType type;
-    std::string collection_name;
-    std::string key;
-    Document doc;
+// Enum for transaction states
+enum class TransactionState {
+    ACTIVE,
+    COMMITTED,
+    ABORTED
 };
 
-class Transaction {
-public:
-    void add_operation(const TransactionOperation& op);
-    const std::vector<TransactionOperation>& get_operations() const;
-
-private:
-    std::vector<TransactionOperation> operations_;
-};
+// Forward declaration of storage engine (LSMTree) if needed for interaction
+// namespace Storage { class LSMTree; }
 
 class TransactionManager {
 public:
     TransactionManager();
 
-    int begin_transaction();
-    void add_operation(int transaction_id, const TransactionOperation& op);
-    void commit_transaction(int transaction_id);
-    void rollback_transaction(int transaction_id);
+    // Begins a new transaction, returns a TransactionID
+    TransactionID beginTransaction();
+
+    // Commits a transaction
+    bool commitTransaction(TransactionID tid);
+
+    // Aborts a transaction
+    bool abortTransaction(TransactionID tid);
+
+    // Retrieves the state of a transaction
+    TransactionState getTransactionState(TransactionID tid) const;
 
 private:
-    int next_transaction_id_ = 0;
-    std::map<int, std::unique_ptr<Transaction>> transactions_;
+    std::atomic<TransactionID> next_transaction_id_;
+    std::unordered_map<TransactionID, TransactionState> transaction_states_;
+    std::mutex mutex_;
+
+    // Placeholder for transaction logs or undo/redo information
+    // std::vector<TransactionLogEntry> transaction_log_;
+
+    // Concurrency control mechanism (e.g., lock table, timestamp table)
+    // std::unordered_map<ResourceID, LockInfo> lock_table_;
 };
 
-} // namespace Storage
+} // namespace Transactions
 } // namespace TissDB
+
+#endif // TISSDB_TRANSACTION_MANAGER_H

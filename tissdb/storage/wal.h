@@ -1,9 +1,12 @@
 #pragma once
 
-#include "../common/document.h"
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <fstream>
 #include <vector>
+
+#include "../common/document.h"
 
 namespace TissDB {
 namespace Storage {
