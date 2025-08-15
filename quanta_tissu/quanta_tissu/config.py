@@ -43,7 +43,7 @@ system_config = {
 tokenizer_config = {
     "vocab": vocab,
     "inv_vocab": inv_vocab,
-    "max_len": 512,  # Max sequence length for padding/truncation.
+    "max_len": 100,  # Max sequence length for padding/truncation.
 }
 
 # --- TissLang Parser Configuration ---
@@ -93,7 +93,7 @@ generation_config = {
 # Parameters for the (future) training loop.
 training_config = {
     "learning_rate": 1e-4,
-    "batch_size": 32,
+    "batch_size": 1,
     "num_epochs": 5,
     "weight_decay": 0.01,
 }

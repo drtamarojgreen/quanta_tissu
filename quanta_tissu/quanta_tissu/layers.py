@@ -10,8 +10,8 @@ def softmax(x, axis=-1, temperature=1.0):
 
 class LayerNorm:
     def __init__(self, d_model, eps=1e-6):
-        self.gamma = Parameter(np.ones(d_model))
-        self.beta = Parameter(np.zeros(d_model))
+        self.gamma = Parameter(np.ones(d_model), name="gamma")
+        self.beta = Parameter(np.zeros(d_model), name="beta")
         self.eps = eps
         self.cache = {}
 
@@ -62,10 +62,10 @@ class MultiHeadAttention:
         self.num_heads = num_heads
         self.d_k = d_model // self.num_heads
 
-        self.Wq = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model))
-        self.Wk = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model))
-        self.Wv = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model))
-        self.Wo = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model))
+        self.Wq = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name="Wq")
+        self.Wk = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name="Wk")
+        self.Wv = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name="Wv")
+        self.Wo = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name="Wo")
 
         self.cache = {}
 
@@ -123,21 +123,22 @@ class MultiHeadAttention:
         dKh = Qh.transpose(0, 1, 3, 2) @ d_scores
         dQh = d_scores @ Kh
 
-        # Backward pass for split_heads
+        # Combine heads for dQ, dK, dV before multiplying with Wq, Wk, Wv
         dQ = self.combine_heads(dQh)
         dK = self.combine_heads(dKh)
         dV = self.combine_heads(dVh)
 
-        # Reshape for matmul
-        x_reshaped = x.reshape(batch_size * seq_len, d_model)
-        dQ_reshaped = dQ.reshape(batch_size * seq_len, d_model)
-        dK_reshaped = dK.reshape(batch_size * seq_len, d_model)
-        dV_reshaped = dV.reshape(batch_size * seq_len, d_model)
+        print(f"Shape of dQ: {dQ.shape}")
+        print(f"Shape of self.Wq.value.T: {self.Wq.value.T.shape}")
+        print(f"Shape of dK: {dK.shape}")
+        print(f"Shape of self.Wk.value.T: {self.Wk.value.T.shape}")
+        print(f"Shape of dV: {dV.shape}")
+        print(f"Shape of self.Wv.value.T: {self.Wv.value.T.shape}")
 
         # Backward pass for input projections
-        self.Wq.grad += x_reshaped.T @ dQ_reshaped
-        self.Wk.grad += x_reshaped.T @ dK_reshaped
-        self.Wv.grad += x_reshaped.T @ dV_reshaped
+        self.Wq.grad += x.transpose(0, 1, 2).reshape(-1, d_model).T @ dQ.reshape(-1, d_model)
+        self.Wk.grad += x.transpose(0, 1, 2).reshape(-1, d_model).T @ dK.reshape(-1, d_model)
+        self.Wv.grad += x.transpose(0, 1, 2).reshape(-1, d_model).T @ dV.reshape(-1, d_model)
 
         dx = dQ @ self.Wq.value.T + dK @ self.Wk.value.T + dV @ self.Wv.value.T
         return dx
@@ -147,10 +148,10 @@ class MultiHeadAttention:
 
 class FeedForward:
     def __init__(self, d_model, d_ff):
-        self.W1 = Parameter(np.random.randn(d_model, d_ff) / np.sqrt(d_model))
-        self.b1 = Parameter(np.zeros(d_ff))
-        self.W2 = Parameter(np.random.randn(d_ff, d_model) / np.sqrt(d_ff))
-        self.b2 = Parameter(np.zeros(d_model))
+        self.W1 = Parameter(np.random.randn(d_model, d_ff) / np.sqrt(d_model), name="W1")
+        self.b1 = Parameter(np.zeros(d_ff), name="b1")
+        self.W2 = Parameter(np.random.randn(d_ff, d_model) / np.sqrt(d_ff), name="W2")
+        self.b2 = Parameter(np.zeros(d_model), name="b2")
         self.cache = {}
 
     def __call__(self, x):

@@ -83,10 +83,10 @@ class QuantaTissu:
         n_layers = config["n_layers"]
 
         self.d_model = d_model
-        self.embeddings = Parameter(np.random.randn(vocab_size, d_model) / np.sqrt(d_model))
+        self.embeddings = Parameter(np.random.randn(vocab_size, d_model) / np.sqrt(d_model), name="embeddings")
         self.pos_encoding = PositionalEncoding(d_model)
         self.transformer_blocks = [TransformerBlock(d_model, num_heads, d_ff) for _ in range(n_layers)]
-        self.output_proj = Parameter(np.random.randn(d_model, vocab_size) / np.sqrt(d_model))
+        self.output_proj = Parameter(np.random.randn(d_model, vocab_size) / np.sqrt(d_model), name="output_proj")
 
         # KnowledgeBase is not part of the trainable model graph
         self.knowledge_base = KnowledgeBase(self.embeddings.value, tokenize)
