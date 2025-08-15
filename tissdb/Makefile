@@ -23,6 +23,9 @@ SRCS = main.cpp \
 # Object files
 OBJS = $(SRCS:.cpp=.o)
 
+# Filter out objects that should not be in the test build
+TEST_OBJS = $(filter-out main.o api/http_server.o, $(OBJS))
+
 # Executable name
 TARGET = tissdb
 TEST_TARGET = test_tissdb
@@ -42,8 +45,8 @@ $(TARGET): $(OBJS)
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
-$(TEST_TARGET): $(OBJS) tests/db/test_main.o
-	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(OBJS) tests/db/test_main.o
+$(TEST_TARGET): $(TEST_OBJS) tests/db/test_main.o
+	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(TEST_OBJS) tests/db/test_main.o
 
 tests/db/test_main.o: tests/db/test_main.cpp
 	$(CXX) $(CXXFLAGS) -c tests/db/test_main.cpp -o tests/db/test_main.o
