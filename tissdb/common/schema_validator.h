@@ -4,10 +4,17 @@
 #include "schema.h"
 
 namespace TissDB {
+namespace Storage {
+    class Indexer; // Forward declaration
+}
 
 class SchemaValidator {
 public:
-    static bool validate(const Document& doc, const Schema& schema);
+    explicit SchemaValidator(const Storage::Indexer& indexer);
+    bool validate(const Document& doc, const Schema& schema) const;
+
+private:
+    const Storage::Indexer& indexer_;
 };
 
 } // namespace TissDB

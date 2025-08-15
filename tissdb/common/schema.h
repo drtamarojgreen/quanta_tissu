@@ -22,13 +22,14 @@ struct FieldSchema {
     std::string name;
     FieldType type;
     bool required = false;
+    bool unique = false;
 };
 
 // Represents the schema for a collection
 class Schema {
 public:
-    void add_field(const std::string& name, FieldType type, bool required) {
-        fields_.push_back({name, type, required});
+    void add_field(const std::string& name, FieldType type, bool required, bool unique = false) {
+        fields_.push_back({name, type, required, unique});
     }
 
     const std::vector<FieldSchema>& get_fields() const {
