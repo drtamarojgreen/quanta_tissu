@@ -11,35 +11,34 @@ from quanta_tissu.quanta_tissu.tokenizer import detokenize
 from quanta_tissu.quanta_tissu.config import model_config, vocab
 from quanta_tissu.quanta_tissu.model import QuantaTissu
 
+from quanta_tissu.quanta_tissu.tokenizer import Tokenizer
+
 def generate_text(prompt: str, length: int) -> str:
     """
     Generates text of a specified length, starting with a prompt.
     """
     np.random.seed(42)  # for reproducibility
+    tokenizer = Tokenizer()
     model = QuantaTissu(model_config)
 
-    # The model's knowledge base can be populated if desired, but for this
-    # script, we will focus on pure generation based on the prompt.
-    # model.knowledge_base.add_document("hello world .")
-
-    generated_tokens = []
-    current_prompt = prompt
+    # Tokenize the initial prompt
+    token_ids = tokenizer.tokenize(prompt)
+    if len(token_ids) == 0:
+        print("Warning: Prompt is empty or contains only unknown tokens.", file=sys.stderr)
+        return ""
 
     for _ in range(length):
-        # Generate the next token
-        next_token_id = model.generate_with_kb(current_prompt, generation_method="greedy")
+        # The model's `predict` method expects a batch, so we add a dimension
+        batched_token_ids = np.array([token_ids])
+        
+        # Predict the next token
+        next_token_id = model.predict(batched_token_ids, method="greedy")
+        
+        # Append the new token to our sequence
+        token_ids = np.append(token_ids, next_token_id)
 
-        if next_token_id is None:
-            # Stop if the model fails to generate a token
-            break
-
-        generated_tokens.append(next_token_id)
-
-        # The next prompt is the token we just generated
-        # This is a simple approach. A more advanced one would use a sliding window of context.
-        current_prompt = detokenize([next_token_id])
-
-    return detokenize(generated_tokens)
+    # Detokenize the entire sequence of tokens
+    return tokenizer.detokenize(token_ids)
 
 def main():
     """
