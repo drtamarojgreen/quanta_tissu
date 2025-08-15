@@ -1,6 +1,8 @@
 #include "indexer.h"
 #include <algorithm>
 #include <sstream>
+#include <filesystem>
+#include "../json/json.h"
 
 namespace TissDB {
 namespace Storage {
@@ -105,6 +107,60 @@ std::vector<std::string> Indexer::find_by_index(const std::string& field_name, c
     }
     return {};
 }
+
+void Indexer::save_indexes(const std::string& data_dir) {
+    // Save the B-Tree data
+    for (const auto& pair : indexes_) {
+        std::ofstream ofs(data_dir + "/" + pair.first + ".idx", std::ios::binary);
+        pair.second->dump(ofs);
+    }
+
+    // Save the index metadata
+    Json::JsonObject meta_obj;
+    for (const auto& pair : index_fields_) {
+        Json::JsonArray fields_array;
+        for (const auto& field : pair.second) {
+            fields_array.push_back(Json::JsonValue(field));
+        }
+        meta_obj[pair.first] = Json::JsonValue(fields_array);
+    }
+    std::ofstream meta_ofs(data_dir + "/indexes.meta");
+    meta_ofs << Json::JsonValue(meta_obj).serialize();
+}
+
+
+void Indexer::load_indexes(const std::string& data_dir) {
+    // Load index metadata
+    std::ifstream meta_ifs(data_dir + "/indexes.meta");
+    if (meta_ifs.is_open()) {
+        std::string meta_content((std::istreambuf_iterator<char>(meta_ifs)), std::istreambuf_iterator<char>());
+        try {
+            auto meta_json = Json::JsonValue::parse(meta_content).as_object();
+            for (const auto& pair : meta_json) {
+                std::vector<std::string> fields;
+                for (const auto& field_val : pair.second.as_array()) {
+                    fields.push_back(field_val.as_string());
+                }
+                index_fields_[pair.first] = fields;
+            }
+        } catch (...) {
+            // Handle parsing error if necessary
+        }
+    }
+
+    // Load B-Tree data
+    for (const auto& entry : std::filesystem::directory_iterator(data_dir)) {
+        if (entry.path().extension() == ".idx") {
+            std::string index_name = entry.path().stem().string();
+            if (index_fields_.count(index_name)) {
+                indexes_[index_name] = std::make_unique<bpp::btree<std::string, std::string>>();
+                std::ifstream ifs(entry.path(), std::ios::binary);
+                indexes_[index_name]->load(ifs);
+            }
+        }
+    }
+}
+
 
 } // namespace Storage
 } // namespace TissDB
