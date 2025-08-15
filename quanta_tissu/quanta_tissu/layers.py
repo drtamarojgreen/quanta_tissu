@@ -77,7 +77,7 @@ class MultiHeadAttention:
         batch_size, _, seq_len, _ = x.shape
         return x.transpose(0, 2, 1, 3).reshape(batch_size, seq_len, -1)
 
-    def __call__(self, x):
+    def __call__(self, x, mask=None):
         Q = x @ self.Wq.value
         K = x @ self.Wk.value
         V = x @ self.Wv.value
@@ -86,7 +86,7 @@ class MultiHeadAttention:
         Kh = self.split_heads(K)
         Vh = self.split_heads(V)
 
-        attended, attention_weights = scaled_dot_product_attention(Qh, Kh, Vh)
+        attended, attention_weights = scaled_dot_product_attention(Qh, Kh, Vh, mask=mask)
 
         combined = self.combine_heads(attended)
         output = combined @ self.Wo.value

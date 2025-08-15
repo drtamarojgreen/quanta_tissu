@@ -12,12 +12,12 @@ class TransformerBlock:
         self.ln2 = LayerNorm(d_model)
         self.cache = {}
 
-    def __call__(self, x):
+    def __call__(self, x, mask=None):
         # Store input for backward pass
         self.cache['x'] = x
 
         # Attention sub-layer
-        attn_out = self.mha(x)
+        attn_out = self.mha(x, mask=mask)
         self.cache['attn_out'] = attn_out
 
         # Add & Norm
@@ -92,8 +92,17 @@ class QuantaTissu:
         self.knowledge_base = KnowledgeBase(self.embeddings.value, tokenize)
         self.cache = {}
 
+    def _create_causal_mask(self, seq_len):
+        mask = np.triu(np.ones((seq_len, seq_len)), k=1) * -1e9
+        return mask
+
     def forward(self, token_ids):
         # token_ids: (batch_size, seq_len)
+        batch_size, seq_len = token_ids.shape
+        mask = self._create_causal_mask(seq_len)
+        # Add batch and head dimensions for broadcasting
+        mask = mask[np.newaxis, np.newaxis, :, :]
+        
         self.cache['token_ids'] = token_ids
         
         x = self.embeddings.value[token_ids]
@@ -103,7 +112,7 @@ class QuantaTissu:
         self.cache['x_pos_encoded'] = x
 
         for i, block in enumerate(self.transformer_blocks):
-            x = block(x)
+            x = block(x, mask=mask)
             self.cache[f'block_{i}_out'] = x
             
         logits = x @ self.output_proj.value

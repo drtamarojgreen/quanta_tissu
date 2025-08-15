@@ -8,7 +8,7 @@ Status Key: `[Not Started]` `[In Progress]` `[Done]`
 
 ### 1.1. Architectural Improvements
 -   **[Done] Multiple Transformer Blocks**: Generalize the model to allow stacking `N` transformer blocks, creating a deeper and more powerful model. This should be a configurable hyperparameter.
--   **[Not Started] Causal Attention Mask**: Implement and apply a causal (look-ahead) mask in the attention mechanism. This is crucial for correct autoregressive behavior during training and efficient inference.
+-   **[Done] Causal Attention Mask**: Implement and apply a causal (look-ahead) mask in the attention mechanism. This is crucial for correct autoregressive behavior during training and efficient inference.
 -   **[Not Started] Dropout Layers**: Add dropout layers after embeddings, attention, and feed-forward layers for regularization to prevent overfitting.
 -   **[Done] Hyperparameter Configuration**: Centralize all model hyperparameters (e.g., `d_model`, `num_heads`, `d_ff`, `n_layers`, `vocab_size`) into a configuration object or file (e.g., `config.py` or a YAML file).
 -   **[Not Started] Modern Feed-Forward Networks (SwiGLU)**: Replace the standard ReLU-based FFN with a more modern Gated Linear Unit variant like SwiGLU, which is used in models like Llama.
@@ -48,7 +48,7 @@ Status Key: `[Not Started]` `[In Progress]` `[Done]`
 
 ### 4.1. Project Structure
 -   **[Done] Code Organization**: Refactor the single script into the modular Python package structure suggested in the `README.md`.
--   **[Not Started] Dependency Management**: Create a `requirements.txt` file to formalize project dependencies.
+-   **[Done] Dependency Management**: Create a `requirements.txt` file to formalize project dependencies.
 
 ### 4.2. User Interface
 -   **[Done] Command-Line Interface (CLI)**: Implement a proper CLI using a library like `argparse` to allow users to easily pass prompts, specify model parameters (e.g., temperature, top-k), and control generation length.
