@@ -23,6 +23,7 @@ public:
     void update_indexes(const std::string& document_id, const Document& doc);
     void remove_from_indexes(const std::string& document_id, const Document& doc);
     std::vector<std::string> find_by_index(const std::string& index_name, const std::string& key) const;
+    std::vector<std::string> find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const;
 
     void save_indexes(const std::string& data_dir);
     void load_indexes(const std::string& data_dir);
