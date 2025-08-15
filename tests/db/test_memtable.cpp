@@ -1,7 +1,7 @@
 
 #include "test_framework.h"
-#include "../../../tissdb/storage/memtable.h"
-#include "../../../tissdb/common/document.h"
+#include "../../tissdb/storage/memtable.h"
+#include "../../tissdb/common/document.h"
 
 TEST_CASE(MemtablePutGet) {
     TissDB::Storage::Memtable memtable;

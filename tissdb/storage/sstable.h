@@ -1,12 +1,15 @@
 #pragma once
 
-#include "memtable.h"
-#include "../common/document.h"
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <map>
 #include <fstream>
 #include <optional>
+
+#include "memtable.h"
+#include "../common/document.h"
 
 namespace TissDB {
 namespace Storage {
