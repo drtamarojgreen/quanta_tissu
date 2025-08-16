@@ -10,6 +10,7 @@
 #include <condition_variable>
 #include <queue>
 #include <variant>
+#include <iostream> // For StdLogger
 
 // Forward declarations
 namespace tissudb {
@@ -94,6 +95,32 @@ private:
     std::string value_;
 };
 
+// --- Logging ---
+
+class ILogger {
+public:
+    virtual ~ILogger() = default;
+    virtual void info(const std::string& message) = 0;
+    virtual void error(const std::string& message) = 0;
+};
+
+class NullLogger : public ILogger {
+public:
+    void info(const std::string& message) override {}
+    void error(const std::string& message) override {}
+};
+
+class StdLogger : public ILogger {
+public:
+    void info(const std::string& message) override {
+        std::cout << "[INFO] " << message << std::endl;
+    }
+    void error(const std::string& message) override {
+        std::cerr << "[ERROR] " << message << std::endl;
+    }
+};
+
+
 /**
  * @brief Configuration for connecting to a TissDB server.
  */
@@ -103,6 +130,9 @@ public:
     int port = 9876;
     std::string username;
     std::string password;
+    size_t pool_size = 5;
+    int connect_timeout_ms = 5000; // milliseconds
+    std::shared_ptr<ILogger> logger = std::make_shared<NullLogger>();
 };
 
 /**
@@ -185,11 +215,11 @@ public:
 
     ~TissuClient();
 
-protected:
-    TissuClient();
-
 private:
-    friend class TissuSession;
+    // Private constructor for use by the `create` factory method.
+    explicit TissuClient(std::unique_ptr<TissuClientImpl> pimpl);
+
+    friend class TissuSession; // TissuSession needs to access TissuClientImpl
     std::unique_ptr<TissuClientImpl> pimpl;
 };
 
