@@ -174,13 +174,6 @@ bool Collection::has_index(const std::vector<std::string>& field_names) const {
 
 const Indexer& Collection::get_indexer() const {
     return indexer_;
-
-  std::vector<std::string> Collection::find_by_index(const std::vector<std::string>& field_names) const {
-    return indexer_.find_by_index(field_names);
-}
-
-bool Collection::has_index(const std::vector<std::string>& field_names) const {
-    return indexer_.has_index(field_names);
 }
 
 void Collection::flush_memtable() {
