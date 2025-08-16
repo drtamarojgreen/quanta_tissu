@@ -18,7 +18,8 @@ SRCS = main.cpp \
        storage/memtable.cpp \
        storage/sstable.cpp \
        storage/wal.cpp \
-       storage/collection.cpp
+       storage/collection.cpp \
+       tests/db/http_client.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
@@ -45,11 +46,14 @@ $(TARGET): $(OBJS)
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
-$(TEST_TARGET): $(TEST_OBJS) ../tests/db/test_main.o
-	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(TEST_OBJS) ../tests/db/test_main.o
+$(TEST_TARGET): $(TEST_OBJS) ../tests/db/test_main.o ../tests/db/test_bdd_crud.o
+	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(TEST_OBJS) ../tests/db/test_main.o ../tests/db/test_bdd_crud.o
 
 ../tests/db/test_main.o: ../tests/db/test_main.cpp ../tests/db/test_executor.cpp ../tests/db/test_framework.h
 	$(CXX) $(CXXFLAGS) -c ../tests/db/test_main.cpp -o ../tests/db/test_main.o
+
+../tests/db/test_bdd_crud.o: ../tests/db/test_bdd_crud.cpp ../tests/db/http_client.h ../tests/db/test_framework.h
+	$(CXX) $(CXXFLAGS) -c ../tests/db/test_bdd_crud.cpp -o ../tests/db/test_bdd_crud.o
 
 # Rule to clean the compiled files
 clean:
