@@ -28,6 +28,7 @@ public:
 
     void save_indexes(const std::string& data_dir);
     void load_indexes(const std::string& data_dir);
+    std::vector<std::vector<std::string>> get_available_indexes() const;
 
 private:
     std::string get_index_name(const std::vector<std::string>& field_names) const;
