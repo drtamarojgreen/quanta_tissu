@@ -6,6 +6,7 @@
 #include <string>
 #include <functional>
 #include <stdexcept>
+#include <sstream> // For FAIL macro
 
 // Simple testing framework
 namespace TestFramework {
@@ -49,6 +50,14 @@ void register_test(const std::string& name, std::function<void()> func) {
     } catch (...) { \
         ASSERT_TRUE(false && "Caught unexpected exception type"); \
     }
+
+#define FAIL(msg) \
+    do { \
+        std::stringstream ss; \
+        ss << "Failure at " << __FILE__ << ":" << __LINE__ << ": " << msg; \
+        throw std::runtime_error(ss.str()); \
+    } while (false)
+
 
 void run_all_tests() {
     int passed = 0;
