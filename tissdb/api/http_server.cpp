@@ -16,10 +16,13 @@
 #include <sstream>
 #include <map>
 
-// POSIX Socket headers
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
+// Windows Socket headers
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib") // Link with ws2_32.lib
+
+// For close() equivalent on Windows
+#define close(s) closesocket(s)
 
 namespace TissDB {
 namespace API {
@@ -99,10 +102,14 @@ private:
 // --- Implementation ---
 
 HttpServer::Impl::Impl(Storage::LSMTree& storage, int port) : storage_engine(storage), server_port(port) {
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        throw std::runtime_error("WSAStartup failed.");
+    }
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == -1) throw std::runtime_error("Socket creation failed.");
     int opt = 1;
-    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
     sockaddr_in server_addr{};
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
@@ -116,6 +123,7 @@ HttpServer::Impl::Impl(Storage::LSMTree& storage, int port) : storage_engine(sto
 HttpServer::Impl::~Impl() {
     stop();
     if (server_fd != -1) close(server_fd);
+    WSACleanup();
 }
 
 void HttpServer::Impl::start() {
@@ -126,7 +134,7 @@ void HttpServer::Impl::start() {
 
 void HttpServer::Impl::stop() {
     if (is_running.exchange(false)) {
-        if (server_fd != -1) shutdown(server_fd, SHUT_RDWR);
+        if (server_fd != -1) shutdown(server_fd, SD_BOTH);
         if (server_thread.joinable()) server_thread.join();
     }
 }

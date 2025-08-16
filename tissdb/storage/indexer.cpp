@@ -123,7 +123,7 @@ void Indexer::remove_from_indexes(const std::string& document_id, const Document
 
             if (found) {
                 if (new_doc_ids_array.empty()) {
-                    btree->remove(key);
+                    btree->erase(key);
                 } else {
                     btree->insert(key, Json::JsonValue(new_doc_ids_array).serialize());
                 }
