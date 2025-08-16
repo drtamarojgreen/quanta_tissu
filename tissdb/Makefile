@@ -19,7 +19,7 @@ SRCS = main.cpp \
        storage/sstable.cpp \
        storage/wal.cpp \
        storage/collection.cpp \
-       tests/db/http_client.cpp
+       ../tests/db/http_client.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
