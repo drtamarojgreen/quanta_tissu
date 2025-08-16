@@ -4,6 +4,7 @@
 #include <sstream>
 #include <map>
 #include <functional>
+#include <cmath>
 
 // Required for the executor to interact with storage
 #include "../storage/lsm_tree.h"
@@ -57,6 +58,7 @@ bool evaluate_expression(const Expression& expr, const Document& doc) {
 struct AggregateResult {
     double sum = 0;
     double count = 0;
+    double sum_sq = 0;
     std::optional<double> min;
     std::optional<double> max;
 };
@@ -65,10 +67,11 @@ void process_aggregation(std::map<std::string, AggregateResult>& group_results, 
     for (const auto& elem : doc.elements) {
         if (elem.key == agg_func.field_name) {
             if (auto* num_val = std::get_if<double>(&elem.value)) {
-                if (agg_func.function_name == "SUM" || agg_func.function_name == "AVG") {
+                if (agg_func.function_name == "SUM" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
                     group_results[group_key].sum += *num_val;
+                    group_results[group_key].sum_sq += (*num_val) * (*num_val);
                 }
-                if (agg_func.function_name == "COUNT") {
+                if (agg_func.function_name == "COUNT" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
                     group_results[group_key].count++;
                 }
                 if (agg_func.function_name == "MIN") {
@@ -205,6 +208,14 @@ QueryResult Executor::execute(const AST& ast) {
                         aggregated_doc.elements.push_back({"min", result.second.min.value_or(0)});
                     } else if (result.first == "MAX") {
                         aggregated_doc.elements.push_back({"max", result.second.max.value_or(0)});
+                    } else if (result.first == "STDDEV") {
+                        if (result.second.count > 0) {
+                            double mean = result.second.sum / result.second.count;
+                            double variance = (result.second.sum_sq / result.second.count) - (mean * mean);
+                            aggregated_doc.elements.push_back({"stddev", sqrt(variance)});
+                        } else {
+                            aggregated_doc.elements.push_back({"stddev", 0.0});
+                        }
                     }
                 }
                 aggregated_docs.push_back(aggregated_doc);
