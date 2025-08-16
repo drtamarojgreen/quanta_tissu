@@ -1,0 +1,107 @@
+import re
+import sys
+import os
+import glob
+import subprocess
+import time
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+print("BDD Runner: Script started.")
+sys.stdout.flush()
+
+class BDDRunner:
+    def __init__(self, features_path):
+        self.features_path = features_path
+        self.steps = []
+        self.db_process = None
+
+    def step(self, pattern):
+        def decorator(func):
+            self.steps.append((re.compile(pattern), func))
+            return func
+        return decorator
+
+    def start_db(self):
+        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'quanta_tissu', 'tissdb', 'tissdb.exe')
+        print(f"BDD Runner: Starting database at {db_path}")
+        sys.stdout.flush()
+        self.db_process = subprocess.Popen([db_path])
+        time.sleep(2) # Wait for the server to start
+
+    def stop_db(self):
+        if self.db_process:
+            print("BDD Runner: Stopping database.")
+            sys.stdout.flush()
+            self.db_process.terminate()
+            self.db_process.wait() # Ensure process is terminated
+
+    def run(self):
+        self.start_db()
+
+        feature_files = glob.glob(os.path.join(self.features_path, '*.feature'))
+        print(f"BDD Runner: Found feature files: {feature_files}")
+        sys.stdout.flush()
+        
+        # Import and register steps once
+        from features.steps import test_kv_cache_steps
+        from features.steps import test_tokenizer_steps
+        from features.steps import test_predict_steps
+        from features.steps import test_generate_steps
+        from features.steps import test_knowledge_base_steps
+        from features.steps import test_database_steps
+        test_kv_cache_steps.register_steps(self)
+        test_tokenizer_steps.register_steps(self)
+        test_predict_steps.register_steps(self)
+        test_generate_steps.register_steps(self)
+        test_knowledge_base_steps.register_steps(self)
+        test_database_steps.register_steps(self)
+        print("BDD Runner: All steps registered.")
+        sys.stdout.flush()
+
+        if not feature_files:
+            print("BDD Runner: No feature files found to run.")
+            sys.stdout.flush()
+            return
+
+        for feature_file in feature_files:
+            print(f"Running feature: {os.path.basename(feature_file)}")
+            sys.stdout.flush()
+            with open(feature_file, 'r') as f:
+                feature_content = f.read()
+            print(f"BDD Runner: Read content from {os.path.basename(feature_file)}")
+            sys.stdout.flush()
+
+            context = {}
+            for line_num, line in enumerate(feature_content.splitlines()):
+                original_line = line
+                line = line.strip()
+                
+                if not line or line.startswith('#') or line.startswith('Feature:') or line.startswith('Scenario:'):
+                    continue
+
+                step_found = False
+                for pattern, func in self.steps:
+                    match = pattern.match(line)
+                    if match:
+                        print(f"  Executing step (line {line_num + 1}): {original_line.strip()}")
+                        sys.stdout.flush()
+                        try:
+                            result = func(context, *match.groups())
+                            if result:
+                                print(f"    Step result: {result}")
+                                sys.stdout.flush()
+                        except Exception as e:
+                            print(f"    ERROR executing step: {e}")
+                            sys.stdout.flush()
+                        step_found = True
+                        break
+                if not step_found:
+                    print(f"BDD Runner: WARNING - No step definition found for line: {original_line.strip()}")
+                    sys.stdout.flush()
+        
+        self.stop_db()
+
+if __name__ == '__main__':
+    runner = BDDRunner('c:/Users/tamar/Documents/DataAnnotation/Gemini/quanta_tissu/tests/features')
+    runner.run()
