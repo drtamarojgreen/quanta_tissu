@@ -2,6 +2,7 @@
 #include "test_framework.h"
 #include "../../tissdb/query/executor.h"
 #include "../../tissdb/query/parser.h"
+#include <set>
 #include "../../tissdb/storage/lsm_tree.h"
 #include <filesystem>
 #include <set>
@@ -11,6 +12,15 @@ class MockLSMTree : public TissDB::Storage::LSMTree {
 public:
     MockLSMTree() : TissDB::Storage::LSMTree("mock_data") {}
 
+    // Override put to store documents in memory for testing
+    void put(const std::string& collection_name, const std::string& key, const TissDB::Document& doc, TissDB::Transactions::TransactionID tid = -1) override {
+        (void)tid;
+        mock_data_[collection_name][key] = doc;
+    }
+
+    // Override get to retrieve from mock data
+    std::optional<TissDB::Document> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
+        (void)tid;
     void create_collection(const std::string& name, const TissDB::Schema& schema) override {
         (void)schema; // Unused in mock
         mock_data_[name] = {};
@@ -39,6 +49,7 @@ public:
         return docs;
     }
 
+    // Override create_index to just record that an index was created
     void create_index(const std::string& collection_name, const std::vector<std::string>& field_names) override {
         mock_indexes_[collection_name].insert(field_names[0]); // Simple mock: only use first field
     }
@@ -70,6 +81,7 @@ public:
 
 TEST_CASE(ExecutorSelectAll) {
     MockLSMTree mock_lsm_tree;
+    TissDB::Schema empty_schema;
     mock_lsm_tree.create_collection("users", TissDB::Schema{});
 
     TissDB::Document doc1;
@@ -106,7 +118,8 @@ TEST_CASE(ExecutorSelectAll) {
 
 TEST_CASE(ExecutorAggregateGroupBy) {
     MockLSMTree mock_lsm_tree;
-    mock_lsm_tree.create_collection("sales", TissDB::Schema{});
+    TissDB::Schema empty_schema;
+    mock_lsm_tree.create_collection("sales", empty_schema);
 
     // Setup initial data
     mock_lsm_tree.put("sales", "1", TissDB::Document{"1", {{"category", std::string("books")}, {"amount", 15.0}}});
@@ -240,7 +253,8 @@ TEST_CASE(ExecutorAggregateEmptyResult) {
 
 TEST_CASE(ExecutorDeleteAll) {
     MockLSMTree mock_lsm_tree;
-    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+    TissDB::Schema empty_schema;
+    mock_lsm_tree.create_collection("users", empty_schema);
 
     // 1. Setup initial data
     TissDB::Document doc1;
@@ -268,7 +282,8 @@ TEST_CASE(ExecutorDeleteAll) {
 
 TEST_CASE(ExecutorDeleteWithWhere) {
     MockLSMTree mock_lsm_tree;
-    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+    TissDB::Schema empty_schema;
+    mock_lsm_tree.create_collection("users", empty_schema);
 
     // 1. Setup initial data
     TissDB::Document doc1;
@@ -301,7 +316,8 @@ TEST_CASE(ExecutorDeleteWithWhere) {
 
 TEST_CASE(ExecutorUpdateAddField) {
     MockLSMTree mock_lsm_tree;
-    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+    TissDB::Schema empty_schema;
+    mock_lsm_tree.create_collection("users", empty_schema);
 
     TissDB::Document doc1;
     doc1.id = "user1";
@@ -336,7 +352,8 @@ TEST_CASE(ExecutorUpdateAddField) {
 
 TEST_CASE(ExecutorUpdateAll) {
     MockLSMTree mock_lsm_tree;
-    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+    TissDB::Schema empty_schema;
+    mock_lsm_tree.create_collection("users", empty_schema);
 
     TissDB::Document doc1;
     doc1.id = "user1";
@@ -379,7 +396,8 @@ TEST_CASE(ExecutorUpdateAll) {
 
 TEST_CASE(ExecutorUpdateWithWhere) {
     MockLSMTree mock_lsm_tree;
-    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+    TissDB::Schema empty_schema;
+    mock_lsm_tree.create_collection("users", empty_schema);
 
     // 1. Setup initial data
     TissDB::Document doc1;
@@ -435,7 +453,8 @@ TEST_CASE(ExecutorUpdateWithWhere) {
 
 TEST_CASE(ExecutorInsert) {
     MockLSMTree mock_lsm_tree;
-    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+    TissDB::Schema empty_schema;
+    mock_lsm_tree.create_collection("users", empty_schema);
 
     TissDB::Query::Parser parser;
     TissDB::Query::Executor executor(mock_lsm_tree);
