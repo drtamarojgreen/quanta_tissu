@@ -19,6 +19,7 @@
 
 // Tissu Sinew Client Library Tests
 #include "../test_tissu_sinew.cpp"
+#include "../test_tissu_client.cpp"
 
 int main() {
     TestFramework::run_all_tests();

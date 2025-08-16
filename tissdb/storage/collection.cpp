@@ -4,9 +4,12 @@
 #include <iostream>
 #include <algorithm>
 #include <chrono>
+#include <filesystem> // Added for std::filesystem
 
 namespace TissDB {
 namespace Storage {
+
+
 
 Collection::Collection(const std::string& collection_path) : collection_path_(collection_path), stop_compaction_(false) {
     std::filesystem::create_directories(collection_path_);
@@ -171,6 +174,13 @@ bool Collection::has_index(const std::vector<std::string>& field_names) const {
 
 const Indexer& Collection::get_indexer() const {
     return indexer_;
+
+  std::vector<std::string> Collection::find_by_index(const std::vector<std::string>& field_names) const {
+    return indexer_.find_by_index(field_names);
+}
+
+bool Collection::has_index(const std::vector<std::string>& field_names) const {
+    return indexer_.has_index(field_names);
 }
 
 void Collection::flush_memtable() {
