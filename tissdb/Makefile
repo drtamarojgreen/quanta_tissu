@@ -10,6 +10,7 @@ CXXFLAGS = -std=c++17 -I. -Wall -Wextra -g
 SRCS = main.cpp \
        api/http_server.cpp \
        common/serialization.cpp \
+       common/schema_validator.cpp \
        json/json.cpp \
        query/executor.cpp \
        query/parser.cpp \
@@ -18,7 +19,9 @@ SRCS = main.cpp \
        storage/memtable.cpp \
        storage/sstable.cpp \
        storage/wal.cpp \
-       storage/collection.cpp
+       storage/collection.cpp \
+       storage/transaction_manager.cpp \
+       storage/native_b_tree.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)

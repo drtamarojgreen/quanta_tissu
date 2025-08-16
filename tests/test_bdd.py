@@ -3,6 +3,7 @@ import sys
 import os
 import numpy as np
 from collections import defaultdict
+import subprocess
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -223,3 +224,65 @@ def then_the_ast_should_have_n_nodes(context, num_nodes):
 def then_parsing_should_fail(context, error_message):
     assert context['error'] is not None, "Expected a parsing error, but none occurred"
     assert error_message in str(context['error']), f"Expected error message to contain '{error_message}', but got '{context['error']}'"
+
+# --- Tissu Sinew C++ Connector Steps ---
+
+@step(r'Given a TissDB server running on "(.*)" at port (\d+)')
+def given_a_tissdb_server(context, host, port):
+    context['host'] = host
+    context['port'] = int(port)
+
+@step(r'Given no TissDB server is running on "(.*)" at port (\d+)')
+def given_no_tissdb_server(context, host, port):
+    context['host'] = host
+    context['port'] = int(port)
+
+def _run_connector_test(context, command):
+    host = context['host']
+    port = context['port']
+
+    source_files = [
+        "tests/tissu_sinew_bdd_test.cpp",
+        "quanta_tissu/tissu_sinew.cpp"
+    ]
+    output_executable = "tests/tissu_sinew_bdd_test"
+
+    compile_command = [
+        "g++", "-std=c++17", "-pthread", "-I.", "-o", output_executable
+    ] + source_files
+
+    compile_process = subprocess.run(compile_command, capture_output=True, text=True)
+    if compile_process.returncode != 0:
+        raise Exception(f"C++ compilation failed:\n{compile_process.stderr}")
+
+    run_command = [f"./{output_executable}", host, str(port), command]
+    run_process = subprocess.run(run_command, capture_output=True, text=True)
+
+    context['connector_result'] = {
+        'returncode': run_process.returncode,
+        'stdout': run_process.stdout.strip(),
+        'stderr': run_process.stderr.strip()
+    }
+
+@step(r'When I use the C\+\+ connector to run the "(.*)" command')
+def when_run_command_with_connector(context, command):
+    _run_connector_test(context, command)
+
+@step(r'When I attempt to use the C\+\+ connector to run a "(.*)" command on port (\d+)')
+def when_attempt_to_run_command(context, command, port):
+    assert context['port'] == int(port), f"Port mismatch between Given ({context['port']}) and When ({port}) steps."
+    _run_connector_test(context, command)
+
+@step(r'Then the connector should successfully return "(.*)"')
+def then_connector_returns_successfully(context, expected_output):
+    result = context['connector_result']
+    assert result['returncode'] == 0, f"Expected exit code 0, but got {result['returncode']}. Stderr: {result['stderr']}"
+    assert result['stdout'] == expected_output, f"Expected stdout '{expected_output}', but got '{result['stdout']}'"
+
+@step(r'Then the connector should fail with a connection error')
+def then_connector_fails_with_connection_error(context):
+    result = context['connector_result']
+    assert result['returncode'] != 0, "Expected a non-zero exit code for connection failure, but got 0."
+    error_msg = result['stderr'].lower()
+    assert "connect" in error_msg or "connection refused" in error_msg or "failed to create" in error_msg, \
+        f"Expected a connection error in stderr, but got: {result['stderr']}"
