@@ -5,6 +5,7 @@
 #include <map>
 #include <functional>
 #include <cmath>
+#include <algorithm> // For std::find_if
 
 // Required for the executor to interact with storage
 #include "../storage/lsm_tree.h"
@@ -75,20 +76,24 @@ void process_aggregation(std::map<std::string, AggregateResult>& results_map, co
     for (const auto& elem : doc.elements) {
         if (elem.key == agg_func.field_name) {
             if (auto* num_val = std::get_if<double>(&elem.value)) {
+                auto& result = results_map[result_key]; // Get reference to the result for this key
+
                 if (agg_func.function_name == "SUM" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
-                    group_results[group_key].sum += *num_val;
-                    group_results[group_key].sum_sq += (*num_val) * (*num_val);
+                    result.sum += *num_val;
+                    result.sum_sq += (*num_val) * (*num_val);
                 }
                 if (agg_func.function_name == "COUNT" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
-                    group_results[group_key].count++;
-                auto& result = results_map[result_key];
-                result.count++; // Increment count for any matching field
-                result.sum += *num_val;
-                if (!result.min.has_value() || *num_val < result.min.value()) {
-                    result.min = *num_val;
+                    result.count++;
                 }
-                if (!result.max.has_value() || *num_val > result.max.value()) {
-                    result.max = *num_val;
+                if (agg_func.function_name == "MIN") {
+                    if (!result.min.has_value() || *num_val < result.min.value()) {
+                        result.min = *num_val;
+                    }
+                }
+                if (agg_func.function_name == "MAX") {
+                    if (!result.max.has_value() || *num_val > result.max.value()) {
+                        result.max = *num_val;
+                    }
                 }
             }
         }
@@ -121,7 +126,6 @@ void extract_equality_conditions(const Expression& expr, std::map<std::string, s
 }
 
 // --- Executor ---
-
 
 Executor::Executor(Storage::LSMTree& storage) : storage_engine(storage) {}
 
@@ -297,25 +301,6 @@ QueryResult Executor::execute(const AST& ast) {
                     }
                 }
 
-                for (const auto& result : group_results) {
-                    if (result.first == "SUM") {
-                        aggregated_doc.elements.push_back({"sum", result.second.sum});
-                    } else if (result.first == "AVG") {
-                        aggregated_doc.elements.push_back({"avg", result.second.sum / result.second.count});
-                    } else if (result.first == "COUNT") {
-                        aggregated_doc.elements.push_back({"count", result.second.count});
-                    } else if (result.first == "MIN") {
-                        aggregated_doc.elements.push_back({"min", result.second.min.value_or(0)});
-                    } else if (result.first == "MAX") {
-                        aggregated_doc.elements.push_back({"max", result.second.max.value_or(0)});
-                    } else if (result.first == "STDDEV") {
-                        if (result.second.count > 0) {
-                            double mean = result.second.sum / result.second.count;
-                            double variance = (result.second.sum_sq / result.second.count) - (mean * mean);
-                            aggregated_doc.elements.push_back({"stddev", sqrt(variance)});
-                        } else {
-                            aggregated_doc.elements.push_back({"stddev", 0.0});
-                        }
                 // Then, construct the final document from the results
                 for (const auto& field : select_stmt->fields) {
                     if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
@@ -326,11 +311,20 @@ QueryResult Executor::execute(const AST& ast) {
                         else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back({result_key, result.count});
                         else if (agg_func->function_name == "MIN") aggregated_doc.elements.push_back({result_key, result.min.value_or(0)});
                         else if (agg_func->function_name == "MAX") aggregated_doc.elements.push_back({result_key, result.max.value_or(0)});
+                        else if (agg_func->function_name == "STDDEV") {
+                            if (result.count > 0) {
+                                double mean = result.sum / result.count;
+                                double variance = (result.sum_sq / result.count) - (mean * mean);
+                                aggregated_doc.elements.push_back({result_key, sqrt(variance)});
+                            } else {
+                                aggregated_doc.elements.push_back({result_key, 0.0});
+                            }
+                        }
                     }
                 }
                 aggregated_docs.push_back(aggregated_doc);
             }
-            return aggregated_docs;
+            return {aggregated_docs}; // Return QueryResult containing aggregated_docs
         }
 
         // --- Projection ---
@@ -366,8 +360,12 @@ QueryResult Executor::execute(const AST& ast) {
 
     } else if (auto* update_stmt = std::get_if<UpdateStatement>(&ast)) {
         // ... (UPDATE logic remains the same)
+        // Placeholder for update logic
+        return {};
     } else if (auto* delete_stmt = std::get_if<DeleteStatement>(&ast)) {
         // ... (DELETE logic remains the same)
+        // Placeholder for delete logic
+        return {};
     }
     return {};
 }
