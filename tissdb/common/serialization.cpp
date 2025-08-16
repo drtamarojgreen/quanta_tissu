@@ -114,7 +114,7 @@ Element deserialize_element(BinaryStreamBuffer& bsb) {
 // Public interface for serializing a Document.
 std::vector<uint8_t> serialize(const Document& doc) {
     std::stringstream ss(std::ios::binary | std::ios::out);
-    BinaryStreamBuffer bsb(ss);
+    BinaryStreamBuffer bsb(static_cast<std::ostream&>(ss));
 
     bsb.write_string(doc.id);
     size_t element_count = doc.elements.size();
@@ -133,7 +133,7 @@ Document deserialize(const std::vector<uint8_t>& bytes) {
     }
     std::string byte_string(bytes.begin(), bytes.end());
     std::stringstream ss(byte_string, std::ios::binary | std::ios::in);
-    BinaryStreamBuffer bsb(ss);
+    BinaryStreamBuffer bsb(static_cast<std::istream&>(ss));
 
     Document doc;
     doc.id = bsb.read_string();

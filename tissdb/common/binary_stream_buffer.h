@@ -17,10 +17,18 @@ public:
 
     // Read/Write primitive types
     template<typename T>
-    void read(T& value);
+    void read(T& value) {
+        if (!is_ptr_) throw std::runtime_error("Stream buffer not initialized for reading.");
+        is_ptr_->read(reinterpret_cast<char*>(&value), sizeof(T));
+        if (!(*is_ptr_)) throw std::runtime_error("Failed to read binary data.");
+    }
 
     template<typename T>
-    void write(const T& value);
+    void write(const T& value) {
+        if (!os_ptr_) throw std::runtime_error("Stream buffer not initialized for writing.");
+        os_ptr_->write(reinterpret_cast<const char*>(&value), sizeof(T));
+        if (!(*os_ptr_)) throw std::runtime_error("Failed to write binary data.");
+    }
 
     // Read/Write length-prefixed strings
     std::string read_string();

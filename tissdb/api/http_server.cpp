@@ -16,11 +16,31 @@
 #include <sstream>
 #include <map>
 
-// POSIX Socket headers
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h> // For close()
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h> // For inet_pton, etc.
+    #pragma comment(lib, "ws2_32.lib") // Link with Winsock library
+#else
+    // POSIX Socket headers
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <unistd.h> // For close()
+#endif
+
+#ifdef _WIN32
+    // Type redefinitions
+    using socklen_t = int; // Winsock uses int for socklen_t
+
+    // Function redefinitions
+    #define close(s) closesocket(s)
+    #define SHUT_RDWR SD_BOTH // For shutdown()
+    #define SHUT_RD SD_RECEIVE
+    #define SHUT_WR SD_SEND
+
+    // Winsock specific initialization/cleanup
+    // These will be called in constructor/destructor
+#endif
 
 namespace TissDB {
 namespace API {
@@ -100,10 +120,17 @@ private:
 // --- Implementation ---
 
 HttpServer::Impl::Impl(Storage::LSMTree& storage, int port) : storage_engine(storage), server_port(port) {
+#ifdef _WIN32
+    WSADATA wsaData;
+    int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+    if (iResult != 0) {
+        throw std::runtime_error("WSAStartup failed: " + std::to_string(iResult));
+    }
+#endif
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == -1) throw std::runtime_error("Socket creation failed.");
     int opt = 1;
-    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
     sockaddr_in server_addr{};
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
@@ -117,6 +144,9 @@ HttpServer::Impl::Impl(Storage::LSMTree& storage, int port) : storage_engine(sto
 HttpServer::Impl::~Impl() {
     stop();
     if (server_fd != -1) close(server_fd);
+#ifdef _WIN32
+    WSACleanup();
+#endif
 }
 
 void HttpServer::Impl::start() {
