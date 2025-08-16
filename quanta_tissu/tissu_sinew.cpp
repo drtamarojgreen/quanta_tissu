@@ -1,5 +1,4 @@
 #include "tissu_sinew.h"
-#include <iostream>
 #include <stdexcept> // For std::runtime_error
 #include <vector>
 #include <queue>
@@ -7,55 +6,95 @@
 #include <utility>
 #include <mutex>
 #include <condition_variable>
+#include <chrono>
 
 // For native socket programming
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
-#include <cstring> // For memset
+#include <arpa/inet.h> // For htonl, ntohl
+#include <cstring>     // For memset, strerror
+#include <cerrno>      // For errno
 
 namespace tissudb {
+
+/**
+ * @brief Helper function to reliably receive a specific number of bytes from a socket.
+ */
+static bool recv_all(int sockfd, void* buffer, size_t len) {
+    char* p = static_cast<char*>(buffer);
+    size_t bytes_to_read = len;
+    while (bytes_to_read > 0) {
+        ssize_t bytes_received = recv(sockfd, p, bytes_to_read, 0);
+        if (bytes_received <= 0) {
+            return false;
+        }
+        bytes_to_read -= bytes_received;
+        p += bytes_received;
+    }
+    return true;
+}
+
 
 // --- TissuClientImpl (Opaque Implementation for TissuClient) ---
 
 class TissuClientImpl {
 public:
-    TissuClientImpl(const TissuConfig& config) : config_(config), pool_size_(5) {
-        std::cout << "TissuClientImpl: Initializing connection pool for " << config_.host << ":" << config_.port << std::endl;
+    TissuClientImpl(const TissuConfig& config) : config_(config) {
+        config_.logger->info("Initializing connection pool for " + config_.host + ":" + std::to_string(config_.port));
 
-        for (size_t i = 0; i < pool_size_; ++i) {
+        for (size_t i = 0; i < config_.pool_size; ++i) {
             int sockfd = connect_to_server();
-            all_connections_.push_back(sockfd);
-            available_connections_.push(sockfd);
+            if (sockfd != -1) {
+                all_connections_.push_back(sockfd);
+                available_connections_.push(sockfd);
+            }
         }
-        std::cout << "Connection pool initialized with " << all_connections_.size() << " connections." << std::endl;
+        config_.logger->info("Connection pool initialized with " + std::to_string(available_connections_.size()) + " connections.");
     }
 
     ~TissuClientImpl() {
-        std::cout << "TissuClientImpl: Closing all connections." << std::endl;
+        config_.logger->info("Closing all connections.");
         for (int sockfd : all_connections_) {
             close(sockfd);
         }
-        std::cout << "TissuClientImpl destroyed." << std::endl;
+        config_.logger->info("TissuClientImpl destroyed.");
     }
 
     int getConnection() {
         std::unique_lock<std::mutex> lock(mtx_);
-        cv_.wait(lock, [this]{ return !available_connections_.empty(); });
-
-        int sockfd = available_connections_.front();
-        available_connections_.pop();
-        std::cout << "Connection " << sockfd << " acquired from pool. Pool size: " << available_connections_.size() << std::endl;
-        return sockfd;
+        if (cv_.wait_for(lock, std::chrono::milliseconds(config_.connect_timeout_ms), [this]{ return !available_connections_.empty(); })) {
+            int sockfd = available_connections_.front();
+            available_connections_.pop();
+            config_.logger->info("Connection " + std::to_string(sockfd) + " acquired. Pool size: " + std::to_string(available_connections_.size()));
+            return sockfd;
+        } else {
+            throw TissuConnectionException("Timeout waiting for connection from pool.");
+        }
     }
 
     void releaseConnection(int sockfd) {
+        if (sockfd == -1) {
+            config_.logger->info("Ignoring release of dead connection marker.");
+            return;
+        }
         std::unique_lock<std::mutex> lock(mtx_);
         available_connections_.push(sockfd);
         lock.unlock();
         cv_.notify_one();
-        std::cout << "Connection " << sockfd << " released to pool. Pool size: " << available_connections_.size() << std::endl;
+        config_.logger->info("Connection " + std::to_string(sockfd) + " released. Pool size: " + std::to_string(available_connections_.size()));
+    }
+
+    void declareConnectionDead(int sockfd) {
+        std::unique_lock<std::mutex> lock(mtx_);
+        config_.logger->info("Connection " + std::to_string(sockfd) + " declared dead. Removing from pool.");
+        close(sockfd);
+        all_connections_.erase(std::remove(all_connections_.begin(), all_connections_.end(), sockfd), all_connections_.end());
+    }
+
+    const TissuConfig& getConfig() const {
+        return config_;
     }
 
 private:
@@ -88,12 +127,11 @@ private:
             throw TissuConnectionException("TissuClient: Failed to connect to host");
         }
 
-        std::cout << "Successfully connected socket: " << sockfd << std::endl;
+        config_.logger->info("Successfully connected socket: " + std::to_string(sockfd));
         return sockfd;
     }
 
     TissuConfig config_;
-    size_t pool_size_;
     std::vector<int> all_connections_;
     std::queue<int> available_connections_;
     std::mutex mtx_;
@@ -101,14 +139,12 @@ private:
 };
 
 // --- TissValue Method Implementations ---
-
 std::string TissValue::toQueryString() const {
+    // ... (same as before)
     return std::visit([](auto&& arg) -> std::string {
         using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, std::nullptr_t>) {
-            return "null";
-        } else if constexpr (std::is_same_v<T, std::string>) {
-            // Basic escaping for quotes
+        if constexpr (std::is_same_v<T, std::nullptr_t>) return "null";
+        else if constexpr (std::is_same_v<T, std::string>) {
             std::string escaped = arg;
             size_t pos = 0;
             while ((pos = escaped.find('"', pos)) != std::string::npos) {
@@ -116,19 +152,15 @@ std::string TissValue::toQueryString() const {
                 pos += 2;
             }
             return "\"" + escaped + "\"";
-        } else if constexpr (std::is_same_v<T, int64_t>) {
-            return std::to_string(arg);
-        } else if constexpr (std::is_same_v<T, double>) {
-            return std::to_string(arg);
-        } else if constexpr (std::is_same_v<T, bool>) {
-            return arg ? "true" : "false";
         }
+        else if constexpr (std::is_same_v<T, int64_t>) return std::to_string(arg);
+        else if constexpr (std::is_same_v<T, double>) return std::to_string(arg);
+        else if constexpr (std::is_same_v<T, bool>) return arg ? "true" : "false";
     }, value_);
 }
 
 
 // --- TissuSession::Impl (Private Implementation) ---
-
 class TissuSession::Impl {
 public:
     Impl(int sockfd, TissuClientImpl* client_impl)
@@ -141,146 +173,130 @@ public:
     }
 
     int sockfd_;
-    TissuClientImpl* client_impl_; // Pointer back to the client's implementation
+    TissuClientImpl* client_impl_;
 };
 
 // --- TissuSession Method Implementations ---
-
 TissuSession::TissuSession(int sockfd, TissuClientImpl* client_impl)
     : pimpl(std::make_unique<Impl>(sockfd, client_impl)) {
-    std::cout << "TissuSession created with connection " << sockfd << "." << std::endl;
+    pimpl->client_impl_->getConfig().logger->info("TissuSession created with connection " + std::to_string(sockfd));
 }
 
 TissuSession::~TissuSession() {
-    // The pimpl destructor will handle releasing the connection
-    std::cout << "TissuSession for connection " << pimpl->sockfd_ << " destroyed." << std::endl;
+    pimpl->client_impl_->getConfig().logger->info("TissuSession for connection " + std::to_string(pimpl->sockfd_) + " destroyed.");
 }
 
 std::unique_ptr<TissuResult> TissuSession::run(const std::string& query) {
-    if (pimpl->sockfd_ == -1) {
-        throw TissuException("Session has no valid connection.");
-    }
+    if (pimpl->sockfd_ == -1) throw TissuException("Session has no valid connection.");
 
-    std::string message = query + "\n";
-    if (send(pimpl->sockfd_, message.c_str(), message.length(), 0) == -1) {
-        perror("send");
+    uint32_t len = query.length();
+    uint32_t net_len = htonl(len);
+
+    if (send(pimpl->sockfd_, &net_len, sizeof(net_len), 0) == -1 || send(pimpl->sockfd_, query.c_str(), len, 0) == -1) {
+        pimpl->client_impl_->getConfig().logger->error("send failed: " + std::string(strerror(errno)));
+        pimpl->client_impl_->declareConnectionDead(pimpl->sockfd_);
         pimpl->sockfd_ = -1;
         throw TissuQueryException("Failed to send query.");
     }
 
-    char buffer[4096];
-    std::string response_str;
-    ssize_t bytes_received = recv(pimpl->sockfd_, buffer, sizeof(buffer) - 1, 0);
-
-    if (bytes_received > 0) {
-        buffer[bytes_received] = '\0';
-        response_str.assign(buffer, bytes_received);
-    } else if (bytes_received == 0) {
-        pimpl->sockfd_ = -1; // Mark connection as dead
-        throw TissuQueryException("Server closed the connection during read.");
-    } else {
-        perror("recv");
-        pimpl->sockfd_ = -1; // Mark connection as dead
-        throw TissuQueryException("Failed to receive response.");
+    uint32_t response_net_len;
+    if (!recv_all(pimpl->sockfd_, &response_net_len, sizeof(response_net_len))) {
+        pimpl->client_impl_->getConfig().logger->error("recv header failed: " + std::string(strerror(errno)));
+        pimpl->client_impl_->declareConnectionDead(pimpl->sockfd_);
+        pimpl->sockfd_ = -1;
+        throw TissuQueryException("Failed to receive response header.");
     }
 
-    return std::make_unique<TissuResult>(response_str);
+    uint32_t response_len = ntohl(response_net_len);
+    const uint32_t MAX_RESPONSE_SIZE = 10 * 1024 * 1024;
+    if (response_len > MAX_RESPONSE_SIZE) {
+        pimpl->client_impl_->declareConnectionDead(pimpl->sockfd_);
+        pimpl->sockfd_ = -1;
+        throw TissuQueryException("Response size limit exceeded.");
+    }
+
+    std::vector<char> buffer(response_len);
+    if (response_len > 0 && !recv_all(pimpl->sockfd_, buffer.data(), response_len)) {
+        pimpl->client_impl_->getConfig().logger->error("recv payload failed: " + std::string(strerror(errno)));
+        pimpl->client_impl_->declareConnectionDead(pimpl->sockfd_);
+        pimpl->sockfd_ = -1;
+        throw TissuQueryException("Failed to receive response payload.");
+    }
+
+    return std::make_unique<TissuResult>(std::string(buffer.begin(), buffer.end()));
 }
 
 std::unique_ptr<TissuResult> TissuSession::run(const std::string& query, const std::map<std::string, TissValue>& params) {
+    // ... (same as before)
     std::string final_query = query;
-
-    // Copy parameters to a vector to sort them by key length.
-    // This prevents incorrect substitution when one key is a substring of another (e.g., "id" and "id_long").
     std::vector<std::pair<std::string, TissValue>> sorted_params(params.begin(), params.end());
-
-    // Sort by key length in descending order.
     std::sort(sorted_params.begin(), sorted_params.end(),
-              [](const auto& a, const auto& b) {
-                  return a.first.length() > b.first.length();
-              });
-
+              [](const auto& a, const auto& b) { return a.first.length() > b.first.length(); });
     for (const auto& [key, value] : sorted_params) {
         std::string placeholder = "$" + key;
         std::string value_str = value.toQueryString();
         size_t pos = 0;
         while ((pos = final_query.find(placeholder, pos)) != std::string::npos) {
             final_query.replace(pos, placeholder.length(), value_str);
-            pos += value_str.length(); // Move past the replaced part
+            pos += value_str.length();
         }
     }
-
     return run(final_query);
 }
 
 std::unique_ptr<TissuTransaction> TissuSession::beginTransaction() {
     run("BEGIN");
-    // Use `new` because the constructor is protected. std::make_unique cannot access it.
     return std::unique_ptr<TissuTransaction>(new TissuTransaction(this));
 }
 
 
 // --- TissuTransaction Method Implementations ---
-
 TissuTransaction::TissuTransaction(ISession* session)
     : session_(session), is_active_(true) {
-    std::cout << "Transaction started." << std::endl;
 }
 
 TissuTransaction::~TissuTransaction() {
     if (is_active_) {
         try {
-            std::cerr << "Transaction was not explicitly committed or rolled back. Rolling back automatically." << std::endl;
             rollback();
-        } catch (const std::exception& e) {
-            std::cerr << "Error during automatic rollback in destructor: " << e.what() << std::endl;
+        } catch (const std::exception&) {
+            // Cannot log here easily and should not throw from a destructor.
         }
     }
-    std::cout << "Transaction destroyed." << std::endl;
 }
 
 void TissuTransaction::commit() {
-    if (!is_active_) {
-        throw TissuException("Transaction is not active.");
-    }
+    if (!is_active_) throw TissuException("Transaction is not active.");
     session_->run("COMMIT");
     is_active_ = false;
-    std::cout << "Transaction committed." << std::endl;
 }
 
 void TissuTransaction::rollback() {
-    if (!is_active_) {
-        throw TissuException("Transaction is not active.");
-    }
+    if (!is_active_) throw TissuException("Transaction is not active.");
     session_->run("ROLLBACK");
     is_active_ = false;
-    std::cout << "Transaction rolled back." << std::endl;
 }
 
 
 // --- TissuClient Method Implementations ---
-
-TissuClient::TissuClient() : pimpl(nullptr) {}
+TissuClient::TissuClient(std::unique_ptr<TissuClientImpl> impl) : pimpl(std::move(impl)) {}
 
 TissuClient::~TissuClient() {
-    std::cout << "TissuClient destroyed." << std::endl;
+    pimpl->getConfig().logger->info("TissuClient destroyed.");
 }
 
 std::unique_ptr<TissuClient> TissuClient::create(const TissuConfig& config) {
-    auto client = std::unique_ptr<TissuClient>(new TissuClient());
     try {
-        client->pimpl = std::make_unique<TissuClientImpl>(config);
-    } catch (const TissuException& e) { // Catch our specific exception type
-        std::cerr << "Failed to initialize TissuClient: " << e.what() << std::endl;
+        auto pimpl = std::make_unique<TissuClientImpl>(config);
+        return std::unique_ptr<TissuClient>(new TissuClient(std::move(pimpl)));
+    } catch (const TissuException& e) {
+        config.logger->error("Failed to initialize TissuClient: " + std::string(e.what()));
         return nullptr;
     }
-    return client;
 }
 
 std::unique_ptr<ISession> TissuClient::getSession() {
-    if (!pimpl) {
-        throw TissuException("Client is not initialized.");
-    }
+    if (!pimpl) throw TissuException("Client is not initialized.");
     int sockfd = pimpl->getConnection();
     return std::unique_ptr<TissuSession>(new TissuSession(sockfd, pimpl.get()));
 }
