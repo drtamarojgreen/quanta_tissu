@@ -8,28 +8,7 @@ BinaryStreamBuffer::BinaryStreamBuffer(std::istream& is) : is_ptr_(&is), os_ptr_
 BinaryStreamBuffer::BinaryStreamBuffer(std::ostream& os) : is_ptr_(nullptr), os_ptr_(&os) {}
 
 // Read/Write primitive types
-template<typename T>
-void BinaryStreamBuffer::read(T& value) {
-    if (!is_ptr_) throw std::runtime_error("Stream buffer not initialized for reading.");
-    is_ptr_->read(reinterpret_cast<char*>(&value), sizeof(T));
-    if (!(*is_ptr_)) throw std::runtime_error("Failed to read binary data.");
-}
 
-template<typename T>
-void BinaryStreamBuffer::write(const T& value) {
-    if (!os_ptr_) throw std::runtime_error("Stream buffer not initialized for writing.");
-    os_ptr_->write(reinterpret_cast<const char*>(&value), sizeof(T));
-    if (!(*os_ptr_)) throw std::runtime_error("Failed to write binary data.");
-}
-
-// Explicit instantiations for common types to avoid linker errors
-template void BinaryStreamBuffer::read<size_t>(size_t&);
-template void BinaryStreamBuffer::write<size_t>(const size_t&);
-template void BinaryStreamBuffer::read<uint8_t>(uint8_t&);
-template void BinaryStreamBuffer::write<uint8_t>(const uint8_t&);
-template void BinaryStreamBuffer::read<int>(int&);
-template void BinaryStreamBuffer::write<int>(const int&);
-template void BinaryStreamBuffer::read<long long>(long long&);
 
 // Read/Write length-prefixed strings
 std::string BinaryStreamBuffer::read_string() {
