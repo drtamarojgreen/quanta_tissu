@@ -12,15 +12,6 @@ class MockLSMTree : public TissDB::Storage::LSMTree {
 public:
     MockLSMTree() : TissDB::Storage::LSMTree("mock_data") {}
 
-    // Override put to store documents in memory for testing
-    void put(const std::string& collection_name, const std::string& key, const TissDB::Document& doc, TissDB::Transactions::TransactionID tid = -1) override {
-        (void)tid;
-        mock_data_[collection_name][key] = doc;
-    }
-
-    // Override get to retrieve from mock data
-    std::optional<TissDB::Document> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
-        (void)tid;
     void create_collection(const std::string& name, const TissDB::Schema& schema) override {
         (void)schema; // Unused in mock
         mock_data_[name] = {};
