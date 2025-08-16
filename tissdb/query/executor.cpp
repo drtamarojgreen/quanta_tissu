@@ -86,6 +86,31 @@ void process_aggregation(std::map<std::string, AggregateResult>& group_results, 
     }
 }
 
+// --- NEW HELPER FUNCTION ---
+// Extracts all simple equality conditions (field = 'value') from a WHERE clause.
+void extract_equality_conditions(const Expression& expr, std::map<std::string, std::string>& conditions) {
+    if (const auto* logical_expr_ptr = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
+        const auto& logical_expr = *logical_expr_ptr;
+        // We can only use indexes for AND'd conditions.
+        if (logical_expr->op == "AND") {
+            extract_equality_conditions(logical_expr->left, conditions);
+            extract_equality_conditions(logical_expr->right, conditions);
+        }
+    } else if (const auto* binary_expr_ptr = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
+        const auto& binary_expr = *binary_expr_ptr;
+        if (binary_expr->op == "=") {
+            const auto* left_ident = std::get_if<Identifier>(&binary_expr->left);
+            const auto* right_literal = std::get_if<Literal>(&binary_expr->right);
+            if (left_ident && right_literal) {
+                if (const auto* str_lit = std::get_if<std::string>(right_literal)) {
+                    conditions[left_ident->name] = *str_lit;
+                }
+                // Note: This could be extended to handle numbers, bools etc.
+            }
+        }
+    }
+}
+
 // --- Executor ---
 
 
@@ -97,40 +122,52 @@ QueryResult Executor::execute(const AST& ast) {
         std::vector<std::string> doc_ids_from_index;
         bool index_used = false;
 
-        // --- Index Selection Logic ---
+        // --- NEW Index Selection Logic ---
         if (select_stmt->where_clause) {
-            std::string indexable_field;
-            std::string indexable_value;
-            bool found_indexable_condition = false;
+            // 1. Extract all potential fields for indexing from the WHERE clause.
+            std::map<std::string, std::string> conditions;
+            extract_equality_conditions(*select_stmt->where_clause, conditions);
 
-            std::function<void(const Expression&)> find_first_condition =
-                [&](const Expression& expr) {
-                if (found_indexable_condition) return; // Stop after finding one
-                if (auto* logical = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
-                    // Search left then right
-                    find_first_condition((*logical)->left);
-                    find_first_condition((*logical)->right);
-                } else if (auto* binary = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
-                    if ((*binary)->op == "=") {
-                        if (auto* ident = std::get_if<Identifier>(&(*binary)->left)) {
-                            if (auto* lit = std::get_if<Literal>(&(*binary)->right)) {
-                                if (auto* str_lit = std::get_if<std::string>(lit)) {
-                                    indexable_field = ident->name;
-                                    indexable_value = *str_lit;
-                                    found_indexable_condition = true;
-                                }
-                            }
+            if (!conditions.empty()) {
+                // 2. Get all available indexes for the collection.
+                auto available_indexes = storage_engine.get_available_indexes(select_stmt->from_collection);
+
+                // 3. Find the best index to use.
+                std::vector<std::string> best_index_fields;
+                for (const auto& index_fields : available_indexes) {
+                    bool all_fields_present = true;
+                    for (const auto& field : index_fields) {
+                        if (conditions.find(field) == conditions.end()) {
+                            all_fields_present = false;
+                            break;
+                        }
+                    }
+
+                    if (all_fields_present) {
+                        // This index is a candidate. Is it better than the current best?
+                        // "Better" means it has more fields.
+                        if (index_fields.size() > best_index_fields.size()) {
+                            best_index_fields = index_fields;
                         }
                     }
                 }
-            };
 
-            find_first_condition(*select_stmt->where_clause);
+                // 4. If we found a suitable index, use it.
+                if (!best_index_fields.empty()) {
+                    std::vector<std::string> values;
+                    for (const auto& field : best_index_fields) {
+                        values.push_back(conditions.at(field));
+                    }
 
-            if (found_indexable_condition && storage_engine.has_index(select_stmt->from_collection, {indexable_field})) {
-                 doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, indexable_field, indexable_value);
-                 index_used = true;
-                 std::cout << "Using index for query on field " << indexable_field << std::endl;
+                    doc_ids_from_index = storage_engine.find_by_index(select_stmt->from_collection, best_index_fields, values);
+                    index_used = true;
+
+                    std::stringstream ss;
+                    for(size_t i = 0; i < best_index_fields.size(); ++i) {
+                        ss << best_index_fields[i] << (i < best_index_fields.size() - 1 ? ", " : "");
+                    }
+                    std::cout << "Using compound index for query on fields: " << ss.str() << std::endl;
+                }
             }
         }
 
@@ -146,6 +183,7 @@ QueryResult Executor::execute(const AST& ast) {
             }
         } else {
             // Full scan if no index is used
+            std::cout << "No suitable index found. Performing full collection scan." << std::endl;
             all_docs = storage_engine.scan(select_stmt->from_collection);
         }
 

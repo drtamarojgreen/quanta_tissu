@@ -213,6 +213,14 @@ void Indexer::save_indexes(const std::string& data_dir) {
     meta_ofs << Json::JsonValue(meta_obj).serialize();
 }
 
+std::vector<std::vector<std::string>> Indexer::get_available_indexes() const {
+    std::vector<std::vector<std::string>> all_indexes;
+    for (const auto& pair : index_fields_) {
+        all_indexes.push_back(pair.second);
+    }
+    return all_indexes;
+}
+
 
 void Indexer::load_indexes(const std::string& data_dir) {
     // Load index metadata

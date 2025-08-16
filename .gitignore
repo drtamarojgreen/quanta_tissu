@@ -1,0 +1,15 @@
+# Compiled files
+*.o
+*.so
+*.a
+
+# Executables
+tissdb
+test_tissdb
+
+# Test data
+test_executor_data/
+
+# OS-specific files
+.DS_Store
+Thumbs.db

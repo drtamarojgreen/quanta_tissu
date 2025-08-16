@@ -40,6 +40,7 @@ public:
     std::vector<std::string> find_by_index(const std::string& field_name, const std::string& value);
     std::vector<std::string> find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const;
     bool has_index(const std::vector<std::string>& field_names) const;
+    const Indexer& get_indexer() const;
 
 private:
     void flush_memtable();
