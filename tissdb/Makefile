@@ -4,7 +4,7 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -std=c++17 -I. -Wall -Wextra -g
+CXXFLAGS = -std=c++17 -I.. -I. -Wall -Wextra -g
 
 # Source files
 SRCS = main.cpp \
@@ -45,11 +45,11 @@ $(TARGET): $(OBJS)
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
-$(TEST_TARGET): $(TEST_OBJS) tests/db/test_main.o
-	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(TEST_OBJS) tests/db/test_main.o
+$(TEST_TARGET): $(TEST_OBJS) ../tests/db/test_main.o
+	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(TEST_OBJS) ../tests/db/test_main.o
 
-tests/db/test_main.o: tests/db/test_main.cpp
-	$(CXX) $(CXXFLAGS) -c tests/db/test_main.cpp -o tests/db/test_main.o
+../tests/db/test_main.o: ../tests/db/test_main.cpp ../tests/db/test_executor.cpp ../tests/db/test_framework.h
+	$(CXX) $(CXXFLAGS) -c ../tests/db/test_main.cpp -o ../tests/db/test_main.o
 
 # Rule to clean the compiled files
 clean:
