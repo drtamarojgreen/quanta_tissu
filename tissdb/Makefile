@@ -4,7 +4,7 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -std=c++17 -I. -Wall -Wextra -g
+CXXFLAGS = -std=c++17 -I.. -I. -Wall -Wextra -g
 
 # Source files
 SRCS = main.cpp \
@@ -22,6 +22,7 @@ SRCS = main.cpp \
        storage/collection.cpp \
        storage/transaction_manager.cpp \
        storage/native_b_tree.cpp
+       tests/db/http_client.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
@@ -48,15 +49,19 @@ $(TARGET): $(OBJS)
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
-$(TEST_TARGET): $(TEST_OBJS) tests/db/test_main.o
-	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(TEST_OBJS) tests/db/test_main.o
+# All test objects will be placed in the current directory
+TEST_MAIN_SRC = ../tests/db/test_main.cpp
+TEST_MAIN_OBJ = test_main.o
 
-tests/db/test_main.o: tests/db/test_main.cpp
-	$(CXX) $(CXXFLAGS) -c tests/db/test_main.cpp -o tests/db/test_main.o
+$(TEST_TARGET): $(TEST_OBJS) $(TEST_MAIN_OBJ)
+	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(TEST_OBJS) $(TEST_MAIN_OBJ)
+
+$(TEST_MAIN_OBJ): $(TEST_MAIN_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -c $(TEST_MAIN_SRC) -o $(TEST_MAIN_OBJ)
 
 # Rule to clean the compiled files
 clean:
-	-rm -f $(OBJS) $(TARGET) $(TEST_TARGET) tests/db/*.o
+	-rm -f $(OBJS) $(TARGET) $(TEST_TARGET) *.o
 
 # Rule to run the executable
 run: all

@@ -1,9 +1,0 @@
-# Compiled C++ files
-*.o
-*.out
-
-# TissDB executable
-tissdb/tissdb
-
-# Test executable
-tests/tissu_sinew_bdd_test
