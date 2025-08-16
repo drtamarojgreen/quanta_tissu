@@ -87,12 +87,12 @@ std::vector<std::string> LSMTree::find_by_index(const std::string& collection_na
     return get_collection(collection_name).find_by_index(field_names, values);
 }
 
-std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names) {
-    return get_collection(collection_name).find_by_index(field_names);
-}
-
 bool LSMTree::has_index(const std::string& collection_name, const std::vector<std::string>& field_names) {
     return get_collection(collection_name).has_index(field_names);
+}
+
+std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::string& collection_name) const {
+    return get_collection(collection_name).get_indexer().get_available_indexes();
 }
 
 Transactions::TransactionID LSMTree::begin_transaction() {
@@ -130,6 +130,14 @@ void LSMTree::shutdown() {
 }
 
 Collection& LSMTree::get_collection(const std::string& name) {
+    auto it = collections_.find(name);
+    if (it == collections_.end()) {
+        throw std::runtime_error("Collection '" + name + "' not found.");
+    }
+    return *(it->second);
+}
+
+const Collection& LSMTree::get_collection(const std::string& name) const {
     auto it = collections_.find(name);
     if (it == collections_.end()) {
         throw std::runtime_error("Collection '" + name + "' not found.");
