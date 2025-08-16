@@ -4,6 +4,7 @@
 #include <sstream>
 #include <map>
 #include <functional>
+#include <cmath>
 
 // Required for the executor to interact with storage
 #include "../storage/lsm_tree.h"
@@ -57,6 +58,7 @@ bool evaluate_expression(const Expression& expr, const Document& doc) {
 struct AggregateResult {
     double sum = 0;
     double count = 0;
+    double sum_sq = 0;
     std::optional<double> min;
     std::optional<double> max;
 };
@@ -73,6 +75,12 @@ void process_aggregation(std::map<std::string, AggregateResult>& results_map, co
     for (const auto& elem : doc.elements) {
         if (elem.key == agg_func.field_name) {
             if (auto* num_val = std::get_if<double>(&elem.value)) {
+                if (agg_func.function_name == "SUM" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
+                    group_results[group_key].sum += *num_val;
+                    group_results[group_key].sum_sq += (*num_val) * (*num_val);
+                }
+                if (agg_func.function_name == "COUNT" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
+                    group_results[group_key].count++;
                 auto& result = results_map[result_key];
                 result.count++; // Increment count for any matching field
                 result.sum += *num_val;
@@ -288,6 +296,26 @@ QueryResult Executor::execute(const AST& ast) {
                         }
                     }
                 }
+
+                for (const auto& result : group_results) {
+                    if (result.first == "SUM") {
+                        aggregated_doc.elements.push_back({"sum", result.second.sum});
+                    } else if (result.first == "AVG") {
+                        aggregated_doc.elements.push_back({"avg", result.second.sum / result.second.count});
+                    } else if (result.first == "COUNT") {
+                        aggregated_doc.elements.push_back({"count", result.second.count});
+                    } else if (result.first == "MIN") {
+                        aggregated_doc.elements.push_back({"min", result.second.min.value_or(0)});
+                    } else if (result.first == "MAX") {
+                        aggregated_doc.elements.push_back({"max", result.second.max.value_or(0)});
+                    } else if (result.first == "STDDEV") {
+                        if (result.second.count > 0) {
+                            double mean = result.second.sum / result.second.count;
+                            double variance = (result.second.sum_sq / result.second.count) - (mean * mean);
+                            aggregated_doc.elements.push_back({"stddev", sqrt(variance)});
+                        } else {
+                            aggregated_doc.elements.push_back({"stddev", 0.0});
+                        }
                 // Then, construct the final document from the results
                 for (const auto& field : select_stmt->fields) {
                     if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
