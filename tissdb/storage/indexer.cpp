@@ -193,6 +193,20 @@ std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& 
     return {};
 }
 
+std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& field_names) const {
+    std::string index_name = get_index_name(field_names);
+    auto it = indexes_.find(index_name);
+    if (it == indexes_.end()) {
+        // No index found for this combination of fields
+        return {};
+    }
+
+    // TODO: Implement logic to retrieve all document IDs from the B-tree for this index.
+    // This would require a method in BTree to iterate through all its values.
+    // For now, returning an empty vector to allow compilation.
+    return {};
+}
+
 void Indexer::save_indexes(const std::string& data_dir) {
     // Save the B-Tree data
     for (const auto& pair : indexes_) {

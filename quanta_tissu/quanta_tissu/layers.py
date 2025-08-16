@@ -77,10 +77,23 @@ class MultiHeadAttention:
         batch_size, _, seq_len, _ = x.shape
         return x.transpose(0, 2, 1, 3).reshape(batch_size, seq_len, -1)
 
-    def __call__(self, x, mask=None):
+    def __call__(self, x, mask=None, kv_cache=None):
         Q = x @ self.Wq.value
-        K = x @ self.Wk.value
-        V = x @ self.Wv.value
+        new_K = x @ self.Wk.value
+        new_V = x @ self.Wv.value
+
+        if kv_cache is not None:
+            if 'k' in kv_cache:
+                K = np.concatenate([kv_cache['k'], new_K], axis=1)
+                V = np.concatenate([kv_cache['v'], new_V], axis=1)
+            else:
+                K = new_K
+                V = new_V
+            kv_cache['k'] = K
+            kv_cache['v'] = V
+        else:
+            K = new_K
+            V = new_V
 
         Qh = self.split_heads(Q)
         Kh = self.split_heads(K)
@@ -91,6 +104,8 @@ class MultiHeadAttention:
         combined = self.combine_heads(attended)
         output = combined @ self.Wo.value
 
+        # Note: self.cache is for backpropagation and is not updated with cached K/V.
+        # This assumes caching is only used during inference.
         self.cache = {'x': x, 'Q': Q, 'K': K, 'V': V, 'Qh': Qh, 'Kh': Kh, 'Vh': Vh, 'attention_weights': attention_weights, 'combined': combined}
         return output
 

@@ -1,4 +1,3 @@
-
 # TissDB
 
 TissDB is a lightweight, high-performance NoSQL database built from scratch in C++. It is designed to be a simple, embeddable database for C++ applications.
@@ -33,3 +32,7 @@ By default, the database will listen on port 8080 and store its data in a direct
 *   **In-Memory B-Tree:** The B-Tree implementation is currently in-memory and is not yet persistent.
 *   **No Transactions:** The database does not yet support transactions.
 *   **No Replication or Sharding:** The database does not yet support replication or sharding.
+
+## Documentation
+
+For comprehensive documentation, including API guides, architecture details, and development information, please refer to the [TissDB Documentation Index](../docs/tissdb_index.md).

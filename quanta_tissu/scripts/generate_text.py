@@ -18,27 +18,25 @@ def generate_text(prompt: str, length: int) -> str:
     Generates text of a specified length, starting with a prompt.
     """
     np.random.seed(42)  # for reproducibility
-    tokenizer = Tokenizer()
+    # NOTE: The tokenizer initialization is simplified here.
+    # In a real application, it should be loaded from a file.
+    tokenizer = Tokenizer(vocab)
     model = QuantaTissu(model_config)
 
     # Tokenize the initial prompt
-    token_ids = tokenizer.tokenize(prompt)
-    if len(token_ids) == 0:
+    prompt_token_ids = tokenizer.tokenize(prompt)
+    if not prompt_token_ids:
         print("Warning: Prompt is empty or contains only unknown tokens.", file=sys.stderr)
         return ""
 
-    for _ in range(length):
-        # The model's `predict` method expects a batch, so we add a dimension
-        batched_token_ids = np.array([token_ids])
-        
-        # Predict the next token
-        next_token_id = model.predict(batched_token_ids, method="greedy")
-        
-        # Append the new token to our sequence
-        token_ids = np.append(token_ids, next_token_id)
+    # Use the new efficient generate method
+    generated_ids = model.generate(prompt_token_ids, n_new_tokens=length, method="greedy")
+
+    # The full sequence is the prompt + generated tokens
+    full_token_ids = prompt_token_ids + generated_ids
 
     # Detokenize the entire sequence of tokens
-    return tokenizer.detokenize(token_ids)
+    return tokenizer.detokenize(full_token_ids)
 
 def main():
     """
