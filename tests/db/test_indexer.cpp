@@ -6,14 +6,14 @@
 
 TEST_CASE(IndexerCreateIndex) {
     TissDB::Storage::Indexer indexer;
-    indexer.create_index("name");
-    ASSERT_TRUE(indexer.has_index("name"));
-    ASSERT_FALSE(indexer.has_index("age"));
+    indexer.create_index({"name"});
+    ASSERT_TRUE(indexer.has_index({"name"}));
+    ASSERT_FALSE(indexer.has_index({"age"}));
 }
 
 TEST_CASE(IndexerUpdateAndFind) {
     TissDB::Storage::Indexer indexer;
-    indexer.create_index("name");
+    indexer.create_index({"name"});
 
     TissDB::Document doc1;
     doc1.id = "doc1";
@@ -55,7 +55,7 @@ TEST_CASE(IndexerUpdateAndFind) {
 
 TEST_CASE(IndexerRemoveFromIndexes) {
     TissDB::Storage::Indexer indexer;
-    indexer.create_index("name");
+    indexer.create_index({"name"});
 
     TissDB::Document doc1;
     doc1.id = "doc1";
@@ -83,8 +83,8 @@ TEST_CASE(IndexerSaveLoad) {
     // Save indexes
     {
         TissDB::Storage::Indexer indexer;
-        indexer.create_index("city");
-        indexer.create_index("zip");
+        indexer.create_index({"city"});
+        indexer.create_index({"zip"});
 
         TissDB::Document doc1;
         doc1.id = "user1";
@@ -108,9 +108,9 @@ TEST_CASE(IndexerSaveLoad) {
         TissDB::Storage::Indexer indexer;
         indexer.load_indexes(data_dir);
 
-        ASSERT_TRUE(indexer.has_index("city"));
-        ASSERT_TRUE(indexer.has_index("zip"));
-        ASSERT_FALSE(indexer.has_index("country"));
+        ASSERT_TRUE(indexer.has_index({"city"}));
+        ASSERT_TRUE(indexer.has_index({"zip"}));
+        ASSERT_FALSE(indexer.has_index({"country"}));
 
         std::vector<std::string> results = indexer.find_by_index("city", "New York");
         ASSERT_EQ(1, results.size());
@@ -147,20 +147,20 @@ TEST_CASE(IndexerCompoundIndex) {
     indexer.update_indexes("doc3", doc3);
 
     // Find with correct compound key
-    std::vector<std::string> results = indexer.find_by_index({"city", "state"}, {"New York", "NY"});
+    std::vector<std::string> results = indexer.find_by_index(std::vector<std::string>{"city", "state"}, std::vector<std::string>{"New York", "NY"});
     ASSERT_EQ(1, results.size());
     ASSERT_EQ("doc1", results[0]);
 
     // Find with different compound key
-    results = indexer.find_by_index({"city", "state"}, {"Los Angeles", "CA"});
+    results = indexer.find_by_index(std::vector<std::string>{"city", "state"}, std::vector<std::string>{"Los Angeles", "CA"});
     ASSERT_EQ(1, results.size());
     ASSERT_EQ("doc3", results[0]);
 
     // Attempt to find with non-existent key
-    results = indexer.find_by_index({"city", "state"}, {"New York", "FL"});
+    results = indexer.find_by_index(std::vector<std::string>{"city", "state"}, std::vector<std::string>{"New York", "FL"});
     ASSERT_EQ(0, results.size());
 
     // Attempt to find with a non-existent index (wrong order)
-    results = indexer.find_by_index({"state", "city"}, {"NY", "New York"});
+    results = indexer.find_by_index(std::vector<std::string>{"state", "city"}, std::vector<std::string>{"NY", "New York"});
     ASSERT_EQ(0, results.size());
 }
