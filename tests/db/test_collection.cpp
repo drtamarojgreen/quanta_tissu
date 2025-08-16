@@ -87,7 +87,7 @@ TEST_CASE(CollectionIndex) {
     }
 
     TissDB::Storage::Collection collection(collection_path);
-    collection.create_index("city");
+    collection.create_index({"city"});
 
     TissDB::Document doc1;
     doc1.id = "user1";

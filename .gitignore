@@ -1,0 +1,18 @@
+# Build artifacts
+*.o
+*.so
+*.a
+tissdb/tissdb
+tissdb/test_tissdb
+
+# Test data
+test_indexer_save_load/
+indexer_test_data/
+lsm_tree_test_data/
+lsm_tree_doc_ops_data/
+lsm_tree_scan_data/
+lsm_tree_index_data/
+mock_data/
+
+# Other
+tissdb_data/
