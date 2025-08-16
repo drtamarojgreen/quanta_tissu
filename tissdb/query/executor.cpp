@@ -61,25 +61,26 @@ struct AggregateResult {
     std::optional<double> max;
 };
 
-void process_aggregation(std::map<std::string, AggregateResult>& group_results, const std::string& group_key, const Document& doc, const AggregateFunction& agg_func) {
+void process_aggregation(std::map<std::string, AggregateResult>& results_map, const std::string& result_key, const Document& doc, const AggregateFunction& agg_func) {
+    // Handle COUNT(*) case where field_name can be "*"
+    if (agg_func.field_name == "*") {
+        if (agg_func.function_name == "COUNT") {
+            results_map[result_key].count++;
+        }
+        return;
+    }
+
     for (const auto& elem : doc.elements) {
         if (elem.key == agg_func.field_name) {
             if (auto* num_val = std::get_if<double>(&elem.value)) {
-                if (agg_func.function_name == "SUM" || agg_func.function_name == "AVG") {
-                    group_results[group_key].sum += *num_val;
+                auto& result = results_map[result_key];
+                result.count++; // Increment count for any matching field
+                result.sum += *num_val;
+                if (!result.min.has_value() || *num_val < result.min.value()) {
+                    result.min = *num_val;
                 }
-                if (agg_func.function_name == "COUNT") {
-                    group_results[group_key].count++;
-                }
-                if (agg_func.function_name == "MIN") {
-                    if (!group_results[group_key].min.has_value() || *num_val < group_results[group_key].min.value()) {
-                        group_results[group_key].min = *num_val;
-                    }
-                }
-                if (agg_func.function_name == "MAX") {
-                    if (!group_results[group_key].max.has_value() || *num_val > group_results[group_key].max.value()) {
-                        group_results[group_key].max = *num_val;
-                    }
+                if (!result.max.has_value() || *num_val > result.max.value()) {
+                    result.max = *num_val;
                 }
             }
         }
@@ -202,52 +203,106 @@ QueryResult Executor::execute(const AST& ast) {
 
 
         // --- Aggregation and Grouping ---
-        if (!select_stmt->group_by_clause.empty()) {
-            std::map<std::string, std::vector<Document>> grouped_docs;
-            for (const auto& doc : filtered_docs) {
-                std::stringstream group_key_ss;
-                for (const auto& field_name : select_stmt->group_by_clause) {
-                    for (const auto& elem : doc.elements) {
-                        if (elem.key == field_name) {
-                            if (auto* str_val = std::get_if<std::string>(&elem.value)) {
-                                group_key_ss << *str_val;
+        bool has_aggregate = false;
+        for (const auto& field : select_stmt->fields) {
+            if (std::holds_alternative<AggregateFunction>(field)) {
+                has_aggregate = true;
+                break;
+            }
+        }
+
+        if (has_aggregate) {
+            std::vector<Document> aggregated_docs;
+            // Group documents if a GROUP BY clause exists
+            if (!select_stmt->group_by_clause.empty()) {
+                std::map<std::string, std::vector<Document>> grouped_docs;
+                for (const auto& doc : filtered_docs) {
+                    std::stringstream group_key_ss;
+                    for (const auto& field_name : select_stmt->group_by_clause) {
+                        for (const auto& elem : doc.elements) {
+                            if (elem.key == field_name) {
+                                if (auto* str_val = std::get_if<std::string>(&elem.value)) {
+                                    group_key_ss << *str_val << "-";
+                                } else if (auto* num_val = std::get_if<double>(&elem.value)) {
+                                    group_key_ss << *num_val << "-";
+                                }
                             }
                         }
                     }
+                    grouped_docs[group_key_ss.str()].push_back(doc);
                 }
-                grouped_docs[group_key_ss.str()].push_back(doc);
-            }
 
-            std::vector<Document> aggregated_docs;
-            for (const auto& group : grouped_docs) {
+                for (auto const& [group_key, docs] : grouped_docs) {
+                    Document aggregated_doc;
+                    aggregated_doc.id = group_key;
+                    std::map<std::string, AggregateResult> group_results;
+
+                    // Add group-by fields to the result document
+                    if (!docs.empty()) {
+                        const auto& first_doc = docs.front();
+                        for (const auto& field_name : select_stmt->group_by_clause) {
+                            for (const auto& elem : first_doc.elements) {
+                                if (elem.key == field_name) {
+                                    aggregated_doc.elements.push_back(elem);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // First, process all aggregations for the group
+                    for (const auto& field : select_stmt->fields) {
+                        if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
+                            std::string result_key = agg_func->function_name + "(" + agg_func->field_name + ")";
+                            for (const auto& doc : docs) {
+                                process_aggregation(group_results, result_key, doc, *agg_func);
+                            }
+                        }
+                    }
+
+                    // Then, construct the final document from the results
+                    for (const auto& field : select_stmt->fields) {
+                        if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
+                            std::string result_key = agg_func->function_name + "(" + agg_func->field_name + ")";
+                            const auto& result = group_results.at(result_key);
+                            if (agg_func->function_name == "SUM") aggregated_doc.elements.push_back({result_key, result.sum});
+                            else if (agg_func->function_name == "AVG") aggregated_doc.elements.push_back({result_key, result.count > 0 ? result.sum / result.count : 0});
+                            else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back({result_key, result.count});
+                            else if (agg_func->function_name == "MIN") aggregated_doc.elements.push_back({result_key, result.min.value_or(0)});
+                            else if (agg_func->function_name == "MAX") aggregated_doc.elements.push_back({result_key, result.max.value_or(0)});
+                        }
+                    }
+                    aggregated_docs.push_back(aggregated_doc);
+                }
+            } else { // Handle aggregation without GROUP BY
                 Document aggregated_doc;
-                aggregated_doc.id = group.first;
+                aggregated_doc.id = "aggregate";
                 std::map<std::string, AggregateResult> group_results;
 
+                // First, process all aggregations for the full result set
                 for (const auto& field : select_stmt->fields) {
                     if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
-                        for (const auto& doc : group.second) {
-                            process_aggregation(group_results, agg_func->function_name, doc, *agg_func);
+                         std::string result_key = agg_func->function_name + "(" + agg_func->field_name + ")";
+                        for (const auto& doc : filtered_docs) {
+                           process_aggregation(group_results, result_key, doc, *agg_func);
                         }
                     }
                 }
-
-                for (const auto& result : group_results) {
-                    if (result.first == "SUM") {
-                        aggregated_doc.elements.push_back({"sum", result.second.sum});
-                    } else if (result.first == "AVG") {
-                        aggregated_doc.elements.push_back({"avg", result.second.sum / result.second.count});
-                    } else if (result.first == "COUNT") {
-                        aggregated_doc.elements.push_back({"count", result.second.count});
-                    } else if (result.first == "MIN") {
-                        aggregated_doc.elements.push_back({"min", result.second.min.value_or(0)});
-                    } else if (result.first == "MAX") {
-                        aggregated_doc.elements.push_back({"max", result.second.max.value_or(0)});
+                // Then, construct the final document from the results
+                for (const auto& field : select_stmt->fields) {
+                    if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
+                        std::string result_key = agg_func->function_name + "(" + agg_func->field_name + ")";
+                        const auto& result = group_results.at(result_key);
+                        if (agg_func->function_name == "SUM") aggregated_doc.elements.push_back({result_key, result.sum});
+                        else if (agg_func->function_name == "AVG") aggregated_doc.elements.push_back({result_key, result.count > 0 ? result.sum / result.count : 0});
+                        else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back({result_key, result.count});
+                        else if (agg_func->function_name == "MIN") aggregated_doc.elements.push_back({result_key, result.min.value_or(0)});
+                        else if (agg_func->function_name == "MAX") aggregated_doc.elements.push_back({result_key, result.max.value_or(0)});
                     }
                 }
                 aggregated_docs.push_back(aggregated_doc);
             }
-            return {aggregated_docs};
+            return aggregated_docs;
         }
 
         // --- Projection ---
