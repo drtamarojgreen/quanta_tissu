@@ -3,6 +3,8 @@
 #include <stdexcept> // For std::runtime_error
 #include <vector>
 #include <queue>
+#include <algorithm>
+#include <utility>
 #include <mutex>
 #include <condition_variable>
 
@@ -187,7 +189,18 @@ std::unique_ptr<TissuResult> TissuSession::run(const std::string& query) {
 
 std::unique_ptr<TissuResult> TissuSession::run(const std::string& query, const std::map<std::string, TissValue>& params) {
     std::string final_query = query;
-    for (const auto& [key, value] : params) {
+
+    // Copy parameters to a vector to sort them by key length.
+    // This prevents incorrect substitution when one key is a substring of another (e.g., "id" and "id_long").
+    std::vector<std::pair<std::string, TissValue>> sorted_params(params.begin(), params.end());
+
+    // Sort by key length in descending order.
+    std::sort(sorted_params.begin(), sorted_params.end(),
+              [](const auto& a, const auto& b) {
+                  return a.first.length() > b.first.length();
+              });
+
+    for (const auto& [key, value] : sorted_params) {
         std::string placeholder = "$" + key;
         std::string value_str = value.toQueryString();
         size_t pos = 0;
@@ -196,8 +209,6 @@ std::unique_ptr<TissuResult> TissuSession::run(const std::string& query, const s
             pos += value_str.length(); // Move past the replaced part
         }
     }
-    // This is a simple implementation. A robust version would avoid replacing substrings
-    // (e.g., if a key is "name" and another is "lastname").
 
     return run(final_query);
 }
