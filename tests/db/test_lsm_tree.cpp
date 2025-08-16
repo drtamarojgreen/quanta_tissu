@@ -11,9 +11,10 @@ TEST_CASE(LSMTreeCollectionManagement) {
     }
 
     TissDB::Storage::LSMTree lsm_tree(data_dir);
+    TissDB::Schema empty_schema;
 
-    lsm_tree.create_collection("users");
-    lsm_tree.create_collection("products");
+    lsm_tree.create_collection("users", empty_schema);
+    lsm_tree.create_collection("products", empty_schema);
 
     std::vector<std::string> collections = lsm_tree.list_collections();
     ASSERT_EQ(2, collections.size());
@@ -34,7 +35,8 @@ TEST_CASE(LSMTreeDocumentOperations) {
     }
 
     TissDB::Storage::LSMTree lsm_tree(data_dir);
-    lsm_tree.create_collection("test_col");
+    TissDB::Schema empty_schema;
+    lsm_tree.create_collection("test_col", empty_schema);
 
     TissDB::Document doc1;
     doc1.id = "doc1";
@@ -62,7 +64,8 @@ TEST_CASE(LSMTreeScan) {
     }
 
     TissDB::Storage::LSMTree lsm_tree(data_dir);
-    lsm_tree.create_collection("scan_col");
+    TissDB::Schema empty_schema;
+    lsm_tree.create_collection("scan_col", empty_schema);
 
     TissDB::Document doc1;
     doc1.id = "doc1";
@@ -91,8 +94,9 @@ TEST_CASE(LSMTreeIndex) {
     }
 
     TissDB::Storage::LSMTree lsm_tree(data_dir);
-    lsm_tree.create_collection("index_col");
-    lsm_tree.create_index("index_col", "city");
+    TissDB::Schema empty_schema;
+    lsm_tree.create_collection("index_col", empty_schema);
+    lsm_tree.create_index("index_col", {"city"});
 
     TissDB::Document doc1;
     doc1.id = "user1";

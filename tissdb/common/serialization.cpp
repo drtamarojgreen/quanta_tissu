@@ -1,4 +1,3 @@
-
 #include "serialization.h"
 #include <sstream>
 #include <stdexcept>
@@ -19,118 +18,81 @@ enum class DataType : uint8_t {
     ELEMENT_LIST
 };
 
-// Helper to write any plain-old-data type in binary.
-template<typename T>
-void write_binary(std::ostream& os, const T& value) {
-    os.write(reinterpret_cast<const char*>(&value), sizeof(T));
-}
-
-// Helper to read any plain-old-data type in binary.
-template<typename T>
-void read_binary(std::istream& is, T& value) {
-    is.read(reinterpret_cast<char*>(&value), sizeof(T));
-}
-
-// Helper to write a std::string (length-prefixed).
-void write_string(std::ostream& os, const std::string& str) {
-    size_t len = str.size();
-    write_binary(os, len);
-    os.write(str.data(), len);
-}
-
-// Helper to read a std::string (length-prefixed).
-std::string read_string(std::istream& is) {
-    size_t len;
-    read_binary(is, len);
-    if (len > 0) {
-        std::string str(len, '\0');
-        is.read(&str[0], len);
-        return str;
-    }
-    return "";
-}
-
 // Forward declarations for recursive serialization/deserialization.
-void serialize_value(std::ostream& os, const Value& value);
-Value deserialize_value(std::istream& is);
-void serialize_element(std::ostream& os, const Element& element);
-Element deserialize_element(std::istream& is);
+void serialize_value(BinaryStreamBuffer& bsb, const Value& value);
+Value deserialize_value(BinaryStreamBuffer& bsb);
+void serialize_element(BinaryStreamBuffer& bsb, const Element& element);
+Element deserialize_element(BinaryStreamBuffer& bsb);
 
 // Serializes a Value variant.
-void serialize_value(std::ostream& os, const Value& value) {
-    std::visit([&os](const auto& arg) {
+void serialize_value(BinaryStreamBuffer& bsb, const Value& value) {
+    std::visit([&bsb](const auto& arg) {
         using T = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<T, std::string>) {
-            write_binary(os, DataType::STRING);
-            write_string(os, arg);
+            bsb.write(DataType::STRING);
+            bsb.write_string(arg);
         } else if constexpr (std::is_same_v<T, Number>) {
-            write_binary(os, DataType::NUMBER);
-            write_binary(os, arg);
+            bsb.write(DataType::NUMBER);
+            bsb.write(arg);
         } else if constexpr (std::is_same_v<T, Boolean>) {
-            write_binary(os, DataType::BOOLEAN);
-            write_binary(os, arg);
+            bsb.write(DataType::BOOLEAN);
+            bsb.write(arg);
         } else if constexpr (std::is_same_v<T, DateTime>) {
-            write_binary(os, DataType::DATETIME);
+            bsb.write(DataType::DATETIME);
             auto seconds = std::chrono::duration_cast<std::chrono::seconds>(arg.time_since_epoch()).count();
-            write_binary(os, seconds);
+            bsb.write(seconds);
         } else if constexpr (std::is_same_v<T, BinaryData>) {
-            write_binary(os, DataType::BINARY_DATA);
-            size_t len = arg.size();
-            write_binary(os, len);
-            os.write(reinterpret_cast<const char*>(arg.data()), len);
+            bsb.write(DataType::BINARY_DATA);
+            bsb.write_bytes(arg);
         } else if constexpr (std::is_same_v<T, std::vector<Element>>) {
-            write_binary(os, DataType::ELEMENT_LIST);
+            bsb.write(DataType::ELEMENT_LIST);
             size_t count = arg.size();
-            write_binary(os, count);
+            bsb.write(count);
             for(const auto& elem : arg) {
-                serialize_element(os, elem);
+                serialize_element(bsb, elem);
             }
         }
     }, value);
 }
 
 // Serializes a single Element.
-void serialize_element(std::ostream& os, const Element& element) {
-    write_string(os, element.key);
-    serialize_value(os, element.value);
+void serialize_element(BinaryStreamBuffer& bsb, const Element& element) {
+    bsb.write_string(element.key);
+    serialize_value(bsb, element.value);
 }
 
 // Deserializes a Value variant.
-Value deserialize_value(std::istream& is) {
+Value deserialize_value(BinaryStreamBuffer& bsb) {
     DataType type;
-    read_binary(is, type);
+    bsb.read(type);
     switch (type) {
         case DataType::STRING:
-            return read_string(is);
+            return bsb.read_string();
         case DataType::NUMBER: {
             Number val;
-            read_binary(is, val);
+            bsb.read(val);
             return val;
         }
         case DataType::BOOLEAN: {
             Boolean val;
-            read_binary(is, val);
+            bsb.read(val);
             return val;
         }
         case DataType::DATETIME: {
             long long seconds_count;
-            read_binary(is, seconds_count);
+            bsb.read(seconds_count);
             return DateTime(std::chrono::seconds(seconds_count));
         }
         case DataType::BINARY_DATA: {
-            size_t len;
-            read_binary(is, len);
-            BinaryData data(len);
-            is.read(reinterpret_cast<char*>(data.data()), len);
-            return data;
+            return bsb.read_bytes();
         }
         case DataType::ELEMENT_LIST: {
             size_t count;
-            read_binary(is, count);
+            bsb.read(count);
             std::vector<Element> elements;
             elements.reserve(count);
             for(size_t i = 0; i < count; ++i) {
-                elements.push_back(deserialize_element(is));
+                elements.push_back(deserialize_element(bsb));
             }
             return elements;
         }
@@ -140,10 +102,10 @@ Value deserialize_value(std::istream& is) {
 }
 
 // Deserializes a single Element.
-Element deserialize_element(std::istream& is) {
+Element deserialize_element(BinaryStreamBuffer& bsb) {
     Element elem;
-    elem.key = read_string(is);
-    elem.value = deserialize_value(is);
+    elem.key = bsb.read_string();
+    elem.value = deserialize_value(bsb);
     return elem;
 }
 
@@ -152,11 +114,13 @@ Element deserialize_element(std::istream& is) {
 // Public interface for serializing a Document.
 std::vector<uint8_t> serialize(const Document& doc) {
     std::stringstream ss(std::ios::binary | std::ios::out);
-    write_string(ss, doc.id);
+    BinaryStreamBuffer bsb(static_cast<std::ostream&>(ss));
+
+    bsb.write_string(doc.id);
     size_t element_count = doc.elements.size();
-    write_binary(ss, element_count);
+    bsb.write(element_count);
     for (const auto& elem : doc.elements) {
-        serialize_element(ss, elem);
+        serialize_element(bsb, elem);
     }
     const std::string& str = ss.str();
     return std::vector<uint8_t>(str.begin(), str.end());
@@ -169,15 +133,17 @@ Document deserialize(const std::vector<uint8_t>& bytes) {
     }
     std::string byte_string(bytes.begin(), bytes.end());
     std::stringstream ss(byte_string, std::ios::binary | std::ios::in);
+    BinaryStreamBuffer bsb(static_cast<std::istream&>(ss));
+
     Document doc;
-    doc.id = read_string(ss);
+    doc.id = bsb.read_string();
     size_t element_count;
-    read_binary(ss, element_count);
+    bsb.read(element_count);
     doc.elements.reserve(element_count);
     for (size_t i = 0; i < element_count; ++i) {
-        doc.elements.push_back(deserialize_element(ss));
+        doc.elements.push_back(deserialize_element(bsb));
     }
     return doc;
 }
 
-}
+} // namespace TissDB

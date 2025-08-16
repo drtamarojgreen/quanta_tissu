@@ -6,10 +6,10 @@ TEST_CASE(ParserSelectAll) {
     TissDB::Query::Parser parser;
     TissDB::Query::AST ast = parser.parse("SELECT * FROM users");
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::SelectStatement>(ast));
-    TissDB::Query::SelectStatement select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
+    auto& select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
     ASSERT_EQ(1, select_stmt.fields.size());
-    ASSERT_EQ("*", select_stmt.fields[0]);
-    ASSERT_EQ("users", select_stmt.collection_name);
+    ASSERT_EQ("*", std::get<std::string>(select_stmt.fields[0]));
+    ASSERT_EQ("users", select_stmt.from_collection);
     ASSERT_FALSE(select_stmt.where_clause.has_value());
 }
 
@@ -17,11 +17,11 @@ TEST_CASE(ParserSelectSpecificFields) {
     TissDB::Query::Parser parser;
     TissDB::Query::AST ast = parser.parse("SELECT name, age FROM employees");
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::SelectStatement>(ast));
-    TissDB::Query::SelectStatement select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
+    auto& select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
     ASSERT_EQ(2, select_stmt.fields.size());
-    ASSERT_EQ("name", select_stmt.fields[0]);
-    ASSERT_EQ("age", select_stmt.fields[1]);
-    ASSERT_EQ("employees", select_stmt.collection_name);
+    ASSERT_EQ("name", std::get<std::string>(select_stmt.fields[0]));
+    ASSERT_EQ("age", std::get<std::string>(select_stmt.fields[1]));
+    ASSERT_EQ("employees", select_stmt.from_collection);
     ASSERT_FALSE(select_stmt.where_clause.has_value());
 }
 
@@ -29,7 +29,7 @@ TEST_CASE(ParserSelectWithWhereClause) {
     TissDB::Query::Parser parser;
     TissDB::Query::AST ast = parser.parse("SELECT * FROM products WHERE price > 100");
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::SelectStatement>(ast));
-    TissDB::Query::SelectStatement select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
+    auto& select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
     ASSERT_TRUE(select_stmt.where_clause.has_value());
 
     auto& expr = select_stmt.where_clause.value();
@@ -49,7 +49,7 @@ TEST_CASE(ParserSelectWithLogicalOperators) {
     TissDB::Query::Parser parser;
     TissDB::Query::AST ast = parser.parse("SELECT * FROM orders WHERE status = 'shipped' AND total > 50");
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::SelectStatement>(ast));
-    TissDB::Query::SelectStatement select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
+    auto& select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
     ASSERT_TRUE(select_stmt.where_clause.has_value());
 
     auto& expr = select_stmt.where_clause.value();
@@ -87,7 +87,7 @@ TEST_CASE(ParserSelectWithParentheses) {
     TissDB::Query::Parser parser;
     TissDB::Query::AST ast = parser.parse("SELECT * FROM products WHERE (category = 'electronics' AND price > 1000) OR in_stock = 1");
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::SelectStatement>(ast));
-    auto select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
+    auto& select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
     ASSERT_TRUE(select_stmt.where_clause.has_value());
 
     auto& expr = select_stmt.where_clause.value();
