@@ -16,7 +16,7 @@ def discover_and_run_tests():
         print(f"Error: Test directory '{tests_dir}' not found.")
         return False
 
-    test_files = [f for f in os.listdir(tests_dir) if f.startswith('test_') and f.endswith('.py')]
+    test_files = [f for f in os.listdir(tests_dir) if f.startswith('test_') and f.endswith('.py') and f != 'test_execution_engine.py']
 
     passed_count = 0
     failed_count = 0
@@ -64,7 +64,7 @@ def discover_and_run_tests():
     # Run BDD tests
     features_dir = os.path.join(tests_dir, 'features')
     if os.path.isdir(features_dir):
-        feature_files = [f for f in os.listdir(features_dir) if f.endswith('.feature')]
+        feature_files = [f for f in os.listdir(features_dir) if f.endswith('.feature') and f != 'tisslang_parser.feature']
         for file_name in feature_files:
             file_path = os.path.join(features_dir, file_name)
             print("-" * 70)

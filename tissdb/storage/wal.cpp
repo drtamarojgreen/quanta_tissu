@@ -1,5 +1,6 @@
 #include "wal.h"
 #include "../common/serialization.h"
+#include "../common/binary_stream_buffer.h"
 #include <iostream>
 
 namespace TissDB {
@@ -23,26 +24,24 @@ void WriteAheadLog::append(const LogEntry& entry) {
         throw std::runtime_error("WAL file is not open.");
     }
 
+    BinaryStreamBuffer bsb(log_file);
+
     // Write entry type
-    log_file.write(reinterpret_cast<const char*>(&entry.type), sizeof(entry.type));
+    bsb.write(entry.type);
 
     // Write transaction ID
-    log_file.write(reinterpret_cast<const char*>(&entry.transaction_id), sizeof(entry.transaction_id));
+    bsb.write(entry.transaction_id);
 
     // Write document ID
-    size_t id_len = entry.document_id.length();
-    log_file.write(reinterpret_cast<const char*>(&id_len), sizeof(id_len));
-    log_file.write(entry.document_id.data(), id_len);
+    bsb.write_string(entry.document_id);
 
     // Write document data (if PUT operation)
     if (entry.type == LogEntryType::PUT) {
         std::vector<uint8_t> doc_bytes = TissDB::serialize(entry.doc);
-        size_t doc_len = doc_bytes.size();
-        log_file.write(reinterpret_cast<const char*>(&doc_len), sizeof(doc_len));
-        log_file.write(reinterpret_cast<const char*>(doc_bytes.data()), doc_len);
+        bsb.write_bytes(doc_bytes);
     } else { // For DELETE operations, write a marker for no document data
         size_t zero_len = 0;
-        log_file.write(reinterpret_cast<const char*>(&zero_len), sizeof(zero_len));
+        bsb.write(zero_len); // Write a zero length for tombstone value
     }
 
     log_file.flush(); // Ensure data is written to disk immediately
@@ -55,29 +54,33 @@ std::vector<LogEntry> WriteAheadLog::recover() {
         return recovered_entries; // No log file, nothing to recover
     }
 
-    while (input_log_file.peek() != EOF) {
+    BinaryStreamBuffer bsb(input_log_file);
+
+    while (bsb.good() && !bsb.eof()) {
         LogEntry entry;
-        // Read entry type
-        input_log_file.read(reinterpret_cast<char*>(&entry.type), sizeof(entry.type));
+        try {
+            // Read entry type
+            bsb.read(entry.type);
 
-        // Read transaction ID
-        input_log_file.read(reinterpret_cast<char*>(&entry.transaction_id), sizeof(entry.transaction_id));
+            // Read transaction ID
+            bsb.read(entry.transaction_id);
 
-        // Read document ID
-        size_t id_len;
-        input_log_file.read(reinterpret_cast<char*>(&id_len), sizeof(id_len));
-        entry.document_id.resize(id_len);
-        input_log_file.read(&entry.document_id[0], id_len);
+            // Read document ID
+            entry.document_id = bsb.read_string();
 
-        // Read document data (if PUT operation)
-        size_t doc_len;
-        input_log_file.read(reinterpret_cast<char*>(&doc_len), sizeof(doc_len));
-        if (entry.type == LogEntryType::PUT) {
-            std::vector<uint8_t> doc_bytes(doc_len);
-            input_log_file.read(reinterpret_cast<char*>(doc_bytes.data()), doc_len);
-            entry.doc = TissDB::deserialize(doc_bytes);
+            // Read document data
+            if (entry.type == LogEntryType::PUT) {
+                entry.doc = TissDB::deserialize(bsb.read_bytes());
+            } else { // For DELETE operations
+                // Consume the 0-length marker written for DELETE operations
+                bsb.read_bytes();
+                entry.doc = Document{};
+            }
+            recovered_entries.push_back(entry);
+        } catch (const std::exception& e) {
+            std::cerr << "Error during WAL recovery: " << e.what() << std::endl;
+            break; // Stop recovery on error
         }
-        recovered_entries.push_back(entry);
     }
     input_log_file.close();
     return recovered_entries;

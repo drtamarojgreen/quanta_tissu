@@ -1,19 +1,12 @@
 #include "sstable.h"
 #include "../common/serialization.h"
+#include "../common/binary_stream_buffer.h"
 #include <iostream>
 #include <chrono>
 #include <map>
 
 namespace TissDB {
 namespace Storage {
-
-namespace {
-// Helper to write a length-prefixed block of data.
-void write_prefixed(std::ostream& os, const char* data, size_t len) {
-    os.write(reinterpret_cast<const char*>(&len), sizeof(len));
-    os.write(data, len);
-}
-} // anonymous namespace
 
 // --- SSTable Public Methods ---
 
@@ -24,35 +17,37 @@ SSTable::SSTable(const std::string& path) : file_path_(path) {
 }
 
 std::optional<std::vector<uint8_t>> SSTable::find(const std::string& key) {
-    // This is a simplified `find` that performs a linear scan of the entire file.
-    // A real implementation would use the sparse_index_ to seek to the correct
-    // block and scan only a small portion of the file.
     std::ifstream sst_file(file_path_, std::ios::binary);
     if (!sst_file.is_open()) {
-        // This could be an error or just mean the file doesn't exist.
         return std::nullopt;
     }
 
-    size_t key_len;
-    while (sst_file.read(reinterpret_cast<char*>(&key_len), sizeof(key_len))) {
-        std::string current_key(key_len, '\0');
-        sst_file.read(&current_key[0], key_len);
+    BinaryStreamBuffer bsb(sst_file);
 
-        size_t val_len;
-        sst_file.read(reinterpret_cast<char*>(&val_len), sizeof(val_len));
+    while (bsb.good() && !bsb.eof()) {
+        try {
+            std::string current_key = bsb.read_string();
+            
+            // Read value length marker
+            size_t val_len_marker;
+            bsb.read(val_len_marker);
 
-        if (current_key == key) {
-            if (val_len == static_cast<size_t>(-1)) { // Tombstone marker
-                return std::vector<uint8_t>(); // Empty vector for tombstone
+            if (current_key == key) {
+                if (val_len_marker == static_cast<size_t>(-1)) { // Tombstone marker
+                    return std::vector<uint8_t>(); // Empty vector for tombstone
+                }
+                // Read the actual value bytes using the new safe method
+                return bsb.read_bytes_with_length(val_len_marker);
+            } else {
+                // Key doesn't match, so skip over the value bytes to get to the next key.
+                if (val_len_marker != static_cast<size_t>(-1)) {
+                     // Use the new method to consume bytes, even if we don't need the return value
+                     bsb.read_bytes_with_length(val_len_marker);
+                }
             }
-            std::vector<uint8_t> value(val_len);
-            sst_file.read(reinterpret_cast<char*>(value.data()), val_len);
-            return value;
-        } else {
-            // Key doesn't match, so skip over the value bytes to get to the next key.
-            if (val_len != static_cast<size_t>(-1)) {
-                 sst_file.seekg(val_len, std::ios_base::cur);
-            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error during SSTable find: " << e.what() << std::endl;
+            return std::nullopt;
         }
     }
     return std::nullopt; // Key not found
@@ -65,23 +60,26 @@ std::vector<Document> SSTable::scan() {
         return documents;
     }
 
-    size_t key_len;
-    while (sst_file.read(reinterpret_cast<char*>(&key_len), sizeof(key_len))) {
-        std::string current_key(key_len, '\0');
-        sst_file.read(&current_key[0], key_len);
+    BinaryStreamBuffer bsb(sst_file);
 
-        size_t val_len;
-        sst_file.read(reinterpret_cast<char*>(&val_len), sizeof(val_len));
+    while (bsb.good() && !bsb.eof()) {
+        try {
+            std::string current_key = bsb.read_string();
+            
+            size_t val_len_marker;
+            bsb.read(val_len_marker);
 
-        if (val_len != static_cast<size_t>(-1)) { // Not a tombstone
-            std::vector<uint8_t> value(val_len);
-            sst_file.read(reinterpret_cast<char*>(value.data()), val_len);
-            documents.push_back(deserialize(value));
-        } else {
-            // Tombstone
-            Document tombstone;
-            tombstone.id = current_key;
-            documents.push_back(tombstone);
+            if (val_len_marker != static_cast<size_t>(-1)) { // Not a tombstone
+                documents.push_back(deserialize(bsb.read_bytes_with_length(val_len_marker)));
+            } else {
+                // Tombstone
+                Document tombstone;
+                tombstone.id = current_key;
+                documents.push_back(tombstone);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error during SSTable scan: " << e.what() << std::endl;
+            break; // Stop scan on error
         }
     }
     return documents;
@@ -99,19 +97,21 @@ std::string SSTable::write_from_memtable(const std::string& data_dir, const Memt
         throw std::runtime_error("Failed to create SSTable file: " + file_path);
     }
 
+    BinaryStreamBuffer bsb(sst_file);
+
     // The memtable's map is already sorted by key, which is exactly what we need.
     const auto& data = memtable.get_all();
     for (const auto& pair : data) {
         // Write key (length-prefixed)
-        write_prefixed(sst_file, pair.first.data(), pair.first.size());
+        bsb.write_string(pair.first);
 
         // Write value (length-prefixed)
         if (pair.second) { // If it's a document pointer
             std::vector<uint8_t> value_bytes = TissDB::serialize(*(pair.second));
-            write_prefixed(sst_file, reinterpret_cast<const char*>(value_bytes.data()), value_bytes.size());
+            bsb.write_bytes(value_bytes);
         } else { // If it's a tombstone (nullptr)
             size_t tombstone_marker = static_cast<size_t>(-1);
-            sst_file.write(reinterpret_cast<const char*>(&tombstone_marker), sizeof(tombstone_marker));
+            bsb.write(tombstone_marker);
         }
     }
 
@@ -131,6 +131,8 @@ std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTabl
         throw std::runtime_error("Failed to create SSTable file: " + file_path);
     }
 
+    BinaryStreamBuffer bsb(sst_file);
+
     // Use a map to merge and sort all key-value pairs from the SSTables.
     // The map will automatically handle duplicates, keeping the value from the last SSTable (newest).
     std::map<std::string, std::optional<std::vector<uint8_t>>> merged_data;
@@ -141,34 +143,37 @@ std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTabl
             continue;
         }
 
-        size_t key_len;
-        while (current_sst_file.read(reinterpret_cast<char*>(&key_len), sizeof(key_len))) {
-            std::string current_key(key_len, '\0');
-            current_sst_file.read(&current_key[0], key_len);
+        BinaryStreamBuffer current_bsb(current_sst_file);
 
-            size_t val_len;
-            current_sst_file.read(reinterpret_cast<char*>(&val_len), sizeof(val_len));
+        while (current_bsb.good() && !current_bsb.eof()) {
+            try {
+                std::string current_key = current_bsb.read_string();
+                
+                size_t val_len_marker;
+                current_bsb.read(val_len_marker);
 
-            if (val_len == static_cast<size_t>(-1)) { // Tombstone
-                merged_data[current_key] = std::nullopt;
-            } else {
-                std::vector<uint8_t> value(val_len);
-                current_sst_file.read(reinterpret_cast<char*>(value.data()), val_len);
-                merged_data[current_key] = value;
+                if (val_len_marker == static_cast<size_t>(-1)) { // Tombstone
+                    merged_data[current_key] = std::nullopt;
+                } else {
+                    merged_data[current_key] = current_bsb.read_bytes_with_length(val_len_marker);
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "Error during SSTable merge read: " << e.what() << std::endl;
+                break; // Stop reading this SSTable on error
             }
         }
     }
 
     // Write the merged data to the new SSTable.
     for (const auto& pair : merged_data) {
-        write_prefixed(sst_file, pair.first.data(), pair.first.size());
+        bsb.write_string(pair.first);
 
         if (pair.second.has_value()) {
             const auto& value_bytes = pair.second.value();
-            write_prefixed(sst_file, reinterpret_cast<const char*>(value_bytes.data()), value_bytes.size());
+            bsb.write_bytes(value_bytes);
         } else {
             size_t tombstone_marker = static_cast<size_t>(-1);
-            sst_file.write(reinterpret_cast<const char*>(&tombstone_marker), sizeof(tombstone_marker));
+            bsb.write(tombstone_marker);
         }
     }
 

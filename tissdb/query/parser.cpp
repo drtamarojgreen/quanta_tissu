@@ -18,7 +18,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
                 i++;
             }
             std::string value = query_string.substr(start, i - start + 1);
-            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX" || value == "INSERT" || value == "INTO" || value == "VALUES") {
+            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX" || value == "INSERT" || value == "INTO" || value == "VALUES" || value == "STDDEV") {
                 new_tokens.push_back(Token{Token::Type::KEYWORD, value});
             } else {
                 new_tokens.push_back(Token{Token::Type::IDENTIFIER, value});
@@ -127,7 +127,7 @@ std::vector<std::variant<std::string, AggregateFunction>> Parser::parse_select_l
     }
 
     do {
-        if (peek().type == Token::Type::KEYWORD && (peek().value == "COUNT" || peek().value == "AVG" || peek().value == "SUM" || peek().value == "MIN" || peek().value == "MAX")) {
+        if (peek().type == Token::Type::KEYWORD && (peek().value == "COUNT" || peek().value == "AVG" || peek().value == "SUM" || peek().value == "MIN" || peek().value == "MAX" || peek().value == "STDDEV")) {
             std::string func_name = consume().value;
             expect(Token::Type::OPERATOR, "(");
             std::string field_name = consume().value;

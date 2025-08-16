@@ -5,6 +5,7 @@
 #include <set>
 #include "../../tissdb/storage/lsm_tree.h"
 #include <filesystem>
+#include <set>
 
 // Mock LSMTree for testing executor in isolation
 class MockLSMTree : public TissDB::Storage::LSMTree {
@@ -20,13 +21,24 @@ public:
     // Override get to retrieve from mock data
     std::optional<TissDB::Document> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
         (void)tid;
+    void create_collection(const std::string& name, const TissDB::Schema& schema) override {
+        (void)schema; // Unused in mock
+        mock_data_[name] = {};
+    }
+
+    void put(const std::string& collection_name, const std::string& key, const TissDB::Document& doc, TissDB::Transactions::TransactionID tid = -1) override {
+        (void)tid; // Unused in mock
+        mock_data_[collection_name][key] = doc;
+    }
+
+    std::optional<TissDB::Document> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
+        (void)tid; // Unused in mock
         if (mock_data_.count(collection_name) && mock_data_[collection_name].count(key)) {
             return mock_data_[collection_name][key];
         }
         return std::nullopt;
     }
 
-    // Override scan to return all docs from mock data
     std::vector<TissDB::Document> scan(const std::string& collection_name) override {
         std::vector<TissDB::Document> docs;
         if (mock_data_.count(collection_name)) {
@@ -39,14 +51,12 @@ public:
 
     // Override create_index to just record that an index was created
     void create_index(const std::string& collection_name, const std::vector<std::string>& field_names) override {
-        mock_indexes_[collection_name].insert(field_names[0]);
+        mock_indexes_[collection_name].insert(field_names[0]); // Simple mock: only use first field
     }
 
-    // Override find_by_index to simulate index lookup
     std::vector<std::string> find_by_index(const std::string& collection_name, const std::string& field_name, const std::string& value) override {
         std::vector<std::string> result_ids;
         if (mock_indexes_.count(collection_name) && mock_indexes_[collection_name].count(field_name)) {
-            // Simulate index lookup: find documents in mock_data that match the criteria
             if (mock_data_.count(collection_name)) {
                 for (const auto& pair : mock_data_[collection_name]) {
                     for (const auto& elem : pair.second.elements) {
@@ -72,7 +82,7 @@ public:
 TEST_CASE(ExecutorSelectAll) {
     MockLSMTree mock_lsm_tree;
     TissDB::Schema empty_schema;
-    mock_lsm_tree.create_collection("users", empty_schema);
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
 
     TissDB::Document doc1;
     doc1.id = "user1";
@@ -92,11 +102,11 @@ TEST_CASE(ExecutorSelectAll) {
     TissDB::Query::Executor executor(mock_lsm_tree);
     TissDB::Query::QueryResult result = executor.execute(ast);
 
-    ASSERT_EQ(2, result.documents.size());
+    ASSERT_EQ(2, result.size());
     // Check content (order might vary)
     bool found_user1 = false;
     bool found_user2 = false;
-    for (const auto& doc : result.documents) {
+    for (const auto& doc : result) {
         if (doc.id == "user1") found_user1 = true;
         if (doc.id == "user2") found_user2 = true;
     }
@@ -122,41 +132,121 @@ TEST_CASE(ExecutorAggregateGroupBy) {
     TissDB::Query::Executor executor(mock_lsm_tree);
 
     // Execute the query
-    TissDB::Query::AST ast = parser.parse("SELECT COUNT(amount), SUM(amount), AVG(amount), MIN(amount), MAX(amount) FROM sales GROUP BY category");
+    TissDB::Query::AST ast = parser.parse("SELECT category, SUM(amount), COUNT(amount) FROM sales GROUP BY category");
     TissDB::Query::QueryResult result = executor.execute(ast);
 
     // Verify the results
-    ASSERT_EQ(2, result.documents.size()); // Two groups: books and electronics
+    ASSERT_EQ(2, result.size()); // Two groups: books and electronics
 
     bool found_books = false;
     bool found_electronics = false;
 
-    for (const auto& doc : result.documents) {
-        if (doc.id == "books") {
-            found_books = true;
-            ASSERT_EQ(5, doc.elements.size()); // count, sum, avg, min, max
-            for (const auto& elem : doc.elements) {
-                if (elem.key == "count") ASSERT_EQ(std::get<double>(elem.value), 3.0);
-                if (elem.key == "sum") ASSERT_EQ(std::get<double>(elem.value), 60.0);
-                if (elem.key == "avg") ASSERT_EQ(std::get<double>(elem.value), 20.0);
-                if (elem.key == "min") ASSERT_EQ(std::get<double>(elem.value), 15.0);
-                if (elem.key == "max") ASSERT_EQ(std::get<double>(elem.value), 25.0);
+    for (const auto& doc : result) {
+        bool is_books = false;
+        for(const auto& el : doc.elements) {
+            if(el.key == "category" && std::get<std::string>(el.value) == "books") {
+                is_books = true;
+                break;
             }
-        } else if (doc.id == "electronics") {
-            found_electronics = true;
-            ASSERT_EQ(5, doc.elements.size());
+        }
+
+        if (is_books) {
+            found_books = true;
+            ASSERT_EQ(3, doc.elements.size()); // category, SUM(amount), COUNT(amount)
             for (const auto& elem : doc.elements) {
-                if (elem.key == "count") ASSERT_EQ(std::get<double>(elem.value), 2.0);
-                if (elem.key == "sum") ASSERT_EQ(std::get<double>(elem.value), 250.0);
-                if (elem.key == "avg") ASSERT_EQ(std::get<double>(elem.value), 125.0);
-                if (elem.key == "min") ASSERT_EQ(std::get<double>(elem.value), 100.0);
-                if (elem.key == "max") ASSERT_EQ(std::get<double>(elem.value), 150.0);
+                if (elem.key == "SUM(amount)") ASSERT_EQ(std::get<double>(elem.value), 60.0);
+                if (elem.key == "COUNT(amount)") ASSERT_EQ(std::get<double>(elem.value), 3.0);
+            }
+        } else {
+            found_electronics = true;
+            ASSERT_EQ(3, doc.elements.size()); // category, SUM(amount), COUNT(amount)
+            for (const auto& elem : doc.elements) {
+                if (elem.key == "SUM(amount)") ASSERT_EQ(std::get<double>(elem.value), 250.0);
+                if (elem.key == "COUNT(amount)") ASSERT_EQ(std::get<double>(elem.value), 2.0);
             }
         }
     }
 
     ASSERT_TRUE(found_books);
     ASSERT_TRUE(found_electronics);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorAggregateNoGroupBy) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("sales", TissDB::Schema{});
+
+    mock_lsm_tree.put("sales", "1", TissDB::Document{"1", {{"amount", 10.0}}});
+    mock_lsm_tree.put("sales", "2", TissDB::Document{"2", {{"amount", 20.0}}});
+    mock_lsm_tree.put("sales", "3", TissDB::Document{"3", {{"amount", 30.0}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT SUM(amount), AVG(amount) FROM sales");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(1, result.size());
+    const auto& doc = result[0];
+    ASSERT_EQ(2, doc.elements.size());
+
+    bool found_sum = false;
+    bool found_avg = false;
+    for (const auto& elem : doc.elements) {
+        if (elem.key == "SUM(amount)") {
+            ASSERT_EQ(std::get<double>(elem.value), 60.0);
+            found_sum = true;
+        }
+        if (elem.key == "AVG(amount)") {
+            ASSERT_EQ(std::get<double>(elem.value), 20.0);
+            found_avg = true;
+        }
+    }
+    ASSERT_TRUE(found_sum);
+    ASSERT_TRUE(found_avg);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorAggregateCountStar) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+
+    mock_lsm_tree.put("users", "1", TissDB::Document{"1", {{"name", std::string("A")}}});
+    mock_lsm_tree.put("users", "2", TissDB::Document{"2", {{"name", std::string("B")}}});
+    mock_lsm_tree.put("users", "3", TissDB::Document{"3", {{"name", std::string("C")}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT COUNT(*) FROM users");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(1, result.size());
+    const auto& doc = result[0];
+    ASSERT_EQ(1, doc.elements.size());
+    ASSERT_EQ(doc.elements[0].key, "COUNT(*)");
+    ASSERT_EQ(std::get<double>(doc.elements[0].value), 3.0);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorAggregateEmptyResult) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("sales", TissDB::Schema{});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT SUM(amount) FROM sales WHERE amount > 100");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(1, result.size());
+    const auto& doc = result[0];
+    ASSERT_EQ(1, doc.elements.size());
+    ASSERT_EQ(doc.elements[0].key, "SUM(amount)");
+    ASSERT_EQ(std::get<double>(doc.elements[0].value), 0.0); // SUM of empty set is 0
 
     std::filesystem::remove_all("mock_data");
 }
@@ -409,7 +499,7 @@ TEST_CASE(ExecutorInsert) {
 
 TEST_CASE(ExecutorSelectWithWhere) {
     MockLSMTree mock_lsm_tree;
-    mock_lsm_tree.create_collection("products");
+    mock_lsm_tree.create_collection("products", TissDB::Schema{});
 
     TissDB::Document doc1;
     doc1.id = "prod1";
@@ -429,16 +519,16 @@ TEST_CASE(ExecutorSelectWithWhere) {
     TissDB::Query::Executor executor(mock_lsm_tree);
     TissDB::Query::QueryResult result = executor.execute(ast);
 
-    ASSERT_EQ(1, result.documents.size());
-    ASSERT_EQ("prod1", result.documents[0].id);
+    ASSERT_EQ(1, result.size());
+    ASSERT_EQ("prod1", result[0].id);
 
     std::filesystem::remove_all("mock_data");
 }
 
 TEST_CASE(ExecutorSelectWithIndex) {
     MockLSMTree mock_lsm_tree;
-    mock_lsm_tree.create_collection("users");
-    mock_lsm_tree.create_index("users", "name");
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+    mock_lsm_tree.create_index("users", {"name"});
 
     TissDB::Document doc1;
     doc1.id = "user1";
@@ -458,8 +548,8 @@ TEST_CASE(ExecutorSelectWithIndex) {
     TissDB::Query::Executor executor(mock_lsm_tree);
     TissDB::Query::QueryResult result = executor.execute(ast);
 
-    ASSERT_EQ(1, result.documents.size());
-    ASSERT_EQ("user1", result.documents[0].id);
+    ASSERT_EQ(1, result.size());
+    ASSERT_EQ("user1", result[0].id);
 
     std::filesystem::remove_all("mock_data");
 }

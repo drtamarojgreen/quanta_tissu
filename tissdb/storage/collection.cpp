@@ -138,7 +138,8 @@ std::vector<Document> Collection::scan() {
     auto memtable_docs = memtable_->scan();
     for (const auto& doc : memtable_docs) {
         all_docs[doc.id] = doc;
-        }
+    }
+
     // 3. Collect all non-tombstone documents
     std::vector<Document> result;
     for (const auto& pair : all_docs) {
@@ -167,12 +168,12 @@ std::vector<std::string> Collection::find_by_index(const std::vector<std::string
     return indexer_.find_by_index(field_names, values);
 }
 
-std::vector<std::string> Collection::find_by_index(const std::vector<std::string>& field_names) const {
-    return indexer_.find_by_index(field_names);
-}
-
 bool Collection::has_index(const std::vector<std::string>& field_names) const {
     return indexer_.has_index(field_names);
+}
+
+const Indexer& Collection::get_indexer() const {
+    return indexer_;
 }
 
 void Collection::flush_memtable() {

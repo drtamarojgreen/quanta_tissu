@@ -4,7 +4,7 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -std=c++17 -I. -Wall -Wextra -g
+CXXFLAGS = -std=c++17 -I.. -I. -Wall -Wextra -g
 
 # Source files
 SRCS = main.cpp \
@@ -18,7 +18,8 @@ SRCS = main.cpp \
        storage/memtable.cpp \
        storage/sstable.cpp \
        storage/wal.cpp \
-       storage/collection.cpp
+       storage/collection.cpp \
+       tests/db/http_client.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
