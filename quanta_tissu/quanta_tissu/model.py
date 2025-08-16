@@ -12,12 +12,12 @@ class TransformerBlock:
         self.ln2 = LayerNorm(d_model)
         self.cache = {}
 
-    def __call__(self, x, mask=None):
+    def __call__(self, x, mask=None, kv_cache=None):
         # Store input for backward pass
         self.cache['x'] = x
 
         # Attention sub-layer
-        attn_out = self.mha(x, mask=mask)
+        attn_out = self.mha(x, mask=mask, kv_cache=kv_cache)
         self.cache['attn_out'] = attn_out
 
         # Add & Norm
@@ -68,10 +68,15 @@ class PositionalEncoding:
         pe[:, 1::2] = np.cos(position * div_term)
         self.pe = pe
 
-    def __call__(self, x):
+    def __call__(self, x, start_pos=0):
         # Assumes x is (batch_size, seq_len, d_model)
         seq_len = x.shape[1]
-        return x + self.pe[np.newaxis, :seq_len, :]
+        max_len = self.pe.shape[0]
+        if start_pos + seq_len > max_len:
+            raise ValueError(f"Cannot apply positional encoding: sequence of length {seq_len} at start position {start_pos} exceeds max length of {max_len}.")
+        
+        positions = np.arange(start_pos, start_pos + seq_len)
+        return x + self.pe[np.newaxis, positions, :]
 
 class QuantaTissu:
     def __init__(self, config):
@@ -96,25 +101,31 @@ class QuantaTissu:
         mask = np.triu(np.ones((seq_len, seq_len)), k=1) * -1e9
         return mask
 
-    def forward(self, token_ids):
+    def forward(self, token_ids, kv_cache=None, start_pos=0):
         # token_ids: (batch_size, seq_len)
         batch_size, seq_len = token_ids.shape
-        mask = self._create_causal_mask(seq_len)
-        # Add batch and head dimensions for broadcasting
-        mask = mask[np.newaxis, np.newaxis, :, :]
-        
+
+        # Only create a causal mask if we are not using a cache (i.e., for the initial prompt processing)
+        mask = None
+        if kv_cache is None:
+            mask = self._create_causal_mask(seq_len)
+            if mask is not None:
+                # Add batch and head dimensions for broadcasting
+                mask = mask[np.newaxis, np.newaxis, :, :]
+
         self.cache['token_ids'] = token_ids
-        
+
         x = self.embeddings.value[token_ids]
         self.cache['x_embedded'] = x
 
-        x = self.pos_encoding(x)
+        x = self.pos_encoding(x, start_pos=start_pos)
         self.cache['x_pos_encoded'] = x
 
         for i, block in enumerate(self.transformer_blocks):
-            x = block(x, mask=mask)
+            layer_cache = kv_cache[i] if kv_cache is not None else None
+            x = block(x, mask=mask, kv_cache=layer_cache)
             self.cache[f'block_{i}_out'] = x
-            
+
         logits = x @ self.output_proj.value
         self.cache['final_x'] = x
         return logits
@@ -162,59 +173,82 @@ class QuantaTissu:
             params.extend(block.parameters())
         return params
 
-    def predict(self, token_ids, method="greedy", temperature=1.0, top_k=None, top_p=None):
-        # Predict needs to handle a single sequence, but forward expects a batch.
-        # So, we add a batch dimension.
-        if token_ids.ndim == 1:
-            token_ids = token_ids[np.newaxis, :] # (1, seq_len)
-
-        logits = self.forward(token_ids) # (1, seq_len, vocab_size)
-        last_logit = logits[0, -1, :] # (vocab_size,)
-
+    def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None):
         if method == "greedy":
-            next_token = np.argmax(last_logit)
+            next_token = np.argmax(logits)
             return int(next_token)
 
-        probs = softmax(last_logit, temperature=temperature)
-        # ... (rest of the prediction logic is the same)
+        probs = softmax(logits, temperature=temperature)
+        
         if method == "top_k":
             if top_k is None:
                 raise ValueError("top_k must be specified for top_k sampling")
-
             top_k_indices = np.argsort(probs)[-top_k:]
             top_k_probs = np.zeros_like(probs)
             top_k_probs[top_k_indices] = probs[top_k_indices]
             top_k_probs /= np.sum(top_k_probs)
             next_token = np.random.choice(len(probs), p=top_k_probs)
-
         elif method == "nucleus":
             if top_p is None:
                 raise ValueError("top_p must be specified for nucleus sampling")
-
             sorted_indices = np.argsort(probs)[::-1]
             sorted_probs = probs[sorted_indices]
             cumulative_probs = np.cumsum(sorted_probs)
-
             indices_to_remove = cumulative_probs > top_p
             indices_to_remove[1:] = indices_to_remove[:-1]
             indices_to_remove[0] = False
-
             indices_to_remove_orig = sorted_indices[indices_to_remove]
-
             nucleus_probs = np.copy(probs)
             nucleus_probs[indices_to_remove_orig] = 0
             nucleus_probs /= np.sum(nucleus_probs)
             next_token = np.random.choice(len(probs), p=nucleus_probs)
-
         elif method == "random":
              next_token = np.random.choice(len(probs), p=probs)
-
         else:
             raise ValueError(f"Unknown sampling method: {method}")
 
         return int(next_token)
 
+    def generate(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None):
+        # 1. Initialize cache for each layer
+        kv_cache = [{} for _ in self.transformer_blocks]
+
+        # 2. Process prompt tokens and populate the cache
+        prompt_token_ids = np.array(prompt_tokens)[np.newaxis, :]
+        prompt_logits = self.forward(prompt_token_ids, kv_cache=kv_cache, start_pos=0)
+        
+        # 3. Predict the first token from the prompt's output
+        next_token_id = self._predict_from_logits(prompt_logits[:, -1, :], method, temperature, top_k, top_p)
+        
+        generated_ids = [next_token_id]
+        
+        # 4. Sequentially generate the rest of the tokens
+        for i in range(n_new_tokens - 1):
+            current_token_id = np.array([[next_token_id]])
+            start_pos = len(prompt_tokens) + i
+            
+            logits = self.forward(current_token_id, kv_cache=kv_cache, start_pos=start_pos)
+            next_token_id = self._predict_from_logits(logits[:, -1, :], method, temperature, top_k, top_p)
+            generated_ids.append(next_token_id)
+            
+        return generated_ids
+
+    def predict(self, token_ids, method="greedy", temperature=1.0, top_k=None, top_p=None):
+        """
+        DEPRECATED: This method is inefficient for generation as it re-processes the entire sequence for each token.
+        Use generate() for efficient autoregressive generation.
+        This method predicts the single next token from a given sequence.
+        """
+        if token_ids.ndim == 1:
+            token_ids = token_ids[np.newaxis, :]
+
+        logits = self.forward(token_ids)
+        last_logit = logits[0, -1, :]
+        return self._predict_from_logits(last_logit, method, temperature, top_k, top_p)
+
     def generate_with_kb(self, prompt, generation_method="greedy", **kwargs):
+        # This method will need to be updated to use the new generate() method for full generation.
+        # For now, it will just predict the next single token.
         context_docs = self.knowledge_base.retrieve(prompt, k=1)
         if context_docs:
             context = " ".join(context_docs)
@@ -226,4 +260,5 @@ class QuantaTissu:
         if len(token_ids) == 0:
             print("Warning: Prompt resulted in empty token sequence. Cannot predict.")
             return None
+        # Note: This still uses the old, inefficient predict method.
         return self.predict(np.array(token_ids), method=generation_method, **kwargs)
