@@ -1,0 +1,70 @@
+import numpy as np
+from quanta_tissu.quanta_tissu.model import QuantaTissu
+from quanta_tissu.quanta_tissu.config import model_config
+from quanta_tissu.quanta_tissu.tokenizer import Tokenizer, vocab
+from quanta_tissu.quanta_tissu.knowledge_base import KnowledgeBase
+
+def register_steps(runner):
+    @runner.step(r'^(?:Given|And) a knowledge base with a model and tokenizer$')
+    def knowledge_base_context(context):
+        np.random.seed(42)
+        model = QuantaTissu(model_config)
+        tokenizer = Tokenizer(vocab)
+        context['model'] = model # Store model for other steps
+        context['tokenizer'] = tokenizer # Store tokenizer for other steps
+        context['knowledge_base'] = KnowledgeBase(model.embeddings, tokenizer)
+
+    @runner.step(r'^(?:When|And) I add the document "(.*)"$')
+    def add_document(context, document_text):
+        context['knowledge_base'].add_document(document_text)
+
+    @runner.step(r'^(?:When|And) I retrieve documents for the query "(.*)"$')
+    def retrieve_documents(context, query_text):
+        context['retrieved_docs'] = context['knowledge_base'].retrieve(query_text)
+
+    @runner.step(r'^Then the retrieved documents should contain "(.*)"$')
+    def check_retrieved_documents(context, expected_document):
+        assert expected_document in context['retrieved_docs']
+        return "Test passed!"
+
+    @runner.step(r'^(?:When|And) I add feedback with score (\d+) and text "(.*)" for the retrieved documents$')
+    def add_feedback(context, score, feedback_text):
+        context['knowledge_base'].add_feedback(
+            query="test", # Placeholder query
+            retrieved_docs=context['retrieved_docs'],
+            feedback_score=int(score),
+            feedback_text=feedback_text
+        )
+
+    @runner.step(r'^Then the knowledge base stats should show (\d+) feedback entry$')
+    def check_feedback_entry(context, expected_count):
+        stats = context['knowledge_base'].get_knowledge_stats()
+        assert stats.get('feedback_entries', 0) == int(expected_count)
+        return "Test passed!"
+
+    @runner.step(r'^(?:When|And) I self-update from interaction with query "(.*)" generated response "(.*)" and user correction "(.*)"$')
+    def self_update_with_correction(context, query, generated_response, user_correction):
+        context['knowledge_base'].self_update_from_interaction(query, generated_response, user_correction)
+
+    @runner.step(r'^Then the knowledge base should contain "(.*)"$')
+    def check_knowledge_base_content(context, expected_content):
+        # This is a simplified check. In a real scenario, you might search for the document.
+        # For now, we'll just check if the document was added.
+        assert any(expected_content in doc for doc in context['knowledge_base'].documents)
+        return "Test passed!"
+
+    @runner.step(r'^(?:When|And) I self-update from interaction with query "(.*)" generated response "(.*)" and no user correction$')
+    def self_update_no_correction(context, query, generated_response):
+        context['knowledge_base'].self_update_from_interaction(query, generated_response)
+
+    @runner.step(r'^Then the knowledge base stats should show (\d+) total documents$')
+    def check_total_documents(context, expected_count):
+        stats = context['knowledge_base'].get_knowledge_stats()
+        assert stats.get('total_docs', 0) == int(expected_count)
+        return "Test passed!"
+
+    @runner.step(r'^(?:And|Then) the knowledge base stats should show (\d+) total access$')
+    def check_total_access(context, expected_count):
+        stats = context['knowledge_base'].get_knowledge_stats()
+        assert stats.get('total_accesses', 0) == int(expected_count)
+        return "Test passed!"

@@ -16,13 +16,13 @@ class KnowledgeBase:
 
     def _embed_text(self, text):
         """Generates an embedding for a text by averaging its token embeddings."""
-        token_ids = self.tokenizer(text)
+        token_ids = self.tokenizer.tokenize(text)
         if token_ids.size == 0:
             # Return a zero vector if the text is empty or has no known tokens
-            return np.zeros(self.model_embeddings.shape[1])
+            return np.zeros(self.model_embeddings.value.shape[1])
 
         # Get embeddings for each token and average them
-        embeddings = self.model_embeddings[token_ids]
+        embeddings = self.model_embeddings.value[token_ids]
         return np.mean(embeddings, axis=0)
 
     def add_document(self, text, metadata=None):
