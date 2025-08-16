@@ -93,3 +93,18 @@ TEST_CASE(ParameterizedQuery_Substitution_MultipleOccurrences) {
     std::string expected_query = "SELECT * FROM data WHERE id = 123 OR user_id = 123";
     ASSERT_EQ(expected_query, mock_session.received_queries[0]);
 }
+
+TEST_CASE(ParameterizedQuery_Substitution_SubstringNames) {
+    MockSession mock_session;
+    std::map<std::string, tissudb::TissValue> params;
+    // These keys will be ordered alphabetically by std::map, so "id" comes before "id_long".
+    // This will expose the bug where replacing "$id" corrupts "$id_long".
+    params["id"] = 123;
+    params["id_long"] = 456;
+
+    mock_session.run("SELECT * FROM data WHERE id_long = $id_long AND id = $id", params);
+
+    ASSERT_EQ(1, mock_session.received_queries.size());
+    std::string expected_query = "SELECT * FROM data WHERE id_long = 456 AND id = 123";
+    ASSERT_EQ(expected_query, mock_session.received_queries[0]);
+}
