@@ -111,3 +111,18 @@ As a user, I want to be able to manage documents in TissDB.
 **Given** a document with ID "1234" exists in TissDB
 **When** I send a DELETE request to "/documents/1234"
 **Then** the response should have a status code of 204
+
+### 2.5. Tissu Sinew C++ Connector
+
+**Feature**: Tissu Sinew C++ Connector
+As a C++ developer, I want to reliably connect to TissDB.
+
+**Scenario**: Successfully connect and run a PING command
+**Given** a TissDB server running on "127.0.0.1" at port 8080
+**When** I use the C++ connector to run the "PING" command
+**Then** the connector should successfully return "PONG"
+
+**Scenario**: Fail to connect to a non-existent server
+**Given** no TissDB server is running on "127.0.0.1" at port 8081
+**When** I attempt to use the C++ connector to run a "PING" command on port 8081
+**Then** the connector should fail with a connection error
