@@ -6,6 +6,22 @@ namespace Storage {
 
 Collection::Collection() : estimated_size(0) {}
 
+Collection::Collection(const std::string& path) : estimated_size(0) {
+    // TODO: Implement loading collection from path
+}
+
+void Collection::set_schema(const TissDB::Schema& schema) {
+    schema_ = schema;
+}
+
+void Collection::create_index(const std::vector<std::string>& field_names) {
+    // TODO: Implement index creation
+}
+
+void Collection::shutdown() {
+    // TODO: Implement shutdown
+}
+
 void Collection::put(const std::string& key, const Document& doc) {
     // To accurately track memory usage, we account for the change in size.
     size_t old_value_size = 0;

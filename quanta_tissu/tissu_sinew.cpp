@@ -9,11 +9,17 @@
 #include <chrono>
 
 // For native socket programming
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <arpa/inet.h> // For htonl, ntohl
+#endif
 #include <cstring>     // For memset, strerror
 #include <cerrno>      // For errno
 
@@ -42,6 +48,12 @@ static bool recv_all(int sockfd, void* buffer, size_t len) {
 class TissuClientImpl {
 public:
     TissuClientImpl(const TissuConfig& config) : config_(config) {
+#ifdef _WIN32
+        WSADATA wsaData;
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+            throw TissuConnectionException("WSAStartup failed.");
+        }
+#endif
         config_.logger->info("Initializing connection pool for " + config_.host + ":" + std::to_string(config_.port));
 
         for (size_t i = 0; i < config_.pool_size; ++i) {
@@ -57,8 +69,15 @@ public:
     ~TissuClientImpl() {
         config_.logger->info("Closing all connections.");
         for (int sockfd : all_connections_) {
+#ifdef _WIN32
+            closesocket(sockfd);
+#else
             close(sockfd);
+#endif
         }
+#ifdef _WIN32
+        WSACleanup();
+#endif
         config_.logger->info("TissuClientImpl destroyed.");
     }
 
@@ -89,7 +108,11 @@ public:
     void declareConnectionDead(int sockfd) {
         std::unique_lock<std::mutex> lock(mtx_);
         config_.logger->info("Connection " + std::to_string(sockfd) + " declared dead. Removing from pool.");
+#ifdef _WIN32
+        closesocket(sockfd);
+#else
         close(sockfd);
+#endif
         all_connections_.erase(std::remove(all_connections_.begin(), all_connections_.end(), sockfd), all_connections_.end());
     }
 
@@ -114,7 +137,11 @@ private:
         for(p = servinfo; p != NULL; p = p->ai_next) {
             if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) continue;
             if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+#ifdef _WIN32
+                closesocket(sockfd);
+#else
                 close(sockfd);
+#endif
                 sockfd = -1;
                 continue;
             }
@@ -148,10 +175,10 @@ std::string TissValue::toQueryString() const {
             std::string escaped = arg;
             size_t pos = 0;
             while ((pos = escaped.find('"', pos)) != std::string::npos) {
-                escaped.replace(pos, 1, "\\\"");
+                escaped.replace(pos, 1, "\\");
                 pos += 2;
             }
-            return "\"" + escaped + "\"";
+            return '"' + escaped + '"';
         }
         else if constexpr (std::is_same_v<T, int64_t>) return std::to_string(arg);
         else if constexpr (std::is_same_v<T, double>) return std::to_string(arg);
@@ -192,7 +219,7 @@ std::unique_ptr<TissuResult> TissuSession::run(const std::string& query) {
     uint32_t len = query.length();
     uint32_t net_len = htonl(len);
 
-    if (send(pimpl->sockfd_, &net_len, sizeof(net_len), 0) == -1 || send(pimpl->sockfd_, query.c_str(), len, 0) == -1) {
+    if (send(pimpl->sockfd_, (const char*)&net_len, sizeof(net_len), 0) == -1 || send(pimpl->sockfd_, query.c_str(), len, 0) == -1) {
         pimpl->client_impl_->getConfig().logger->error("send failed: " + std::string(strerror(errno)));
         pimpl->client_impl_->declareConnectionDead(pimpl->sockfd_);
         pimpl->sockfd_ = -1;
@@ -200,7 +227,7 @@ std::unique_ptr<TissuResult> TissuSession::run(const std::string& query) {
     }
 
     uint32_t response_net_len;
-    if (!recv_all(pimpl->sockfd_, &response_net_len, sizeof(response_net_len))) {
+    if (!recv_all(pimpl->sockfd_, (char*)&response_net_len, sizeof(response_net_len))) {
         pimpl->client_impl_->getConfig().logger->error("recv header failed: " + std::string(strerror(errno)));
         pimpl->client_impl_->declareConnectionDead(pimpl->sockfd_);
         pimpl->sockfd_ = -1;

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "../common/document.h"
+#include "../common/schema.h"
 
 namespace TissDB {
 namespace Storage {
@@ -17,6 +18,7 @@ namespace Storage {
 class Collection {
 public:
     Collection();
+    Collection(const std::string& path);
 
     // Inserts or updates a document in the collection.
     void put(const std::string& key, const Document& doc);
@@ -43,6 +45,10 @@ public:
     // Scans all documents in the collection.
     std::vector<Document> scan() const;
 
+    void set_schema(const TissDB::Schema& schema);
+    void create_index(const std::vector<std::string>& field_names);
+    void shutdown();
+
 private:
     // We use a sorted map to store documents in memory. The key is the document ID.
     // A shared_ptr to a Document allows us to distinguish between:
@@ -51,6 +57,7 @@ private:
     // 3. Key present but deleted -> null shared_ptr (tombstone)
     std::map<std::string, std::shared_ptr<Document>> data;
     size_t estimated_size;
+    TissDB::Schema schema_;
 };
 
 } // namespace Storage

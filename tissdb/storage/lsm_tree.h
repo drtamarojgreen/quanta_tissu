@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "collection.h"
+#include "transaction_manager.h"
 
 namespace TissDB {
 namespace Storage {
@@ -16,7 +17,9 @@ namespace Storage {
 class LSMTree {
 public:
     LSMTree(); // Simplified constructor
+    LSMTree(const std::string& path);
     ~LSMTree();
+
 
     // Collection management
     virtual void create_collection(const std::string& name, const TissDB::Schema& schema);
@@ -25,7 +28,7 @@ public:
 
     // Document operations (delegated to specific collection)
     virtual void put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID tid = -1);
-    virtual std::optional<Document> get(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1);
+    virtual std::optional<std::shared_ptr<Document>> get(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1);
     virtual void del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1);
     virtual std::vector<Document> scan(const std::string& collection_name);
     virtual void create_index(const std::string& collection_name, const std::vector<std::string>& field_names);
@@ -48,6 +51,7 @@ public:
 
 private:
     std::map<std::string, std::unique_ptr<Collection>> collections_;
+    std::string path_;
 };
 
 } // namespace Storage
