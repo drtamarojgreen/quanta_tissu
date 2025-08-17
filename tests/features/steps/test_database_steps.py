@@ -128,3 +128,11 @@ def register_steps(runner):
     def rollback_transaction(context):
         response = requests.post(f"{BASE_URL}/_rollback")
         assert response.status_code == 200
+
+    @runner.step(r'^And I delete the collection "(.*)"$')
+    def and_delete_collection(context, collection_name):
+        delete_collection(context, collection_name)
+
+    @runner.step(r'^And I create a document with ID "(.*)" and content (.*) in "(.*)"$')
+    def and_create_document_with_id(context, doc_id, content_str, collection_name):
+        create_document_with_id(context, doc_id, content_str, collection_name)
