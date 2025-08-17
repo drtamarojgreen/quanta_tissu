@@ -4,7 +4,7 @@ This document provides a comprehensive guide to the TissDB APIs.
 
 TissDB exposes two primary sets of HTTP RESTful APIs:
 
-1.  **Core Database API**: This is a low-level API for direct interaction with the database engine. It provides endpoints for managing collections and documents, creating indexes, running queries, and handling transactions. This API is ideal for applications that need to embed TissDB as their primary data store.
+1.  **Core Database API**: This is a low-level API for direct interaction with the database engine. It provides endpoints for managing collections and documents, creating indexes, and running queries. This API is ideal for applications that need to embed TissDB as their primary data store.
 
 2.  **Business Intelligence (BI) Service API**: This is a higher-level, more specialized API designed for the TissDB BI Suite. It allows you to manage BI-specific resources, such as scheduled reports and automated alerts, which are themselves powered by TissQL queries.
 
@@ -101,25 +101,6 @@ TissDB uses TissQL, a SQL-like language, for querying. Queries are executed via 
         { "query": "SELECT id, post_text FROM posts WHERE author_id = 'user123'" }
         ```
     *   **Response**: `200 OK` with a JSON array of matching documents.
-
-### Transactions
-
-TissDB supports basic ACID transactions.
-
-*   **Begin Transaction**
-    *   `POST /_begin`
-    *   Starts a new transaction. The server manages the transaction context for the client connection.
-    *   **Response**: `200 OK` with a message containing the transaction ID.
-
-*   **Commit Transaction**
-    *   `POST /_commit`
-    *   Makes all changes performed within the current transaction permanent.
-    *   **Response**: `200 OK`
-
-*   **Rollback Transaction**
-    *   `POST /_rollback`
-    *   Discards all changes made within the current transaction.
-    *   **Response**: `200 OK`
 
 ---
 

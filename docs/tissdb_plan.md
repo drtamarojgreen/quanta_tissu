@@ -4,7 +4,7 @@
 
 Tissdb is a new database designed to serve as a high-performance, flexible data backbone for the Quanta ecosystem. The vision for Tissdb is to provide a powerful data integration layer that supports multiple data formats and enables complex, graph-based analysis.
 
-It utilizes a hybrid storage model supporting both **compressed XML** for complex, hierarchical documents and **CSV-style formats** for efficient, tabular knowledge storage. The query engine is built on algorithms that model the data as a **3D graph network**, allowing for powerful queries that can traverse relationships between disparate data sources.
+It utilizes a flexible, **JSON-like document model** and a storage engine based on a Log-Structured Merge-Tree (LSM-Tree). The query engine, TissQL, provides a familiar SQL-like interface for interacting with the data via a RESTful API.
 
 Development will follow a two-layer security strategy:
 1.  **Unsecured Knowledge Layer (Phase 1):** The initial version will be an open, unsecured layer designed for rapid development and seamless knowledge sharing between trusted services.
@@ -14,41 +14,45 @@ Development will follow a two-layer security strategy:
 
 Tissdb's data model is a graph where both documents and records are treated as "nodes".
 
-### 2.1 XML-style Documents
-Ideal for complex, hierarchical data with nested structures.
+### 2.1 JSON-like Documents
+TissDB uses a flexible document model that is a superset of JSON, allowing for rich, hierarchical data structures.
 
-*   **Document**: A single record in a collection, identified by a unique ID. A document is composed of elements.
-*   **Element**: A key-value pair. The key is a tag, and the value can be a primitive, a nested element, or a list of primitives/elements.
-*   **Primitive Types**: `string`, `number` (integer and float), `boolean`, `datetime` (ISO 8601), and `binary` (Base64 encoded).
+*   **Document**: A single record in a collection, identified by a unique ID. A document is a collection of key-value pairs.
+*   **Keys**: Always strings.
+*   **Values**: Can be a primitive type, a nested document, or an array of primitives/documents.
+*   **Primitive Types**: `string`, `number` (integer and float), `boolean`, `null`, and `datetime` (ISO 8601).
 
-**Example XML Document:**
-```xml
-<document id="product_789">
-  <name>Wireless Headphones</name>
-  <brand>AudioPhonic</brand>
-  <price>199.99</price>
-  <is_available>true</is_available>
-  <release_date>2023-10-26T10:00:00Z</release_date>
-  <specs>
-    <weight>250g</weight>
-    <bluetooth_version>5.2</bluetooth_version>
-    <features>
-      <feature>Noise Cancellation</feature>
-      <feature>24-hour Battery</feature>
-      <feature>Water Resistant</feature>
-    </features>
-  </specs>
-  <reviews>
-    <review id="rev_1">
-      <rating>5</rating>
-      <comment>Amazing sound quality!</comment>
-    </review>
-    <review id="rev_2">
-      <rating>4</rating>
-      <comment>Very comfortable.</comment>
-    </review>
-  </reviews>
-</document>
+**Example JSON Document:**
+```json
+{
+  "_id": "product_789",
+  "name": "Wireless Headphones",
+  "brand": "AudioPhonic",
+  "price": 199.99,
+  "is_available": true,
+  "release_date": "2023-10-26T10:00:00Z",
+  "specs": {
+    "weight_g": 250,
+    "bluetooth_version": "5.2",
+    "features": [
+      "Noise Cancellation",
+      "24-hour Battery",
+      "Water Resistant"
+    ]
+  },
+  "reviews": [
+    {
+      "review_id": "rev_1",
+      "rating": 5,
+      "comment": "Amazing sound quality!"
+    },
+    {
+      "review_id": "rev_2",
+      "rating": 4,
+      "comment": "Very comfortable."
+    }
+  ]
+}
 ```
 
 ## 3. Storage Engine
@@ -153,21 +157,21 @@ This is a core design principle and applies to both layers.
 
 ## 7. Detailed Development Roadmap
 
-*   **Phase 1 (MVP) - 3 Months**:
-    *   Task 1.2: Build the core append-only storage layer for a single collection.
-    *   Task 1.3: Implement the basic REST API for document CRUD.
+*   **Phase 1 (MVP) - Complete**:
+    *   Task 1.1: Build the core append-only storage layer.
+    *   Task 1.2: Implement collection management, including APIs to create and delete collections.
+    *   Task 1.3: Implement the basic REST API for document CRUD within collections.
     *   Task 1.4: Develop the TissQL parser for basic `SELECT` queries.
     *   Task 1.5: Implement single-field B-tree indexing.
 
-*   **Phase 2 (V1.1) - 3 Months**:
-    *   Task 2.1: Implement collection management.
-    *   Task 2.2: Implement the LSM tree with background compaction.
+*   **Phase 2 (V1.1) - In Progress**:
+    *   Task 2.1: Implement the LSM tree with background compaction.
     *   Task 2.2: Add support for `UPDATE` and `DELETE` in TissQL.
     *   Task 2.3: Introduce compound indexes.
     *   Task 2.4: Enhance TissQL with aggregate functions (`COUNT`, `AVG`).
     *   Task 2.5: Implement multi-document transactions.
 
-*   **Phase 3 (V2.0) - 6 Months**:
+*   **Phase 3 (V2.0) - Not Started**:
     *   Task 3.1: Design and implement a leader-follower replication strategy.
     *   Task 3.2: Implement range-based sharding for horizontal scaling.
     *   Task 3.3: Implement RBAC as defined in the Security section.

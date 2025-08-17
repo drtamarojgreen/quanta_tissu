@@ -20,18 +20,19 @@ The current, functional implementation of TissDB is a lightweight, high-performa
 Its core features include:
 - **Storage Engine**: A Log-Structured Merge-Tree (LSM-Tree) designed for high write throughput.
 - **Data Model**: A flexible, JSON-like document model for storing data.
+- **Collection Management**: Data is organized into named collections, similar to tables in a relational database.
 - **Query Language**: TissQL, a simple, SQL-like query language for interacting with the data.
 - **Indexing**: Support for B-Tree indexing to enable fast lookups.
 - **API**: A RESTful API for creating, reading, updating, and deleting documents.
 
-While the current implementation is under active development and has limitations (such as a lack of transaction support or collection management), it represents a significant first step in the TissDB roadmap.
+While the current implementation is a significant first step, it is still under active development and has known limitations, such as a lack of transaction support and a non-persistent B-Tree index.
 
 ## Development Roadmap
 
 TissDB is being developed in a phased approach, bridging the gap between the current implementation and the long-term vision. The public development plan outlines several phases:
 
-- **Phase 1 (MVP)**: Focuses on building the core single-node database, including the storage layer, the REST API, the TissQL parser, and basic indexing.
-- **Phase 2 (V1.1)**: Aims to add more robust features like collection management, LSM-tree compaction, expanded TissQL capabilities, and multi-document transactions.
+- **Phase 1 (MVP)**: Focused on building the core single-node database, including the storage layer, collection management, the REST API, the TissQL parser, and basic indexing. This phase is largely complete.
+- **Phase 2 (V1.1)**: Aims to add more robust features like LSM-tree compaction, expanded TissQL capabilities, compound indexing, and multi-document transactions.
 - **Phase 3 (V2.0)**: Intends to transform TissDB into a distributed system with leader-follower replication, sharding, and robust security features like RBAC and encryption.
 
 ## The Broader Ecosystem

@@ -7,6 +7,7 @@ TissDB is a lightweight, high-performance NoSQL database built from scratch in C
 *   **LSM-Tree Storage Engine:** TissDB uses a log-structured merge-tree (LSM-Tree) for high write throughput.
 *   **JSON-like Document Model:** TissDB stores data in a flexible, JSON-like document model.
 *   **TissQL Query Language:** TissDB provides a simple, SQL-like query language called TissQL for querying data.
+*   **Collection Management:** Organize documents into named collections, similar to tables in a relational database.
 *   **B-Tree Indexing:** TissDB supports B-Tree indexing for fast lookups.
 *   **RESTful API:** TissDB provides a RESTful API for interacting with the database.
 
@@ -28,7 +29,6 @@ By default, the database will listen on port 8080 and store its data in a direct
 
 ## Current Limitations
 
-*   **No Collection Management:** The current implementation does not support collections. All documents are stored in a single, global keyspace.
 *   **In-Memory B-Tree:** The B-Tree implementation is currently in-memory and is not yet persistent.
 *   **No Transactions:** The database does not yet support transactions.
 *   **No Replication or Sharding:** The database does not yet support replication or sharding.

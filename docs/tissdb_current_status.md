@@ -30,42 +30,27 @@ The key features of this planned database are:
 
 ## 4. Current Implementation Status (As of August 2025)
 
-**The C++ NoSQL database described in the development plan is currently in the design and planning stage and has not yet been implemented.**
+**The C++ NoSQL database described in the development plan has been implemented, and its Phase 1 (MVP) is now largely complete.**
 
-The "TissDB project" at present consists of the following separate components:
+The core of the TissDB project is the functional C++ database located in the `tissdb/` directory. This implementation serves as the foundational layer for the long-term TissLang vision.
 
-1.  **Conceptual Documentation (`docs/`)**: A rich set of documents outlining the vision (`tissdb_vision.md`) and the detailed implementation plan (`tissdb_plan.md`).
+The key completed features of the C++ database MVP include:
+- **Core Storage Engine**: A functional storage layer based on a Log-Structured Merge-Tree (LSM-Tree), with a Write-Ahead Log (WAL), Memtables, and SSTables.
+- **Collection Management**: The database supports the creation, deletion, and management of named collections to organize documents.
+- **Document CRUD API**: A RESTful API is available for Creating, Reading, Updating, and Deleting documents within collections.
+- **TissQL Query Engine**: A parser and executor for a subset of TissQL, allowing `SELECT ... WHERE` queries on collections.
+- **Single-Field Indexing**: The database supports B-Tree indexing on single fields to accelerate queries.
 
-2.  **A Functional Python Knowledge Store (`quanta_tissu/quanta_tissu/knowledge_base.py`)**:
-    - This is the primary piece of *functional* code related to the TissDB concept.
-    - It is an **in-memory vector store**, not the planned C++ database.
-    - It uses embeddings to store and retrieve documents based on semantic similarity, serving as a practical tool for knowledge management within the Quanta ecosystem.
+While the core MVP is functional, there are still known limitations (e.g., no transaction support, in-memory B-Tree), which are documented in the `tissdb/README.md`. The other components, such as the Python Knowledge Store and the Graph Visualization utility, remain as separate, related tools.
 
-3.  **A C++ Graph Visualization Utility (`quanta_tissu/knowledge_app/`)**:
-    - This is a small, standalone console application for rendering graph structures.
-    - It is a utility related to the *vision* of graph-based data but is not part of the database itself.
+## 5. Immediate Next Steps: Towards Phase 2
 
-In summary, TissDB as a database does not yet exist. The project is currently a collection of design documents and related, but distinct, software utilities.
+With the Phase 1 MVP substantially complete, active development work will now focus on the key features outlined for Phase 2. The immediate roadmap includes:
 
-## 5. Immediate Next Steps: The Phase 1 MVP
+- **Compound Indexing**: Enhancing the indexing engine to support indexes on multiple fields.
+- **Transactions**: Introducing support for multi-document ACID transactions.
+- **Persistence for Indexes**: Modifying the B-Tree implementation to be persistent across restarts.
+- **Replication and Sharding**: Designing and implementing strategies for data replication (for high availability) and sharding (for horizontal scaling).
+- **Security Enhancements**: Building a security model with user authentication and Role-Based Access Control (RBAC).
 
-The active development work will focus on implementing **Phase 1 (MVP)** as detailed in the `tissdb_plan.md`. This constitutes the immediate roadmap for the project. The key tasks are:
-
-- **Task 1.2: Core Append-Only Storage Layer**:
-  - Implement a Write-Ahead Log (WAL) and an in-memory `memtable`.
-  - Implement the mechanism to flush the `memtable` to persistent segment files on disk.
-
-- **Task 1.3: Basic REST API for Document CRUD**:
-  - Implement a lightweight C++ HTTP server.
-  - Create endpoints for basic Create, Read, Update, and Delete operations on documents.
-
-- **Task 1.4: TissQL Parser for Basic SELECT**:
-  - Define a formal grammar for a subset of TissQL.
-  - Implement a parser that can execute simple `SELECT ... WHERE` queries via a full collection scan.
-
-- **Task 1.5: Single-Field B-Tree Indexing**:
-  - Implement or integrate a B-Tree library.
-  - Create an API to add an index to a field.
-  - Modify the write path and query planner to use the index.
-
-Completion of these tasks will result in the first functional, single-node version of TissDB, forming the foundation for all future development.
+Completion of these tasks will evolve TissDB from a functional MVP into a more robust, scalable, and secure database, bringing it closer to the long-term vision.
