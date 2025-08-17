@@ -4,8 +4,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from quanta_tissu.quanta_tissu.knowledge_base import KnowledgeBase
-from quanta_tissu.quanta_tissu.tokenizer import tokenize as real_tokenize
+from quanta_tissu.tisslm.knowledge_base import KnowledgeBase
+from quanta_tissu.tisslm.tokenizer import tokenize as real_tokenize
 from tests.test_utils import assert_equal, assert_true
 
 # --- Test-specific vocabulary and tokenizer ---
