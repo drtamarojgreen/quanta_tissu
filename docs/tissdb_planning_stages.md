@@ -254,7 +254,7 @@ The core vision, planning, and design documents for TissDB are located in the `d
 
 While the full TissDB C++ database is still in development, several existing components in the repository are functionally related to the TissDB concept.
 
-### Python Implementation (`quanta_tissu/quanta_tissu/`)
+### Python Implementation (`quanta_tissu/tisslm/`)
 *   **`knowledge_base.py`**: This file contains the `KnowledgeBase` class, an in-memory vector-based knowledge store. It uses embeddings to store and retrieve documents based on semantic similarity. This serves as a practical implementation of some of the core ideas behind TissDB's intended knowledge management capabilities.
 *   **`tests/test_knowledge_base.py`**: Unit tests for the `KnowledgeBase` class, providing excellent examples of its usage.
 
