@@ -8,6 +8,8 @@
 
 #include "collection.h"
 #include "transaction_manager.h"
+#include "../common/schema.h"
+#include "transaction_manager.h"
 
 namespace TissDB {
 namespace Storage {
