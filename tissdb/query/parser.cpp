@@ -18,7 +18,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
                 i++;
             }
             std::string value = query_string.substr(start, i - start + 1);
-            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX" || value == "INSERT" || value == "INTO" || value == "VALUES" || value == "STDDEV") {
+            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX" || value == "INSERT" || value == "INTO" || value == "VALUES" || value == "STDDEV" || value == "LIKE") {
                 new_tokens.push_back(Token{Token::Type::KEYWORD, value});
             } else {
                 new_tokens.push_back(Token{Token::Type::IDENTIFIER, value});
@@ -232,7 +232,7 @@ Expression Parser::parse_expression(int precedence) {
         auto op = peek().value;
         int new_precedence = 0;
         if (op == "AND" || op == "OR") new_precedence = 1;
-        if (op == "=" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=") new_precedence = 2;
+        if (op == "=" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=" || op == "LIKE") new_precedence = 2;
 
         if (new_precedence <= precedence) break;
 

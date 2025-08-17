@@ -578,6 +578,52 @@ TEST_CASE(ExecutorSelectWithWhere) {
     std::filesystem::remove_all("mock_data");
 }
 
+TEST_CASE(ExecutorSelectWithLike) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+
+    mock_lsm_tree.put("users", "user1", TissDB::Document{"user1", {{"name", std::string("Alice")}}});
+    mock_lsm_tree.put("users", "user2", TissDB::Document{"user2", {{"name", std::string("Bob")}}});
+    mock_lsm_tree.put("users", "user3", TissDB::Document{"user3", {{"name", std::string("Charlie")}}});
+    mock_lsm_tree.put("users", "user4", TissDB::Document{"user4", {{"name", std::string("Alicia")}}});
+
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    // Test case 1: Starts with 'Ali'
+    TissDB::Query::AST ast1 = parser.parse("SELECT name FROM users WHERE name LIKE 'Ali%'");
+    TissDB::Query::QueryResult result1 = executor.execute(ast1);
+    ASSERT_EQ(2, result1.size());
+
+    // Test case 2: Ends with 'e'
+    TissDB::Query::AST ast2 = parser.parse("SELECT name FROM users WHERE name LIKE '%e'");
+    TissDB::Query::QueryResult result2 = executor.execute(ast2);
+    ASSERT_EQ(2, result2.size()); // Alice, Charlie
+
+    // Test case 3: Contains 'li'
+    TissDB::Query::AST ast3 = parser.parse("SELECT name FROM users WHERE name LIKE '%li%'");
+    TissDB::Query::QueryResult result3 = executor.execute(ast3);
+    ASSERT_EQ(2, result3.size());
+
+    // Test case 4: Single character wildcard
+    TissDB::Query::AST ast4 = parser.parse("SELECT name FROM users WHERE name LIKE 'Ali_e'");
+    TissDB::Query::QueryResult result4 = executor.execute(ast4);
+    ASSERT_EQ(1, result4.size());
+    ASSERT_EQ("Alice", std::get<std::string>(result4[0].elements[0].value));
+
+    // Test case 5: No wildcards (exact match)
+    TissDB::Query::AST ast5 = parser.parse("SELECT name FROM users WHERE name LIKE 'Bob'");
+    TissDB::Query::QueryResult result5 = executor.execute(ast5);
+    ASSERT_EQ(1, result5.size());
+    ASSERT_EQ("Bob", std::get<std::string>(result5[0].elements[0].value));
+
+    // Test case 6: No match
+    TissDB::Query::AST ast6 = parser.parse("SELECT name FROM users WHERE name LIKE 'D%'");
+    TissDB::Query::QueryResult result6 = executor.execute(ast6);
+    ASSERT_EQ(0, result6.size());
+}
+
 TEST_CASE(ExecutorSelectWithIndex) {
     MockLSMTree mock_lsm_tree;
     mock_lsm_tree.create_collection("users", TissDB::Schema{});

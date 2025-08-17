@@ -35,7 +35,7 @@ set_expression ::= IDENTIFIER "=" literal
 
 expression ::= term (("AND" | "OR") term)*
 
-term ::= factor (("=" | "!=" | "<" | ">" | "<=" | ">=") factor)*
+term ::= factor (("=" | "!=" | "<" | ">" | "<=" | ">=" | "LIKE") factor)*
 
 factor ::= IDENTIFIER | literal
 
