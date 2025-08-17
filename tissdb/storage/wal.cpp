@@ -56,7 +56,7 @@ std::vector<LogEntry> WriteAheadLog::recover() {
 
     BinaryStreamBuffer bsb(input_log_file);
 
-    while (bsb.good() && !bsb.eof()) {
+    while (input_log_file.peek() != EOF) {
         LogEntry entry;
         try {
             // Read entry type
