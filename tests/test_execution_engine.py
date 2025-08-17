@@ -2,7 +2,7 @@ import unittest
 import os
 import shutil
 import json
-from quanta_tissu.quanta_tissu.execution_engine import ExecutionEngine, ToolRegistry, TissSecurityError, TissAssertionError
+from quanta_tissu.tisslm.execution_engine import ExecutionEngine, ToolRegistry, TissSecurityError, TissAssertionError
 from quanta_tissu.scripts.tisslang_parser import TissLangParser
 
 @unittest.skip("ExecutionEngine not yet implemented")

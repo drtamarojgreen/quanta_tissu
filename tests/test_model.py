@@ -5,12 +5,12 @@ import numpy as np
 # This is a common pattern to make sure the test can find the source code
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from quanta_tissu.quanta_tissu.model import (
+from quanta_tissu.tisslm.model import (
     TransformerBlock,
     PositionalEncoding,
     QuantaTissu,
 )
-from quanta_tissu.quanta_tissu.config import model_config
+from quanta_tissu.tisslm.config import model_config
 from tests.test_utils import assert_equal, assert_true, assert_raises
 
 # Set a seed for reproducibility of random inputs
