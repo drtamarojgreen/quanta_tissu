@@ -2,7 +2,7 @@ import os
 import argparse
 import sys
 
-from tokenizer import BPETokenizer
+from .bpe_trainer import BPETokenizer
 
 def main():
     """Main function to train and save the BPE tokenizer."""
