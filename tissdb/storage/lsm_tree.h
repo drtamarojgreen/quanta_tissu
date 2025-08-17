@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <string>
 #include <memory>
 #include <map>
@@ -8,15 +7,15 @@
 #include <vector>
 
 #include "collection.h"
-#include "transaction_manager.h"
-#include "../common/schema.h"
 
 namespace TissDB {
 namespace Storage {
 
+// LSMTree acts as the main database interface, managing all collections.
+// In this simplified, in-memory version, it holds collections in a map.
 class LSMTree {
 public:
-    explicit LSMTree(const std::string& data_dir);
+    LSMTree(); // Simplified constructor
     ~LSMTree();
 
     // Collection management
@@ -48,9 +47,7 @@ public:
     void shutdown();
 
 private:
-    std::string data_directory_;
     std::map<std::string, std::unique_ptr<Collection>> collections_;
-    Transactions::TransactionManager transaction_manager_;
 };
 
 } // namespace Storage
