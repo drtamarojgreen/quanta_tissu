@@ -41,6 +41,27 @@ class TissLangParser:
         self.commands = [] # Added to fix attribute error from old code
         self.metadata = {} # Added to fix attribute error from old code
 
+    def _dedent(self, text: str) -> str:
+        """
+        Removes common leading whitespace from every line in a string.
+        Similar to textwrap.dedent.
+        """
+        lines = text.splitlines()
+
+        # Find the minimum indentation of all non-empty lines
+        min_indent = float('inf')
+        for line in lines:
+            stripped = line.lstrip()
+            if stripped:
+                indent = len(line) - len(stripped)
+                min_indent = min(min_indent, indent)
+
+        # Remove the minimum indentation from every line
+        if min_indent != float('inf'):
+            dedented_lines = [line[min_indent:] for line in lines]
+            return "\n".join(dedented_lines)
+
+        return text # Return original text if all lines are empty
 
     def parse(self, script_content: str) -> List[Dict[str, Any]]:
         """
@@ -144,8 +165,10 @@ class TissLangParser:
         if line.strip() == self._heredoc_delimiter:
             # Last command added to the current block must be the WRITE command
             write_node = self._current_block[-1]
-            # Join all collected lines and remove the final trailing newline
-            write_node['content'] = "".join(self._heredoc_content).rstrip('\n')
+
+            # Join, dedent, and strip the collected lines
+            content = "".join(self._heredoc_content)
+            write_node['content'] = self._dedent(content).rstrip('\n')
 
             # Reset state
             self._heredoc_delimiter = None
