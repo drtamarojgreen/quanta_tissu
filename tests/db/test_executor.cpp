@@ -322,6 +322,8 @@ TEST_CASE(ExecutorUpdateAddField) {
     TissDB::Query::AST ast = parser.parse("UPDATE users SET status = 'active' WHERE name = 'Frank'");
     executor.execute(ast);
 
+    auto updated_doc_opt = mock_lsm_tree.get("users", "user1");
+    ASSERT_TRUE(updated_doc_opt.has_value());
     const auto& updated_doc = updated_doc_opt.value();
 
     ASSERT_EQ(2, updated_doc->elements.size()); // name and status
@@ -410,6 +412,8 @@ TEST_CASE(ExecutorUpdateWithWhere) {
     executor.execute(ast);
 
     // 3. Verify the data was updated in mock storage
+    auto updated_doc_opt = mock_lsm_tree.get("users", "user1");
+    ASSERT_TRUE(updated_doc_opt.has_value());
     const auto& updated_doc = updated_doc_opt.value();
 
     bool age_is_updated = false;

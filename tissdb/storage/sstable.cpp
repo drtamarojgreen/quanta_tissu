@@ -35,7 +35,7 @@ std::optional<std::vector<uint8_t>> SSTable::find(const std::string& key) {
     file_stream_.seekg(start_offset);
     BinaryStreamBuffer bsb(file_stream_);
 
-    while (bsb.good() && !bsb.eof()) {
+    while (file_stream_.peek() != EOF) {
         try {
             // Check if we've scanned past the next indexed key. If so, the key is not in this block.
             if (it != sparse_index_.end() && static_cast<uint64_t>(file_stream_.tellg()) >= it->second) {
@@ -78,7 +78,7 @@ std::vector<Document> SSTable::scan() {
 
     BinaryStreamBuffer bsb(sst_file);
 
-    while (bsb.good() && !bsb.eof()) {
+    while (sst_file.peek() != EOF) {
         try {
             std::string current_key = bsb.read_string();
             
@@ -180,7 +180,7 @@ std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTabl
 
         BinaryStreamBuffer current_bsb(current_sst_file);
 
-        while (current_bsb.good() && !current_bsb.eof()) {
+        while (current_sst_file.peek() != EOF) {
             try {
                 std::string current_key = current_bsb.read_string();
                 
