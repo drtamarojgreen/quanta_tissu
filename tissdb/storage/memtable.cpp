@@ -4,7 +4,7 @@
 namespace TissDB {
 namespace Storage {
 
-Memtable::Memtable() : estimated_size(0) {}
+Memtable::Memtable(size_t max_size) : max_size_in_bytes(max_size), estimated_size(0) {}
 
 void Memtable::put(const std::string& key, const Document& doc) {
     // To accurately track memory usage, we account for the change in size.
@@ -74,6 +74,10 @@ void Memtable::clear() {
 
 size_t Memtable::approximate_size() const {
     return estimated_size;
+}
+
+bool Memtable::is_full() const {
+    return estimated_size >= max_size_in_bytes;
 }
 
 std::vector<Document> Memtable::scan() const {

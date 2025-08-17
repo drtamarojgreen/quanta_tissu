@@ -15,7 +15,7 @@ namespace bpp {
 template<typename Key, typename Value>
 class btree {
 public:
-    btree() : tree_(std::make_unique<BPTree<Key, Value>>(10)) {} // Default order 10
+    btree() : tree_(std::make_shared<BPTree<Key, Value>>(10)) {} // Default order 10
 
     void insert(const Key& key, const Value& value) {
         tree_->put(key, value);
@@ -59,7 +59,7 @@ public:
     }
 
 private:
-    std::unique_ptr<BPTree<Key, Value>> tree_;
+    std::shared_ptr<BPTree<Key, Value>> tree_;
 };
 
 } // namespace bpp
