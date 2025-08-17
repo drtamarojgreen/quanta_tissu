@@ -246,10 +246,8 @@ class QuantaTissu:
         last_logit = logits[0, -1, :]
         return self._predict_from_logits(last_logit, method, temperature, top_k, top_p)
 
-    def generate_with_kb(self, prompt, generation_method="greedy", **kwargs):
-        # This method will need to be updated to use the new generate() method for full generation.
-        # For now, it will just predict the next single token.
-        context_docs = self.knowledge_base.retrieve(prompt, k=1)
+    def generate_with_kb(self, prompt, n_new_tokens, generation_method="greedy", k=1, **kwargs):
+        context_docs = self.knowledge_base.retrieve(prompt, k=k)
         if context_docs:
             context = " ".join(context_docs)
             augmented_prompt = f"context: {context} question: {prompt}"
@@ -258,7 +256,7 @@ class QuantaTissu:
             augmented_prompt = prompt
         token_ids = tokenize(augmented_prompt)
         if len(token_ids) == 0:
-            print("Warning: Prompt resulted in empty token sequence. Cannot predict.")
+            print("Warning: Prompt resulted in empty token sequence. Cannot generate.")
             return None
-        # Note: This still uses the old, inefficient predict method.
-        return self.predict(np.array(token_ids), method=generation_method, **kwargs)
+        
+        generated_token_ids = self.generate(token_ids, n_new_tokens, method=generation_method, **kwargs)

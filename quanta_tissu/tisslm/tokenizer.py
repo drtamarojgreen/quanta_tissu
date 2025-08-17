@@ -1,28 +1,38 @@
 import numpy as np
-from .config import vocab, inv_vocab
+import os
+from .bpe_trainer import BPETokenizer
+from .config import system_config # Import system_config to get model_save_path
 
 class Tokenizer:
     """
-    A simple tokenizer class that encapsulates tokenization logic.
-    Handles conversion between text and token IDs using a fixed vocabulary.
+    A tokenizer class that encapsulates tokenization logic using a trained BPETokenizer.
+    Handles conversion between text and token IDs.
     """
     
-    def __init__(self, vocab=None, inv_vocab=None):
-        """
-        Initialize the tokenizer with vocabulary mappings.
-        
-        Args:
-            vocab: Dictionary mapping words to token IDs
-            inv_vocab: Dictionary mapping token IDs to words
-        """
-        self.vocab = vocab if vocab is not None else globals()['vocab']
-        self.inv_vocab = inv_vocab if inv_vocab is not None else globals()['inv_vocab']
+    def __init__(self):
+        self.bpe_tokenizer = BPETokenizer()
+        # Construct the path to the trained tokenizer files
+        tokenizer_prefix = os.path.join(os.path.dirname(system_config["model_save_path"]), "trained_tokenizer")
+        try:
+            self.bpe_tokenizer.load(tokenizer_prefix)
+        except FileNotFoundError:
+            print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using train_bpe.py.")
+            # Fallback to a minimal tokenizer or raise an error, depending on desired behavior
+            # For now, we'll proceed with an empty tokenizer, which will likely cause errors later.
+            # A more robust solution would be to train a default one or exit.
+
+        # Special tokens, assuming they are part of the BPE vocabulary or handled externally
+        # For BPE, <unk> and <pad> might be handled implicitly or added during training.
+        # We'll assume they are present in the BPE vocab for now.
         self.unk_token = "<unk>"
         self.pad_token = "<pad>"
-    
+        # These might need to be mapped to actual BPE token IDs if they are not directly bytes
+        self.unk_token_id = self.bpe_tokenizer.encode(self.unk_token)[0] if self.bpe_tokenizer.encode(self.unk_token) else 0 # Fallback
+        self.pad_token_id = self.bpe_tokenizer.encode(self.pad_token)[0] if self.bpe_tokenizer.encode(self.pad_token) else 1 # Fallback
+
     def tokenize(self, text: str) -> np.ndarray:
         """
-        Convert text to a NumPy array of token IDs.
+        Convert text to a NumPy array of token IDs using the BPE tokenizer.
         
         Args:
             text: Input text string
@@ -33,14 +43,12 @@ class Tokenizer:
         if not isinstance(text, str):
             raise ValueError("Input must be a string")
             
-        tokens = []
-        for word in text.lower().split():
-            tokens.append(self.vocab.get(word, self.vocab[self.unk_token]))
-        return np.array(tokens, dtype=np.int32)
+        token_ids = self.bpe_tokenizer.encode(text)
+        return np.array(token_ids, dtype=np.int32)
     
     def detokenize(self, token_ids: np.ndarray) -> str:
         """
-        Convert an array of token IDs back to text.
+        Convert an array of token IDs back to text using the BPE tokenizer.
         
         Args:
             token_ids: NumPy array of token IDs
@@ -51,28 +59,37 @@ class Tokenizer:
         if not isinstance(token_ids, np.ndarray):
             token_ids = np.array(token_ids)
             
-        return " ".join(self.inv_vocab.get(int(t), self.unk_token) for t in token_ids)
+        return self.bpe_tokenizer.decode(token_ids.tolist())
     
     def get_vocab_size(self) -> int:
-        """Return the size of the vocabulary."""
-        return len(self.vocab)
+        """Return the size of the vocabulary of the BPE tokenizer."""
+        return len(self.bpe_tokenizer.vocab)
     
     def get_token_id(self, token: str) -> int:
-        """Get the ID for a specific token."""
-        return self.vocab.get(token, self.vocab[self.unk_token])
+        """Get the ID for a specific token using the BPE tokenizer."""
+        # BPE tokenizer encodes segments, so this might not be a direct 1:1 mapping for all 'tokens'
+        # For single tokens, it should work.
+        encoded = self.bpe_tokenizer.encode(token)
+        return encoded[0] if encoded else self.unk_token_id
     
     def get_token(self, token_id: int) -> str:
-        """Get the token for a specific ID."""
-        return self.inv_vocab.get(token_id, self.unk_token)
+        """Get the token for a specific ID using the BPE tokenizer."""
+        # BPE tokenizer decodes IDs to bytes, then to string.
+        return self.bpe_tokenizer.decode([token_id])
 
 # Maintain backward compatibility with existing function-based interface
+_global_tokenizer_instance = None
+def _get_global_tokenizer():
+    global _global_tokenizer_instance
+    if _global_tokenizer_instance is None:
+        _global_tokenizer_instance = Tokenizer()
+    return _global_tokenizer_instance
+
 def tokenize(text):
-    """Legacy function for backward compatibility."""
-    tokenizer = Tokenizer()
-    return tokenizer.tokenize(text)
+    """Legacy function for backward compatibility, uses the BPE tokenizer."""
+    return _get_global_tokenizer().tokenize(text)
 
 
 def detokenize(token_ids):
-    """Legacy function for backward compatibility."""
-    tokenizer = Tokenizer()
-    return tokenizer.detokenize(token_ids)
+    """Legacy function for backward compatibility, uses the BPE tokenizer."""
+    return _get_global_tokenizer().detokenize(token_ids)
