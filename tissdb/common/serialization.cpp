@@ -39,8 +39,8 @@ void serialize_value(BinaryStreamBuffer& bsb, const Value& value) {
             bsb.write(arg);
         } else if constexpr (std::is_same_v<T, DateTime>) {
             bsb.write(DataType::DATETIME);
-            auto seconds = std::chrono::duration_cast<std::chrono::seconds>(arg.time_since_epoch()).count();
-            bsb.write(seconds);
+            auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(arg.time_since_epoch()).count();
+            bsb.write(nanoseconds);
         } else if constexpr (std::is_same_v<T, BinaryData>) {
             bsb.write(DataType::BINARY_DATA);
             bsb.write_bytes(arg);
@@ -79,9 +79,9 @@ Value deserialize_value(BinaryStreamBuffer& bsb) {
             return val;
         }
         case DataType::DATETIME: {
-            long long seconds_count;
-            bsb.read(seconds_count);
-            return DateTime(std::chrono::seconds(seconds_count));
+            long long nanoseconds_count;
+            bsb.read(nanoseconds_count);
+            return DateTime(std::chrono::nanoseconds(nanoseconds_count));
         }
         case DataType::BINARY_DATA: {
             return bsb.read_bytes();

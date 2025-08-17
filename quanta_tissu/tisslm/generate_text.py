@@ -1,17 +1,9 @@
-import sys
-import os
 import numpy as np
 import argparse
 
-# Add the project root to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from quanta_tissu.quanta_tissu.model import QuantaTissu
-from quanta_tissu.quanta_tissu.tokenizer import detokenize
-from quanta_tissu.quanta_tissu.config import model_config, vocab
-from quanta_tissu.quanta_tissu.model import QuantaTissu
-
-from quanta_tissu.quanta_tissu.tokenizer import Tokenizer
+from .model import QuantaTissu
+from .tokenizer import detokenize, Tokenizer
+from .config import model_config, vocab
 
 def generate_text(prompt: str, length: int) -> str:
     """

@@ -19,12 +19,13 @@ test_vocab = {
 }
 vocab_size = len(test_vocab)
 
-def _test_tokenizer(text):
-    """A tokenizer that uses the test-specific vocabulary."""
-    tokens = []
-    for word in text.lower().split():
-        tokens.append(test_vocab.get(word, test_vocab["<unk>"]))
-    return np.array(tokens)
+class MockTokenizer:
+    def tokenize(self, text):
+        """A tokenizer that uses the test-specific vocabulary."""
+        tokens = []
+        for word in text.lower().split():
+            tokens.append(test_vocab.get(word, test_vocab["<unk>"]))
+        return np.array(tokens)
 
 def create_mock_kb():
     """Helper function to create a KnowledgeBase with deterministic embeddings."""
@@ -59,9 +60,14 @@ def create_mock_kb():
         norm = np.linalg.norm(mock_embeddings[i])
         if norm > 0:
             mock_embeddings[i] /= norm
+    
+    # Wrap the mock embeddings in a Parameter-like object
+    class MockEmbeddings:
+        def __init__(self, value):
+            self.value = value
 
     # Use the test-specific tokenizer
-    kb = KnowledgeBase(mock_embeddings, _test_tokenizer)
+    kb = KnowledgeBase(MockEmbeddings(mock_embeddings), MockTokenizer())
     return kb
 
 def test_add_document():

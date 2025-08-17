@@ -5,22 +5,32 @@
 #include <filesystem>
 #include <cmath>
 #include <iostream>
+#include "../../tissdb/storage/transaction_manager.h"
 
 // Mock LSMTree for testing executor in isolation
 class MockLSMTreeForStdDev : public TissDB::Storage::LSMTree {
 public:
-    MockLSMTreeForStdDev() : TissDB::Storage::LSMTree("mock_data_stddev") {}
+    MockLSMTreeForStdDev() : TissDB::Storage::LSMTree() {}
 
-    void put(const std::string& collection_name, const std::string& key, const TissDB::Document& doc) override {
+    void create_collection(const std::string& name, const TissDB::Schema& schema = {}) override {
+        // Mock implementation, can be empty if not needed for the test logic
+        (void)name;
+        (void)schema;
+    }
+
+    void put(const std::string& collection_name, const std::string& key, const TissDB::Document& doc, TissDB::Transactions::TransactionID tid = -1) override {
+        (void)tid; // Unused in mock
         mock_data_[collection_name][key] = doc;
     }
 
-    std::optional<TissDB::Document> get(const std::string& collection_name, const std::string& key) override {
+        std::optional<std::shared_ptr<TissDB::Document>> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
+        (void)tid; // Unused in mock
         if (mock_data_.count(collection_name) && mock_data_[collection_name].count(key)) {
-            return mock_data_[collection_name][key];
+            return std::make_shared<TissDB::Document>(mock_data_[collection_name][key]);
         }
         return std::nullopt;
     }
+
 
     std::vector<TissDB::Document> scan(const std::string& collection_name) override {
         std::vector<TissDB::Document> docs;
@@ -37,7 +47,7 @@ public:
 
 TEST_CASE(ExecutorAggregateStdDev) {
     MockLSMTreeForStdDev mock_lsm_tree;
-    mock_lsm_tree.create_collection("data");
+    mock_lsm_tree.create_collection("data", {});
 
     // Setup initial data
     mock_lsm_tree.put("data", "1", TissDB::Document{"1", {{"value", 10.0}}});
@@ -52,8 +62,8 @@ TEST_CASE(ExecutorAggregateStdDev) {
     TissDB::Query::QueryResult result = executor.execute(ast);
 
     // Verify the results
-    ASSERT_EQ(1, result.documents.size());
-    const auto& doc = result.documents[0];
+    ASSERT_EQ(1, result.size());
+    const auto& doc = result[0];
     ASSERT_EQ(1, doc.elements.size());
     const auto& elem = doc.elements[0];
     ASSERT_EQ("stddev", elem.key);

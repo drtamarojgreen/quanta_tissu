@@ -34,6 +34,10 @@ class Element {
 public:
     std::string key;
     Value value;
+
+    bool operator==(const Element& other) const {
+        return key == other.key && value == other.value;
+    }
 };
 
 // A Document is the top-level object, identified by an ID and containing a collection of root elements.
@@ -42,6 +46,10 @@ public:
     std::string id;
     std::vector<Element> elements;
     bool is_tombstone() const { return elements.empty() && !id.empty(); }
+
+    bool operator==(const Document& other) const {
+        return id == other.id && elements == other.elements;
+    }
 };
 
 } // namespace TissDB

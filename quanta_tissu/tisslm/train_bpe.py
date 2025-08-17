@@ -2,10 +2,7 @@ import os
 import argparse
 import sys
 
-# Add project root to path to allow importing 'quantatissu'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from quantatissu.tokenizer import BPETokenizer
+from .bpe_trainer import BPETokenizer
 
 def main():
     """Main function to train and save the BPE tokenizer."""

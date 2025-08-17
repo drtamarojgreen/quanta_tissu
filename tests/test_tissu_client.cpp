@@ -7,10 +7,17 @@
 #include <iostream>
 
 // For mock server
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#define SHUT_RDWR SD_BOTH
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#endif
 
 // =================================================================================================
 // Mock TissDB Server
@@ -19,7 +26,20 @@
 // It understands the length-prefix protocol.
 class MockServer {
 public:
-    MockServer(int port) : port_(port), server_fd_(-1), stop_(false) {}
+    MockServer(int port) : port_(port), server_fd_(-1), stop_(false) {
+#ifdef _WIN32
+        WSADATA wsaData;
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+            perror("WSAStartup failed");
+        }
+#endif
+    }
+
+    ~MockServer() {
+#ifdef _WIN32
+        WSACleanup();
+#endif
+    }
 
     void start() {
         server_thread_ = std::thread([this]() { this->run(); });
@@ -31,7 +51,11 @@ public:
         stop_ = true;
         if (server_fd_ != -1) {
             shutdown(server_fd_, SHUT_RDWR);
+#ifdef _WIN32
+            closesocket(server_fd_);
+#else
             close(server_fd_);
+#endif
         }
         if (server_thread_.joinable()) {
             server_thread_.join();
@@ -51,16 +75,20 @@ private:
     void run() {
         struct sockaddr_in address;
         int opt = 1;
-        int addrlen = sizeof(address);
+        socklen_t addrlen = sizeof(address);
 
-        if ((server_fd_ = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        if ((server_fd_ = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
             perror("socket failed");
             return;
         }
 
-        if (setsockopt(server_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+        if (setsockopt(server_fd_, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt))) {
             perror("setsockopt");
+#ifdef _WIN32
+            closesocket(server_fd_);
+#else
             close(server_fd_);
+#endif
             return;
         }
         address.sin_family = AF_INET;
@@ -69,17 +97,25 @@ private:
 
         if (bind(server_fd_, (struct sockaddr *)&address, sizeof(address)) < 0) {
             perror("bind failed");
+#ifdef _WIN32
+            closesocket(server_fd_);
+#else
             close(server_fd_);
+#endif
             return;
         }
         if (listen(server_fd_, 5) < 0) {
             perror("listen");
+#ifdef _WIN32
+            closesocket(server_fd_);
+#else
             close(server_fd_);
+#endif
             return;
         }
 
         while (!stop_) {
-            int client_fd = accept(server_fd_, (struct sockaddr *)&address, (socklen_t*)&addrlen);
+            int client_fd = accept(server_fd_, (struct sockaddr *)&address, &addrlen);
             if (client_fd < 0) {
                 if (stop_) break;
                 perror("accept");
@@ -88,16 +124,24 @@ private:
 
             // Handle the client connection using the length-prefix protocol
             uint32_t net_len;
-            ssize_t read_bytes = read(client_fd, &net_len, sizeof(net_len));
+            ssize_t read_bytes = recv(client_fd, (char*)&net_len, sizeof(net_len), 0);
             if (read_bytes != sizeof(net_len)) {
+#ifdef _WIN32
+                closesocket(client_fd);
+#else
                 close(client_fd);
+#endif
                 continue;
             }
             uint32_t msg_len = ntohl(net_len);
             std::vector<char> buffer(msg_len);
-            read_bytes = read(client_fd, buffer.data(), msg_len);
+            read_bytes = recv(client_fd, buffer.data(), msg_len, 0);
             if (read_bytes != msg_len) {
+#ifdef _WIN32
+                closesocket(client_fd);
+#else
                 close(client_fd);
+#endif
                 continue;
             }
 
@@ -105,7 +149,11 @@ private:
             Behavior current_behavior = behavior_.load();
 
             if (current_behavior == Behavior::CloseImmediately) {
+#ifdef _WIN32
+                closesocket(client_fd);
+#else
                 close(client_fd);
+#endif
                 continue; // Done with this client, wait for next.
             }
 
@@ -115,10 +163,14 @@ private:
 
             // Default behavior is Echo
             uint32_t resp_len_net = htonl(msg_len);
-            send(client_fd, &resp_len_net, sizeof(resp_len_net), 0);
+            send(client_fd, (const char*)&resp_len_net, sizeof(resp_len_net), 0);
             send(client_fd, buffer.data(), msg_len, 0);
 
+#ifdef _WIN32
+            closesocket(client_fd);
+#else
             close(client_fd);
+#endif
         }
     }
 

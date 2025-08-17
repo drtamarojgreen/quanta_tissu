@@ -15,11 +15,11 @@ The core vision, planning, and design documents for TissDB are located in the `d
 -   `docs/tissdb_integration.md`: Explains how TissDB is intended to integrate with the broader Quanta ecosystem.
 -   `docs/tissdb_api_schema.json`: A JSON schema that defines the proposed structure for the TissDB REST API.
 
-## 3. Python Implementation (`quanta_tissu/quanta_tissu/`)
+## 3. Python Implementation (`quanta_tissu/tisslm/`)
 
 While the formal `tissdb` plan calls for a C++ implementation, a related and functional piece of the knowledge storage infrastructure exists in Python.
 
--   `quanta_tissu/quanta_tissu/knowledge_base.py`: This file contains the `KnowledgeBase` class, an in-memory vector-based knowledge store. It uses embeddings to store and retrieve documents based on semantic similarity. This serves as a practical implementation of some of the core ideas behind TissDB's knowledge management capabilities.
+-   `quanta_tissu/tisslm/knowledge_base.py`: This file contains the `KnowledgeBase` class, an in-memory vector-based knowledge store. It uses embeddings to store and retrieve documents based on semantic similarity. This serves as a practical implementation of some of the core ideas behind TissDB's knowledge management capabilities.
 
 ## 4. C++ Graph Visualization Utility (`quanta_tissu/knowledge_app/`)
 
