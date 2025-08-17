@@ -5,11 +5,12 @@
 #include <filesystem>
 #include <cmath>
 #include <iostream>
+#include "../../tissdb/storage/transaction_manager.h"
 
 // Mock LSMTree for testing executor in isolation
 class MockLSMTreeForStdDev : public TissDB::Storage::LSMTree {
 public:
-    MockLSMTreeForStdDev() : TissDB::Storage::LSMTree("mock_data_stddev") {}
+    MockLSMTreeForStdDev() : TissDB::Storage::LSMTree() {}
 
     void create_collection(const std::string& name, const TissDB::Schema& schema = {}) override {
         // Mock implementation, can be empty if not needed for the test logic
@@ -22,13 +23,14 @@ public:
         mock_data_[collection_name][key] = doc;
     }
 
-    std::optional<TissDB::Document> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
+        std::optional<std::shared_ptr<TissDB::Document>> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
         (void)tid; // Unused in mock
         if (mock_data_.count(collection_name) && mock_data_[collection_name].count(key)) {
-            return mock_data_[collection_name][key];
+            return std::make_shared<TissDB::Document>(mock_data_[collection_name][key]);
         }
         return std::nullopt;
     }
+
 
     std::vector<TissDB::Document> scan(const std::string& collection_name) override {
         std::vector<TissDB::Document> docs;

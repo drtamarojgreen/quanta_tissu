@@ -6,11 +6,12 @@
 #include "../../tissdb/storage/lsm_tree.h"
 #include <filesystem>
 #include <set>
+#include "../../tissdb/storage/transaction_manager.h"
 
 // Mock LSMTree for testing executor in isolation
 class MockLSMTree : public TissDB::Storage::LSMTree {
 public:
-    MockLSMTree() : TissDB::Storage::LSMTree("mock_data") {}
+    MockLSMTree() : TissDB::Storage::LSMTree() {}
 
     void create_collection(const std::string& name, const TissDB::Schema& schema) override {
         (void)schema; // Unused in mock
@@ -22,10 +23,10 @@ public:
         mock_data_[collection_name][key] = doc;
     }
 
-    std::optional<TissDB::Document> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
+    std::optional<std::shared_ptr<TissDB::Document>> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
         (void)tid; // Unused in mock
         if (mock_data_.count(collection_name) && mock_data_[collection_name].count(key)) {
-            return mock_data_[collection_name][key];
+            return std::make_shared<TissDB::Document>(mock_data_[collection_name][key]);
         }
         return std::nullopt;
     }
