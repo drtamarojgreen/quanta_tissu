@@ -12,14 +12,14 @@ def register_steps(runner):
         context['model'] = model
         context['tokenizer'] = tokenizer
         
-    @runner.step(r'^When I generate (\d+) new tokens with the prompt "(.*)"$')
-    def generate_tokens(context, n_new_tokens, prompt):
+    @runner.step(r'^When I generate (\d+) new tokens with the prompt "(.*)" using the "(.*)" method$')
+    def generate_tokens(context, n_new_tokens, prompt, method):
         n_new_tokens = int(n_new_tokens)
         prompt_tokens = context['tokenizer'].tokenize(prompt)
         generated_ids = context['model'].generate(
             prompt_tokens,
             n_new_tokens=n_new_tokens,
-            method="greedy"
+            method=method
         )
         context['generated_ids'] = generated_ids
 
