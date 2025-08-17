@@ -1,7 +1,7 @@
 import numpy as np
-from quanta_tissu.quanta_tissu.model import QuantaTissu
-from quanta_tissu.quanta_tissu.config import model_config
-from quanta_tissu.quanta_tissu.tokenizer import Tokenizer, vocab
+from quanta_tissu.tisslm.model import QuantaTissu
+from quanta_tissu.tisslm.config import model_config
+from quanta_tissu.tisslm.tokenizer import Tokenizer, vocab
 
 def register_steps(runner):
     @runner.step(r'^Given a model and tokenizer$')
