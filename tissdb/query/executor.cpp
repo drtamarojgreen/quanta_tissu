@@ -109,6 +109,72 @@ void process_aggregation(std::map<std::string, AggregateResult>& results_map, co
 
 // --- NEW HELPER FUNCTION ---
 // Extracts all simple equality conditions (field = 'value') from a WHERE clause.
+void process_aggregation(std::map<std::string, AggregateResult>& results_map, const std::string& result_key, const Document& doc, const AggregateFunction& agg_func) {
+    // Handle COUNT(*) case where field_name can be "*"
+    if (agg_func.field_name == "*") {
+        if (agg_func.function_name == "COUNT") {
+            results_map[result_key].count++;
+        }
+        return;
+    }
+
+    for (const auto& elem : doc.elements) {
+        if (elem.key == agg_func.field_name) {
+            if (auto* num_val = std::get_if<double>(&elem.value)) {
+                auto& result = results_map[result_key]; // Get reference to the result for this key
+
+                if (agg_func.function_name == "SUM" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
+                    result.sum += *num_val;
+                    result.sum_sq += (*num_val) * (*num_val);
+                }
+                if (agg_func.function_name == "COUNT" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
+                    result.count++;
+                }
+                if (agg_func.function_name == "MIN") {
+                    if (!result.min.has_value() || *num_val < result.min.value()) {
+                        result.min = *num_val;
+                    }
+                }
+                if (agg_func.function_name == "MAX") {
+                    if (!result.max.has_value() || *num_val > result.max.value()) {
+                        result.max = *num_val;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Helper function to combine two documents for a join result
+Document combine_documents(const Document& doc1, const Document& doc2) {
+    Document combined_doc;
+    // Generate a new ID for the combined document (simple concatenation for now)
+    combined_doc.id = doc1.id + "_" + doc2.id;
+
+    // Add all elements from doc1
+    for (const auto& elem : doc1.elements) {
+        combined_doc.elements.push_back(elem);
+    }
+    // Add all elements from doc2
+    for (const auto& elem : doc2.elements) {
+        // Avoid duplicate keys if both documents have the same field name
+        // For a proper join, this would involve aliasing or more sophisticated merging
+        bool found = false;
+        for (const auto& existing_elem : combined_doc.elements) {
+            if (existing_elem.key == elem.key) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            combined_doc.elements.push_back(elem);
+        }
+    }
+    return combined_doc;
+}
+
+// --- NEW HELPER FUNCTION ---
+// Extracts all simple equality conditions (field = 'value') from a WHERE clause.
 void extract_equality_conditions(const Expression& expr, std::map<std::string, std::string>& conditions) {
     if (const auto* logical_expr_ptr = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
         const auto& logical_expr = *logical_expr_ptr;
@@ -131,6 +197,7 @@ void extract_equality_conditions(const Expression& expr, std::map<std::string, s
         }
     }
 }
+
 
 // --- Helper function for LIKE to regex conversion ---
 std::string like_to_regex(std::string pattern) {
@@ -165,6 +232,35 @@ Executor::Executor(Storage::LSMTree& storage) : storage_engine(storage) {}
 
 QueryResult Executor::execute(const AST& ast) {
     if (auto* select_stmt = std::get_if<SelectStatement>(&ast)) {
+        // --- UNION Operation ---
+        if (select_stmt->union_clause) {
+            const auto& union_clause = select_stmt->union_clause.value();
+            // Recursively execute the left and right select statements
+            QueryResult left_result = execute(*union_clause.left_select);
+            QueryResult right_result = execute(*union_clause.right_select);
+
+            std::vector<Document> unioned_docs = left_result; // QueryResult is already std::vector<Document>
+
+            // Add documents from the right result
+            for (const auto& doc : right_result) {
+                unioned_docs.push_back(doc);
+            }
+
+            if (!union_clause.all) { // If UNION DISTINCT
+                // Remove duplicates
+                // This requires a way to compare documents for equality.
+                // For simplicity, let's assume documents are equal if their IDs are equal for now.
+                // A more robust solution would compare all elements.
+                std::sort(unioned_docs.begin(), unioned_docs.end(), [](const Document& a, const Document& b) {
+                    return a.id < b.id; // Sort by ID to bring duplicates together
+                });
+                unioned_docs.erase(std::unique(unioned_docs.begin(), unioned_docs.end(), [](const Document& a, const Document& b) {
+                    return a.id == b.id; // Remove duplicates based on ID
+                }), unioned_docs.end());
+            }
+            return {unioned_docs};
+        }
+
         std::vector<Document> result_docs;
         std::vector<std::string> doc_ids_from_index;
         bool index_used = false;
@@ -232,6 +328,28 @@ QueryResult Executor::execute(const AST& ast) {
             // Full scan if no index is used
             std::cout << "No suitable index found. Performing full collection scan." << std::endl;
             all_docs = storage_engine.scan(select_stmt->from_collection);
+        }
+
+        // --- Join Operation ---
+        std::vector<Document> joined_docs;
+        if (select_stmt->join_clause) {
+            const auto& join_clause = select_stmt->join_clause.value();
+            std::vector<Document> left_docs = all_docs; // Result of initial data retrieval
+            std::vector<Document> right_docs = storage_engine.scan(join_clause.collection_name); // Scan right collection
+
+            if (join_clause.type == JoinType::INNER) {
+                for (const auto& left_doc : left_docs) {
+                    for (const auto& right_doc : right_docs) {
+                        // Evaluate the ON condition
+                        if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc))) {
+                            joined_docs.push_back(combine_documents(left_doc, right_doc));
+                        }
+                    }
+                }
+            }
+            // For other join types (LEFT, RIGHT, FULL, CROSS), more complex logic would be needed
+            // For now, only INNER JOIN is implemented.
+            all_docs = joined_docs; // Update all_docs to be the result of the join
         }
 
 
