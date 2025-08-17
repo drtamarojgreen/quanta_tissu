@@ -359,13 +359,77 @@ QueryResult Executor::execute(const AST& ast) {
         }
 
     } else if (auto* update_stmt = std::get_if<UpdateStatement>(&ast)) {
-        // ... (UPDATE logic remains the same)
-        // Placeholder for update logic
-        return {};
+        auto all_docs = storage_engine.scan(update_stmt->collection_name);
+        int updated_count = 0;
+
+        for (auto& doc : all_docs) {
+            bool should_update = false;
+            if (update_stmt->where_clause) {
+                if (evaluate_expression(*update_stmt->where_clause, doc)) {
+                    should_update = true;
+                }
+            } else {
+                should_update = true; // No WHERE clause, update all documents
+            }
+
+            if (should_update) {
+                for (const auto& set_pair : update_stmt->set_clause) {
+                    const std::string& field_to_update = set_pair.first;
+                    const Literal& new_value = set_pair.second;
+
+                    auto it = std::find_if(doc.elements.begin(), doc.elements.end(),
+                                           [&](const Element& elem) { return elem.key == field_to_update; });
+
+                    if (it != doc.elements.end()) {
+                        // Field exists, update it
+                        if (const auto* str_val = std::get_if<std::string>(&new_value)) {
+                            it->value = *str_val;
+                        } else if (const auto* num_val = std::get_if<double>(&new_value)) {
+                            it->value = *num_val;
+                        }
+                    } else {
+                        // Field does not exist, add it
+                        if (const auto* str_val = std::get_if<std::string>(&new_value)) {
+                            doc.elements.push_back({field_to_update, *str_val});
+                        } else if (const auto* num_val = std::get_if<double>(&new_value)) {
+                            doc.elements.push_back({field_to_update, *num_val});
+                        }
+                    }
+                }
+                storage_engine.put(update_stmt->collection_name, doc.id, doc);
+                updated_count++;
+            }
+        }
+
+        Document result_doc;
+        result_doc.id = "summary";
+        result_doc.elements.push_back({"updated_count", (double)updated_count});
+        return {result_doc};
+
     } else if (auto* delete_stmt = std::get_if<DeleteStatement>(&ast)) {
-        // ... (DELETE logic remains the same)
-        // Placeholder for delete logic
-        return {};
+        auto all_docs = storage_engine.scan(delete_stmt->collection_name);
+        int deleted_count = 0;
+
+        for (const auto& doc : all_docs) {
+            bool should_delete = false;
+            if (delete_stmt->where_clause) {
+                if (evaluate_expression(*delete_stmt->where_clause, doc)) {
+                    should_delete = true;
+                }
+            } else {
+                should_delete = true; // No WHERE clause, delete all documents
+            }
+
+            if (should_delete) {
+                storage_engine.del(delete_stmt->collection_name, doc.id);
+                deleted_count++;
+            }
+        }
+
+        Document result_doc;
+        result_doc.id = "summary";
+        result_doc.elements.push_back({"deleted_count", (double)deleted_count});
+        return {result_doc};
     }
     return {};
 }
