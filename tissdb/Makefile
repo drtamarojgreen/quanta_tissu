@@ -24,6 +24,7 @@ SRCS = main.cpp \
        storage/sstable.cpp \
        storage/transaction_manager.cpp \
        storage/wal.cpp \
+       storage/collection.cpp \
        ../tests/db/http_client.cpp
 
 # Object files
