@@ -51,6 +51,23 @@ std::optional<std::shared_ptr<Document>> LSMTree::get(const std::string& collect
     }
 }
 
+std::vector<Document> LSMTree::get_many(const std::string& collection_name, const std::vector<std::string>& keys) {
+    std::vector<Document> result_docs;
+    try {
+        Collection& collection = get_collection(collection_name);
+        for (const auto& key : keys) {
+            auto doc_opt = collection.get(key);
+            if (doc_opt) {
+                result_docs.push_back(**doc_opt);
+            }
+        }
+    } catch (const std::runtime_error& e) {
+        // Collection not found, return empty vector
+    }
+    return result_docs;
+}
+
+
 void LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid) {
     try {
         Collection& collection = get_collection(collection_name);
