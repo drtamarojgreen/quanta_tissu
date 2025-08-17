@@ -37,6 +37,64 @@ SELECT name, email FROM users;
 SELECT name FROM users WHERE age > 30;
 ```
 
+#### Advanced WHERE Clause Operators
+
+TQL supports a variety of operators to create more complex filtering conditions.
+
+-   **`AND`, `OR`, `NOT`**: Combine multiple conditions.
+    ```sql
+    -- Select users who are older than 30 and live in the USA
+    SELECT name FROM users WHERE age > 30 AND country = 'USA';
+
+    -- Select users who are either older than 30 or live in the USA
+    SELECT name FROM users WHERE age > 30 OR country = 'USA';
+
+    -- Select users who do not live in the USA
+    SELECT name FROM users WHERE NOT country = 'USA';
+    ```
+
+-   **`LIKE`**: Perform pattern matching on string data. The `%` character is a wildcard for zero or more characters.
+    ```sql
+    -- Select users whose name starts with 'J'
+    SELECT name FROM users WHERE name LIKE 'J%';
+    ```
+
+-   **`IN`**: Check if a value matches any value in a list.
+    ```sql
+    -- Select users from the USA or Canada
+    SELECT name, country FROM users WHERE country IN ('USA', 'Canada');
+    ```
+
+-   **`BETWEEN`**: Check if a value is within a certain range (inclusive).
+    ```sql
+    -- Select users whose age is between 25 and 35
+    SELECT name, age FROM users WHERE age BETWEEN 25 AND 35;
+    ```
+
+### Ordering Results with `ORDER BY`
+
+The `ORDER BY` clause is used to sort the result set in ascending or descending order.
+
+-   `ASC`: Ascending order (default).
+-   `DESC`: Descending order.
+
+```sql
+-- Select all users, ordered by age in descending order
+SELECT name, age FROM users ORDER BY age DESC;
+
+-- Select all users, ordered by country (ascending) and then by name (descending)
+SELECT name, country FROM users ORDER BY country ASC, name DESC;
+```
+
+### Limiting Results with `LIMIT`
+
+The `LIMIT` clause is used to restrict the number of rows returned by a query.
+
+```sql
+-- Select the 5 youngest users
+SELECT name, age FROM users ORDER BY age ASC LIMIT 5;
+```
+
 **Using aggregate functions:**
 
 ```sql
@@ -131,3 +189,27 @@ DELETE FROM users WHERE name = 'John Doe';
 ```sql
 DELETE FROM users;
 ```
+
+## 5. Supported Data Types
+
+TissDB supports a variety of data types for storing data in documents.
+
+| Data Type     | Description                                                                 |
+|---------------|-----------------------------------------------------------------------------|
+| `STRING`      | A UTF-8 encoded string.                                                     |
+| `NUMBER`      | A 64-bit floating-point number, capable of storing integers and decimals.   |
+| `BOOLEAN`     | A `true` or `false` value.                                                  |
+| `DATETIME`    | A point in time, stored with high precision.                                |
+| `BINARY DATA` | A sequence of bytes, suitable for storing raw data like images or files.    |
+| `ELEMENTS`    | A nested list of elements, allowing for the creation of complex, structured documents. |
+
+## 6. Limitations and Future Features
+
+TissDB is under active development, and some SQL features are not yet implemented.
+
+### Currently Unsupported Features
+
+-   **`JOIN` Operations**: The current version of TissDB does not support `JOIN` operations for combining data from multiple tables in a single query. This is planned for a future release.
+-   **DDL Statements**: Data Definition Language (DDL) statements like `CREATE TABLE`, `ALTER TABLE`, and `DROP TABLE` are not yet supported. Schema management must be handled outside of the query language for now.
+
+These features are on the development roadmap and will be added in future versions of TissDB.

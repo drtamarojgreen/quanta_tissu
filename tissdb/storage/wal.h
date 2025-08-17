@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "../common/document.h"
+#include "../common/checksum.h"
 
 namespace TissDB {
 namespace Storage {

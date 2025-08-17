@@ -79,7 +79,7 @@ class PositionalEncoding:
         return x + self.pe[np.newaxis, positions, :]
 
 class QuantaTissu:
-    def __init__(self, config):
+    def __init__(self, config, db_host='127.0.0.1', db_port=8080):
         self.config = config
         d_model = config["d_model"]
         vocab_size = config["vocab_size"]
@@ -93,8 +93,9 @@ class QuantaTissu:
         self.transformer_blocks = [TransformerBlock(d_model, num_heads, d_ff) for _ in range(n_layers)]
         self.output_proj = Parameter(np.random.randn(d_model, vocab_size) / np.sqrt(d_model), name="output_proj")
 
-        # KnowledgeBase is not part of the trainable model graph
-        self.knowledge_base = KnowledgeBase(self.embeddings.value, tokenize)
+        # KnowledgeBase is now initialized with database connection parameters.
+        print(f"Initializing KnowledgeBase with TissDB connection to {db_host}:{db_port}")
+        self.knowledge_base = KnowledgeBase(self.embeddings.value, tokenize, db_host=db_host, db_port=db_port)
         self.cache = {}
 
     def _create_causal_mask(self, seq_len):
@@ -246,10 +247,8 @@ class QuantaTissu:
         last_logit = logits[0, -1, :]
         return self._predict_from_logits(last_logit, method, temperature, top_k, top_p)
 
-    def generate_with_kb(self, prompt, generation_method="greedy", **kwargs):
-        # This method will need to be updated to use the new generate() method for full generation.
-        # For now, it will just predict the next single token.
-        context_docs = self.knowledge_base.retrieve(prompt, k=1)
+    def generate_with_kb(self, prompt, n_new_tokens, generation_method="greedy", k=1, **kwargs):
+        context_docs = self.knowledge_base.retrieve(prompt, k=k)
         if context_docs:
             context = " ".join(context_docs)
             augmented_prompt = f"context: {context} question: {prompt}"
@@ -258,7 +257,7 @@ class QuantaTissu:
             augmented_prompt = prompt
         token_ids = tokenize(augmented_prompt)
         if len(token_ids) == 0:
-            print("Warning: Prompt resulted in empty token sequence. Cannot predict.")
+            print("Warning: Prompt resulted in empty token sequence. Cannot generate.")
             return None
-        # Note: This still uses the old, inefficient predict method.
-        return self.predict(np.array(token_ids), method=generation_method, **kwargs)
+        
+        generated_token_ids = self.generate(token_ids, n_new_tokens, method=generation_method, **kwargs)

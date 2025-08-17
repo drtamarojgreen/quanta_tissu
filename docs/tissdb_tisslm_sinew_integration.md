@@ -226,3 +226,20 @@ The existing `TissLM` provides a powerful foundation for building data-driven, i
     *   **Anomaly Detection:** The model could identify anomalies by flagging data points that deviate significantly from its predictions. For example, if a server's CPU usage suddenly spikes to a level the model considers highly improbable based on past data, it could trigger an alert.
 
 This vision for a self-contained analytics and ML platform represents a powerful, incremental path forward, building directly on the existing strengths of the TissDB ecosystem.
+
+While TissDB is primarily designed and optimized for transactional workloads (fast reads and writes of individual documents), there is a long-term vision for a powerful, dedicated analytics platform.
+
+### Current State
+
+Currently, basic analytical queries (e.g., aggregations over small-to-medium sized datasets) can be performed directly, but users should be aware that these queries run on the same resources as transactional operations. For heavy analytical workloads, it is recommended to use a separate, dedicated TissDB instance to avoid impacting production performance.
+
+### The Future: TissDB Analytics Engine
+
+As outlined in the project's planning documents, a dedicated **TissDB Analytics Engine** is envisioned for future development. This engine is designed to be a separate, microservices-based system that will provide:
+
+*   **Real-time, scalable analytics** without impacting the core database.
+*   **Resource isolation** between transactional and analytical workloads.
+*   An **extensible architecture** for adding new analytical functions.
+*   **Advanced features** like machine learning integration and natural language queries.
+
+**Note:** This Analytics Engine is part of the future roadmap and is **not yet implemented**.
