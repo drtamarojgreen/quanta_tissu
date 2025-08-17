@@ -16,12 +16,12 @@ struct TestCase {
     std::function<void()> func;
 };
 
-std::vector<TestCase>& get_test_cases() {
+inline std::vector<TestCase>& get_test_cases() {
     static std::vector<TestCase> test_cases;
     return test_cases;
 }
 
-void register_test(const std::string& name, std::function<void()> func) {
+inline void register_test(const std::string& name, std::function<void()> func) {
     get_test_cases().push_back({name, func});
 }
 
@@ -59,7 +59,7 @@ void register_test(const std::string& name, std::function<void()> func) {
     } while (false)
 
 
-void run_all_tests() {
+inline void run_all_tests() {
     int passed = 0;
     int failed = 0;
     for (const auto& test_case : get_test_cases()) {
