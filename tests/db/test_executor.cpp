@@ -108,6 +108,67 @@ TEST_CASE(ExecutorSelectAll) {
     std::filesystem::remove_all("mock_data");
 }
 
+TEST_CASE(ExecutorUpdateReturnValue) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+    mock_lsm_tree.put("users", "1", TissDB::Document{"1", {{"age", 20.0}}});
+    mock_lsm_tree.put("users", "2", TissDB::Document{"2", {{"age", 30.0}}});
+    mock_lsm_tree.put("users", "3", TissDB::Document{"3", {{"age", 40.0}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("UPDATE users SET age = 21 WHERE age > 25");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(1, result.size());
+    const auto& summary_doc = result[0];
+    ASSERT_EQ(1, summary_doc.elements.size());
+    ASSERT_EQ("updated_count", summary_doc.elements[0].key);
+    ASSERT_EQ(2.0, std::get<double>(summary_doc.elements[0].value));
+}
+
+TEST_CASE(ExecutorDeleteReturnValue) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+    mock_lsm_tree.put("users", "1", TissDB::Document{"1", {{"status", std::string("active")}}});
+    mock_lsm_tree.put("users", "2", TissDB::Document{"2", {{"status", std::string("inactive")}}});
+    mock_lsm_tree.put("users", "3", TissDB::Document{"3", {{"status", std::string("inactive")}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("DELETE FROM users WHERE status = 'inactive'");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(1, result.size());
+    const auto& summary_doc = result[0];
+    ASSERT_EQ(1, summary_doc.elements.size());
+    ASSERT_EQ("deleted_count", summary_doc.elements[0].key);
+    ASSERT_EQ(2.0, std::get<double>(summary_doc.elements[0].value));
+}
+
+TEST_CASE(ExecutorUpdateModifyValue) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+    mock_lsm_tree.put("users", "user1", TissDB::Document{"user1", {{"level", 5.0}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("UPDATE users SET level = 6.0 WHERE level = 5.0");
+    executor.execute(ast);
+
+    auto updated_doc_opt = mock_lsm_tree.get("users", "user1");
+    ASSERT_TRUE(updated_doc_opt.has_value());
+    const auto& updated_doc = updated_doc_opt.value();
+    for (const auto& elem : updated_doc->elements) {
+        if (elem.key == "level") {
+            ASSERT_EQ(std::get<double>(elem.value), 6.0);
+        }
+    }
+}
+
 TEST_CASE(ExecutorAggregateGroupBy) {
     MockLSMTree mock_lsm_tree;
     TissDB::Schema empty_schema;
