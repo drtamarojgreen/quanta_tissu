@@ -16,7 +16,7 @@ namespace Storage {
 // When the memtable reaches a certain size, it is flushed to a file on disk (SSTable).
 class Memtable {
 public:
-    Memtable();
+    Memtable(size_t max_size = 1024 * 1024); // Default max size: 1MB
 
     // Inserts or updates a document in the memtable.
     void put(const std::string& key, const Document& doc);
@@ -40,10 +40,14 @@ public:
     // Returns the approximate size of the memtable in bytes.
     size_t approximate_size() const;
 
+    // Returns true if the memtable is full.
+    bool is_full() const;
+
     // Scans all documents in the memtable.
     std::vector<Document> scan() const;
 
 private:
+    size_t max_size_in_bytes;
     // We use a sorted map to store documents in memory. The key is the document ID.
     // A shared_ptr to a Document allows us to distinguish between:
     // 1. Key not present -> map::find() returns end()

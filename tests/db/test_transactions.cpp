@@ -31,7 +31,7 @@ TEST_CASE(TransactionCommit) {
     // 6. Verify changes ARE visible after commit
     auto res3 = db.get("users", "user3");
     ASSERT_TRUE(res3.has_value());
-    ASSERT_EQ(res3->elements[0].value, std::string("Charlie"));
+    ASSERT_EQ(std::get<std::string>(res3->elements[0].value), std::string("Charlie"));
 
     auto res4 = db.get("users", "user1");
     ASSERT_FALSE(res4.has_value());
@@ -64,7 +64,7 @@ TEST_CASE(TransactionRollback) {
 
     auto res2 = db.get("users", "user1");
     ASSERT_TRUE(res2.has_value()); // Alice should still exist
-    ASSERT_EQ(res2->elements[0].value, std::string("Alice"));
+    ASSERT_EQ(std::get<std::string>(res2->elements[0].value), std::string("Alice"));
 
     std::filesystem::remove_all(data_dir);
 }
