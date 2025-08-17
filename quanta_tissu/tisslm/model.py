@@ -79,7 +79,7 @@ class PositionalEncoding:
         return x + self.pe[np.newaxis, positions, :]
 
 class QuantaTissu:
-    def __init__(self, config):
+    def __init__(self, config, db_host='127.0.0.1', db_port=8080):
         self.config = config
         d_model = config["d_model"]
         vocab_size = config["vocab_size"]
@@ -93,8 +93,9 @@ class QuantaTissu:
         self.transformer_blocks = [TransformerBlock(d_model, num_heads, d_ff) for _ in range(n_layers)]
         self.output_proj = Parameter(np.random.randn(d_model, vocab_size) / np.sqrt(d_model), name="output_proj")
 
-        # KnowledgeBase is not part of the trainable model graph
-        self.knowledge_base = KnowledgeBase(self.embeddings.value, tokenize)
+        # KnowledgeBase is now initialized with database connection parameters.
+        print(f"Initializing KnowledgeBase with TissDB connection to {db_host}:{db_port}")
+        self.knowledge_base = KnowledgeBase(self.embeddings.value, tokenize, db_host=db_host, db_port=db_port)
         self.cache = {}
 
     def _create_causal_mask(self, seq_len):
