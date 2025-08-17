@@ -6,6 +6,9 @@
 #include <functional>
 #include <cmath>
 #include <algorithm> // For std::find_if
+#include <chrono>
+#include <random>
+#include <regex>
 
 // Required for the executor to interact with storage
 #include "../storage/lsm_tree.h"
@@ -36,6 +39,10 @@ bool evaluate_expression(const Expression& expr, const Document& doc) {
                         if (auto* lit_val = std::get_if<std::string>(right_literal)) {
                             if (binary_expr->op == "=") return *str_val == *lit_val;
                             if (binary_expr->op == "!=") return *str_val != *lit_val;
+                            if (binary_expr->op == "LIKE") {
+                                std::regex re(like_to_regex(*lit_val));
+                                return std::regex_match(*str_val, re);
+                            }
                         }
                     } else if (auto* num_val = std::get_if<double>(&elem.value)) {
                         if (auto* lit_val = std::get_if<double>(right_literal)) {
@@ -123,6 +130,33 @@ void extract_equality_conditions(const Expression& expr, std::map<std::string, s
             }
         }
     }
+}
+
+// --- Helper function for LIKE to regex conversion ---
+std::string like_to_regex(std::string pattern) {
+    std::string result = "^";
+    for (char c : pattern) {
+        switch (c) {
+            case '%':
+                result += ".*";
+                break;
+            case '_':
+                result += ".";
+                break;
+            // Escape special regex characters
+            case '.': case '*': case '+': case '?': case '^':
+            case '$': case '(': case ')': case '[': case ']':
+            case '{': case '}': case '|': case '\\':
+                result += '\\';
+                result += c;
+                break;
+            default:
+                result += c;
+                break;
+        }
+    }
+    result += "$";
+    return result;
 }
 
 // --- Executor ---
@@ -429,6 +463,33 @@ QueryResult Executor::execute(const AST& ast) {
         Document result_doc;
         result_doc.id = "summary";
         result_doc.elements.push_back({"deleted_count", (double)deleted_count});
+        return {result_doc};
+    } else if (auto* insert_stmt = std::get_if<InsertStatement>(&ast)) {
+        Document new_doc;
+
+        // Generate a somewhat unique key. This is not robust.
+        unsigned seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+        std::mt19937 gen(seed);
+        std::uniform_int_distribution<long long> distrib;
+        new_doc.id = std::to_string(distrib(gen));
+
+
+        if (insert_stmt->columns.size() != insert_stmt->values.size()) {
+            throw std::runtime_error("Column count does not match value count.");
+        }
+
+        for (size_t i = 0; i < insert_stmt->columns.size(); ++i) {
+            const auto& col_name = insert_stmt->columns[i];
+            const auto& value = insert_stmt->values[i];
+            new_doc.elements.push_back({col_name, value});
+        }
+
+        storage_engine.put(insert_stmt->collection_name, new_doc.id, new_doc);
+
+        Document result_doc;
+        result_doc.id = "summary";
+        result_doc.elements.push_back({"inserted_count", 1.0});
+        result_doc.elements.push_back({"inserted_id", new_doc.id});
         return {result_doc};
     }
     return {};
