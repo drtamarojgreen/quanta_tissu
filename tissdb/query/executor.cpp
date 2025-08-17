@@ -191,7 +191,7 @@ QueryResult Executor::execute(const AST& ast) {
             for (const auto& doc_id : doc_ids_from_index) {
                 auto doc = storage_engine.get(select_stmt->from_collection, doc_id);
                 if (doc) {
-                    all_docs.push_back(*doc);
+                    all_docs.push_back(**doc);
                 }
             }
         } else {
