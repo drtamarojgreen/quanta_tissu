@@ -5,7 +5,7 @@ from typing import Dict, Any
 # Assuming State is defined in execution_engine, we'll need to import it.
 # from .execution_engine import State 
 # For now, using 'Any' to avoid circular dependency issues until all files are in place.
-from quanta_tissu.quanta_tissu.execution_engine import State
+from quanta_tissu.tisslm.execution_engine import State
 
 
 class TissCommandError(Exception):

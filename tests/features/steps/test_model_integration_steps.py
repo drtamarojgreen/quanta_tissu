@@ -1,7 +1,7 @@
 import numpy as np
-from quanta_tissu.quanta_tissu.model import QuantaTissu
-from quanta_tissu.quanta_tissu.tokenizer import tokenize, detokenize
-from quanta_tissu.quanta_tissu.config import model_config
+from quanta_tissu.tisslm.model import QuantaTissu
+from quanta_tissu.tisslm.tokenizer import tokenize, detokenize
+from quanta_tissu.tisslm.config import model_config
 
 def register_steps(runner):
     @runner.step(r'Given a trained QuantaTissu model')

@@ -5,7 +5,7 @@ import numpy as np
 # This is a common pattern to make sure the test can find the source code
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from quanta_tissu.quanta_tissu.layers import (
+from quanta_tissu.tisslm.layers import (
     softmax,
     LayerNorm,
     scaled_dot_product_attention,

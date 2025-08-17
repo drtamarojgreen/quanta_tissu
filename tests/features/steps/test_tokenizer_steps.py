@@ -1,4 +1,4 @@
-from quanta_tissu.quanta_tissu.tokenizer import Tokenizer, vocab
+from quanta_tissu.tisslm.tokenizer import Tokenizer, vocab
 
 def register_steps(runner):
     @runner.step(r'^Given a tokenizer$')
