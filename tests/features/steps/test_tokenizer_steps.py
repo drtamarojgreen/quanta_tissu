@@ -17,3 +17,8 @@ def register_steps(runner):
     def compare_strings(context, expected_string):
         assert context['detokenized_string'] == expected_string
         return "Test passed!"
+
+    @runner.step(r'^Then the result should be an empty list of tokens$')
+    def check_empty_list(context):
+        assert context['tokens'] == []
+        return "Test passed!"
