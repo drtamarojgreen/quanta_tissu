@@ -5,8 +5,8 @@ import numpy as np
 # This is a common pattern to make sure the test can find the source code
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from quanta_tissu.quanta_tissu.tokenizer import tokenize, detokenize
-from quanta_tissu.quanta_tissu.config import vocab
+from quanta_tissu.tisslm.tokenizer import tokenize, detokenize
+from quanta_tissu.tisslm.config import vocab
 from tests.test_utils import assert_equal, assert_allclose
 
 def test_tokenize_simple():
