@@ -42,7 +42,7 @@ The development of TissLM emphasizes clarity and control. The entire training an
 
 ### 3.1. Codebase Organization
 
-The core logic is contained within the `quanta_tissu/quanta_tissu/` directory:
+The core logic is contained within the `quanta_tissu/tisslm/` directory:
 -   `model.py`: Defines the `QuantaTissu` class and its constituent layers.
 -   `layers.py`: Contains the implementation of individual layers like `MultiHeadAttention` and `FeedForward`.
 -   `config.py`: Centralizes all configurations, including model hyperparameters, vocabulary, and file paths.
