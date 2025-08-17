@@ -8,12 +8,10 @@
 
 // --- Configuration ---
 const int DEFAULT_PORT = 8080;
-const std::string DEFAULT_DATA_DIR = "./tissdb_data";
 
 int main(int argc, char* argv[]) {
     // --- Basic command-line argument parsing ---
     int port = DEFAULT_PORT;
-    std::string data_dir = DEFAULT_DATA_DIR;
     if (argc > 1) {
         try {
             port = std::stoi(argv[1]);
@@ -23,18 +21,15 @@ int main(int argc, char* argv[]) {
             std::cerr << "Port number '" << argv[1] << "' is out of range. Using default port " << DEFAULT_PORT << "." << std::endl;
         }
     }
-    if (argc > 2) {
-        data_dir = argv[2];
-    }
 
     // --- Server Initialization ---
     std::cout << "TissDB starting..." << std::endl;
-    std::cout << "  - Data directory: " << data_dir << std::endl;
+    std::cout << "  - Mode: In-memory" << std::endl;
     std::cout << "  - Listening on port: " << port << std::endl;
 
     try {
         // 1. Initialize the storage engine
-        TissDB::Storage::LSMTree storage(data_dir);
+        TissDB::Storage::LSMTree storage; // Using the simplified, in-memory storage engine
 
         // 2. Initialize the API server
         TissDB::API::HttpServer server(storage, port);
