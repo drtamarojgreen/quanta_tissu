@@ -8,7 +8,7 @@ from .tokenizer import Tokenizer
 from .loss import CrossEntropyLoss
 from .optimizer import AdamW
 from .data import Dataset, load_corpus
-from .config import model_config, training_config, system_config
+from .config import model_config, training_config, system_config, tokenizer_config
 from .scheduler import CosineDecayWithWarmup
 from .utils import save_checkpoint, load_checkpoint
 
@@ -17,10 +17,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def main():
     parser = argparse.ArgumentParser(description="Train the QuantaTissu model.")
-    parser.add_argument("--corpus_path", type=str, default=os.path.join(system_config["_project_root"], "quanta_tissu", "corpus"), help="Path to the training corpus directory.")
+    parser.add_argument("--corpus_path", type=str, default=os.path.join(system_config["_project_root"], "corpus"), help="Path to the training corpus directory.")
     parser.add_argument("--epochs", type=int, default=training_config["num_epochs"], help="Number of training epochs.")
     parser.add_argument("--batch_size", type=int, default=training_config["batch_size"], help="Batch size for training.")
-    parser.add_argument("--seq_len", type=int, default=100, help="Sequence length for training.") # Using a default for now, should come from tokenizer_config
+    parser.add_argument("--seq_len", type=int, default=tokenizer_config["max_len"], help="Sequence length for training.")
     parser.add_argument("--lr", type=float, default=training_config["learning_rate"], help="Maximum learning rate.")
     parser.add_argument("--weight_decay", type=float, default=training_config["weight_decay"], help="Weight decay for AdamW.")
     parser.add_argument("--warmup_steps", type=int, default=50, help="Number of warmup steps for the scheduler.")
@@ -34,10 +34,9 @@ def main():
     logging.info("--- Initializing training ---")
 
     # 1. Components Initialization
-    config = model_config
     tokenizer = Tokenizer()
-
-    model = QuantaTissu(config)
+    model_config["vocab_size"] = tokenizer.get_vocab_size() # Set vocab_size dynamically
+    model = QuantaTissu(model_config)
     loss_fn = CrossEntropyLoss()
     optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 

@@ -1,11 +1,11 @@
 import os
-from .tokenizer import Tokenizer
 
 # --- System Configuration ---
 # Defines system-level parameters like file paths.
 # Using os.path.join for platform-independent path construction.
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 system_config = {
+    "_project_root": _project_root, # Added for easier access in run_training.py
     "model_save_path": os.path.join(_project_root, "models", "quanta_tissu.npz"),
     "logs_dir": os.path.join(_project_root, "logs"),
     "bpe_tokenizer_prefix": os.path.join(_project_root, "models", "trained_tokenizer"),
@@ -38,17 +38,13 @@ prompt_config = {
     "context_template": "context: {context} question: {prompt}"
 }
 
-# Dynamically determine vocab_size from the BPE tokenizer
-_temp_tokenizer = Tokenizer()
-_vocab_size = _temp_tokenizer.get_vocab_size()
-
 # --- Model Configuration ---
 model_config = {
     "d_model": 32,       # The dimensionality of the model's embeddings and hidden states.
     "n_layers": 2,       # The number of Transformer blocks.
     "num_heads": 4,      # The number of attention heads in the Multi-Head Attention layers.
     "d_ff": 128,         # The dimensionality of the inner layer of the Feed-Forward Networks.
-    "vocab_size": _vocab_size, # The size of the vocabulary, dynamically determined.
+    "vocab_size": None,  # Will be set dynamically in run_training.py
     "layer_norm_eps": 1e-6, # Epsilon for Layer Normalization to prevent division by zero.
     # Max length for positional encodings, tied to tokenizer's max length.
     "positional_encoding_max_len": tokenizer_config["max_len"],
