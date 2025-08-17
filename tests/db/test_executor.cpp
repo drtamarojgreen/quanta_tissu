@@ -6,21 +6,13 @@
 #include "../../tissdb/storage/lsm_tree.h"
 #include <filesystem>
 #include <set>
+#include "../../tissdb/storage/transaction_manager.h"
 
 // Mock LSMTree for testing executor in isolation
 class MockLSMTree : public TissDB::Storage::LSMTree {
 public:
-    MockLSMTree() : TissDB::Storage::LSMTree("mock_data") {}
+    MockLSMTree() : TissDB::Storage::LSMTree() {}
 
-    // Override put to store documents in memory for testing
-    void put(const std::string& collection_name, const std::string& key, const TissDB::Document& doc, TissDB::Transactions::TransactionID tid = -1) override {
-        (void)tid;
-        mock_data_[collection_name][key] = doc;
-    }
-
-    // Override get to retrieve from mock data
-    std::optional<TissDB::Document> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
-        (void)tid;
     void create_collection(const std::string& name, const TissDB::Schema& schema) override {
         (void)schema; // Unused in mock
         mock_data_[name] = {};
@@ -31,10 +23,10 @@ public:
         mock_data_[collection_name][key] = doc;
     }
 
-    std::optional<TissDB::Document> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
+    std::optional<std::shared_ptr<TissDB::Document>> get(const std::string& collection_name, const std::string& key, TissDB::Transactions::TransactionID tid = -1) override {
         (void)tid; // Unused in mock
         if (mock_data_.count(collection_name) && mock_data_[collection_name].count(key)) {
-            return mock_data_[collection_name][key];
+            return std::make_shared<TissDB::Document>(mock_data_[collection_name][key]);
         }
         return std::nullopt;
     }
@@ -334,9 +326,9 @@ TEST_CASE(ExecutorUpdateAddField) {
     ASSERT_TRUE(updated_doc_opt.has_value());
     const auto& updated_doc = updated_doc_opt.value();
 
-    ASSERT_EQ(2, updated_doc.elements.size()); // name and status
+    ASSERT_EQ(2, updated_doc->elements.size()); // name and status
     bool status_is_added = false;
-    for (const auto& elem : updated_doc.elements) {
+    for (const auto& elem : updated_doc->elements) {
         if (elem.key == "status") {
             if (auto* str_val = std::get_if<std::string>(&elem.value)) {
                 if (*str_val == "active") {
@@ -376,7 +368,7 @@ TEST_CASE(ExecutorUpdateAll) {
     // Verify doc1 was updated
     auto updated_doc1_opt = mock_lsm_tree.get("users", "user1");
     ASSERT_TRUE(updated_doc1_opt.has_value());
-    for (const auto& elem : updated_doc1_opt.value().elements) {
+    for (const auto& elem : updated_doc1_opt.value()->elements) {
         if (elem.key == "level") {
             ASSERT_EQ(std::get<double>(elem.value), 10.0);
         }
@@ -385,7 +377,7 @@ TEST_CASE(ExecutorUpdateAll) {
     // Verify doc2 was updated
     auto updated_doc2_opt = mock_lsm_tree.get("users", "user2");
     ASSERT_TRUE(updated_doc2_opt.has_value());
-    for (const auto& elem : updated_doc2_opt.value().elements) {
+    for (const auto& elem : updated_doc2_opt.value()->elements) {
         if (elem.key == "level") {
             ASSERT_EQ(std::get<double>(elem.value), 10.0);
         }
@@ -425,7 +417,7 @@ TEST_CASE(ExecutorUpdateWithWhere) {
     const auto& updated_doc = updated_doc_opt.value();
 
     bool age_is_updated = false;
-    for (const auto& elem : updated_doc.elements) {
+    for (const auto& elem : updated_doc->elements) {
         if (elem.key == "age") {
             if (auto* num_val = std::get_if<double>(&elem.value)) {
                 if (*num_val == 41.0) {
@@ -439,7 +431,7 @@ TEST_CASE(ExecutorUpdateWithWhere) {
     // 4. Verify that other documents were not affected
     auto other_doc_opt = mock_lsm_tree.get("users", "user2");
     ASSERT_TRUE(other_doc_opt.has_value());
-    const auto& other_doc = other_doc_opt.value();
+    const auto& other_doc = *other_doc_opt.value();
      for (const auto& elem : other_doc.elements) {
         if (elem.key == "age") {
             if (auto* num_val = std::get_if<double>(&elem.value)) {

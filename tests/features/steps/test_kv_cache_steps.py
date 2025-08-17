@@ -5,9 +5,9 @@ import os
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from quanta_tissu.quanta_tissu.model import QuantaTissu
-from quanta_tissu.quanta_tissu.config import model_config
-from quanta_tissu.quanta_tissu.tokenizer import Tokenizer, vocab
+from quanta_tissu.tisslm.model import QuantaTissu
+from quanta_tissu.tisslm.config import model_config
+from quanta_tissu.tisslm.tokenizer import Tokenizer, vocab
 
 def register_steps(runner):
     @runner.step(r'^Given a model and tokenizer$')

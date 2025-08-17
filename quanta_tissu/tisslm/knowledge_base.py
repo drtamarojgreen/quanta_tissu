@@ -144,13 +144,12 @@ class KnowledgeBase:
             print(f"Self-updated KB with correction: '{user_correction}'")
         else:
             # If no correction, assume the response was acceptable
-            # and potentially add it as knowledge if it's informative
-            if len(generated_response.split()) > 2:  # Simple heuristic
-                knowledge_doc = f"Query: {query} Response: {generated_response}"
-                self.add_document(knowledge_doc, metadata={
-                    'source': 'self_generated',
-                    'confidence': 0.7  # Lower confidence for self-generated content
-                })
+            # and add it as knowledge.
+            knowledge_doc = f"Query: {query} Response: {generated_response}"
+            self.add_document(knowledge_doc, metadata={
+                'source': 'self_generated',
+                'confidence': 0.7  # Lower confidence for self-generated content
+            })
     
     def get_knowledge_stats(self):
         """

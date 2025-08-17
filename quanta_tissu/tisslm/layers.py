@@ -79,26 +79,31 @@ class MultiHeadAttention:
 
     def __call__(self, x, mask=None, kv_cache=None):
         Q = x @ self.Wq.value
-        new_K = x @ self.Wk.value
-        new_V = x @ self.Wv.value
-
-        if kv_cache is not None:
-            if 'k' in kv_cache:
-                K = np.concatenate([kv_cache['k'], new_K], axis=1)
-                V = np.concatenate([kv_cache['v'], new_V], axis=1)
-            else:
-                K = new_K
-                V = new_V
-            kv_cache['k'] = K
-            kv_cache['v'] = V
-        else:
-            K = new_K
-            V = new_V
+        K_proj = x @ self.Wk.value
+        V_proj = x @ self.Wv.value
 
         Qh = self.split_heads(Q)
-        Kh = self.split_heads(K)
-        Vh = self.split_heads(V)
+        Kh_new = self.split_heads(K_proj)
+        Vh_new = self.split_heads(V_proj)
 
+        if kv_cache is not None:
+            if 'kh' in kv_cache:
+                # Concatenate new Kh and Vh with cached ones along the sequence axis (axis 2)
+                # Shape is (batch, heads, seq_len, d_k)
+                Kh = np.concatenate([kv_cache['kh'], Kh_new], axis=2)
+                Vh = np.concatenate([kv_cache['vh'], Vh_new], axis=2)
+            else:
+                Kh = Kh_new
+                Vh = Vh_new
+            
+            # Update the cache with the (potentially concatenated) Kh and Vh
+            kv_cache['kh'] = Kh
+            kv_cache['vh'] = Vh
+        else:
+            Kh = Kh_new
+            Vh = Vh_new
+        
+        # Use the final Kh and Vh for attention calculation
         attended, attention_weights = scaled_dot_product_attention(Qh, Kh, Vh, mask=mask)
 
         combined = self.combine_heads(attended)
@@ -106,7 +111,8 @@ class MultiHeadAttention:
 
         # Note: self.cache is for backpropagation and is not updated with cached K/V.
         # This assumes caching is only used during inference.
-        self.cache = {'x': x, 'Q': Q, 'K': K, 'V': V, 'Qh': Qh, 'Kh': Kh, 'Vh': Vh, 'attention_weights': attention_weights, 'combined': combined}
+        # For backprop, we need the K and V that correspond to the current input 'x', not the cached ones.
+        self.cache = {'x': x, 'Q': Q, 'K': K_proj, 'V': V_proj, 'Qh': Qh, 'Kh': Kh_new, 'Vh': Vh_new, 'attention_weights': attention_weights, 'combined': combined}
         return output
 
     def backward(self, d_out):

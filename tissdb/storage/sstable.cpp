@@ -8,45 +8,61 @@
 namespace TissDB {
 namespace Storage {
 
+const int SSTABLE_INDEX_INTERVAL = 16; // Sample every 16th key for the sparse index
+
 // --- SSTable Public Methods ---
 
 SSTable::SSTable(const std::string& path) : file_path_(path) {
-    // In a real implementation, this would open the file and load the index.
-    // For now, we'll open the file on-demand in find().
-    // load_index();
+    file_stream_.open(file_path_, std::ios::binary);
+    if (file_stream_.is_open()) {
+        load_index();
+    }
 }
 
 std::optional<std::vector<uint8_t>> SSTable::find(const std::string& key) {
-    std::ifstream sst_file(file_path_, std::ios::binary);
-    if (!sst_file.is_open()) {
+    if (!file_stream_.is_open() || sparse_index_.empty()) {
         return std::nullopt;
     }
 
-    BinaryStreamBuffer bsb(sst_file);
+    // Find the last indexed key that is less than or equal to the target key.
+    auto it = sparse_index_.upper_bound(key);
+    uint64_t start_offset = 0;
+    if (it != sparse_index_.begin()) {
+        start_offset = std::prev(it)->second;
+    }
 
-    while (bsb.good() && !bsb.eof()) {
+    file_stream_.clear();
+    file_stream_.seekg(start_offset);
+    BinaryStreamBuffer bsb(file_stream_);
+
+    while (file_stream_.peek() != EOF) {
         try {
+            // Check if we've scanned past the next indexed key. If so, the key is not in this block.
+            if (it != sparse_index_.end() && static_cast<uint64_t>(file_stream_.tellg()) >= it->second) {
+                return std::nullopt;
+            }
+
             std::string current_key = bsb.read_string();
             
-            // Read value length marker
             size_t val_len_marker;
             bsb.read(val_len_marker);
 
             if (current_key == key) {
                 if (val_len_marker == static_cast<size_t>(-1)) { // Tombstone marker
-                    return std::vector<uint8_t>(); // Empty vector for tombstone
+                    return std::vector<uint8_t>();
                 }
-                // Read the actual value bytes using the new safe method
                 return bsb.read_bytes_with_length(val_len_marker);
-            } else {
-                // Key doesn't match, so skip over the value bytes to get to the next key.
-                if (val_len_marker != static_cast<size_t>(-1)) {
-                     // Use the new method to consume bytes, even if we don't need the return value
-                     bsb.read_bytes_with_length(val_len_marker);
-                }
+            } else if (current_key > key) {
+                // We've scanned past where the key should be, so it doesn't exist.
+                return std::nullopt;
             }
-        } catch (const std::exception& e) {
-            std::cerr << "Error during SSTable find: " << e.what() << std::endl;
+
+            // Key doesn't match, skip value bytes to get to the next entry.
+            if (val_len_marker != static_cast<size_t>(-1)) {
+                file_stream_.seekg(val_len_marker, std::ios_base::cur);
+            }
+        } catch (const std::ios_base::failure& e) {
+            // This can happen if we read past the end of the file, which is a normal way to end the search.
             return std::nullopt;
         }
     }
@@ -62,7 +78,7 @@ std::vector<Document> SSTable::scan() {
 
     BinaryStreamBuffer bsb(sst_file);
 
-    while (bsb.good() && !bsb.eof()) {
+    while (sst_file.peek() != EOF) {
         try {
             std::string current_key = bsb.read_string();
             
@@ -98,10 +114,18 @@ std::string SSTable::write_from_memtable(const std::string& data_dir, const Memt
     }
 
     BinaryStreamBuffer bsb(sst_file);
+    std::map<std::string, uint64_t> sparse_index;
+    int key_count = 0;
 
     // The memtable's map is already sorted by key, which is exactly what we need.
     const auto& data = memtable.get_all();
     for (const auto& pair : data) {
+        // Sample every Nth key for the sparse index
+        if (key_count % SSTABLE_INDEX_INTERVAL == 0) {
+            sparse_index[pair.first] = static_cast<uint64_t>(sst_file.tellp());
+        }
+        key_count++;
+
         // Write key (length-prefixed)
         bsb.write_string(pair.first);
 
@@ -114,6 +138,17 @@ std::string SSTable::write_from_memtable(const std::string& data_dir, const Memt
             bsb.write(tombstone_marker);
         }
     }
+
+    // After writing all data, write the index block.
+    uint64_t index_start_offset = static_cast<uint64_t>(sst_file.tellp());
+    bsb.write(static_cast<size_t>(sparse_index.size()));
+    for (const auto& pair : sparse_index) {
+        bsb.write_string(pair.first);
+        bsb.write(pair.second);
+    }
+
+    // Finally, write the footer containing the offset of the index block.
+    bsb.write(index_start_offset);
 
     sst_file.close();
     return file_path;
@@ -145,7 +180,7 @@ std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTabl
 
         BinaryStreamBuffer current_bsb(current_sst_file);
 
-        while (current_bsb.good() && !current_bsb.eof()) {
+        while (current_sst_file.peek() != EOF) {
             try {
                 std::string current_key = current_bsb.read_string();
                 
@@ -164,8 +199,15 @@ std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTabl
         }
     }
 
-    // Write the merged data to the new SSTable.
+    // Write the merged data to the new SSTable and create a sparse index.
+    std::map<std::string, uint64_t> sparse_index;
+    int key_count = 0;
     for (const auto& pair : merged_data) {
+        if (key_count % SSTABLE_INDEX_INTERVAL == 0) {
+            sparse_index[pair.first] = static_cast<uint64_t>(sst_file.tellp());
+        }
+        key_count++;
+
         bsb.write_string(pair.first);
 
         if (pair.second.has_value()) {
@@ -177,14 +219,55 @@ std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTabl
         }
     }
 
+    // After writing all data, write the index block.
+    uint64_t index_start_offset = static_cast<uint64_t>(sst_file.tellp());
+    bsb.write(static_cast<size_t>(sparse_index.size()));
+    for (const auto& pair : sparse_index) {
+        bsb.write_string(pair.first);
+        bsb.write(pair.second);
+    }
+
+    // Finally, write the footer containing the offset of the index block.
+    bsb.write(index_start_offset);
+
     sst_file.close();
     return file_path;
 }
 
 void SSTable::load_index() {
-    // Placeholder: In a real implementation, this would either read a separate
-    // index file or build the sparse index by iterating through the keys in the
-    // main sstable file, storing every Nth key and its offset.
+    // The file_stream_ is already open from the constructor.
+    // Seek to the end to find the footer.
+    file_stream_.seekg(0, std::ios::end);
+    if (file_stream_.tellg() < static_cast<std::streamoff>(sizeof(uint64_t))) {
+        // File is too small to contain even the footer.
+        file_stream_.seekg(0); // Reset for other operations
+        return;
+    }
+    file_stream_.seekg(-static_cast<std::streamoff>(sizeof(uint64_t)), std::ios::end);
+
+    BinaryStreamBuffer bsb(file_stream_);
+    uint64_t index_start_offset;
+    bsb.read(index_start_offset);
+
+    // Seek to the beginning of the index block.
+    file_stream_.seekg(index_start_offset);
+
+    // Read the number of entries.
+    size_t index_size;
+    bsb.read(index_size);
+
+    // Read the index entries.
+    sparse_index_.clear();
+    for (size_t i = 0; i < index_size; ++i) {
+        std::string key = bsb.read_string();
+        uint64_t offset;
+        bsb.read(offset);
+        sparse_index_[key] = offset;
+    }
+
+    // Reset stream to beginning for subsequent find operations
+    file_stream_.clear();
+    file_stream_.seekg(0);
 }
 
 } // namespace Storage

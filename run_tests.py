@@ -5,7 +5,7 @@ import traceback
 import time
 import sys
 
-from tests.test_bdd import parse_feature_file, run_bdd_scenarios
+from tests.bdd_runner import BDDRunner
 
 def discover_and_run_tests():
     """
@@ -62,19 +62,17 @@ def discover_and_run_tests():
             failed_count += 1
 
     # Run BDD tests
-    features_dir = os.path.join(tests_dir, 'features')
-    if os.path.isdir(features_dir):
-        feature_files = [f for f in os.listdir(features_dir) if f.endswith('.feature') and f != 'tisslang_parser.feature']
-        for file_name in feature_files:
-            file_path = os.path.join(features_dir, file_name)
-            print("-" * 70)
-            print(f"Running BDD tests from {file_name}...")
-            features = parse_feature_file(file_path)
-            if run_bdd_scenarios(features):
-                passed_count += len(features) # Count each feature as one test
-            else:
-                failed_count += len(features)
-                failed_tests.append((file_name, "One or more BDD scenarios failed.", ""))
+    print("-" * 70)
+    print("Running BDD tests...")
+    features_path = os.path.join(tests_dir, 'features')
+    bdd_runner = BDDRunner(features_path)
+    if bdd_runner.run():
+        passed_count += 1
+        print("BDD tests: PASSED")
+    else:
+        failed_count += 1
+        failed_tests.append(("BDD tests", "One or more BDD scenarios failed.", ""))
+        print("BDD tests: FAILED")
 
 
     end_time = time.time()

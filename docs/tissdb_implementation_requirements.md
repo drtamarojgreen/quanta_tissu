@@ -6,7 +6,7 @@ This document outlines the formal requirements for the TissDB project, based on 
 |-----|---------------------------|---------------------------------------------------------------------------------------------------------|-----------------|---------------------------|
 | **Core Database Engine** | | | | |
 | 1   | Core Engine               | Implement a Write-Ahead Log (WAL) for durability.                                                       | Not Fulfilled   | 5 days                    |
-| 2   | Core Engine               | Create an in-memory `memtable` to buffer recent writes.                                                 | Not Fulfilled   | 3 days                    |
+| 2   | Core Engine               | Create an in-memory `memtable` to buffer recent writes.                                                 | Fulfilled       | 3 days                    |
 | 3   | Core Engine               | Implement flushing of the `memtable` to on-disk SSTables (Sorted String Tables).                        | Not Fulfilled   | 5 days                    |
 | 4   | Core Engine               | Develop a background compaction process for SSTables (minor and major compactions).                     | Not Fulfilled   | 8 days                    |
 | 5   | Core Engine               | Implement a mechanism to read a value by key, searching memtable and then SSTables.                     | Not Fulfilled   | 4 days                    |
