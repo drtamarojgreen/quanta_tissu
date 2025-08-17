@@ -322,13 +322,11 @@ TEST_CASE(ExecutorUpdateAddField) {
     TissDB::Query::AST ast = parser.parse("UPDATE users SET status = 'active' WHERE name = 'Frank'");
     executor.execute(ast);
 
-    auto updated_doc_opt = mock_lsm_tree.get("users", "user1");
-    ASSERT_TRUE(updated_doc_opt.has_value());
     const auto& updated_doc = updated_doc_opt.value();
 
-    ASSERT_EQ(2, updated_doc.elements.size()); // name and status
+    ASSERT_EQ(2, updated_doc->elements.size()); // name and status
     bool status_is_added = false;
-    for (const auto& elem : updated_doc.elements) {
+    for (const auto& elem : updated_doc->elements) {
         if (elem.key == "status") {
             if (auto* str_val = std::get_if<std::string>(&elem.value)) {
                 if (*str_val == "active") {
@@ -368,7 +366,7 @@ TEST_CASE(ExecutorUpdateAll) {
     // Verify doc1 was updated
     auto updated_doc1_opt = mock_lsm_tree.get("users", "user1");
     ASSERT_TRUE(updated_doc1_opt.has_value());
-    for (const auto& elem : updated_doc1_opt.value().elements) {
+    for (const auto& elem : updated_doc1_opt.value()->elements) {
         if (elem.key == "level") {
             ASSERT_EQ(std::get<double>(elem.value), 10.0);
         }
@@ -377,7 +375,7 @@ TEST_CASE(ExecutorUpdateAll) {
     // Verify doc2 was updated
     auto updated_doc2_opt = mock_lsm_tree.get("users", "user2");
     ASSERT_TRUE(updated_doc2_opt.has_value());
-    for (const auto& elem : updated_doc2_opt.value().elements) {
+    for (const auto& elem : updated_doc2_opt.value()->elements) {
         if (elem.key == "level") {
             ASSERT_EQ(std::get<double>(elem.value), 10.0);
         }
@@ -412,12 +410,10 @@ TEST_CASE(ExecutorUpdateWithWhere) {
     executor.execute(ast);
 
     // 3. Verify the data was updated in mock storage
-    auto updated_doc_opt = mock_lsm_tree.get("users", "user1");
-    ASSERT_TRUE(updated_doc_opt.has_value());
     const auto& updated_doc = updated_doc_opt.value();
 
     bool age_is_updated = false;
-    for (const auto& elem : updated_doc.elements) {
+    for (const auto& elem : updated_doc->elements) {
         if (elem.key == "age") {
             if (auto* num_val = std::get_if<double>(&elem.value)) {
                 if (*num_val == 41.0) {
@@ -431,7 +427,7 @@ TEST_CASE(ExecutorUpdateWithWhere) {
     // 4. Verify that other documents were not affected
     auto other_doc_opt = mock_lsm_tree.get("users", "user2");
     ASSERT_TRUE(other_doc_opt.has_value());
-    const auto& other_doc = other_doc_opt.value();
+    const auto& other_doc = *other_doc_opt.value();
      for (const auto& elem : other_doc.elements) {
         if (elem.key == "age") {
             if (auto* num_val = std::get_if<double>(&elem.value)) {

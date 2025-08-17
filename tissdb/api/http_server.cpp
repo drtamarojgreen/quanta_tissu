@@ -269,7 +269,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
             std::string doc_id = path_parts[1];
             auto doc_opt = storage_engine.get(collection_name, doc_id, transaction_id);
             if (doc_opt) {
-                Json::JsonValue json_doc(document_to_json(*doc_opt));
+                Json::JsonValue json_doc(document_to_json(*(*doc_opt)));
                 send_response(client_socket, "200 OK", "application/json", json_doc.serialize());
             } else {
                 send_response(client_socket, "404 Not Found", "text/plain", "Document not found.");
