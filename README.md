@@ -77,9 +77,55 @@ More details can be found in `tissdb/README.md` and the documents in the `docs/`
 
 ## Tissu Sinew: C++ Connector for TissDB
 
-Tissu Sinew is a lightweight, high-performance C++ connector for TissDB. It provides a native C++ interface for applications to communicate with the database server, featuring a thread-safe client with connection pooling and RAII-based session management.
+Tissu Sinew is a lightweight, high-performance C++ connector for TissDB. It provides a native C++ interface for applications to communicate with the database server.
 
-A comprehensive guide to building and using the connector, including API reference and code examples, can be found in `docs/tissu_sinew_plan.md`.
+### Key Features
+
+*   **Thread-Safe Client**: The `TissuClient` manages a connection pool and can be safely shared across multiple threads.
+*   **RAII-Based Session Management**: `TissuSession` and `TissuTransaction` use RAII principles, automatically managing the lifecycle of connections and transactions to prevent resource leaks.
+*   **Connection Pooling**: Reduces the overhead of establishing new connections for each request, improving performance in multi-threaded applications.
+*   **Clean, Modern C++ API**: Uses smart pointers (`std::unique_ptr`) for clear ownership and exception-based error handling for robust code.
+
+### Quick Start Example
+
+Here is a brief example of how to connect to TissDB and run a `PING` command.
+
+```cpp
+#include "quanta_tissu/tissu_sinew.hh"
+#include <iostream>
+#include <memory>
+
+int main() {
+    // Configure and create a client
+    tissudb::TissuConfig config;
+    config.host = "127.0.0.1";
+    config.port = 8080;
+    std::unique_ptr<tissudb::TissuClient> client = tissudb::TissuClient::create(config);
+
+    if (!client) {
+        std::cerr << "Failed to create TissuClient." << std::endl;
+        return 1;
+    }
+
+    try {
+        // Get a session from the pool (RAII handles return)
+        std::unique_ptr<tissudb::ISession> session = client->getSession();
+
+        // Run a query and print the result
+        std::unique_ptr<tissudb::TissuResult> result = session->run("PING");
+        if (result) {
+            std::cout << "Server response: " << result->asString() << std::endl;
+        }
+    } catch (const tissudb::TissuException& e) {
+        std::cerr << "Database error: " << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;
+}
+```
+
+A comprehensive guide to building the connector, along with a full API reference, can be found in `docs/tissu_sinew_plan.md`.
 
 ## Ecological Awareness
 
