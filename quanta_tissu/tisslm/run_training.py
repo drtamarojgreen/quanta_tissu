@@ -1,13 +1,14 @@
 import argparse
 import numpy as np
 import logging
+import os
 
 from .model import QuantaTissu
 from .tokenizer import Tokenizer
 from .loss import CrossEntropyLoss
 from .optimizer import AdamW
-from .data import Dataset
-from .config import model_config, vocab
+from .data import Dataset, load_corpus
+from .config import model_config, training_config, system_config
 from .scheduler import CosineDecayWithWarmup
 from .utils import save_checkpoint, load_checkpoint
 
@@ -16,15 +17,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def main():
     parser = argparse.ArgumentParser(description="Train the QuantaTissu model.")
-    parser.add_argument("--dataset", type=str, default="data.txt", help="Path to the training data file.")
-    parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs.")
-    parser.add_argument("--batch_size", type=int, default=4, help="Batch size for training.")
-    parser.add_argument("--seq_len", type=int, default=32, help="Sequence length for training.")
-    parser.add_argument("--lr", type=float, default=3e-4, help="Maximum learning rate.")
-    parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay for AdamW.")
+    parser.add_argument("--corpus_path", type=str, default=os.path.join(system_config["_project_root"], "quanta_tissu", "corpus"), help="Path to the training corpus directory.")
+    parser.add_argument("--epochs", type=int, default=training_config["num_epochs"], help="Number of training epochs.")
+    parser.add_argument("--batch_size", type=int, default=training_config["batch_size"], help="Batch size for training.")
+    parser.add_argument("--seq_len", type=int, default=100, help="Sequence length for training.") # Using a default for now, should come from tokenizer_config
+    parser.add_argument("--lr", type=float, default=training_config["learning_rate"], help="Maximum learning rate.")
+    parser.add_argument("--weight_decay", type=float, default=training_config["weight_decay"], help="Weight decay for AdamW.")
     parser.add_argument("--warmup_steps", type=int, default=50, help="Number of warmup steps for the scheduler.")
     parser.add_argument("--max_grad_norm", type=float, default=1.0, help="Maximum value for gradient clipping.")
-    parser.add_argument("--checkpoint_dir", type=str, default="checkpoints", help="Directory to save checkpoints.")
+    parser.add_argument("--checkpoint_dir", type=str, default=os.path.join(system_config["_project_root"], "checkpoints"), help="Directory to save checkpoints.")
     parser.add_argument("--resume_from", type=str, default=None, help="Path to a checkpoint to resume training from.")
     parser.add_argument("--save_every", type=int, default=100, help="Save a checkpoint every N steps.")
 
@@ -34,14 +35,18 @@ def main():
 
     # 1. Components Initialization
     config = model_config
-    # Use the vocab from the config file for consistency
-    tokenizer = Tokenizer(vocab=vocab)
+    tokenizer = Tokenizer()
 
     model = QuantaTissu(config)
     loss_fn = CrossEntropyLoss()
     optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-    dataset = Dataset(tokenizer, args.dataset, args.batch_size, args.seq_len)
+    # Load corpus and create dataset
+    logging.info(f"Loading corpus from: {args.corpus_path}")
+    token_ids = load_corpus(args.corpus_path)
+    logging.info(f"Corpus loaded. Total tokens: {len(token_ids)}")
+
+    dataset = Dataset(token_ids, args.batch_size, args.seq_len)
     total_steps = args.epochs * len(dataset)
 
     scheduler = CosineDecayWithWarmup(optimizer, warmup_steps=args.warmup_steps, total_steps=total_steps, max_lr=args.lr)
