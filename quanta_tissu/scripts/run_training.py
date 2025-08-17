@@ -7,14 +7,14 @@ import logging
 # Add the project root to the Python path, same as other scripts
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from quanta_tissu.quanta_tissu.model import QuantaTissu
-from quanta_tissu.quanta_tissu.tokenizer import Tokenizer
-from quanta_tissu.quanta_tissu.loss import CrossEntropyLoss
-from quanta_tissu.quanta_tissu.optimizer import AdamW
-from quanta_tissu.quanta_tissu.data import Dataset
-from quanta_tissu.quanta_tissu.config import model_config, vocab
-from quanta_tissu.quanta_tissu.scheduler import CosineDecayWithWarmup
-from quanta_tissu.quanta_tissu.utils import save_checkpoint, load_checkpoint
+from quanta_tissu.tisslm.model import QuantaTissu
+from quanta_tissu.tisslm.tokenizer import Tokenizer
+from quanta_tissu.tisslm.loss import CrossEntropyLoss
+from quanta_tissu.tisslm.optimizer import AdamW
+from quanta_tissu.tisslm.data import Dataset
+from quanta_tissu.tisslm.config import model_config, vocab
+from quanta_tissu.tisslm.scheduler import CosineDecayWithWarmup
+from quanta_tissu.tisslm.utils import save_checkpoint, load_checkpoint
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
