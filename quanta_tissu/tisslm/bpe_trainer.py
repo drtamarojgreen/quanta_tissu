@@ -129,3 +129,52 @@ class BPETokenizer:
         tokens = [self.vocab.get(i, b'?') for i in ids]
         text_bytes = b"".join(tokens)
         return text_bytes.decode("utf-8", errors="replace")
+
+    def save(self, prefix):
+        """
+        Saves the tokenizer's vocabulary and merges to files.
+
+        Args:
+            prefix (str): The prefix for the filenames.
+        """
+        vocab_file = f"{prefix}_vocab.json"
+        merges_file = f"{prefix}_merges.txt"
+
+        # Save vocabulary
+        # The vocabulary contains bytes, which are not directly JSON serializable.
+        # We need to convert them to a serializable format, e.g., a list of integers.
+        serializable_vocab = {k: list(v) for k, v in self.vocab.items()}
+        with open(vocab_file, "w") as f:
+            json.dump(serializable_vocab, f)
+
+        # Save merges
+        with open(merges_file, "w") as f:
+            for pair, new_id in self.merges.items():
+                f.write(f"{pair[0]} {pair[1]} {new_id}\n")
+
+    def load(self, prefix):
+        """
+        Loads the tokenizer's vocabulary and merges from files.
+
+        Args:
+            prefix (str): The prefix for the filenames.
+        """
+        vocab_file = f"{prefix}_vocab.json"
+        merges_file = f"{prefix}_merges.txt"
+
+        # Load vocabulary
+        with open(vocab_file, "r") as f:
+            serializable_vocab = json.load(f)
+            self.vocab = {int(k): bytes(v) for k, v in serializable_vocab.items()}
+
+        # Load merges
+        self.merges = {}
+        with open(merges_file, "r") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) == 3:
+                    p1, p2, new_id = map(int, parts)
+                    self.merges[(p1, p2)] = new_id
+
+        # Rebuild reverse vocabulary
+        self.reverse_vocab = {v: k for k, v in self.vocab.items()}
