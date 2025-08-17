@@ -234,6 +234,18 @@ void HttpServer::Impl::handle_client(int client_socket) {
             } else {
                 send_response(client_socket, "400 Bad Request", "text/plain", "No active transaction.");
             }
+        } else if (req.method == "GET" && path_parts.size() == 1 && path_parts[0] == "_health") {
+            send_response(client_socket, "200 OK", "text/plain", "OK");
+            close(client_socket);
+            return;
+        } else if (req.method == "GET" && path_parts.size() == 1 && path_parts[0] == "_collections") {
+            // This is a placeholder. A real implementation would query the storage engine.
+            Json::JsonArray collections_array;
+            // collections_array.push_back(Json::JsonValue("my_test_collection"));
+            // collections_array.push_back(Json::JsonValue("documents_collection"));
+            send_response(client_socket, "200 OK", "application/json", Json::JsonValue(collections_array).serialize());
+            close(client_socket);
+            return;
         } else if (path_parts.empty()) {
             send_response(client_socket, "400 Bad Request", "text/plain", "Collection name missing from URL.");
             close(client_socket);
@@ -242,7 +254,17 @@ void HttpServer::Impl::handle_client(int client_socket) {
 
         std::string collection_name = path_parts[0];
 
-        if (req.method == "GET" && path_parts.size() == 2) {
+        if (req.method == "GET" && path_parts.size() == 2 && path_parts[1] == "_all") {
+            // This is a placeholder. A real implementation would query the storage engine.
+            Json::JsonArray docs_array;
+            // docs_array.push_back(Json::JsonValue("doc_a"));
+            // docs_array.push_back(Json::JsonValue("doc_b"));
+            send_response(client_socket, "200 OK", "application/json", Json::JsonValue(docs_array).serialize());
+            close(client_socket);
+            return;
+        }
+
+        if (req.method == "GET" && path_parts.size() == 2 && path_parts[1] != "_all") {
             // GET /<collection>/<id>
             std::string doc_id = path_parts[1];
             auto doc_opt = storage_engine.get(collection_name, doc_id, transaction_id);

@@ -2,62 +2,55 @@
 
 #include <cstddef>
 #include <string>
-#include <memory>
+#include <map>
 #include <optional>
+#include <memory>
 #include <vector>
-#include <filesystem>
-#include <thread>
-#include <atomic>
 
-#include "memtable.h"
-#include "wal.h"
-#include "sstable.h"
-#include "indexer.h"
 #include "../common/document.h"
-#include "../common/schema.h"
 
 namespace TissDB {
-
-class SchemaValidator; // Forward declaration
-
 namespace Storage {
 
-// A reasonable threshold for flushing the memtable to disk.
-const size_t COLLECTION_MEMTABLE_FLUSH_THRESHOLD = 4 * 1024 * 1024; // 4MB
-
+// A Collection is an in-memory sorted data structure that holds all documents for a single collection.
+// It is managed by the Database class.
 class Collection {
 public:
-    explicit Collection(const std::string& collection_path);
-    ~Collection();
+    Collection();
 
-    void set_schema(const Schema& schema);
+    // Inserts or updates a document in the collection.
     void put(const std::string& key, const Document& doc);
-    std::optional<Document> get(const std::string& key);
+
+    // Marks a document as deleted by writing a "tombstone".
     void del(const std::string& key);
-    std::vector<Document> scan();
-    void shutdown();
-    void create_index(const std::vector<std::string>& field_names);
-    std::vector<std::string> find_by_index(const std::string& field_name, const std::string& value);
-    std::vector<std::string> find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const;
-    std::vector<std::string> find_by_index(const std::vector<std::string>& field_names) const;
-    bool has_index(const std::vector<std::string>& field_names) const;
-    const Indexer& get_indexer() const;
+
+    // Retrieves a document from the collection.
+    // Returns a pointer to the document if found.
+    // Returns `std::nullopt` if the key is not found.
+    // Returns a `nullptr` inside the optional if the key was deleted (tombstone).
+    std::optional<std::shared_ptr<Document>> get(const std::string& key);
+
+    // Returns all key-value pairs, sorted by key.
+    // This is used when flushing the collection to an SSTable on disk.
+    const std::map<std::string, std::shared_ptr<Document>>& get_all() const;
+
+    // Clears all data from the collection.
+    void clear();
+
+    // Returns the approximate size of the collection in bytes.
+    size_t approximate_size() const;
+
+    // Scans all documents in the collection.
+    std::vector<Document> scan() const;
 
 private:
-    void flush_memtable();
-    void start_compaction_thread();
-    void stop_compaction_thread();
-    void compact();
-
-    std::string collection_path_;
-    std::unique_ptr<Memtable> memtable_;
-    std::unique_ptr<WriteAheadLog> wal_;
-    Indexer indexer_;
-    std::vector<std::unique_ptr<SSTable>> sstables_;
-    std::thread compaction_thread_;
-    std::atomic<bool> stop_compaction_;
-    std::unique_ptr<Schema> schema_;
-    std::unique_ptr<SchemaValidator> schema_validator_;
+    // We use a sorted map to store documents in memory. The key is the document ID.
+    // A shared_ptr to a Document allows us to distinguish between:
+    // 1. Key not present -> map::find() returns end()
+    // 2. Key present with a document -> non-null shared_ptr
+    // 3. Key present but deleted -> null shared_ptr (tombstone)
+    std::map<std::string, std::shared_ptr<Document>> data;
+    size_t estimated_size;
 };
 
 } // namespace Storage
