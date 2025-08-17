@@ -23,9 +23,32 @@ class BDDRunner:
         return decorator
 
     def start_db(self):
-        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'quanta_tissu', 'tissdb', 'tissdb.exe')
+        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        db_executable = 'tissdb.exe' if sys.platform == 'win32' else 'tissdb'
+        db_path = os.path.join(base_path, 'tissdb', db_executable)
+        
         print(f"BDD Runner: Starting database at {db_path}")
         sys.stdout.flush()
+
+        if not os.path.exists(db_path):
+            print(f"BDD Runner: ERROR - Database executable not found at {db_path}")
+            sys.stdout.flush()
+            # Attempt to build the database
+            print("BDD Runner: Attempting to build the database...")
+            sys.stdout.flush()
+            try:
+                subprocess.run(['make', '-C', os.path.join(base_path, 'tissdb')], check=True)
+                if not os.path.exists(db_path):
+                    print("BDD Runner: ERROR - Build completed but executable still not found.")
+                    sys.stdout.flush()
+                    return
+                print("BDD Runner: Build successful, continuing...")
+                sys.stdout.flush()
+            except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                print(f"BDD Runner: ERROR - Failed to build database: {e}")
+                sys.stdout.flush()
+                return
+
         self.db_process = subprocess.Popen([db_path])
         time.sleep(2) # Wait for the server to start
 
@@ -103,5 +126,6 @@ class BDDRunner:
         self.stop_db()
 
 if __name__ == '__main__':
-    runner = BDDRunner('c:/Users/tamar/Documents/DataAnnotation/Gemini/quanta_tissu/tests/features')
+    features_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'features')
+    runner = BDDRunner(features_path)
     runner.run()

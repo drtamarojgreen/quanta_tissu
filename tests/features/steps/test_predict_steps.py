@@ -4,6 +4,14 @@ from quanta_tissu.quanta_tissu.config import model_config
 from quanta_tissu.quanta_tissu.tokenizer import Tokenizer, vocab
 
 def register_steps(runner):
+    @runner.step(r'^Given a model and tokenizer$')
+    def context(context):
+        np.random.seed(42)
+        model = QuantaTissu(model_config)
+        tokenizer = Tokenizer(vocab)
+        context['model'] = model
+        context['tokenizer'] = tokenizer
+
     @runner.step(r'^When I predict the next token for the prompt "(.*)"$')
     def predict_next_token(context, prompt):
         prompt_tokens = context['tokenizer'].tokenize(prompt)
