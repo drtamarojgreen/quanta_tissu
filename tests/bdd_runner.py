@@ -74,16 +74,24 @@ class BDDRunner:
         from tests.features.steps import test_generate_steps
         from tests.features.steps import test_knowledge_base_steps
         from tests.features.steps import test_database_steps
+        from tests.features.steps import test_more_database_steps
+        from tests.features.steps import test_extended_database_steps
         from tests.features.steps import test_parser_steps
         from tests.features.steps import test_model_integration_steps
+        from tests.features.steps import test_integration_steps
+        from tests.features.steps import test_update_delete_steps
         test_kv_cache_steps.register_steps(self)
         test_tokenizer_steps.register_steps(self)
         test_predict_steps.register_steps(self)
         test_generate_steps.register_steps(self)
         test_knowledge_base_steps.register_steps(self)
         test_database_steps.register_steps(self)
+        test_more_database_steps.register_steps(self)
+        test_extended_database_steps.register_steps(self)
         test_parser_steps.register_steps(self)
         test_model_integration_steps.register_steps(self)
+        test_integration_steps.register_steps(self)
+        test_update_delete_steps.register_steps(self)
         print("BDD Runner: All steps registered.")
         sys.stdout.flush()
 

@@ -1,9 +1,11 @@
 #include "sstable.h"
 #include "../common/serialization.h"
 #include "../common/binary_stream_buffer.h"
+#include "../common/checksum.h"
 #include <iostream>
 #include <chrono>
 #include <map>
+#include <vector>
 
 namespace TissDB {
 namespace Storage {
@@ -15,7 +17,12 @@ const int SSTABLE_INDEX_INTERVAL = 16; // Sample every 16th key for the sparse i
 SSTable::SSTable(const std::string& path) : file_path_(path) {
     file_stream_.open(file_path_, std::ios::binary);
     if (file_stream_.is_open()) {
-        load_index();
+        try {
+            load_index();
+        } catch (const std::runtime_error& e) {
+            std::cerr << "Failed to load SSTable " << path << ": " << e.what() << std::endl;
+            file_stream_.close(); // Invalidate the SSTable
+        }
     }
 }
 
@@ -102,116 +109,27 @@ std::vector<Document> SSTable::scan() {
 }
 
 std::string SSTable::write_from_memtable(const std::string& data_dir, const Memtable& memtable) {
-    // Generate a unique filename for the new SSTable using a timestamp.
     long long timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()
     ).count();
     std::string file_path = data_dir + "/sstable_" + std::to_string(timestamp) + ".db";
 
-    std::ofstream sst_file(file_path, std::ios::binary | std::ios::trunc);
-    if (!sst_file.is_open()) {
-        throw std::runtime_error("Failed to create SSTable file: " + file_path);
-    }
-
-    BinaryStreamBuffer bsb(sst_file);
+    std::vector<uint8_t> buffer;
+    BinaryStreamBuffer bsb(buffer);
     std::map<std::string, uint64_t> sparse_index;
     int key_count = 0;
 
-    // The memtable's map is already sorted by key, which is exactly what we need.
     const auto& data = memtable.get_all();
     for (const auto& pair : data) {
-        // Sample every Nth key for the sparse index
         if (key_count % SSTABLE_INDEX_INTERVAL == 0) {
-            sparse_index[pair.first] = static_cast<uint64_t>(sst_file.tellp());
+            sparse_index[pair.first] = bsb.size();
         }
         key_count++;
 
-        // Write key (length-prefixed)
         bsb.write_string(pair.first);
 
-        // Write value (length-prefixed)
-        if (pair.second) { // If it's a document pointer
+        if (pair.second) {
             std::vector<uint8_t> value_bytes = TissDB::serialize(*(pair.second));
-            bsb.write_bytes(value_bytes);
-        } else { // If it's a tombstone (nullptr)
-            size_t tombstone_marker = static_cast<size_t>(-1);
-            bsb.write(tombstone_marker);
-        }
-    }
-
-    // After writing all data, write the index block.
-    uint64_t index_start_offset = static_cast<uint64_t>(sst_file.tellp());
-    bsb.write(static_cast<size_t>(sparse_index.size()));
-    for (const auto& pair : sparse_index) {
-        bsb.write_string(pair.first);
-        bsb.write(pair.second);
-    }
-
-    // Finally, write the footer containing the offset of the index block.
-    bsb.write(index_start_offset);
-
-    sst_file.close();
-    return file_path;
-}
-
-std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTable*>& sstables) {
-    // Generate a unique filename for the new SSTable using a timestamp.
-    long long timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()
-    ).count();
-    std::string file_path = data_dir + "/sstable_" + std::to_string(timestamp) + ".db";
-
-    std::ofstream sst_file(file_path, std::ios::binary | std::ios::trunc);
-    if (!sst_file.is_open()) {
-        throw std::runtime_error("Failed to create SSTable file: " + file_path);
-    }
-
-    BinaryStreamBuffer bsb(sst_file);
-
-    // Use a map to merge and sort all key-value pairs from the SSTables.
-    // The map will automatically handle duplicates, keeping the value from the last SSTable (newest).
-    std::map<std::string, std::optional<std::vector<uint8_t>>> merged_data;
-
-    for (const auto& sstable : sstables) {
-        std::ifstream current_sst_file(sstable->get_path(), std::ios::binary);
-        if (!current_sst_file.is_open()) {
-            continue;
-        }
-
-        BinaryStreamBuffer current_bsb(current_sst_file);
-
-        while (current_sst_file.peek() != EOF) {
-            try {
-                std::string current_key = current_bsb.read_string();
-                
-                size_t val_len_marker;
-                current_bsb.read(val_len_marker);
-
-                if (val_len_marker == static_cast<size_t>(-1)) { // Tombstone
-                    merged_data[current_key] = std::nullopt;
-                } else {
-                    merged_data[current_key] = current_bsb.read_bytes_with_length(val_len_marker);
-                }
-            } catch (const std::exception& e) {
-                std::cerr << "Error during SSTable merge read: " << e.what() << std::endl;
-                break; // Stop reading this SSTable on error
-            }
-        }
-    }
-
-    // Write the merged data to the new SSTable and create a sparse index.
-    std::map<std::string, uint64_t> sparse_index;
-    int key_count = 0;
-    for (const auto& pair : merged_data) {
-        if (key_count % SSTABLE_INDEX_INTERVAL == 0) {
-            sparse_index[pair.first] = static_cast<uint64_t>(sst_file.tellp());
-        }
-        key_count++;
-
-        bsb.write_string(pair.first);
-
-        if (pair.second.has_value()) {
-            const auto& value_bytes = pair.second.value();
             bsb.write_bytes(value_bytes);
         } else {
             size_t tombstone_marker = static_cast<size_t>(-1);
@@ -219,49 +137,132 @@ std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTabl
         }
     }
 
-    // After writing all data, write the index block.
-    uint64_t index_start_offset = static_cast<uint64_t>(sst_file.tellp());
+    uint64_t index_start_offset = bsb.size();
     bsb.write(static_cast<size_t>(sparse_index.size()));
     for (const auto& pair : sparse_index) {
         bsb.write_string(pair.first);
         bsb.write(pair.second);
     }
 
-    // Finally, write the footer containing the offset of the index block.
-    bsb.write(index_start_offset);
+    uint32_t checksum = Common::crc32(buffer.data(), buffer.size());
+
+    std::ofstream sst_file(file_path, std::ios::binary | std::ios::trunc);
+    if (!sst_file.is_open()) {
+        throw std::runtime_error("Failed to create SSTable file: " + file_path);
+    }
+
+    sst_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+    BinaryStreamBuffer file_bsb(sst_file);
+    file_bsb.write(checksum);
+    file_bsb.write(index_start_offset);
+
+    sst_file.close();
+    return file_path;
+}
+
+std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTable*>& sstables) {
+    long long timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+    std::string file_path = data_dir + "/sstable_merged_" + std::to_string(timestamp) + ".db";
+
+    std::map<std::string, std::optional<std::vector<uint8_t>>> merged_data;
+
+    for (SSTable* sstable : sstables) {
+        if (!sstable->file_stream_.is_open()) continue;
+        std::vector<Document> documents = sstable->scan();
+        for (const auto& doc : documents) {
+            if (doc.elements.empty() && !doc.id.empty()) { // Tombstone
+                merged_data[doc.id] = std::nullopt;
+            } else {
+                merged_data[doc.id] = TissDB::serialize(doc);
+            }
+        }
+    }
+
+    std::vector<uint8_t> buffer;
+    BinaryStreamBuffer bsb(buffer);
+    std::map<std::string, uint64_t> sparse_index;
+    int key_count = 0;
+
+    for (const auto& pair : merged_data) {
+        if (key_count % SSTABLE_INDEX_INTERVAL == 0) {
+            sparse_index[pair.first] = bsb.size();
+        }
+        key_count++;
+
+        bsb.write_string(pair.first);
+
+        if (pair.second.has_value()) {
+            bsb.write_bytes(pair.second.value());
+        } else {
+            size_t tombstone_marker = static_cast<size_t>(-1);
+            bsb.write(tombstone_marker);
+        }
+    }
+
+    uint64_t index_start_offset = bsb.size();
+    bsb.write(static_cast<size_t>(sparse_index.size()));
+    for (const auto& pair : sparse_index) {
+        bsb.write_string(pair.first);
+        bsb.write(pair.second);
+    }
+
+    uint32_t checksum = Common::crc32(buffer.data(), buffer.size());
+
+    std::ofstream sst_file(file_path, std::ios::binary | std::ios::trunc);
+    if (!sst_file.is_open()) {
+        throw std::runtime_error("Failed to create merged SSTable file: " + file_path);
+    }
+
+    sst_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+    BinaryStreamBuffer file_bsb(sst_file);
+    file_bsb.write(checksum);
+    file_bsb.write(index_start_offset);
 
     sst_file.close();
     return file_path;
 }
 
 void SSTable::load_index() {
-    // The file_stream_ is already open from the constructor.
-    // Seek to the end to find the footer.
     file_stream_.seekg(0, std::ios::end);
-    if (file_stream_.tellg() < static_cast<std::streamoff>(sizeof(uint64_t))) {
-        // File is too small to contain even the footer.
-        file_stream_.seekg(0); // Reset for other operations
-        return;
+    std::streampos file_size = file_stream_.tellg();
+    if (file_size < static_cast<std::streamoff>(sizeof(uint64_t) + sizeof(uint32_t))) {
+        throw std::runtime_error("SSTable file is too small to be valid.");
     }
-    file_stream_.seekg(-static_cast<std::streamoff>(sizeof(uint64_t)), std::ios::end);
 
-    BinaryStreamBuffer bsb(file_stream_);
+    // Read footer: index offset and checksum
+    file_stream_.seekg(-static_cast<std::streamoff>(sizeof(uint64_t) + sizeof(uint32_t)), std::ios::end);
+    BinaryStreamBuffer footer_bsb(file_stream_);
+    uint32_t stored_checksum;
     uint64_t index_start_offset;
-    bsb.read(index_start_offset);
+    footer_bsb.read(stored_checksum);
+    footer_bsb.read(index_start_offset);
+
+    // Verify checksum of the data and index blocks
+    std::vector<char> buffer(index_start_offset);
+    file_stream_.seekg(0);
+    file_stream_.read(buffer.data(), index_start_offset);
+
+    uint32_t calculated_checksum = Common::crc32(buffer.data(), index_start_offset);
+    if (stored_checksum != calculated_checksum) {
+        throw std::runtime_error("SSTable checksum mismatch. Data corruption detected.");
+    }
 
     // Seek to the beginning of the index block.
     file_stream_.seekg(index_start_offset);
 
     // Read the number of entries.
+    BinaryStreamBuffer index_bsb(file_stream_);
     size_t index_size;
-    bsb.read(index_size);
+    index_bsb.read(index_size);
 
     // Read the index entries.
     sparse_index_.clear();
     for (size_t i = 0; i < index_size; ++i) {
-        std::string key = bsb.read_string();
+        std::string key = index_bsb.read_string();
         uint64_t offset;
-        bsb.read(offset);
+        index_bsb.read(offset);
         sparse_index_[key] = offset;
     }
 

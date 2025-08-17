@@ -132,3 +132,163 @@ def test_add_and_retrieve_multiple():
     assert_equal(retrieved_docs[0], doc2, "First retrieved doc should be about dogs")
     # The second one is likely to be about cats
     assert_true(retrieved_docs[1] in [doc1, doc3], "Second retrieved doc should be one of the others")
+
+
+def test_add_document_with_metadata():
+    """Tests that custom metadata is correctly added to a document."""
+    kb = create_mock_kb()
+    doc_text = "parrots can talk"
+    metadata = {"source": "test_suite", "author": "Jules"}
+    kb.add_document(doc_text, metadata=metadata)
+
+    assert_equal(len(kb.doc_metadata), 1, "Should have one metadata entry")
+    # Check that custom metadata was added
+    assert_equal(kb.doc_metadata[0]['source'], "test_suite", "Metadata 'source' should be updated")
+    assert_equal(kb.doc_metadata[0]['author'], "Jules", "Metadata should contain new keys")
+    # Check that default metadata is still present
+    assert_true('timestamp' in kb.doc_metadata[0], "Default metadata 'timestamp' should exist")
+
+
+def test_retrieval_updates_access_count():
+    """Tests that retrieving a document increments its access_count."""
+    kb = create_mock_kb()
+    doc_text = "the sun is bright"
+    kb.add_document(doc_text)
+
+    assert_equal(kb.doc_metadata[0]['access_count'], 0, "Initial access count should be 0")
+
+    # Retrieve the document
+    kb.retrieve("what color is the sun", k=1)
+
+    assert_equal(kb.doc_metadata[0]['access_count'], 1, "Access count should be 1 after one retrieval")
+
+    # Retrieve it again
+    kb.retrieve("is the sun bright", k=1)
+
+    assert_equal(kb.doc_metadata[0]['access_count'], 2, "Access count should be 2 after two retrievals")
+
+
+def test_add_feedback():
+    """Tests that feedback is recorded in the feedback_history."""
+    kb = create_mock_kb()
+    query = "what are cats"
+    retrieved_docs = ["cats are great pets"]
+    feedback_score = 5
+    feedback_text = "Very relevant"
+
+    kb.add_feedback(query, retrieved_docs, feedback_score, feedback_text)
+
+    assert_equal(len(kb.feedback_history), 1, "Should have one feedback entry")
+    feedback_entry = kb.feedback_history[0]
+    assert_equal(feedback_entry['query'], query, "Feedback query should match")
+    assert_equal(feedback_entry['score'], feedback_score, "Feedback score should match")
+    assert_equal(feedback_entry['text'], feedback_text, "Feedback text should match")
+
+
+def test_feedback_updates_relevance_score():
+    """Tests that providing feedback adjusts a document's relevance_score."""
+    kb = create_mock_kb()
+    doc_text = "cats are great pets"
+    kb.add_document(doc_text)
+
+    initial_score = kb.doc_metadata[0]['relevance_score']
+    assert_equal(initial_score, 1.0, "Initial relevance score should be 1.0")
+
+    # Give positive feedback (5/5)
+    kb.add_feedback("what are cats", [doc_text], 5)
+
+    # After positive feedback, the score should not change much from 1.0, maybe slightly
+    # as per the EMA formula, but since it's already max, it might stay same or dip slightly
+    # depending on the formula: new_score = (1 - alpha) * current_score + alpha * (feedback_score / 5.0)
+    # new_score = 0.9 * 1.0 + 0.1 * 1.0 = 1.0. So it should be 1.0
+    assert_equal(kb.doc_metadata[0]['relevance_score'], 1.0, "Relevance score should be 1.0 after high feedback")
+
+    # Give negative feedback (1/5)
+    kb.add_feedback("what are dogs", [doc_text], 1)
+
+    # After negative feedback, the score should decrease
+    # new_score = 0.9 * 1.0 + 0.1 * (1/5) = 0.9 + 0.02 = 0.92
+    assert_true(kb.doc_metadata[0]['relevance_score'] < 1.0, "Relevance score should decrease after low feedback")
+    assert_equal(round(kb.doc_metadata[0]['relevance_score'], 2), 0.92, "Relevance score should be ~0.92")
+
+
+def test_self_update_with_user_correction():
+    """Tests that a new document is added when a user_correction is provided."""
+    kb = create_mock_kb()
+    query = "what is the sun"
+    generated_response = "the sun is blue" # An incorrect response
+    user_correction = "the sun is bright"
+
+    initial_doc_count = len(kb.documents)
+    kb.self_update_from_interaction(query, generated_response, user_correction)
+
+    assert_equal(len(kb.documents), initial_doc_count + 1, "Should add one new document")
+    new_doc_text = kb.documents[-1]
+    new_doc_metadata = kb.doc_metadata[-1]
+
+    assert_true(user_correction in new_doc_text, "New document should contain the correction")
+    assert_equal(new_doc_metadata['source'], 'self_correction', "Source should be 'self_correction'")
+
+
+def test_self_update_without_correction():
+    """Tests that a new document is added from the model's own output."""
+    kb = create_mock_kb()
+    query = "what are dogs"
+    generated_response = "dogs are loyal companions"
+
+    initial_doc_count = len(kb.documents)
+    kb.self_update_from_interaction(query, generated_response)
+
+    assert_equal(len(kb.documents), initial_doc_count + 1, "Should add one new document")
+    new_doc_metadata = kb.doc_metadata[-1]
+    assert_equal(new_doc_metadata['source'], 'self_generated', "Source should be 'self_generated'")
+
+
+def test_get_knowledge_stats_empty():
+    """Tests that stats are correct for an empty knowledge base."""
+    kb = create_mock_kb()
+    stats = kb.get_knowledge_stats()
+    assert_equal(stats['total_docs'], 0, "Should have 0 total docs")
+
+
+def test_get_knowledge_stats_populated():
+    """Tests that stats are correct for a populated knowledge base."""
+    kb = create_mock_kb()
+    kb.add_document("the sky is blue", metadata={'source': 'manual'})
+    kb.add_document("the sun is bright", metadata={'source': 'manual'})
+    kb.add_document("cats are great pets", metadata={'source': 'user_input'})
+
+    # Access one document
+    kb.retrieve("what is the sky")
+
+    stats = kb.get_knowledge_stats()
+
+    assert_equal(stats['total_docs'], 3, "Should have 3 total docs")
+    assert_equal(stats['total_accesses'], 1, "Should have 1 total access")
+    assert_equal(stats['sources']['manual'], 2, "Should have 2 'manual' sources")
+    assert_equal(stats['sources']['user_input'], 1, "Should have 1 'user_input' source")
+    assert_true(isinstance(stats['avg_relevance_score'], float), "Avg relevance score should be a float")
+
+
+def test_retrieve_k_greater_than_docs():
+    """Tests that retrieving with k > num_docs returns all documents."""
+    kb = create_mock_kb()
+    kb.add_document("cats are great pets")
+    kb.add_document("dogs are loyal companions")
+
+    # Request more documents than exist, with a meaningful query
+    retrieved_docs = kb.retrieve("great loyal pets", k=5)
+
+    assert_equal(len(retrieved_docs), 2, "Should return all available documents")
+
+
+def test_retrieve_query_with_unknown_words():
+    """Tests retrieval with a query containing only out-of-vocabulary words."""
+    kb = create_mock_kb()
+    kb.add_document("a known document")
+
+    # These words are not in the test_vocab
+    query = "zombie xylophone"
+    retrieved_docs = kb.retrieve(query, k=1)
+
+    assert_equal(len(retrieved_docs), 0, "Should not retrieve documents for OOV query")
