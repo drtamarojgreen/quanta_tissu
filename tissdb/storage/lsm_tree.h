@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <string>
 #include <memory>
 #include <map>
@@ -10,28 +9,33 @@
 #include "collection.h"
 #include "transaction_manager.h"
 #include "../common/schema.h"
+#include "transaction_manager.h"
 
 namespace TissDB {
 namespace Storage {
 
+// LSMTree acts as the main database interface, managing all collections.
+// In this simplified, in-memory version, it holds collections in a map.
 class LSMTree {
 public:
-    explicit LSMTree(const std::string& data_dir);
+    LSMTree(); // Simplified constructor
+    LSMTree(const std::string& path);
     ~LSMTree();
 
+
     // Collection management
-    void create_collection(const std::string& name, const TissDB::Schema& schema);
-    void delete_collection(const std::string& name);
-    std::vector<std::string> list_collections() const;
+    virtual void create_collection(const std::string& name, const TissDB::Schema& schema);
+    virtual void delete_collection(const std::string& name);
+    virtual std::vector<std::string> list_collections() const;
 
     // Document operations (delegated to specific collection)
-    void put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID tid = -1);
-    std::optional<Document> get(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1);
-    void del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1);
-    std::vector<Document> scan(const std::string& collection_name);
-    void create_index(const std::string& collection_name, const std::vector<std::string>& field_names);
+    virtual void put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID tid = -1);
+    virtual std::optional<std::shared_ptr<Document>> get(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1);
+    virtual void del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1);
+    virtual std::vector<Document> scan(const std::string& collection_name);
+    virtual void create_index(const std::string& collection_name, const std::vector<std::string>& field_names);
 
-    std::vector<std::string> find_by_index(const std::string& collection_name, const std::string& field_name, const std::string& value);
+    virtual std::vector<std::string> find_by_index(const std::string& collection_name, const std::string& field_name, const std::string& value);
     std::vector<std::string> find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::vector<std::string>& values);
 
     // Transaction management
@@ -48,9 +52,8 @@ public:
     void shutdown();
 
 private:
-    std::string data_directory_;
     std::map<std::string, std::unique_ptr<Collection>> collections_;
-    Transactions::TransactionManager transaction_manager_;
+    std::string path_;
 };
 
 } // namespace Storage

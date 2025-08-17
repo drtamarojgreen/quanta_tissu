@@ -42,6 +42,10 @@ The key completed features of the C++ database MVP include:
 - **Single-Field Indexing**: The database supports B-Tree indexing on single fields to accelerate queries.
 
 While the core MVP is functional, there are still known limitations (e.g., no transaction support, in-memory B-Tree), which are documented in the `tissdb/README.md`. The other components, such as the Python Knowledge Store and the Graph Visualization utility, remain as separate, related tools.
+2.  **A Functional Python Knowledge Store (`quanta_tissu/tisslm/knowledge_base.py`)**:
+    - This is the primary piece of *functional* code related to the TissDB concept.
+    - It is an **in-memory vector store**, not the planned C++ database.
+    - It uses embeddings to store and retrieve documents based on semantic similarity, serving as a practical tool for knowledge management within the Quanta ecosystem.
 
 ## 5. Immediate Next Steps: Towards Phase 2
 
