@@ -113,7 +113,7 @@ More details on this initiative can be found in `docs/ecological_awareness.md`.
 
 To train the model from scratch on the provided corpus:
 ```bash
-python quanta_tissu/quanta_tissu/train.py
+python quanta_tissu/tisslm/train.py
 ```
 This will train a new tokenizer and save it to `models/tokenizer.json`, and save the trained model weights to `models/quanta_tissu.npz`.
 
@@ -166,7 +166,7 @@ The repository is organized into several key directories:
 .
 ├── docs/              # Documentation, design docs, and specifications
 ├── quanta_tissu/      # Python-based language model (QuantaTissu)
-│   ├── quanta_tissu/  # Source code for the QuantaTissu model
+│   ├── tisslm/        # Source code for the QuantaTissu model
 │   └── scripts/       # Scripts to run and interact with the model
 ├── tissdb/            # C++ NoSQL database (TissDB)
 │   ├── api/           # RESTful API implementation
