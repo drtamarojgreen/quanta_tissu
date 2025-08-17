@@ -4,6 +4,7 @@
 #include "test_document.cpp"
 #include "test_wal.cpp"
 #include "test_memtable.cpp"
+#include "test_memtable_extended.cpp"
 #include "test_sstable.cpp"
 #include "test_bpp_tree.cpp"
 #include "test_indexer.cpp"
