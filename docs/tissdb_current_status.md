@@ -36,7 +36,7 @@ The "TissDB project" at present consists of the following separate components:
 
 1.  **Conceptual Documentation (`docs/`)**: A rich set of documents outlining the vision (`tissdb_vision.md`) and the detailed implementation plan (`tissdb_plan.md`).
 
-2.  **A Functional Python Knowledge Store (`quanta_tissu/quanta_tissu/knowledge_base.py`)**:
+2.  **A Functional Python Knowledge Store (`quanta_tissu/tisslm/knowledge_base.py`)**:
     - This is the primary piece of *functional* code related to the TissDB concept.
     - It is an **in-memory vector store**, not the planned C++ database.
     - It uses embeddings to store and retrieve documents based on semantic similarity, serving as a practical tool for knowledge management within the Quanta ecosystem.
