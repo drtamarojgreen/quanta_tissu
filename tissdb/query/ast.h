@@ -44,13 +44,47 @@ struct AggregateFunction {
     std::string field_name;
 };
 
+// Forward declarations for recursive structures
+struct SelectStatement; // Forward declare SelectStatement
+
+// Represents a join type
+enum class JoinType {
+    INNER,
+    LEFT,
+    RIGHT,
+    FULL,
+    CROSS
+};
+
+// Represents a join clause
+struct JoinClause {
+    std::string collection_name; // The right-hand side collection to join with
+    JoinType type;
+    Expression on_condition; // The ON clause expression
+};
+
+// Represents a union clause
+struct UnionClause {
+    std::unique_ptr<SelectStatement> left_select;
+    std::unique_ptr<SelectStatement> right_select;
+    bool all; // true for UNION ALL, false for UNION DISTINCT
+};
+
+
 // Represents a TissQL SELECT statement.
 struct SelectStatement {
     std::vector<std::variant<std::string, AggregateFunction>> fields;
     std::string from_collection;
     std::optional<Expression> where_clause;
     std::vector<std::string> group_by_clause;
+    std::vector<std::pair<std::string, std::string>> order_by_clause; // Added for ORDER BY
+    std::optional<double> limit_clause; // Added for LIMIT
+
+    // Optional JOIN and UNION clauses
+    std::optional<JoinClause> join_clause; // Added for JOIN
+    std::optional<UnionClause> union_clause; // Added for UNION
 };
+
 
 // Represents a TissQL UPDATE statement.
 struct UpdateStatement {
