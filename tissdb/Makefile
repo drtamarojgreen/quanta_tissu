@@ -32,7 +32,6 @@ SRCS = main.cpp \
        storage/transaction_manager.cpp \
        storage/native_b_tree.cpp \
        storage/sstable.cpp \
-       storage/transaction_manager.cpp \
        storage/wal.cpp \
        ../tests/db/http_client.cpp
 
