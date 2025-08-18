@@ -18,7 +18,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
                 i++;
             }
             std::string value = query_string.substr(start, i - start + 1);
-            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX" || value == "INSERT" || value == "INTO" || value == "VALUES" || value == "STDDEV" || value == "LIKE") {
+            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX" || value == "INSERT" || value == "INTO" || value == "VALUES" || value == "STDDEV" || value == "LIKE" || value == "ORDER" || value == "LIMIT" || value == "JOIN" || value == "ON" || value == "UNION" || value == "ALL" || value == "ASC" || value == "DESC") {
                 new_tokens.push_back(Token{Token::Type::KEYWORD, value});
             } else {
                 new_tokens.push_back(Token{Token::Type::IDENTIFIER, value});
@@ -50,6 +50,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
     new_tokens.push_back(Token{Token::Type::EOI, ""});
     return new_tokens;
 }
+
 
 // --- Parser ---
 
