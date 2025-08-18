@@ -8,6 +8,301 @@ servers:
     description: Internal Development Server
 
 paths:
+  /_health:
+    get:
+      summary: Health Check
+      tags: [System]
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Server is healthy.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "OK"
+  /_collections:
+    get:
+      summary: List all collections
+      tags: [System]
+      operationId: listCollections
+      responses:
+        '200':
+          description: A list of collection names.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example: ["users", "products"]
+  /_begin:
+    post:
+      summary: Begin Transaction
+      tags: [Transactions]
+      operationId: beginTransaction
+      responses:
+        '200':
+          description: Transaction started successfully.
+  /_commit:
+    post:
+      summary: Commit Transaction
+      tags: [Transactions]
+      operationId: commitTransaction
+      responses:
+        '200':
+          description: Transaction committed successfully.
+  /_rollback:
+    post:
+      summary: Rollback Transaction
+      tags: [Transactions]
+      operationId: rollbackTransaction
+      responses:
+        '200':
+          description: Transaction rolled back successfully.
+  /_bi/dashboards:
+    post:
+      summary: Create a new dashboard configuration
+      tags: [BI]
+      operationId: createDashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Document'
+      responses:
+        '201':
+          description: Dashboard created successfully.
+  /_bi/dashboards/{dashboardId}:
+    get:
+      summary: Get a specific dashboard configuration by ID
+      tags: [BI]
+      operationId: getDashboardById
+      parameters:
+        - name: dashboardId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The dashboard configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '404':
+          description: Dashboard not found.
+    put:
+      summary: Update a specific dashboard configuration
+      tags: [BI]
+      operationId: updateDashboard
+      parameters:
+        - name: dashboardId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Document'
+      responses:
+        '200':
+          description: Dashboard updated successfully.
+        '404':
+          description: Dashboard not found.
+  /{collection}:
+    put:
+      summary: Create a new collection
+      tags: [Collections]
+      operationId: createCollection
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Collection created.
+    delete:
+      summary: Delete a collection
+      tags: [Collections]
+      operationId: deleteCollection
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Collection deleted.
+    post:
+      summary: Create a new document in a collection
+      tags: [Documents]
+      operationId: createDocument
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Document'
+      responses:
+        '201':
+          description: Document created.
+  /{collection}/{id}:
+    get:
+      summary: Get a document by ID
+      tags: [Documents]
+      operationId: getDocumentById
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The document.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '404':
+          description: Document not found.
+    put:
+      summary: Create or update a document by ID (upsert)
+      tags: [Documents]
+      operationId: upsertDocument
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Document'
+      responses:
+        '200':
+          description: Document updated.
+    delete:
+      summary: Delete a document by ID
+      tags: [Documents]
+      operationId: deleteDocument
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Document deleted.
+  /{collection}/_schema:
+    put:
+      summary: Set collection schema
+      tags: [Collections]
+      operationId: setSchema
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Schema'
+      responses:
+        '200':
+          description: Schema updated.
+  /{collection}/_query:
+    post:
+      summary: Execute a TissQL query
+      tags: [Documents]
+      operationId: executeQuery
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  example: "SELECT id, name FROM users WHERE age > 30"
+      responses:
+        '200':
+          description: Query results.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Document'
+  /{collection}/_index:
+    post:
+      summary: Create an index
+      tags: [Collections]
+      operationId: createIndex
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                field:
+                  type: string
+                  example: "user_id"
+      responses:
+        '200':
+          description: Index created.
+
   /_bi/reports:
     get:
       summary: List all report configurations
@@ -335,3 +630,34 @@ components:
         message:
           type: string
       required: [code, message]
+    Document:
+      type: object
+      additionalProperties: true
+      description: A flexible JSON-like document.
+      example:
+        id: "doc123"
+        name: "John Doe"
+        age: 30
+    Schema:
+      type: object
+      description: Defines the structure of documents in a collection.
+      properties:
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [String, Number, Boolean, DateTime, Binary, Object, Array]
+              required:
+                type: boolean
+      example:
+        fields:
+          - name: "user_id"
+            type: "String"
+            required: true
+          - name: "post_text"
+            type: "String"
