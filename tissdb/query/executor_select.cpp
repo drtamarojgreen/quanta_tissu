@@ -3,6 +3,8 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <cmath>
+#include <chrono>
 
 namespace TissDB {
 namespace Query {
@@ -15,8 +17,8 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, SelectSta
         auto right_result = execute_select_statement(storage_engine, *select_stmt.union_clause->right_select);
 
         // Combine the results
-        std::vector<Document> combined_docs = left_result.documents;
-        combined_docs.insert(combined_docs.end(), right_result.documents.begin(), right_result.documents.end());
+        std::vector<Document> combined_docs = left_result;
+        combined_docs.insert(combined_docs.end(), right_result.begin(), right_result.end());
 
         // If it's a UNION (not UNION ALL), remove duplicates
         if (!select_stmt.union_clause->all) {
@@ -154,7 +156,20 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, SelectSta
                 for (const auto& field_name : select_stmt.group_by_clause) {
                     for (const auto& elem : doc.elements) {
                         if (elem.key == field_name) {
-                            std::visit([&group_key_ss](auto&& arg) { group_key_ss << arg << "-"; }, elem.value);
+                            auto key_serializer = [&group_key_ss](auto&& arg) {
+                                using T = std::decay_t<decltype(arg)>;
+                                if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, double> || std::is_same_v<T, bool>) {
+                                    group_key_ss << arg;
+                                } else if constexpr (std::is_same_v<T, std::chrono::time_point<std::chrono::system_clock>>) {
+                                    group_key_ss << arg.time_since_epoch().count();
+                                } else if constexpr (std::is_same_v<T, std::vector<unsigned char>>) {
+                                    group_key_ss << "[blob]";
+                                } else if constexpr (std::is_same_v<T, std::vector<TissDB::Element>>) {
+                                    group_key_ss << "[subdocument]";
+                                }
+                                group_key_ss << "-";
+                            };
+                            std::visit(key_serializer, elem.value);
                         }
                     }
                 }
@@ -190,18 +205,18 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, SelectSta
                     if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
                         std::string result_key = agg_func->function_name + "(" + agg_func->field_name + ")";
                         const auto& result = group_results.at(result_key);
-                        if (agg_func->function_name == "SUM") aggregated_doc.elements.push_back({result_key, result.sum});
-                        else if (agg_func->function_name == "AVG") aggregated_doc.elements.push_back({result_key, result.count > 0 ? result.sum / result.count : 0});
-                        else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back({result_key, result.count});
-                        else if (agg_func->function_name == "MIN") aggregated_doc.elements.push_back({result_key, result.min.value_or(0)});
-                        else if (agg_func->function_name == "MAX") aggregated_doc.elements.push_back({result_key, result.max.value_or(0)});
+                        if (agg_func->function_name == "SUM") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.sum});
+                        else if (agg_func->function_name == "AVG") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.count > 0 ? result.sum / result.count : 0});
+                        else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back(TissDB::Element{result_key, static_cast<double>(result.count)});
+                        else if (agg_func->function_name == "MIN") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.min.value_or(0)});
+                        else if (agg_func->function_name == "MAX") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.max.value_or(0)});
                         else if (agg_func->function_name == "STDDEV") {
                             if (result.count > 0) {
                                 double mean = result.sum / result.count;
                                 double variance = (result.sum_sq / result.count) - (mean * mean);
-                                aggregated_doc.elements.push_back({result_key, sqrt(variance)});
+                                aggregated_doc.elements.push_back(TissDB::Element{result_key, sqrt(variance)});
                             } else {
-                                aggregated_doc.elements.push_back({result_key, 0.0});
+                                aggregated_doc.elements.push_back(TissDB::Element{result_key, 0.0});
                             }
                         }
                     }
@@ -224,18 +239,18 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, SelectSta
                 if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
                     std::string result_key = agg_func->function_name + "(" + agg_func->field_name + ")";
                     const auto& result = group_results.at(result_key);
-                    if (agg_func->function_name == "SUM") aggregated_doc.elements.push_back({result_key, result.sum});
-                    else if (agg_func->function_name == "AVG") aggregated_doc.elements.push_back({result_key, result.count > 0 ? result.sum / result.count : 0});
-                    else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back({result_key, result.count});
-                    else if (agg_func->function_name == "MIN") aggregated_doc.elements.push_back({result_key, result.min.value_or(0)});
-                    else if (agg_func->function_name == "MAX") aggregated_doc.elements.push_back({result_key, result.max.value_or(0)});
+                    if (agg_func->function_name == "SUM") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.sum});
+                    else if (agg_func->function_name == "AVG") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.count > 0 ? result.sum / result.count : 0});
+                    else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back(TissDB::Element{result_key, static_cast<double>(result.count)});
+                    else if (agg_func->function_name == "MIN") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.min.value_or(0)});
+                    else if (agg_func->function_name == "MAX") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.max.value_or(0)});
                     else if (agg_func->function_name == "STDDEV") {
                         if (result.count > 0) {
                             double mean = result.sum / result.count;
                             double variance = (result.sum_sq / result.count) - (mean * mean);
-                            aggregated_doc.elements.push_back({result_key, sqrt(variance)});
+                            aggregated_doc.elements.push_back(TissDB::Element{result_key, sqrt(variance)});
                         } else {
-                            aggregated_doc.elements.push_back({result_key, 0.0});
+                            aggregated_doc.elements.push_back(TissDB::Element{result_key, 0.0});
                         }
                     }
                 }
