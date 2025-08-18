@@ -10,6 +10,8 @@
 
 // --- Configuration ---
 const int DEFAULT_PORT = 8080;
+const std::string DEFAULT_DATA_PATH = "./tissdb_data";
+const std::string DEFAULT_DB_NAME = "tiss_db";
 
 // Global flag for signal handling
 std::atomic<bool> shutdown_requested(false);
@@ -33,18 +35,24 @@ int main(int argc, char* argv[]) {
     }
 
     // --- Server Initialization ---
+    std::cout << "TissDB starting..." << std::endl;
+    std::cout << "  - Data path: " << DEFAULT_DATA_PATH << std::endl;
+    std::cout << "  - Listening on port: " << port << std::endl;
+
     try {
-        std::cout << "TissDB starting..." << std::endl;
-
         // 1. Initialize the database manager
-        TissDB::Storage::DatabaseManager db_manager("tissdb_data");
-        std::cout << "  - Data directory: tissdb_data" << std::endl;
+        TissDB::Storage::DatabaseManager db_manager(DEFAULT_DATA_PATH);
 
-        // 2. Initialize the API server
+        // 2. Ensure a default database exists
+        if (!db_manager.database_exists(DEFAULT_DB_NAME)) {
+            std::cout << "Creating default database: " << DEFAULT_DB_NAME << std::endl;
+            db_manager.create_database(DEFAULT_DB_NAME);
+        }
+
+        // 3. Initialize the API server
         TissDB::API::HttpServer server(db_manager, port);
-        std::cout << "  - Listening on port: " << port << std::endl;
 
-        // 3. Start the server (this will start a background thread)
+        // 4. Start the server (this will start a background thread)
         server.start();
         std::cout << "Server has started successfully." << std::endl;
 

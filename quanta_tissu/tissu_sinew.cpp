@@ -42,6 +42,30 @@ static bool recv_all(int sockfd, void* buffer, size_t len) {
     return true;
 }
 
+/**
+ * @brief Appends a uint32_t to a byte vector in big-endian order.
+ */
+static void append_uint32_be(std::vector<char>& buf, uint32_t val) {
+    buf.push_back((val >> 24) & 0xFF);
+    buf.push_back((val >> 16) & 0xFF);
+    buf.push_back((val >> 8) & 0xFF);
+    buf.push_back(val & 0xFF);
+}
+
+/**
+ * @brief Appends a uint64_t to a byte vector in big-endian order.
+ */
+static void append_uint64_be(std::vector<char>& buf, uint64_t val) {
+    buf.push_back((val >> 56) & 0xFF);
+    buf.push_back((val >> 48) & 0xFF);
+    buf.push_back((val >> 40) & 0xFF);
+    buf.push_back((val >> 32) & 0xFF);
+    buf.push_back((val >> 24) & 0xFF);
+    buf.push_back((val >> 16) & 0xFF);
+    buf.push_back((val >> 8) & 0xFF);
+    buf.push_back(val & 0xFF);
+}
+
 
 // --- TissuClientImpl (Opaque Implementation for TissuClient) ---
 
@@ -217,13 +241,10 @@ TissuSession::~TissuSession() {
     }
 }
 
-std::unique_ptr<TissuResult> TissuSession::run(const std::string& query) {
+std::unique_ptr<TissuResult> TissuSession::send_and_receive_raw(const std::vector<char>& message_buffer) {
     if (pimpl->sockfd_ == -1) throw TissuException("Session has no valid connection.");
 
-    uint32_t len = query.length();
-    uint32_t net_len = htonl(len);
-
-    if (send(pimpl->sockfd_, (const char*)&net_len, sizeof(net_len), 0) == -1 || send(pimpl->sockfd_, query.c_str(), len, 0) == -1) {
+    if (send(pimpl->sockfd_, message_buffer.data(), message_buffer.size(), 0) == -1) {
         pimpl->client_impl_->getConfig().logger->error("send failed: " + std::string(strerror(errno)));
         pimpl->client_impl_->declareConnectionDead(pimpl->sockfd_);
         pimpl->sockfd_ = -1;
@@ -257,7 +278,74 @@ std::unique_ptr<TissuResult> TissuSession::run(const std::string& query) {
     return std::make_unique<TissuResult>(std::string(buffer.begin(), buffer.end()));
 }
 
-std::unique_ptr<TissuResult> TissuSession::run(const std::string& query, const std::map<std::string, TissValue>& params) {
+std::unique_ptr<TissuResult> TissuSession::run(const std::string& query) {
+    std::vector<char> message_buffer;
+    uint32_t len = query.length();
+    uint32_t net_len = htonl(len);
+
+    message_buffer.resize(sizeof(net_len) + len);
+    memcpy(message_buffer.data(), &net_len, sizeof(net_len));
+    memcpy(message_buffer.data() + sizeof(net_len), query.c_str(), len);
+
+    return send_and_receive_raw(message_buffer);
+}
+
+std::unique_ptr<TissuResult> TissuSession::run(const std::string& query, const std::vector<TissValue>& params) {
+    // This buffer will hold the message body (everything after the total length)
+    std::vector<char> body_buffer;
+
+    // 1. Query String Length and Value
+    append_uint32_be(body_buffer, static_cast<uint32_t>(query.length()));
+    body_buffer.insert(body_buffer.end(), query.begin(), query.end());
+
+    // 2. Parameter Count
+    if (params.size() > 255) {
+        throw TissuQueryException("Cannot have more than 255 parameters.");
+    }
+    body_buffer.push_back(static_cast<uint8_t>(params.size()));
+
+    // 3. Parameters
+    for (const auto& param : params) {
+        std::visit([&body_buffer](auto&& arg) {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, std::nullptr_t>) {
+                body_buffer.push_back(static_cast<uint8_t>(TissParamType::NULL_TYPE));
+                append_uint32_be(body_buffer, 0);
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                body_buffer.push_back(static_cast<uint8_t>(TissParamType::STRING));
+                append_uint32_be(body_buffer, static_cast<uint32_t>(arg.length()));
+                body_buffer.insert(body_buffer.end(), arg.begin(), arg.end());
+            } else if constexpr (std::is_same_v<T, int64_t>) {
+                body_buffer.push_back(static_cast<uint8_t>(TissParamType::INT64));
+                append_uint32_be(body_buffer, sizeof(int64_t));
+                uint64_t val_be;
+                memcpy(&val_be, &arg, sizeof(int64_t));
+                append_uint64_be(body_buffer, val_be);
+            } else if constexpr (std::is_same_v<T, double>) {
+                body_buffer.push_back(static_cast<uint8_t>(TissParamType::FLOAT64));
+                append_uint32_be(body_buffer, sizeof(double));
+                uint64_t val_be;
+                static_assert(sizeof(double) == sizeof(uint64_t), "double and uint64_t must have the same size");
+                memcpy(&val_be, &arg, sizeof(double));
+                append_uint64_be(body_buffer, val_be);
+            } else if constexpr (std::is_same_v<T, bool>) {
+                body_buffer.push_back(static_cast<uint8_t>(TissParamType::BOOL));
+                append_uint32_be(body_buffer, 1);
+                body_buffer.push_back(arg ? 1 : 0);
+            }
+        }, param.getValue());
+    }
+
+    // 4. Prepend total body length to create the final message
+    std::vector<char> message_buffer;
+    message_buffer.reserve(4 + body_buffer.size());
+    append_uint32_be(message_buffer, static_cast<uint32_t>(body_buffer.size()));
+    message_buffer.insert(message_buffer.end(), body_buffer.begin(), body_buffer.end());
+
+    return send_and_receive_raw(message_buffer);
+}
+
+std::unique_ptr<TissuResult> TissuSession::run_with_client_side_substitution(const std::string& query, const std::map<std::string, TissValue>& params) {
     // ... (same as before)
     std::string final_query = query;
     std::vector<std::pair<std::string, TissValue>> sorted_params(params.begin(), params.end());
