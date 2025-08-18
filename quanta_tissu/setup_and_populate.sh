@@ -7,6 +7,8 @@
 set -e
 
 # --- 1. Build the TissDB server ---
+echo "--- Cleaning up previous builds... ---"
+(cd tissdb && make clean)
 echo "--- Building TissDB server... ---"
 (cd tissdb && make)
 echo "--- Build complete. ---"
