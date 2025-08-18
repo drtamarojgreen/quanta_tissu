@@ -206,11 +206,15 @@ public:
 // --- TissuSession Method Implementations ---
 TissuSession::TissuSession(int sockfd, TissuClientImpl* client_impl)
     : pimpl(std::make_unique<Impl>(sockfd, client_impl)) {
-    pimpl->client_impl_->getConfig().logger->info("TissuSession created with connection " + std::to_string(sockfd));
+    if (pimpl->client_impl_) {
+        pimpl->client_impl_->getConfig().logger->info("TissuSession created with connection " + std::to_string(sockfd));
+    }
 }
 
 TissuSession::~TissuSession() {
-    pimpl->client_impl_->getConfig().logger->info("TissuSession for connection " + std::to_string(pimpl->sockfd_) + " destroyed.");
+    if (pimpl && pimpl->client_impl_) {
+        pimpl->client_impl_->getConfig().logger->info("TissuSession for connection " + std::to_string(pimpl->sockfd_) + " destroyed.");
+    }
 }
 
 std::unique_ptr<TissuResult> TissuSession::run(const std::string& query) {
