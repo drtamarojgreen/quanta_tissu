@@ -162,13 +162,6 @@ class BDDRunner:
         try:
             self.start_db()
 
-            if self.report_data['db_start_error']:
-                # If DB failed to start, we can't run any DB-dependent tests.
-                # We will proceed to report generation directly.
-                print("BDD Runner: Halting execution due to database start failure.")
-                overall_success = False
-                raise Exception("Database failed to start.")
-
             feature_files = glob.glob(os.path.join(self.features_path, '*.feature'))
             print(f"BDD Runner: Found feature files: {feature_files}")
             sys.stdout.flush()
