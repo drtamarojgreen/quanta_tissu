@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "../common/log.h"
 #include <stdexcept>
 #include <cctype>
 
@@ -57,21 +58,31 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
 Parser::Parser() = default;
 
 AST Parser::parse(const std::string& query_string) {
+    LOG_INFO("Parsing query: " + query_string);
     tokens = tokenize(query_string);
     pos = 0;
 
     if (peek().type == Token::Type::KEYWORD) {
         if (peek().value == "SELECT") {
-            return parse_select_statement();
+            auto ast = parse_select_statement();
+            LOG_DEBUG("Successfully parsed SELECT statement.");
+            return ast;
         } else if (peek().value == "UPDATE") {
-            return parse_update_statement();
+            auto ast = parse_update_statement();
+            LOG_DEBUG("Successfully parsed UPDATE statement.");
+            return ast;
         } else if (peek().value == "DELETE") {
-            return parse_delete_statement();
+            auto ast = parse_delete_statement();
+            LOG_DEBUG("Successfully parsed DELETE statement.");
+            return ast;
         } else if (peek().value == "INSERT") {
-            return parse_insert_statement();
+            auto ast = parse_insert_statement();
+            LOG_DEBUG("Successfully parsed INSERT statement.");
+            return ast;
         }
     }
 
+    LOG_ERROR("Unsupported statement type at start of query.");
     throw std::runtime_error("Unsupported statement type");
 }
 
@@ -173,6 +184,7 @@ std::vector<Literal> Parser::parse_value_list() {
         } else if (token.type == Token::Type::STRING_LITERAL) {
             values.push_back(token.value);
         } else {
+            LOG_ERROR("Parse error: Expected a literal value in value list.");
             throw std::runtime_error("Expected a literal value.");
         }
 
@@ -258,6 +270,7 @@ Expression Parser::parse_primary_expression() {
     } else if (token.type == Token::Type::STRING_LITERAL) {
         return Literal{token.value};
     }
+    LOG_ERROR("Parse error: Unexpected token in expression: " + token.value);
     throw std::runtime_error("Unexpected token in expression");
 }
 
@@ -275,6 +288,7 @@ void Parser::expect(Token::Type type, const std::string& value) {
     auto token = consume();
     if (token.type != type || (!value.empty() && token.value != value)) {
         std::string error_msg = "Expected token " + value + " but got " + token.value;
+        LOG_ERROR("Parse error: " + error_msg);
         throw std::runtime_error(error_msg);
     }
 }
