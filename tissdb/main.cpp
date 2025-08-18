@@ -1,4 +1,4 @@
-#include "storage/lsm_tree.h"
+#include "storage/database_manager.h"
 #include "api/http_server.h"
 #include <iostream>
 #include <string>
@@ -8,6 +8,8 @@
 
 // --- Configuration ---
 const int DEFAULT_PORT = 8080;
+const std::string DEFAULT_DATA_PATH = "./tissdb_data";
+const std::string DEFAULT_DB_NAME = "tiss_db";
 
 int main(int argc, char* argv[]) {
     // --- Basic command-line argument parsing ---
@@ -24,17 +26,23 @@ int main(int argc, char* argv[]) {
 
     // --- Server Initialization ---
     std::cout << "TissDB starting..." << std::endl;
-    std::cout << "  - Mode: In-memory" << std::endl;
+    std::cout << "  - Data path: " << DEFAULT_DATA_PATH << std::endl;
     std::cout << "  - Listening on port: " << port << std::endl;
 
     try {
-        // 1. Initialize the storage engine
-        TissDB::Storage::LSMTree storage; // Using the simplified, in-memory storage engine
+        // 1. Initialize the database manager
+        TissDB::Storage::DatabaseManager db_manager(DEFAULT_DATA_PATH);
 
-        // 2. Initialize the API server
-        TissDB::API::HttpServer server(storage, port);
+        // 2. Ensure a default database exists
+        if (!db_manager.database_exists(DEFAULT_DB_NAME)) {
+            std::cout << "Creating default database: " << DEFAULT_DB_NAME << std::endl;
+            db_manager.create_database(DEFAULT_DB_NAME);
+        }
 
-        // 3. Start the server (this will start a background thread)
+        // 3. Initialize the API server
+        TissDB::API::HttpServer server(db_manager, port);
+
+        // 4. Start the server (this will start a background thread)
         server.start();
 
         std::cout << "Server has started successfully. Running in the background." << std::endl;
