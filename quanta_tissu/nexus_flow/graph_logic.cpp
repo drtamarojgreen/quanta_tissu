@@ -3,16 +3,17 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <sstream> // Required for building JSON query strings
 #include <windows.h> // For Windows-specific console functions
 #include <conio.h>   // For _getch()
 
 /**
  * @brief Constructor for GraphLogic class.
- * Initializes the canvas and loads the sample graph data.
+ * Initializes the canvas and loads the graph data from the TissDB server.
  */
 GraphLogic::GraphLogic() {
     canvas.resize(SCREEN_HEIGHT, std::string(SCREEN_WIDTH, ' '));
-    initializeGraphs();
+    loadGraphsFromTissDB();
 }
 
 /**
@@ -22,6 +23,10 @@ GraphLogic::GraphLogic() {
  * the user to press the spacebar to continue.
  */
 void GraphLogic::run() {
+    if (graphs.empty()) {
+        std::cerr << "No graphs were loaded. Please ensure TissDB is running and populated." << std::endl;
+        return;
+    }
     for (size_t i = 0; i < graphs.size(); ++i) {
         clearCanvas();
         drawGraph(graphs[i]);
@@ -31,67 +36,67 @@ void GraphLogic::run() {
 }
 
 /**
- * @brief Initializes the three sample graphs (4, 8, and 16 nodes).
+ * @brief Loads graph data from the TissDB server.
  *
- * This function populates the `graphs` vector with predefined node positions,
- * sizes, labels, and the edges connecting them. The data is designed to
- * demonstrate occlusion and various node sizes.
+ * This function connects to a TissDB instance, queries for graph data,
+ * parses the JSON response, and populates the `graphs` vector.
  */
-void GraphLogic::initializeGraphs() {
-    // Cognitive Behavioral Therapy related labels
-    std::vector<std::string> cbt_labels = {
-        "Challenge negative thoughts", "Cognitive-Behavioral Therapy", "Practice self-compassion",
-        "Develop coping strategies", "Mindfulness and relaxation", "Break harmful patterns",
-        "A holistic approach", "Build resilience", "Emotional regulation",
-        "Seek professional help", "It's okay to not be okay", "Your feelings are valid",
-        "Set healthy boundaries", "A journey of self-discovery", "Nurture your well-being",
-        "Bloom into your better self"
-    };
+void GraphLogic::loadGraphsFromTissDB() {
+    TissDB::Test::HttpClient client("localhost", 8080);
 
-    // Graph 1: 4 Nodes
-    Graph g1;
-    g1.nodes = {
-        {1, 10, 5, 5, cbt_labels[0]},
-        {2, 30, 15, 3, cbt_labels[1]},
-        {3, 50, 8, 5, cbt_labels[2]},
-        {4, 25, 2, 1, cbt_labels[3]}
-    };
-    g1.edges = {{1, 2}, {1, 3}, {2, 3}, {2, 4}};
-    graphs.push_back(g1);
+    for (int i = 1; i <= 3; ++i) {
+        // Form the JSON query to select the graph document
+        std::stringstream query_stream;
+        query_stream << "{\"query\": \"SELECT * WHERE graph_id = " << i << "\"}";
+        std::string query_json = query_stream.str();
 
-    // Graph 2: 8 Nodes (demonstrates occlusion)
-    Graph g2;
-    g2.nodes = {
-        {1, 5, 3, 5, cbt_labels[4]},
-        {2, 20, 10, 3, cbt_labels[5]},
-        {3, 18, 9, 1, cbt_labels[6]}, // Occluded by node 2
-        {4, 40, 5, 5, cbt_labels[7]},
-        {5, 60, 18, 3, cbt_labels[8]},
-        {6, 70, 2, 1, cbt_labels[9]},
-        {7, 35, 20, 3, cbt_labels[10]},
-        {8, 5, 20, 5, cbt_labels[11]}
-    };
-    g2.edges = {{1, 2}, {1, 8}, {2, 4}, {3, 4}, {4, 5}, {5, 7}, {6, 7}, {7, 8}};
-    graphs.push_back(g2);
+        // Send the query to the TissDB server
+        TissDB::Test::HttpResponse response = client.post("/_query", query_json, "application/json");
 
-    // Graph 3: 16 Nodes
-    Graph g3;
-    g3.nodes = {
-        {1, 5, 2, 5, cbt_labels[12]}, {2, 15, 10, 3, cbt_labels[13]},
-        {3, 25, 5, 1, cbt_labels[14]}, {4, 35, 12, 3, cbt_labels[15]},
-        {5, 45, 3, 5, cbt_labels[0]}, {6, 55, 15, 1, cbt_labels[1]},
-        {7, 65, 8, 3, cbt_labels[2]}, {8, 75, 20, 5, cbt_labels[3]},
-        {9, 8, 22, 1, cbt_labels[4]}, {10, 20, 18, 3, cbt_labels[5]},
-        {11, 30, 23, 5, cbt_labels[6]}, {12, 40, 17, 1, cbt_labels[7]},
-        {13, 50, 21, 3, cbt_labels[8]}, {14, 60, 14, 5, cbt_labels[9]},
-        {15, 70, 19, 1, cbt_labels[10]}, {16, 5, 15, 3, cbt_labels[11]}
-    };
-    g3.edges = {
-        {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 8}, {8, 9},
-        {9, 10}, {10, 11}, {11, 12}, {12, 13}, {13, 14}, {14, 15}, {15, 16}, {16, 1},
-        {1, 10}, {2, 9}, {3, 12}, {4, 14} // Some cross connections
-    };
-    graphs.push_back(g3);
+        if (response.status_code != 200) {
+            std::cerr << "Error fetching graph " << i << ": HTTP " << response.status_code << std::endl;
+            continue;
+        }
+
+        try {
+            // Parse the JSON response body
+            Json parsed_json = Json::parse(response.body);
+
+            // The response should be an array containing a single graph document
+            if (parsed_json.type() != Json::Type::ARRAY || parsed_json.as_array().empty()) {
+                std::cerr << "Warning: No data returned for graph " << i << std::endl;
+                continue;
+            }
+            const Json& graph_doc = parsed_json.as_array()[0];
+
+            Graph g;
+
+            // Extract nodes
+            const Json& nodes_json = graph_doc["nodes"];
+            for (const auto& node_json : nodes_json.as_array()) {
+                Node n;
+                n.id = node_json["id"].as_integer();
+                n.x = node_json["x"].as_integer();
+                n.y = node_json["y"].as_integer();
+                n.size = node_json["size"].as_integer();
+                n.label = node_json["label"].as_string();
+                g.nodes.push_back(n);
+            }
+
+            // Extract edges
+            const Json& edges_json = graph_doc["edges"];
+            for (const auto& edge_json : edges_json.as_array()) {
+                Edge e;
+                e.node1_id = edge_json["from"].as_integer();
+                e.node2_id = edge_json["to"].as_integer();
+                g.edges.push_back(e);
+            }
+
+            graphs.push_back(g);
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing JSON for graph " << i << ": " << e.what() << std::endl;
+        }
+    }
 }
 
 /**
