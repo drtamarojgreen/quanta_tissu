@@ -7,7 +7,7 @@
 namespace TissDB {
 namespace Query {
 
-QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const SelectStatement& select_stmt) {
+QueryResult execute_select_statement(Storage::LSMTree& storage_engine, SelectStatement select_stmt) {
     // --- UNION Operation ---
     if (select_stmt.union_clause) {
         // This part is tricky because it requires re-executing queries.
