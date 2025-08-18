@@ -19,7 +19,7 @@ DatabaseManager::DatabaseManager(const std::string& base_path) : base_data_path_
         fs::create_directories(base_data_path_);
     }
     // Load existing databases from the manifest file on startup
-    load_manifest(fs::path(base_data_path_) / "manifest.json", databases_, base_data_path_);
+    load_manifest((fs::path(base_data_path_) / "manifest.json").string(), databases_, base_data_path_);
 }
 
 DatabaseManager::~DatabaseManager() = default;
@@ -29,7 +29,7 @@ void DatabaseManager::create_database(const std::string& db_name) {
         throw std::runtime_error("Database '" + db_name + "' already exists.");
     }
 
-    std::string db_path = fs::path(base_data_path_) / db_name;
+    std::string db_path = (fs::path(base_data_path_) / db_name).string();
     if (!fs::exists(db_path)) {
         fs::create_directory(db_path);
     }
@@ -37,7 +37,7 @@ void DatabaseManager::create_database(const std::string& db_name) {
     databases_[db_name] = std::make_unique<LSMTree>(db_path);
 
     // Update the manifest on disk
-    save_manifest(fs::path(base_data_path_) / "manifest.json", databases_);
+    save_manifest((fs::path(base_data_path_) / "manifest.json").string(), databases_);
 }
 
 void DatabaseManager::delete_database(const std::string& db_name) {
@@ -47,13 +47,13 @@ void DatabaseManager::delete_database(const std::string& db_name) {
 
     databases_.erase(db_name);
 
-    std::string db_path = fs::path(base_data_path_) / db_name;
+    std::string db_path = (fs::path(base_data_path_) / db_name).string();
     if (fs::exists(db_path)) {
         fs::remove_all(db_path);
     }
 
     // Update the manifest on disk
-    save_manifest(fs::path(base_data_path_) / "manifest.json", databases_);
+    save_manifest((fs::path(base_data_path_) / "manifest.json").string(), databases_);
 }
 
 LSMTree& DatabaseManager::get_database(const std::string& db_name) {
@@ -109,7 +109,7 @@ void load_manifest(const std::string& manifest_path, std::map<std::string, std::
         for (const auto& db_val : dbs_array) {
             std::string db_name = db_val.as_string();
             if (databases.find(db_name) == databases.end()) {
-                 std::string db_path = fs::path(base_data_path) / db_name;
+                 std::string db_path = (fs::path(base_data_path) / db_name).string();
                  databases[db_name] = std::make_unique<LSMTree>(db_path);
             }
         }
