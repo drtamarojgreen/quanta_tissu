@@ -15,7 +15,14 @@ def demonstrate_enhanced_functionality():
     
     # --- Setup ---
     np.random.seed(42)
-    model = QuantaTissu(model_config)
+    # The QuantaTissu model now connects to the database on initialization
+    try:
+        model = QuantaTissu(model_config, db_host='127.0.0.1', db_port=8080)
+    except Exception as e:
+        print(f"FATAL: Failed to initialize model with KnowledgeBase connection.")
+        print(f"Please ensure the TissDB server is running on port 8080.")
+        print(f"Error: {e}")
+        return
     tokenizer = Tokenizer()
     
     print("\n1. Enhanced Tokenizer Demonstration")

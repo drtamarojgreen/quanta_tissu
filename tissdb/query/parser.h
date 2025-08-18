@@ -42,6 +42,11 @@ private:
     std::optional<Expression> parse_where_clause();
     std::vector<std::pair<std::string, Literal>> parse_set_clause();
     std::vector<std::string> parse_group_by_clause();
+    std::vector<std::pair<std::string, std::string>> parse_order_by_clause(); // Added for ORDER BY: ORDER BY field [ASC|DESC]
+    std::optional<double> parse_limit_clause(); // Added for LIMIT: LIMIT N
+    std::optional<JoinClause> parse_join_clause(); // Added for JOIN: JOIN collection ON condition
+    std::optional<UnionClause> parse_union_clause(); // Added for UNION: SELECT ... UNION [ALL] SELECT ...
+
     Expression parse_expression(int precedence = 0);
     Expression parse_primary_expression();
 

@@ -652,3 +652,337 @@ TEST_CASE(ExecutorSelectWithIndex) {
 
     std::filesystem::remove_all("mock_data");
 }
+
+TEST_CASE(ExecutorSelectWithAnd) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+
+    mock_lsm_tree.put("users", "user1", TissDB::Document{"user1", {{"name", std::string("Alice")}, {"age", 30.0}, {"city", std::string("New York")}}});
+    mock_lsm_tree.put("users", "user2", TissDB::Document{"user2", {{"name", std::string("Bob")}, {"age", 40.0}, {"city", std::string("New York")}}});
+    mock_lsm_tree.put("users", "user3", TissDB::Document{"user3", {{"name", std::string("Charlie")}, {"age", 40.0}, {"city", std::string("London")}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT * FROM users WHERE age = 40.0 AND city = 'New York'");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(1, result.size());
+    ASSERT_EQ("user2", result[0].id);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorSelectWithOr) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+
+    mock_lsm_tree.put("users", "user1", TissDB::Document{"user1", {{"name", std::string("Alice")}, {"city", std::string("New York")}}});
+    mock_lsm_tree.put("users", "user2", TissDB::Document{"user2", {{"name", std::string("Bob")}, {"city", std::string("London")}}});
+    mock_lsm_tree.put("users", "user3", TissDB::Document{"user3", {{"name", std::string("Charlie")}, {"city", std::string("Paris")}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT * FROM users WHERE city = 'New York' OR city = 'London'");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(2, result.size());
+    bool found_user1 = false;
+    bool found_user2 = false;
+    for (const auto& doc : result) {
+        if (doc.id == "user1") found_user1 = true;
+        if (doc.id == "user2") found_user2 = true;
+    }
+    ASSERT_TRUE(found_user1);
+    ASSERT_TRUE(found_user2);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorSelectOrderBy) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+
+    mock_lsm_tree.put("users", "user1", TissDB::Document{"user1", {{"age", 30.0}}});
+    mock_lsm_tree.put("users", "user2", TissDB::Document{"user2", {{"age", 20.0}}});
+    mock_lsm_tree.put("users", "user3", TissDB::Document{"user3", {{"age", 40.0}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    // Test ASC
+    TissDB::Query::AST ast_asc = parser.parse("SELECT * FROM users ORDER BY age ASC");
+    TissDB::Query::QueryResult result_asc = executor.execute(ast_asc);
+
+    ASSERT_EQ(3, result_asc.size());
+    ASSERT_EQ("user2", result_asc[0].id);
+    ASSERT_EQ("user1", result_asc[1].id);
+    ASSERT_EQ("user3", result_asc[2].id);
+
+    // Test DESC
+    TissDB::Query::AST ast_desc = parser.parse("SELECT * FROM users ORDER BY age DESC");
+    TissDB::Query::QueryResult result_desc = executor.execute(ast_desc);
+
+    ASSERT_EQ(3, result_desc.size());
+    ASSERT_EQ("user3", result_desc[0].id);
+    ASSERT_EQ("user1", result_desc[1].id);
+    ASSERT_EQ("user2", result_desc[2].id);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorSelectLimit) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+
+    mock_lsm_tree.put("users", "user1", TissDB::Document{"user1", {{"name", std::string("A")}}});
+    mock_lsm_tree.put("users", "user2", TissDB::Document{"user2", {{"name", std::string("B")}}});
+    mock_lsm_tree.put("users", "user3", TissDB::Document{"user3", {{"name", std::string("C")}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT * FROM users LIMIT 2");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(2, result.size());
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorSelectNotEqual) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+
+    mock_lsm_tree.put("users", "user1", TissDB::Document{"user1", {{"status", std::string("active")}}});
+    mock_lsm_tree.put("users", "user2", TissDB::Document{"user2", {{"status", std::string("inactive")}}});
+    mock_lsm_tree.put("users", "user3", TissDB::Document{"user3", {{"status", std::string("active")}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT * FROM users WHERE status != 'active'");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(1, result.size());
+    ASSERT_EQ("user2", result[0].id);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorSelectLessThanOrEqual) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("products", TissDB::Schema{});
+
+    mock_lsm_tree.put("products", "prod1", TissDB::Document{"prod1", {{"price", 10.0}}});
+    mock_lsm_tree.put("products", "prod2", TissDB::Document{"prod2", {{"price", 20.0}}});
+    mock_lsm_tree.put("products", "prod3", TissDB::Document{"prod3", {{"price", 30.0}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT * FROM products WHERE price <= 20.0");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(2, result.size());
+    bool found_prod1 = false;
+    bool found_prod2 = false;
+    for (const auto& doc : result) {
+        if (doc.id == "prod1") found_prod1 = true;
+        if (doc.id == "prod2") found_prod2 = true;
+    }
+    ASSERT_TRUE(found_prod1);
+    ASSERT_TRUE(found_prod2);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorSelectGreaterThanOrEqual) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("products", TissDB::Schema{});
+
+    mock_lsm_tree.put("products", "prod1", TissDB::Document{"prod1", {{"price", 10.0}}});
+    mock_lsm_tree.put("products", "prod2", TissDB::Document{"prod2", {{"price", 20.0}}});
+    mock_lsm_tree.put("products", "prod3", TissDB::Document{"prod3", {{"price", 30.0}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT * FROM products WHERE price >= 20.0");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(2, result.size());
+    bool found_prod2 = false;
+    bool found_prod3 = false;
+    for (const auto& doc : result) {
+        if (doc.id == "prod2") found_prod2 = true;
+        if (doc.id == "prod3") found_prod3 = true;
+    }
+    ASSERT_TRUE(found_prod2);
+    ASSERT_TRUE(found_prod3);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorSelectWithNot) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+
+    mock_lsm_tree.put("users", "user1", TissDB::Document{"user1", {{"is_admin", true}}});
+    mock_lsm_tree.put("users", "user2", TissDB::Document{"user2", {{"is_admin", false}}});
+    mock_lsm_tree.put("users", "user3", TissDB::Document{"user3", {{"is_admin", true}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT * FROM users WHERE NOT is_admin");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(1, result.size());
+    ASSERT_EQ("user2", result[0].id);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorAggregateMinMax) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("data", TissDB::Schema{});
+
+    mock_lsm_tree.put("data", "1", TissDB::Document{"1", {{"value", 10.0}}});
+    mock_lsm_tree.put("data", "2", TissDB::Document{"2", {{"value", 5.0}}});
+    mock_lsm_tree.put("data", "3", TissDB::Document{"3", {{"value", 15.0}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT MIN(value), MAX(value) FROM data");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(1, result.size());
+    const auto& doc = result[0];
+    ASSERT_EQ(2, doc.elements.size());
+
+    bool found_min = false;
+    bool found_max = false;
+    for (const auto& elem : doc.elements) {
+        if (elem.key == "MIN(value)") {
+            ASSERT_EQ(std::get<double>(elem.value), 5.0);
+            found_min = true;
+        }
+        if (elem.key == "MAX(value)") {
+            ASSERT_EQ(std::get<double>(elem.value), 15.0);
+            found_max = true;
+        }
+    }
+    ASSERT_TRUE(found_min);
+    ASSERT_TRUE(found_max);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorSelectSpecificFields) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("users", TissDB::Schema{});
+
+    mock_lsm_tree.put("users", "user1", TissDB::Document{"user1", {{"name", std::string("Alice")}, {"age", 30.0}, {"city", std::string("New York")}}});
+    mock_lsm_tree.put("users", "user2", TissDB::Document{"user2", {{"name", std::string("Bob")}, {"age", 25.0}, {"city", std::string("London")}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT name, city FROM users WHERE age > 28");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(1, result.size());
+    const auto& doc = result[0];
+    ASSERT_EQ(2, doc.elements.size()); // Should only have name and city
+
+    bool found_name = false;
+    bool found_city = false;
+    for (const auto& elem : doc.elements) {
+        if (elem.key == "name") {
+            ASSERT_EQ(std::get<std::string>(elem.value), "Alice");
+            found_name = true;
+        }
+        if (elem.key == "city") {
+            ASSERT_EQ(std::get<std::string>(elem.value), "New York");
+            found_city = true;
+        }
+    }
+    ASSERT_TRUE(found_name);
+    ASSERT_TRUE(found_city);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorAggregateHaving) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("orders", TissDB::Schema{});
+
+    mock_lsm_tree.put("orders", "1", TissDB::Document{"1", {{"customer_id", std::string("A")}, {"amount", 10.0}}});
+    mock_lsm_tree.put("orders", "2", TissDB::Document{"2", {{"customer_id", std::string("B")}, {"amount", 50.0}}});
+    mock_lsm_tree.put("orders", "3", TissDB::Document{"3", {{"customer_id", std::string("A")}, {"amount", 20.0}}});
+    mock_lsm_tree.put("orders", "4", TissDB::Document{"4", {{"customer_id", std::string("C")}, {"amount", 5.0}}});
+    mock_lsm_tree.put("orders", "5", TissDB::Document{"5", {{"customer_id", std::string("B")}, {"amount", 30.0}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT customer_id, SUM(amount) FROM orders GROUP BY customer_id HAVING SUM(amount) > 40.0");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(1, result.size());
+    const auto& doc = result[0];
+    ASSERT_EQ(2, doc.elements.size());
+
+    bool found_customer_id = false;
+    bool found_sum_amount = false;
+    for (const auto& elem : doc.elements) {
+        if (elem.key == "customer_id") {
+            ASSERT_EQ(std::get<std::string>(elem.value), "B");
+            found_customer_id = true;
+        }
+        if (elem.key == "SUM(amount)") {
+            ASSERT_EQ(std::get<double>(elem.value), 80.0); // 50 + 30
+            found_sum_amount = true;
+        }
+    }
+    ASSERT_TRUE(found_customer_id);
+    ASSERT_TRUE(found_sum_amount);
+
+    std::filesystem::remove_all("mock_data");
+}
+
+TEST_CASE(ExecutorSelectDistinct) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("products", TissDB::Schema{});
+
+    mock_lsm_tree.put("products", "1", TissDB::Document{"1", {{"category", std::string("electronics")}}});
+    mock_lsm_tree.put("products", "2", TissDB::Document{"2", {{"category", std::string("books")}}});
+    mock_lsm_tree.put("products", "3", TissDB::Document{"3", {{"category", std::string("electronics")}}});
+    mock_lsm_tree.put("products", "4", TissDB::Document{"4", {{"category", std::string("books")}}});
+    mock_lsm_tree.put("products", "5", TissDB::Document{"5", {{"category", std::string("clothing")}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse("SELECT DISTINCT category FROM products");
+    TissDB::Query::QueryResult result = executor.execute(ast);
+
+    ASSERT_EQ(3, result.size());
+    std::set<std::string> categories;
+    for (const auto& doc : result) {
+        for (const auto& elem : doc.elements) {
+            if (elem.key == "category") {
+                categories.insert(std::get<std::string>(elem.value));
+            }
+        }
+    }
+    ASSERT_TRUE(categories.count("electronics"));
+    ASSERT_TRUE(categories.count("books"));
+    ASSERT_TRUE(categories.count("clothing"));
+    ASSERT_EQ(3, categories.size());
+
+    std::filesystem::remove_all("mock_data");
+}

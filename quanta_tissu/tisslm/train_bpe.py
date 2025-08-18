@@ -3,6 +3,7 @@ import argparse
 import sys
 
 from .bpe_trainer import BPETokenizer
+from .config import system_config
 
 def main():
     """Main function to train and save the BPE tokenizer."""
@@ -12,7 +13,7 @@ def main():
     parser.add_argument(
         "--corpus_path",
         type=str,
-        default="corpus/resiliency_research.txt",
+        default=os.path.join(system_config["_project_root"], "corpus", "resiliency_research.txt"),
         help="Path to the training corpus text file."
     )
     parser.add_argument(
@@ -24,7 +25,7 @@ def main():
     parser.add_argument(
         "--save_prefix",
         type=str,
-        default="trained_tokenizer",
+        default=system_config["bpe_tokenizer_prefix"],
         help="Prefix for the saved tokenizer files (vocab and merges)."
     )
     parser.add_argument(
@@ -50,6 +51,10 @@ def main():
     tokenizer.train(text, args.vocab_size, verbose=args.verbose)
     
     print(f"\nTraining complete. Saving tokenizer to files with prefix: {args.save_prefix}")
+    
+    # Ensure the directory for saving exists
+    save_dir = os.path.dirname(args.save_prefix)
+    os.makedirs(save_dir, exist_ok=True)
     tokenizer.save(args.save_prefix)
     
     print(f"\n--- Testing Saved and Loaded Tokenizer ---")
