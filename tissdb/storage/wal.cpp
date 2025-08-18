@@ -122,5 +122,11 @@ void WriteAheadLog::clear() {
     }
 }
 
+void WriteAheadLog::shutdown() {
+    if (log_file.is_open()) {
+        log_file.close();
+    }
+}
+
 } // namespace Storage
 } // namespace TissDB

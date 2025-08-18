@@ -28,6 +28,7 @@ SRCS = main.cpp \
        storage/collection.cpp \
        storage/indexer.cpp \
        storage/lsm_tree.cpp \
+       storage/database_manager.cpp \
        storage/memtable.cpp \
        storage/transaction_manager.cpp \
        storage/native_b_tree.cpp \

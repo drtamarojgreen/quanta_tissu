@@ -204,7 +204,9 @@ std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::
 }
 
 void LSMTree::shutdown() {
-    // Placeholder: might need to ensure WAL is fully flushed.
+    if (wal_) {
+        wal_->shutdown();
+    }
 }
 
 } // namespace Storage
