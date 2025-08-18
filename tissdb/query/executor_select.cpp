@@ -10,9 +10,28 @@ namespace Query {
 QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const SelectStatement& select_stmt) {
     // --- UNION Operation ---
     if (select_stmt.union_clause) {
-        // This part is tricky because it requires re-executing queries.
-        // For this refactoring, we'll assume the main `execute` function handles the recursion.
-        // This is a simplification for now.
+        // Recursively execute the left and right select statements
+        auto left_result = execute_select_statement(storage_engine, *select_stmt.union_clause->left_select);
+        auto right_result = execute_select_statement(storage_engine, *select_stmt.union_clause->right_select);
+
+        // Combine the results
+        std::vector<Document> combined_docs = left_result.documents;
+        combined_docs.insert(combined_docs.end(), right_result.documents.begin(), right_result.documents.end());
+
+        // If it's a UNION (not UNION ALL), remove duplicates
+        if (!select_stmt.union_clause->all) {
+            // To use std::unique, we need to sort the vector first.
+            // A simple sort by document ID should be sufficient for grouping,
+            // as the operator== will handle full equality checks.
+            std::sort(combined_docs.begin(), combined_docs.end(), [](const Document& a, const Document& b) {
+                return a.id < b.id;
+            });
+
+            // Remove adjacent duplicates
+            combined_docs.erase(std::unique(combined_docs.begin(), combined_docs.end()), combined_docs.end());
+        }
+
+        return {combined_docs};
     }
 
     std::vector<Document> result_docs;
@@ -71,11 +90,38 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
         const auto& join_clause = select_stmt.join_clause.value();
         std::vector<Document> right_docs = storage_engine.scan(join_clause.collection_name);
         std::vector<Document> joined_docs;
-        if (join_clause.type == JoinType::INNER) {
+
+        if (join_clause.type == JoinType::CROSS) {
             for (const auto& left_doc : all_docs) {
                 for (const auto& right_doc : right_docs) {
+                    joined_docs.push_back(combine_documents(left_doc, right_doc));
+                }
+            }
+        } else { // For INNER, LEFT, RIGHT, FULL joins that have a condition
+            std::vector<bool> right_doc_matched(right_docs.size(), false);
+
+            for (const auto& left_doc : all_docs) {
+                bool left_doc_matched = false;
+                for (size_t i = 0; i < right_docs.size(); ++i) {
+                    const auto& right_doc = right_docs[i];
                     if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc))) {
                         joined_docs.push_back(combine_documents(left_doc, right_doc));
+                        left_doc_matched = true;
+                        right_doc_matched[i] = true;
+                    }
+                }
+
+                if (!left_doc_matched && (join_clause.type == JoinType::LEFT || join_clause.type == JoinType::FULL)) {
+                    // For LEFT and FULL joins, add the left doc with nulls for the right.
+                    joined_docs.push_back(left_doc); // Assuming combine with null doc is implicit
+                }
+            }
+
+            if (join_clause.type == JoinType::RIGHT || join_clause.type == JoinType::FULL) {
+                for (size_t i = 0; i < right_docs.size(); ++i) {
+                    if (!right_doc_matched[i]) {
+                        // For RIGHT and FULL joins, add the unmatched right docs with nulls for the left.
+                        joined_docs.push_back(right_docs[i]); // Assuming combine with null doc is implicit
                     }
                 }
             }
