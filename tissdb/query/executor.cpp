@@ -24,10 +24,12 @@ bool evaluate_expression(const Expression& expr, const Document& doc) {
         const auto& logical_expr = *logical_expr_ptr;
         if (logical_expr->op == "AND") {
             return evaluate_expression(logical_expr->left, doc) && evaluate_expression(logical_expr->right, doc);
-        } else if (logical_expr->op == "OR") {
+        }
+        else if (logical_expr->op == "OR") {
             return evaluate_expression(logical_expr->left, doc) || evaluate_expression(logical_expr->right, doc);
         }
-    } else if (const auto* binary_expr_ptr = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
+    }
+    else if (const auto* binary_expr_ptr = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
         const auto& binary_expr = *binary_expr_ptr;
         const auto* left_ident = std::get_if<Identifier>(&binary_expr->left);
         const auto* right_literal = std::get_if<Literal>(&binary_expr->right);
@@ -44,7 +46,8 @@ bool evaluate_expression(const Expression& expr, const Document& doc) {
                                 return std::regex_match(*str_val, re);
                             }
                         }
-                    } else if (auto* num_val = std::get_if<double>(&elem.value)) {
+                    }
+                    else if (auto* num_val = std::get_if<double>(&elem.value)) {
                         if (auto* lit_val = std::get_if<double>(right_literal)) {
                             if (binary_expr->op == "=") return *num_val == *lit_val;
                             if (binary_expr->op == "!=") return *num_val != *lit_val;
@@ -321,7 +324,7 @@ QueryResult Executor::execute(AST ast) {
             }
         } else {
             // Full scan if no index is used
-            std::cout << "No suitable index found. Performing full collection scan." << std::endl;
+            std::cout << "No suitable index found. Performing full collection scan."
             all_docs = storage_engine.scan(select_stmt->from_collection);
         }
 
@@ -433,7 +436,8 @@ QueryResult Executor::execute(AST ast) {
                     }
                     aggregated_docs.push_back(aggregated_doc);
                 }
-            } else { // Handle aggregation without GROUP BY
+            }
+            else { // Handle aggregation without GROUP BY
                 Document aggregated_doc;
                 aggregated_doc.id = "aggregate";
                 std::map<std::string, AggregateResult> group_results;
@@ -532,7 +536,8 @@ QueryResult Executor::execute(AST ast) {
                         // Field exists, update it
                         if (const auto* str_val = std::get_if<std::string>(&new_value)) {
                             it->value = *str_val;
-                        } else if (const auto* num_val = std::get_if<double>(&new_value)) {
+                        }
+                        else if (const auto* num_val = std::get_if<double>(&new_value)) {
                             it->value = *num_val;
                         }
                     }
@@ -543,7 +548,8 @@ QueryResult Executor::execute(AST ast) {
                             new_element.key = field_to_update;
                             new_element.value = *str_val;
                             doc.elements.push_back(new_element);
-                        } else if (const auto* num_val = std::get_if<double>(&new_value)) {
+                        }
+                        else if (const auto* num_val = std::get_if<double>(&new_value)) {
                             Element new_element;
                             new_element.key = field_to_update;
                             new_element.value = *num_val;

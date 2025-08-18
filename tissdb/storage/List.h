@@ -1,7 +1,3 @@
-//
-// Created by 刘育氚 on 2019/5/27.
-//
-
 #ifndef BPTREE_LIST_H
 #define BPTREE_LIST_H
 
