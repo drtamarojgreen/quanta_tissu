@@ -28,6 +28,9 @@ public:
     // Checks if a database exists.
     bool database_exists(const std::string& db_name) const;
 
+    // Shuts down all database instances gracefully.
+    void shutdown();
+
 private:
     std::string base_data_path_;
     std::map<std::string, std::unique_ptr<LSMTree>> databases_;
