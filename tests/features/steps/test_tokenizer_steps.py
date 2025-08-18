@@ -1,24 +1,27 @@
 from quanta_tissu.tisslm.tokenizer import Tokenizer
 
-def register_steps(runner):
-    @runner.step(r'^Given a tokenizer$')
+def register_steps(step): # Changed
+    @step(r'^Given a tokenizer$') # Changed
     def context(context):
         context['tokenizer'] = Tokenizer()
 
-    @runner.step(r'^When I tokenize the string "(.*)"$')
+    @step(r'^When I tokenize the string "(.*)"$') # Changed
     def tokenize_string(context, string):
         context['tokens'] = context['tokenizer'].tokenize(string)
 
-    @runner.step(r'^And I detokenize the tokens$')
+    @step(r'^And I detokenize the tokens$') # Changed
     def detokenize_string(context):
         context['detokenized_string'] = context['tokenizer'].detokenize(context['tokens'])
 
-    @runner.step(r'^Then the resulting string should be "(.*)"$')
+    @step(r'^Then the resulting string should be "(.*)"$') # Changed
     def compare_strings(context, expected_string):
         assert context['detokenized_string'] == expected_string
         return "Test passed!"
 
-    @runner.step(r'^Then the result should be an empty list of tokens$')
+    @step(r'^Then the result should be an empty list of tokens$') # Changed
     def check_empty_list(context):
-        assert context['tokens'] == []
+        # The BPE tokenizer will not produce an empty list for a non-empty string.
+        # This test might be for a different tokenizer logic.
+        # However, for an empty string, it should be empty.
+        assert len(context['tokens']) == 0
         return "Test passed!"
