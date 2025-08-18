@@ -9,7 +9,24 @@
 namespace TissDB {
 namespace Query {
 
-QueryResult execute_select_statement(Storage::LSMTree& storage_engine, SelectStatement select_stmt) {
+// Visitor for creating a string representation of a Value variant for group by keys.
+struct GroupKeyVisitor {
+    std::stringstream& ss;
+    void operator()(const std::string& s) const { ss << s; }
+    void operator()(double d) const { ss << d; }
+    void operator()(bool b) const { ss << (b ? "true" : "false"); }
+    void operator()(const TissDB::DateTime& dt) const {
+        ss << dt.time_since_epoch().count();
+    }
+    void operator()(const TissDB::BinaryData& /*bd*/) const {
+        ss << "[binary]";
+    }
+    void operator()(const std::vector<TissDB::Element>& /*v*/) const {
+        ss << "[array]";
+    }
+};
+
+QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const SelectStatement& select_stmt) {
     // --- UNION Operation ---
     if (select_stmt.union_clause) {
         // Recursively execute the left and right select statements
@@ -156,6 +173,8 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, SelectSta
                 for (const auto& field_name : select_stmt.group_by_clause) {
                     for (const auto& elem : doc.elements) {
                         if (elem.key == field_name) {
+                            std::visit(GroupKeyVisitor{group_key_ss}, elem.value);
+                            group_key_ss << "-";
                             auto key_serializer = [&group_key_ss](auto&& arg) {
                                 using T = std::decay_t<decltype(arg)>;
                                 if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, double> || std::is_same_v<T, bool>) {
@@ -207,7 +226,7 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, SelectSta
                         const auto& result = group_results.at(result_key);
                         if (agg_func->function_name == "SUM") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.sum});
                         else if (agg_func->function_name == "AVG") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.count > 0 ? result.sum / result.count : 0});
-                        else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back(TissDB::Element{result_key, static_cast<double>(result.count)});
+                        else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.count});
                         else if (agg_func->function_name == "MIN") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.min.value_or(0)});
                         else if (agg_func->function_name == "MAX") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.max.value_or(0)});
                         else if (agg_func->function_name == "STDDEV") {
@@ -241,7 +260,7 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, SelectSta
                     const auto& result = group_results.at(result_key);
                     if (agg_func->function_name == "SUM") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.sum});
                     else if (agg_func->function_name == "AVG") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.count > 0 ? result.sum / result.count : 0});
-                    else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back(TissDB::Element{result_key, static_cast<double>(result.count)});
+                    else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back(TissDB::Element{result_key, (double)result.count});
                     else if (agg_func->function_name == "MIN") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.min.value_or(0)});
                     else if (agg_func->function_name == "MAX") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.max.value_or(0)});
                     else if (agg_func->function_name == "STDDEV") {
