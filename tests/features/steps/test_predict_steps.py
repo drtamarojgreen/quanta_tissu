@@ -1,14 +1,14 @@
 import numpy as np
 from quanta_tissu.tisslm.model import QuantaTissu
 from quanta_tissu.tisslm.config import model_config
-from quanta_tissu.tisslm.tokenizer import Tokenizer, vocab
+from quanta_tissu.tisslm.tokenizer import Tokenizer
 
 def register_steps(runner):
     @runner.step(r'^Given a model and tokenizer$')
     def context(context):
         np.random.seed(42)
         model = QuantaTissu(model_config)
-        tokenizer = Tokenizer(vocab)
+        tokenizer = Tokenizer()
         context['model'] = model
         context['tokenizer'] = tokenizer
 
@@ -23,5 +23,5 @@ def register_steps(runner):
     def check_next_token(context):
         assert isinstance(context['next_token_id'], int)
         assert context['next_token_id'] >= 0
-        assert context['next_token_id'] < len(vocab)
+        assert context['next_token_id'] < context['tokenizer'].get_vocab_size()
         return "Test passed!"
