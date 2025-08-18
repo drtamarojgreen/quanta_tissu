@@ -3,8 +3,8 @@ from quanta_tissu.tisslm.model import QuantaTissu
 from quanta_tissu.tisslm.config import model_config
 from quanta_tissu.tisslm.tokenizer import Tokenizer
 
-def register_steps(runner):
-    @runner.step(r'^Given a model and tokenizer$')
+def register_steps(step): # Changed
+    @step(r'^Given a model and tokenizer$') # Changed
     def context(context):
         np.random.seed(42)
         model = QuantaTissu(model_config)
@@ -12,7 +12,7 @@ def register_steps(runner):
         context['model'] = model
         context['tokenizer'] = tokenizer
         
-    @runner.step(r'^When I generate (\d+) new tokens with the prompt "(.*)" using the "(.*)" method$')
+    @step(r'^When I generate (\d+) new tokens with the prompt "(.*)" using the "(.*)" method$') # Changed
     def generate_tokens(context, n_new_tokens, prompt, method):
         n_new_tokens = int(n_new_tokens)
         prompt_tokens = context['tokenizer'].tokenize(prompt)
@@ -23,7 +23,7 @@ def register_steps(runner):
         )
         context['generated_ids'] = generated_ids
 
-    @runner.step(r'^Then the generated tokens should be a list of (\d+) integers$')
+    @step(r'^Then the generated tokens should be a list of (\d+) integers$') # Changed
     def check_generated_tokens(context, n_new_tokens):
         n_new_tokens = int(n_new_tokens)
         assert isinstance(context['generated_ids'], list)
