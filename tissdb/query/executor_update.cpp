@@ -5,7 +5,7 @@
 namespace TissDB {
 namespace Query {
 
-QueryResult execute_update_statement(Storage::LSMTree& storage_engine, const UpdateStatement& update_stmt) {
+QueryResult execute_update_statement(Storage::LSMTree& storage_engine, UpdateStatement update_stmt) {
     auto all_docs = storage_engine.scan(update_stmt.collection_name);
     int updated_count = 0;
 

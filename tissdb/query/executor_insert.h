@@ -7,7 +7,7 @@
 namespace TissDB {
 namespace Query {
 
-QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, const InsertStatement& insert_stmt);
+QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertStatement insert_stmt);
 
 } // namespace Query
 } // namespace TissDB

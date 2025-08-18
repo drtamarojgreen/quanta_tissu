@@ -6,7 +6,7 @@
 namespace TissDB {
 namespace Query {
 
-QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, const InsertStatement& insert_stmt) {
+QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertStatement insert_stmt) {
     Document new_doc;
 
     unsigned seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
