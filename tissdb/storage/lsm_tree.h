@@ -9,10 +9,11 @@
 #include "collection.h"
 #include "transaction_manager.h"
 #include "../common/schema.h"
-#include "transaction_manager.h"
 
 namespace TissDB {
 namespace Storage {
+
+class WriteAheadLog; // Forward declaration
 
 // LSMTree acts as the main database interface, managing all collections.
 // In this simplified, in-memory version, it holds collections in a map.
@@ -53,8 +54,11 @@ public:
     void shutdown();
 
 private:
+    void recover_from_wal();
+
     std::map<std::string, std::unique_ptr<Collection>> collections_;
     std::string path_;
+    std::unique_ptr<WriteAheadLog> wal_;
 };
 
 } // namespace Storage
