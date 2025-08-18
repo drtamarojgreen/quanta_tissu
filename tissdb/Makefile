@@ -14,6 +14,11 @@ SRCS = main.cpp \
        common/schema_validator.cpp \
        json/json.cpp \
        query/executor.cpp \
+       query/executor_common.cpp \
+       query/executor_delete.cpp \
+       query/executor_insert.cpp \
+       query/executor_select.cpp \
+       query/executor_update.cpp \
        query/join_algorithms.cpp \
        query/parser.cpp \
        storage/collection.cpp \
