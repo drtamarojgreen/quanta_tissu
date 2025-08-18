@@ -321,8 +321,7 @@ QueryResult Executor::execute(AST ast) {
             }
         } else {
             // Full scan if no index is used
-            std::cout << "No suitable index found. Performing full collection scan."
- << std::endl;
+            std::cout << "No suitable index found. Performing full collection scan." << std::endl;
             all_docs = storage_engine.scan(select_stmt->from_collection);
         }
 

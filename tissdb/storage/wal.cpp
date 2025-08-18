@@ -1,4 +1,5 @@
 #include "wal.h"
+#include "../common/log.h"
 #include "../common/serialization.h"
 #include "../common/binary_stream_buffer.h"
 #include <iostream>
@@ -10,8 +11,10 @@ namespace Storage {
 WriteAheadLog::WriteAheadLog(const std::string& path) : log_path(path) {
     log_file.open(log_path, std::ios::app | std::ios::binary);
     if (!log_file.is_open()) {
+        LOG_ERROR("Failed to open WAL file: " + log_path);
         throw std::runtime_error("Failed to open WAL file: " + log_path);
     }
+    LOG_INFO("Write-Ahead Log opened at: " + log_path);
 }
 
 WriteAheadLog::~WriteAheadLog() {
@@ -22,8 +25,12 @@ WriteAheadLog::~WriteAheadLog() {
 
 void WriteAheadLog::append(const LogEntry& entry) {
     if (!log_file.is_open()) {
+        LOG_ERROR("Attempted to append to closed WAL file.");
         throw std::runtime_error("WAL file is not open.");
     }
+
+    std::string entry_type_str = (entry.type == LogEntryType::PUT) ? "PUT" : "DELETE";
+    LOG_DEBUG("Appending to WAL: " + entry_type_str + " for doc ID: " + entry.document_id);
 
     std::vector<uint8_t> buffer;
     BinaryStreamBuffer bsb(buffer);
@@ -54,9 +61,11 @@ void WriteAheadLog::append(const LogEntry& entry) {
 }
 
 std::vector<LogEntry> WriteAheadLog::recover() {
+    LOG_INFO("Starting WAL recovery from: " + log_path);
     std::vector<LogEntry> recovered_entries;
     std::ifstream input_log_file(log_path, std::ios::binary);
     if (!input_log_file.is_open()) {
+        LOG_WARNING("WAL file not found for recovery. Assuming clean start.");
         return recovered_entries;
     }
 
@@ -75,21 +84,21 @@ std::vector<LogEntry> WriteAheadLog::recover() {
             entry_data.resize(entry_size);
             input_log_file.read(reinterpret_cast<char*>(entry_data.data()), entry_size);
             if (static_cast<uint32_t>(input_log_file.gcount()) != entry_size) {
-                std::cerr << "WAL data corruption: could not read full entry. Recovery stopped." << std::endl;
+                LOG_ERROR("WAL data corruption: could not read full entry. Recovery stopped.");
                 break;
             }
 
             // Read checksum
             bsb.read(stored_checksum);
             if (input_log_file.fail()) {
-                std::cerr << "WAL data corruption: could not read checksum. Recovery stopped." << std::endl;
+                LOG_ERROR("WAL data corruption: could not read checksum. Recovery stopped.");
                 break;
             }
 
             // Verify checksum
             uint32_t calculated_checksum = Common::crc32(entry_data.data(), entry_data.size());
             if (stored_checksum != calculated_checksum) {
-                std::cerr << "WAL checksum mismatch. Data corruption detected. Recovery stopped." << std::endl;
+                LOG_ERROR("WAL checksum mismatch. Data corruption detected. Recovery stopped.");
                 break;
             }
 
@@ -108,11 +117,12 @@ std::vector<LogEntry> WriteAheadLog::recover() {
             recovered_entries.push_back(entry);
 
         } catch (const std::exception& e) {
-            std::cerr << "Error during WAL recovery: " << e.what() << ". Recovery stopped." << std::endl;
+            LOG_ERROR("Error during WAL recovery: " + std::string(e.what()) + ". Recovery stopped.");
             break;
         }
     }
     input_log_file.close();
+    LOG_INFO("WAL recovery finished. Recovered " + std::to_string(recovered_entries.size()) + " entries.");
     return recovered_entries;
 }
 
@@ -120,9 +130,11 @@ void WriteAheadLog::clear() {
     if (log_file.is_open()) {
         log_file.close();
     }
+    LOG_INFO("Clearing Write-Ahead Log: " + log_path);
     // Truncate the file by opening it in truncate mode
     log_file.open(log_path, std::ios::out | std::ios::binary | std::ios::trunc);
     if (!log_file.is_open()) {
+        LOG_ERROR("Failed to clear WAL file: " + log_path);
         throw std::runtime_error("Failed to clear WAL file: " + log_path);
     }
 }
