@@ -3,9 +3,8 @@ import os
 import shutil
 import json
 from quanta_tissu.tisslm.execution_engine import ExecutionEngine, ToolRegistry, TissSecurityError, TissAssertionError
-from quanta_tissu.scripts.tisslang_parser import TissLangParser
+from quanta_tissu.tisslm.tisslang_parser import TissLangParser
 
-@unittest.skip("ExecutionEngine not yet implemented")
 class TestExecutionEngine(unittest.TestCase):
 
     def setUp(self):
