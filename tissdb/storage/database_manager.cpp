@@ -68,6 +68,12 @@ bool DatabaseManager::database_exists(const std::string& db_name) const {
     return databases_.count(db_name) > 0;
 }
 
+void DatabaseManager::shutdown() {
+    for (auto const& [name, db] : databases_) {
+        db->shutdown();
+    }
+}
+
 
 // --- Helper Function Implementations ---
 
@@ -115,7 +121,7 @@ void save_manifest(const std::string& manifest_path, const std::map<std::string,
     if (!manifest_file.is_open()) {
         throw std::runtime_error("Could not open manifest file for writing: " + manifest_path);
     }
-    manifest_file << manifest_obj.serialize();
+    manifest_file << Json::JsonValue(manifest_obj).serialize();
     manifest_file.close();
 }
 

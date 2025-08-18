@@ -49,6 +49,9 @@ public:
     // Clears the log file, typically after a successful flush of a memtable to disk.
     void clear();
 
+    // Ensures the log file is properly flushed and closed.
+    void shutdown();
+
 private:
     std::string log_path;
     std::ofstream log_file;
