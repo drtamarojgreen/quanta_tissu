@@ -115,15 +115,15 @@ std::string SSTable::write_from_memtable(const std::string& data_dir, const Memt
     ).count();
     std::string file_path = data_dir + "/sstable_" + std::to_string(timestamp) + ".db";
 
-    std::stringstream buffer_ss;
-    BinaryStreamBuffer bsb(static_cast<std::ostream&>(buffer_ss));
+    std::stringstream buffer_stream;
+    BinaryStreamBuffer bsb(static_cast<std::ostream&>(buffer_stream));
     std::map<std::string, uint64_t> sparse_index;
     int key_count = 0;
 
     const auto& data = memtable.get_all();
     for (const auto& pair : data) {
         if (key_count % SSTABLE_INDEX_INTERVAL == 0) {
-            sparse_index[pair.first] = buffer_ss.tellp();
+            sparse_index[pair.first] = buffer_stream.tellp();
         }
         key_count++;
 
@@ -138,22 +138,22 @@ std::string SSTable::write_from_memtable(const std::string& data_dir, const Memt
         }
     }
 
-    uint64_t index_start_offset = buffer_ss.tellp();
+    uint64_t index_start_offset = buffer_stream.tellp();
     bsb.write(static_cast<size_t>(sparse_index.size()));
     for (const auto& pair : sparse_index) {
         bsb.write_string(pair.first);
         bsb.write(pair.second);
     }
 
-    std::string buffer_str = buffer_ss.str();
-    uint32_t checksum = Common::crc32(buffer_str.c_str(), buffer_str.size());
+    std::string buffer_str = buffer_stream.str();
+    uint32_t checksum = Common::crc32(buffer_str.data(), buffer_str.size());
 
     std::ofstream sst_file(file_path, std::ios::binary | std::ios::trunc);
     if (!sst_file.is_open()) {
         throw std::runtime_error("Failed to create SSTable file: " + file_path);
     }
 
-    sst_file.write(buffer_str.c_str(), buffer_str.size());
+    sst_file.write(buffer_str.data(), buffer_str.size());
     BinaryStreamBuffer file_bsb(sst_file);
     file_bsb.write(checksum);
     file_bsb.write(index_start_offset);
@@ -182,14 +182,14 @@ std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTabl
         }
     }
 
-    std::stringstream buffer_ss;
-    BinaryStreamBuffer bsb(static_cast<std::ostream&>(buffer_ss));
+    std::stringstream buffer_stream;
+    BinaryStreamBuffer bsb(static_cast<std::ostream&>(buffer_stream));
     std::map<std::string, uint64_t> sparse_index;
     int key_count = 0;
 
     for (const auto& pair : merged_data) {
         if (key_count % SSTABLE_INDEX_INTERVAL == 0) {
-            sparse_index[pair.first] = buffer_ss.tellp();
+            sparse_index[pair.first] = buffer_stream.tellp();
         }
         key_count++;
 
@@ -203,22 +203,22 @@ std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTabl
         }
     }
 
-    uint64_t index_start_offset = buffer_ss.tellp();
+    uint64_t index_start_offset = buffer_stream.tellp();
     bsb.write(static_cast<size_t>(sparse_index.size()));
     for (const auto& pair : sparse_index) {
         bsb.write_string(pair.first);
         bsb.write(pair.second);
     }
 
-    std::string buffer_str = buffer_ss.str();
-    uint32_t checksum = Common::crc32(buffer_str.c_str(), buffer_str.size());
+    std::string buffer_str = buffer_stream.str();
+    uint32_t checksum = Common::crc32(buffer_str.data(), buffer_str.size());
 
     std::ofstream sst_file(file_path, std::ios::binary | std::ios::trunc);
     if (!sst_file.is_open()) {
         throw std::runtime_error("Failed to create merged SSTable file: " + file_path);
     }
 
-    sst_file.write(buffer_str.c_str(), buffer_str.size());
+    sst_file.write(buffer_str.data(), buffer_str.size());
     BinaryStreamBuffer file_bsb(sst_file);
     file_bsb.write(checksum);
     file_bsb.write(index_start_offset);
