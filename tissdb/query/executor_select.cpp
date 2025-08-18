@@ -276,17 +276,65 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
             }
             aggregated_docs.push_back(aggregated_doc);
         }
-        return {aggregated_docs};
+        result_docs = aggregated_docs;
+    } else {
+        result_docs = filtered_docs;
+    }
+
+    // --- Sorting ---
+    if (!select_stmt.order_by_clause.empty()) {
+        std::sort(result_docs.begin(), result_docs.end(), [&](const Document& a, const Document& b) {
+            for (const auto& order_by_pair : select_stmt.order_by_clause) {
+                const std::string& field_name = order_by_pair.first;
+                const std::string& sort_order = order_by_pair.second;
+
+                auto get_value = [&](const Document& doc) -> std::optional<Value> {
+                    for (const auto& elem : doc.elements) {
+                        if (elem.key == field_name) {
+                            return elem.value;
+                        }
+                    }
+                    return std::nullopt;
+                };
+
+                auto val_a_opt = get_value(a);
+                auto val_b_opt = get_value(b);
+
+                if (!val_a_opt.has_value() || !val_b_opt.has_value()) {
+                    // Handle missing fields by treating them as equal for this level of sorting
+                    continue;
+                }
+
+                auto& val_a = *val_a_opt;
+                auto& val_b = *val_b_opt;
+
+                bool is_asc = (sort_order != "DESC");
+
+                // If types are different, they are considered "equal" for sorting purposes
+                if (val_a.index() != val_b.index()) {
+                    continue;
+                }
+
+                if (std::get_if<std::string>(&val_a)) {
+                    int cmp = std::get<std::string>(val_a).compare(std::get<std::string>(val_b));
+                    if (cmp != 0) return is_asc ? cmp < 0 : cmp > 0;
+                } else if (std::get_if<double>(&val_a)) {
+                    double diff = std::get<double>(val_a) - std::get<double>(val_b);
+                    if (diff != 0) return is_asc ? diff < 0 : diff > 0;
+                }
+            }
+            return false; // Equal
+        });
     }
 
     // --- Projection ---
     bool select_all = !select_stmt.fields.empty() && std::holds_alternative<std::string>(select_stmt.fields[0]) && std::get<std::string>(select_stmt.fields[0]) == "*";
 
     if (select_all) {
-        return {filtered_docs};
+        return {result_docs};
     } else {
         std::vector<Document> projected_docs;
-        for (const auto& doc : filtered_docs) {
+        for (const auto& doc : result_docs) {
             Document projected_doc;
             projected_doc.id = doc.id;
             for (const auto& field_variant : select_stmt.fields) {
