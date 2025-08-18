@@ -1,4 +1,5 @@
 #include "collection.h"
+#include "../common/log.h"
 #include "../common/serialization.h" // For calculating document size accurately
 
 namespace TissDB {
@@ -23,6 +24,7 @@ void Collection::shutdown() {
 }
 
 void Collection::put(const std::string& key, const Document& doc) {
+    LOG_DEBUG("PUT key: " + key);
     // To accurately track memory usage, we account for the change in size.
     size_t old_value_size = 0;
     auto it = data.find(key);
@@ -49,6 +51,7 @@ void Collection::put(const std::string& key, const Document& doc) {
 }
 
 void Collection::del(const std::string& key) {
+    LOG_DEBUG("DELETE key: " + key);
     size_t old_value_size = 0;
     auto it = data.find(key);
     if (it != data.end()) {
@@ -69,6 +72,7 @@ void Collection::del(const std::string& key) {
 }
 
 std::optional<std::shared_ptr<Document>> Collection::get(const std::string& key) {
+    LOG_DEBUG("GET key: " + key);
     auto it = data.find(key);
     if (it == data.end()) {
         // The key is not in the collection at all.
@@ -93,6 +97,7 @@ size_t Collection::approximate_size() const {
 }
 
 std::vector<Document> Collection::scan() const {
+    LOG_DEBUG("SCAN collection");
     std::vector<Document> documents;
     for (const auto& pair : data) {
         if (pair.second) { // If it's a document, not a tombstone
