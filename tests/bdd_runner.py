@@ -176,11 +176,13 @@ class BDDRunner:
             from tests.features.steps import (test_kv_cache_steps, test_tokenizer_steps, test_predict_steps,
                                               test_generate_steps, test_knowledge_base_steps, test_database_steps,
                                               test_more_database_steps, test_extended_database_steps, test_parser_steps,
-                                              test_model_integration_steps, test_integration_steps, test_update_delete_steps)
+                                              test_model_integration_steps, test_integration_steps, test_update_delete_steps,
+                                              test_select_queries_steps)
             for module in [test_kv_cache_steps, test_tokenizer_steps, test_predict_steps,
                            test_generate_steps, test_knowledge_base_steps, test_database_steps,
                            test_more_database_steps, test_extended_database_steps, test_parser_steps,
-                           test_model_integration_steps, test_integration_steps, test_update_delete_steps]:
+                           test_model_integration_steps, test_integration_steps, test_update_delete_steps,
+                           test_select_queries_steps]:
                 module.register_steps(self)
             print("BDD Runner: All steps registered.")
             sys.stdout.flush()
