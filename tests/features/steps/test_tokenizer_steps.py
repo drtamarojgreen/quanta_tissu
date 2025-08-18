@@ -1,9 +1,9 @@
-from quanta_tissu.tisslm.tokenizer import Tokenizer, vocab
+from quanta_tissu.tisslm.tokenizer import Tokenizer
 
 def register_steps(runner):
     @runner.step(r'^Given a tokenizer$')
     def context(context):
-        context['tokenizer'] = Tokenizer(vocab)
+        context['tokenizer'] = Tokenizer()
 
     @runner.step(r'^When I tokenize the string "(.*)"$')
     def tokenize_string(context, string):
