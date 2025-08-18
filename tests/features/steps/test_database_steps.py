@@ -11,14 +11,16 @@ def register_steps(step):
     def running_tissdb_instance(context):
         context['db_name'] = "testdb"
         # Clean up any old test database and create a fresh one
-        requests.delete(f"{BASE_URL}/{context['db_name']}")
-        response = requests.put(f"{BASE_URL}/{context['db_name']}")
-        assert response.status_code == 201, f"Failed to create test database: {response.text}"
+        delete_response = requests.delete(f"{BASE_URL}/{context['db_name']}")
+        assert delete_response.status_code in [204, 404], f"Failed to delete test database: {delete_response.text}"
+
+        create_response = requests.put(f"{BASE_URL}/{context['db_name']}")
+        assert create_response.status_code == 201, f"Failed to create test database: {create_response.text}"
 
         # Check health
         try:
-            response = requests.get(f"{BASE_URL}/_health")
-            response.raise_for_status()
+            health_response = requests.get(f"{BASE_URL}/_health")
+            health_response.raise_for_status()
         except requests.exceptions.RequestException as e:
             raise Exception(f"TissDB instance is not responsive: {e}")
 
