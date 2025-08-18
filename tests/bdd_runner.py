@@ -4,6 +4,8 @@ import os
 import glob
 import subprocess
 import time
+import datetime
+import traceback
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -15,6 +17,20 @@ class BDDRunner:
         self.features_path = features_path
         self.steps = []
         self.db_process = None
+        self.report_data = {
+            'start_time': None,
+            'end_time': None,
+            'compilation_skipped': False,
+            'db_start_error': None,
+            'fatal_error': None,
+            'scenarios_run': 0,
+            'scenarios_passed': 0,
+            'scenarios_failed': 0,
+            'steps_run': 0,
+            'steps_passed': 0,
+            'steps_failed': 0,
+            'step_failures': []
+        }
 
     def step(self, pattern):
         def decorator(func):
@@ -33,24 +49,42 @@ class BDDRunner:
         if not os.path.exists(db_path):
             print(f"BDD Runner: ERROR - Database executable not found at {db_path}")
             sys.stdout.flush()
-            # Attempt to build the database
+
+            if os.environ.get('NO_COMPILE'):
+                self.report_data['compilation_skipped'] = True
+                error_msg = f"Database executable not found at {db_path} and compilation was skipped via NO_COMPILE flag."
+                self.report_data['db_start_error'] = error_msg
+                print("BDD Runner: SKIPPING build process due to NO_COMPILE directive.")
+                sys.stdout.flush()
+                return
+
             print("BDD Runner: Attempting to build the database...")
             sys.stdout.flush()
             try:
                 subprocess.run(['make', '-C', os.path.join(base_path, 'tissdb')], check=True)
                 if not os.path.exists(db_path):
-                    print("BDD Runner: ERROR - Build completed but executable still not found.")
+                    error_msg = "Build completed but executable still not found."
+                    self.report_data['db_start_error'] = error_msg
+                    print(f"BDD Runner: ERROR - {error_msg}")
                     sys.stdout.flush()
                     return
                 print("BDD Runner: Build successful, continuing...")
                 sys.stdout.flush()
             except (subprocess.CalledProcessError, FileNotFoundError) as e:
-                print(f"BDD Runner: ERROR - Failed to build database: {e}")
+                error_msg = f"Failed to build database: {e}"
+                self.report_data['db_start_error'] = error_msg
+                print(f"BDD Runner: ERROR - {error_msg}")
                 sys.stdout.flush()
                 return
 
-        self.db_process = subprocess.Popen([db_path])
-        time.sleep(2) # Wait for the server to start
+        try:
+            self.db_process = subprocess.Popen([db_path])
+            time.sleep(2) # Wait for the server to start
+        except Exception as e:
+            error_msg = f"Failed to start database process: {e}"
+            self.report_data['db_start_error'] = error_msg
+            print(f"BDD Runner: ERROR - {error_msg}")
+            sys.stdout.flush()
 
     def stop_db(self):
         if self.db_process:
@@ -59,88 +93,173 @@ class BDDRunner:
             self.db_process.terminate()
             self.db_process.wait() # Ensure process is terminated
 
+    def _generate_report(self):
+        report_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs', 'tissdb_bdd_implementation_plan.md')
+
+        duration = (self.report_data['end_time'] - self.report_data['start_time']).total_seconds()
+
+        if self.report_data['fatal_error']:
+            overall_result = "FAIL (FATAL)"
+        elif self.report_data['scenarios_failed'] > 0 or self.report_data['db_start_error']:
+            overall_result = "FAIL"
+        else:
+            overall_result = "PASS"
+
+        content = f"""# TissDB BDD Test Execution Report
+
+- **Date:** {self.report_data['start_time'].strftime('%Y-%m-%d %H:%M:%S')}
+- **Duration:** {duration:.2f} seconds
+- **Overall Result:** {overall_result}
+
+## Summary
+
+| Metric             | Count |
+| ------------------ | ----- |
+| Scenarios Run      | {self.report_data['scenarios_run']}      |
+| Scenarios Passed   | {self.report_data['scenarios_passed']}    |
+| Scenarios Failed   | {self.report_data['scenarios_failed']}    |
+| Steps Run          | {self.report_data['steps_run']}          |
+| Steps Passed       | {self.report_data['steps_passed']}        |
+| Steps Failed       | {self.report_data['steps_failed']}        |
+
+## Details
+
+### Environment
+- **Compilation Skipped:** {'Yes' if self.report_data['compilation_skipped'] else 'No'}
+
+### Errors
+
+"""
+        if self.report_data['db_start_error']:
+            content += f"**Database Start Error:**\n\n```\n{self.report_data['db_start_error']}\n```\n\n"
+
+        if self.report_data['fatal_error']:
+            content += f"**Fatal Script Error:**\n\n```\n{self.report_data['fatal_error']}\n```\n\n"
+
+        if self.report_data['step_failures']:
+            content += "**Failed Steps:**\n"
+            for failure in self.report_data['step_failures']:
+                content += f"\n- **Step:** `{failure['step']}`\n"
+                content += f"  - **Feature:** `{failure['feature']}`\n"
+                content += f"  - **Scenario:** `{failure['scenario']}`\n"
+                content += f"  - **Error:**\n    ```\n{failure['traceback']}\n    ```\n"
+
+        content += "\\n## Conclusion\\n\\n"
+        if overall_result.startswith("FAIL"):
+            content += "The test run failed. See error details above."
+        else:
+            content += "All scenarios passed successfully."
+
+        os.makedirs(os.path.dirname(report_path), exist_ok=True)
+        with open(report_path, 'w') as f:
+            f.write(content)
+        print(f"BDD Runner: Report generated at {report_path}")
+
     def run(self):
-        self.start_db()
+        self.report_data['start_time'] = datetime.datetime.now()
         overall_success = True
-
-        feature_files = glob.glob(os.path.join(self.features_path, '*.feature'))
-        print(f"BDD Runner: Found feature files: {feature_files}")
-        sys.stdout.flush()
         
-        # Import and register steps once
-        from tests.features.steps import test_kv_cache_steps
-        from tests.features.steps import test_tokenizer_steps
-        from tests.features.steps import test_predict_steps
-        from tests.features.steps import test_generate_steps
-        from tests.features.steps import test_knowledge_base_steps
-        from tests.features.steps import test_database_steps
-        from tests.features.steps import test_more_database_steps
-        from tests.features.steps import test_extended_database_steps
-        from tests.features.steps import test_parser_steps
-        from tests.features.steps import test_model_integration_steps
-        from tests.features.steps import test_integration_steps
-        from tests.features.steps import test_update_delete_steps
-        test_kv_cache_steps.register_steps(self)
-        test_tokenizer_steps.register_steps(self)
-        test_predict_steps.register_steps(self)
-        test_generate_steps.register_steps(self)
-        test_knowledge_base_steps.register_steps(self)
-        test_database_steps.register_steps(self)
-        test_more_database_steps.register_steps(self)
-        test_extended_database_steps.register_steps(self)
-        test_parser_steps.register_steps(self)
-        test_model_integration_steps.register_steps(self)
-        test_integration_steps.register_steps(self)
-        test_update_delete_steps.register_steps(self)
-        print("BDD Runner: All steps registered.")
-        sys.stdout.flush()
+        try:
+            self.start_db()
 
-        if not feature_files:
-            print("BDD Runner: No feature files found to run.")
-            sys.stdout.flush()
-            return True # No features is not a failure
+            if self.report_data['db_start_error']:
+                # If DB failed to start, we can't run any DB-dependent tests.
+                # We will proceed to report generation directly.
+                print("BDD Runner: Halting execution due to database start failure.")
+                overall_success = False
+                raise Exception("Database failed to start.")
 
-        for feature_file in feature_files:
-            print(f"Running feature: {os.path.basename(feature_file)}")
-            sys.stdout.flush()
-            with open(feature_file, 'r') as f:
-                feature_content = f.read()
-            print(f"BDD Runner: Read content from {os.path.basename(feature_file)}")
+            feature_files = glob.glob(os.path.join(self.features_path, '*.feature'))
+            print(f"BDD Runner: Found feature files: {feature_files}")
             sys.stdout.flush()
 
-            context = {}
-            scenario_success = True
-            for line_num, line in enumerate(feature_content.splitlines()):
-                original_line = line
-                line = line.strip()
-                
-                if not line or line.startswith('#') or line.startswith('Feature:'):
-                    continue
+            from tests.features.steps import (test_kv_cache_steps, test_tokenizer_steps, test_predict_steps,
+                                              test_generate_steps, test_knowledge_base_steps, test_database_steps,
+                                              test_more_database_steps, test_extended_database_steps, test_parser_steps,
+                                              test_model_integration_steps, test_integration_steps, test_update_delete_steps)
+            for module in [test_kv_cache_steps, test_tokenizer_steps, test_predict_steps,
+                           test_generate_steps, test_knowledge_base_steps, test_database_steps,
+                           test_more_database_steps, test_extended_database_steps, test_parser_steps,
+                           test_model_integration_steps, test_integration_steps, test_update_delete_steps]:
+                module.register_steps(self)
+            print("BDD Runner: All steps registered.")
+            sys.stdout.flush()
 
-                if line.startswith('Scenario:'):
-                    context = {} # Reset context for new scenario
+            if not feature_files:
+                print("BDD Runner: No feature files found to run.")
+                sys.stdout.flush()
+                # No features is a success, but we still want to generate a report.
+                return True
+
+            for feature_file in feature_files:
+                feature_name = os.path.basename(feature_file)
+                print(f"Running feature: {feature_name}")
+                sys.stdout.flush()
+                with open(feature_file, 'r') as f:
+                    feature_content = f.read()
+
+                # This logic is simplified to avoid state-related bugs across scenarios.
+                # A more robust parser would be better, but this is less invasive.
+                scenarios = feature_content.split('Scenario:')
+                for i, scenario_block in enumerate(scenarios[1:]): # Skip feature description
+                    self.report_data['scenarios_run'] += 1
                     scenario_success = True
+                    context = {}
 
-                step_found = False
-                for pattern, func in self.steps:
-                    match = pattern.match(line)
-                    if match:
-                        print(f"  Executing step (line {line_num + 1}): {original_line.strip()}")
-                        sys.stdout.flush()
-                        try:
-                            func(context, *match.groups())
-                        except Exception as e:
-                            print(f"    ERROR executing step: {e}")
+                    lines = scenario_block.splitlines()
+                    scenario_title = lines[0].strip()
+                    print(f"  Running Scenario: {scenario_title}")
+
+                    for line_num, step_line_full in enumerate(lines[1:]):
+                        step_line = step_line_full.strip()
+
+                        if not step_line or step_line.startswith('#'):
+                            continue
+
+                        self.report_data['steps_run'] += 1
+                        step_found = False
+                        for pattern, func in self.steps:
+                            match = pattern.match(step_line)
+                            if match:
+                                print(f"    Executing step: {step_line}")
+                                sys.stdout.flush()
+                                try:
+                                    func(context, *match.groups())
+                                    self.report_data['steps_passed'] += 1
+                                except Exception as e:
+                                    tb = traceback.format_exc()
+                                    print(f"      ERROR executing step: {e}\n{tb}")
+                                    sys.stdout.flush()
+                                    self.report_data['steps_failed'] += 1
+                                    self.report_data['step_failures'].append({
+                                        'feature': feature_name,
+                                        'scenario': scenario_title,
+                                        'step': step_line,
+                                        'traceback': tb
+                                    })
+                                    scenario_success = False
+                                    overall_success = False
+                                step_found = True
+                                break
+                        if not step_found and step_line.startswith(('Given', 'When', 'Then', 'And', 'But')):
+                            print(f"    WARNING - No step definition found for line: {step_line}")
                             sys.stdout.flush()
-                            scenario_success = False
-                            overall_success = False
-                        step_found = True
-                        break
-                if not step_found and line.startswith(('Given', 'When', 'Then', 'And')):
-                    print(f"BDD Runner: WARNING - No step definition found for line: {original_line.strip()}")
-                    sys.stdout.flush()
-        
-        self.stop_db()
+
+                    if scenario_success:
+                        self.report_data['scenarios_passed'] += 1
+                    else:
+                        self.report_data['scenarios_failed'] += 1
+
+        except Exception as e:
+            print(f"BDD Runner: FATAL ERROR - {e}")
+            sys.stdout.flush()
+            self.report_data['fatal_error'] = traceback.format_exc()
+            overall_success = False
+        finally:
+            self.stop_db()
+            self.report_data['end_time'] = datetime.datetime.now()
+            self._generate_report()
+
         return overall_success
 
 if __name__ == '__main__':
