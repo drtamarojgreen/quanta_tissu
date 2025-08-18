@@ -157,9 +157,14 @@ python quanta_tissu/tisslm/run_training.py \
     --epochs 10 \
     --warmup_steps 100 \
     --max_grad_norm 1.0 \
-    --checkpoint_dir ./checkpoints/experiment_01 \
+    --checkpoint_dir ./checkpoints/checkpoint_step_168300 \
     --save_every 50
 ```
+
+python quanta_tissu/tisslm/run_training.py --lr 3e-4 --batch_size 4 --epochs 10 --warmup_steps 10 --max_grad_norm 1.0 --checkpoint_dir ./checkpoints/checkpoint_step_168300 --save_every 50
+
+
+python run_training.py --lr 3e-4 --batch_size 4 --epochs 10 --warmup_steps 10 --max_grad_norm 1.0 --checkpoint_dir ./checkpoints/checkpoint_step_168300 --save_every 50
 
 This command starts a new training run that:
 *   Uses a learning rate of `3e-4`.
