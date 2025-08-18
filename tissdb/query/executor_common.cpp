@@ -81,15 +81,18 @@ void process_aggregation(std::map<std::string, AggregateResult>& results_map, co
 
     for (const auto& elem : doc.elements) {
         if (elem.key == agg_func.field_name) {
-            if (auto* num_val = std::get_if<double>(&elem.value)) {
-                auto& result = results_map[result_key];
+            auto& result = results_map[result_key];
 
+            // COUNT should increment for any non-null field
+            if (agg_func.function_name == "COUNT") {
+                result.count++;
+            }
+
+            // Handle numeric aggregations
+            if (auto* num_val = std::get_if<Number>(&elem.value)) {
                 if (agg_func.function_name == "SUM" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
                     result.sum += *num_val;
                     result.sum_sq += (*num_val) * (*num_val);
-                }
-                if (agg_func.function_name == "COUNT" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
-                    result.count++;
                 }
                 if (agg_func.function_name == "MIN") {
                     if (!result.min.has_value() || *num_val < result.min.value()) {
@@ -99,6 +102,19 @@ void process_aggregation(std::map<std::string, AggregateResult>& results_map, co
                 if (agg_func.function_name == "MAX") {
                     if (!result.max.has_value() || *num_val > result.max.value()) {
                         result.max = *num_val;
+                    }
+                }
+            }
+            // Handle string aggregations
+            else if (auto* str_val = std::get_if<std::string>(&elem.value)) {
+                if (agg_func.function_name == "MIN") {
+                    if (!result.min_str.has_value() || *str_val < result.min_str.value()) {
+                        result.min_str = *str_val;
+                    }
+                }
+                if (agg_func.function_name == "MAX") {
+                    if (!result.max_str.has_value() || *str_val > result.max_str.value()) {
+                        result.max_str = *str_val;
                     }
                 }
             }
