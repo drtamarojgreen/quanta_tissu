@@ -6,6 +6,7 @@ import subprocess
 import time
 import datetime
 import traceback
+import socket
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -17,6 +18,7 @@ class BDDRunner:
         self.features_path = features_path
         self.steps = []
         self.db_process = None
+        self.db_was_running = False
         self.report_data = {
             'start_time': None,
             'end_time': None,
@@ -39,7 +41,22 @@ class BDDRunner:
             return func
         return decorator
 
+    def is_server_running(self, host='127.0.0.1', port=8080):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.connect((host, port))
+            s.close()
+            return True
+        except socket.error:
+            return False
+
     def start_db(self):
+        if self.is_server_running():
+            print("BDD Runner: Detected existing database server. Skipping startup.")
+            sys.stdout.flush()
+            self.db_was_running = True
+            return
+
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         db_executable = 'tissdb.exe' if sys.platform == 'win32' else 'tissdb'
         db_path = os.path.join(base_path, 'tissdb', db_executable)
@@ -88,11 +105,14 @@ class BDDRunner:
             sys.stdout.flush()
 
     def stop_db(self):
-        if self.db_process:
+        if self.db_process and not self.db_was_running:
             print("BDD Runner: Stopping database.")
             sys.stdout.flush()
             self.db_process.terminate()
             self.db_process.wait() # Ensure process is terminated
+        elif self.db_was_running:
+            print("BDD Runner: Leaving existing database server running.")
+            sys.stdout.flush()
 
     def _generate_report(self):
         report_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs', 'tissdb_bdd_implementation_plan.md')
