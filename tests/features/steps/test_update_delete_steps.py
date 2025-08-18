@@ -3,14 +3,11 @@ import json
 import re
 
 BASE_URL = "http://localhost:8080"
+DB_NAME = "testdb" # Use a consistent test database
 
-def register_steps(runner):
-    # This step is designed to handle the "And I insert the following documents" step
-    # in the background of the update_delete_queries.feature file.
-    @runner.step(r'^And I insert the following documents into "(.*)":$')
+def register_steps(step): # Changed from runner
+    @step(r'And I insert the following documents into "(.*)":$') # Changed from runner.step
     def insert_documents_from_table(context, collection_name, table_lines):
-        # This is a bit of a hack due to the custom BDD runner.
-        # It seems the runner passes the table as a list of raw string lines.
         headers_line = table_lines[0]
         headers = [h.strip() for h in headers_line.strip().strip('|').split('|')]
 
@@ -20,24 +17,18 @@ def register_steps(runner):
             doc = dict(zip(headers, values))
 
             doc_id = doc['id']
-            content = json.loads(doc['content'])
+            # The content might be a JSON string, so we parse it.
+            try:
+                content = json.loads(doc['content'])
+            except json.JSONDecodeError:
+                # If it's not a valid JSON, treat it as a plain string.
+                content = {'value': doc['content']}
 
-            response = requests.put(f"{BASE_URL}/{collection_name}/{doc_id}", json=content)
-            assert response.status_code == 200, f"Failed to insert doc {doc_id}. Status: {response.status_code}"
 
-    @runner.step(r'^Then the document with ID "(.*)" in "(.*)" should exist$')
+            response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}", json=content)
+            assert response.status_code == 200, f"Failed to insert doc {doc_id}. Status: {response.status_code}, Text: {response.text}"
+
+    @step(r'Then the document with ID "(.*)" in "(.*)" should exist$') # Changed from runner.step
     def document_should_exist(context, doc_id, collection_name):
-        response = requests.get(f"{BASE_URL}/{collection_name}/{doc_id}")
+        response = requests.get(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}")
         assert response.status_code == 200, f"Expected document '{doc_id}' to exist, but it does not (status code: {response.status_code})."
-
-    # The following step is defined in `test_database_steps.py`
-    # When I execute the TissQL query "(.*)" on "(.*)"
-    # We will rely on the runner to have it registered.
-
-    # The following step is also in `test_database_steps.py`
-    # Then the document with ID "(.*)" in "(.*)" should have content (.*)
-    # We will rely on the runner to have it registered.
-
-    # Also from `test_database_steps.py`
-    # Then the document with ID "(.*)" in "(.*)" should not exist
-    # We will rely on the runner to have it registered.
