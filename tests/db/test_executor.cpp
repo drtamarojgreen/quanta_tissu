@@ -92,7 +92,7 @@ TEST_CASE(ExecutorSelectAll) {
     TissDB::Query::AST ast = parser.parse("SELECT * FROM users");
 
     TissDB::Query::Executor executor(mock_lsm_tree);
-    TissDB::Query::QueryResult result = executor.execute(ast);
+    TissDB::Query::QueryResult result = executor.execute(std::move(ast));
 
     ASSERT_EQ(2, result.size());
     // Check content (order might vary)
@@ -119,7 +119,7 @@ TEST_CASE(ExecutorUpdateReturnValue) {
     TissDB::Query::Executor executor(mock_lsm_tree);
 
     TissDB::Query::AST ast = parser.parse("UPDATE users SET age = 21 WHERE age > 25");
-    TissDB::Query::QueryResult result = executor.execute(ast);
+    TissDB::Query::QueryResult result = executor.execute(std::move(ast));
 
     ASSERT_EQ(1, result.size());
     const auto& summary_doc = result[0];
@@ -139,7 +139,7 @@ TEST_CASE(ExecutorDeleteReturnValue) {
     TissDB::Query::Executor executor(mock_lsm_tree);
 
     TissDB::Query::AST ast = parser.parse("DELETE FROM users WHERE status = 'inactive'");
-    TissDB::Query::QueryResult result = executor.execute(ast);
+    TissDB::Query::QueryResult result = executor.execute(std::move(ast));
 
     ASSERT_EQ(1, result.size());
     const auto& summary_doc = result[0];
@@ -157,7 +157,7 @@ TEST_CASE(ExecutorUpdateModifyValue) {
     TissDB::Query::Executor executor(mock_lsm_tree);
 
     TissDB::Query::AST ast = parser.parse("UPDATE users SET level = 6.0 WHERE level = 5.0");
-    executor.execute(ast);
+    executor.execute(std::move(ast));
 
     auto updated_doc_opt = mock_lsm_tree.get("users", "user1");
     ASSERT_TRUE(updated_doc_opt.has_value());
@@ -186,7 +186,7 @@ TEST_CASE(ExecutorAggregateGroupBy) {
 
     // Execute the query
     TissDB::Query::AST ast = parser.parse("SELECT category, SUM(amount), COUNT(amount) FROM sales GROUP BY category");
-    TissDB::Query::QueryResult result = executor.execute(ast);
+    TissDB::Query::QueryResult result = executor.execute(std::move(ast));
 
     // Verify the results
     ASSERT_EQ(2, result.size()); // Two groups: books and electronics
@@ -238,7 +238,7 @@ TEST_CASE(ExecutorAggregateNoGroupBy) {
     TissDB::Query::Executor executor(mock_lsm_tree);
 
     TissDB::Query::AST ast = parser.parse("SELECT SUM(amount), AVG(amount) FROM sales");
-    TissDB::Query::QueryResult result = executor.execute(ast);
+    TissDB::Query::QueryResult result = executor.execute(std::move(ast));
 
     ASSERT_EQ(1, result.size());
     const auto& doc = result[0];
@@ -274,7 +274,7 @@ TEST_CASE(ExecutorAggregateCountStar) {
     TissDB::Query::Executor executor(mock_lsm_tree);
 
     TissDB::Query::AST ast = parser.parse("SELECT COUNT(*) FROM users");
-    TissDB::Query::QueryResult result = executor.execute(ast);
+    TissDB::Query::QueryResult result = executor.execute(std::move(ast));
 
     ASSERT_EQ(1, result.size());
     const auto& doc = result[0];
@@ -293,7 +293,7 @@ TEST_CASE(ExecutorAggregateEmptyResult) {
     TissDB::Query::Executor executor(mock_lsm_tree);
 
     TissDB::Query::AST ast = parser.parse("SELECT SUM(amount) FROM sales WHERE amount > 100");
-    TissDB::Query::QueryResult result = executor.execute(ast);
+    TissDB::Query::QueryResult result = executor.execute(std::move(ast));
 
     ASSERT_EQ(1, result.size());
     const auto& doc = result[0];
@@ -325,7 +325,7 @@ TEST_CASE(ExecutorDeleteAll) {
 
     // 2. Execute the DELETE query
     TissDB::Query::AST ast = parser.parse("DELETE FROM users");
-    executor.execute(ast);
+    executor.execute(std::move(ast));
 
     // 3. Verify the data was deleted from mock storage
     ASSERT_EQ(0, mock_lsm_tree.mock_data_["users"].size());
@@ -354,7 +354,7 @@ TEST_CASE(ExecutorDeleteWithWhere) {
 
     // 2. Execute the DELETE query
     TissDB::Query::AST ast = parser.parse("DELETE FROM users WHERE name = 'Mallory'");
-    executor.execute(ast);
+    executor.execute(std::move(ast));
 
     // 3. Verify the data was deleted from mock storage
     auto deleted_doc_opt = mock_lsm_tree.get("users", "user_to_delete");
@@ -381,7 +381,7 @@ TEST_CASE(ExecutorUpdateAddField) {
     TissDB::Query::Executor executor(mock_lsm_tree);
 
     TissDB::Query::AST ast = parser.parse("UPDATE users SET status = 'active' WHERE name = 'Frank'");
-    executor.execute(ast);
+    executor.execute(std::move(ast));
 
     auto updated_doc_opt = mock_lsm_tree.get("users", "user1");
     ASSERT_TRUE(updated_doc_opt.has_value());
@@ -424,7 +424,7 @@ TEST_CASE(ExecutorUpdateAll) {
     TissDB::Query::Executor executor(mock_lsm_tree);
 
     TissDB::Query::AST ast = parser.parse("UPDATE users SET level = 10.0");
-    executor.execute(ast);
+    executor.execute(std::move(ast));
 
     // Verify doc1 was updated
     auto updated_doc1_opt = mock_lsm_tree.get("users", "user1");
@@ -470,7 +470,7 @@ TEST_CASE(ExecutorUpdateWithWhere) {
 
     // 2. Execute the UPDATE query
     TissDB::Query::AST ast = parser.parse("UPDATE users SET age = 41.0 WHERE name = 'David'");
-    executor.execute(ast);
+    executor.execute(std::move(ast));
 
     // 3. Verify the data was updated in mock storage
     auto updated_doc_opt = mock_lsm_tree.get("users", "user1");
@@ -514,7 +514,7 @@ TEST_CASE(ExecutorInsert) {
 
     // 1. Execute the INSERT query
     TissDB::Query::AST ast = parser.parse("INSERT INTO users (name, age) VALUES ('Charlie', 30.0)");
-    TissDB::Query::QueryResult result = executor.execute(ast);
+    TissDB::Query::QueryResult result = executor.execute(std::move(ast));
 
     // 2. INSERT should return an empty result, but the QueryResult struct is not designed for that.
     // We will check the side-effect in the mock storage instead.
@@ -570,7 +570,7 @@ TEST_CASE(ExecutorSelectWithWhere) {
     TissDB::Query::AST ast = parser.parse("SELECT * FROM products WHERE price > 100");
 
     TissDB::Query::Executor executor(mock_lsm_tree);
-    TissDB::Query::QueryResult result = executor.execute(ast);
+    TissDB::Query::QueryResult result = executor.execute(std::move(ast));
 
     ASSERT_EQ(1, result.size());
     ASSERT_EQ("prod1", result[0].id);
@@ -593,17 +593,17 @@ TEST_CASE(ExecutorSelectWithLike) {
 
     // Test case 1: Starts with 'Ali'
     TissDB::Query::AST ast1 = parser.parse("SELECT name FROM users WHERE name LIKE 'Ali%'");
-    TissDB::Query::QueryResult result1 = executor.execute(ast1);
+    TissDB::Query::QueryResult result1 = executor.execute(std::move(ast1));
     ASSERT_EQ(2, result1.size());
 
     // Test case 2: Ends with 'e'
     TissDB::Query::AST ast2 = parser.parse("SELECT name FROM users WHERE name LIKE '%e'");
-    TissDB::Query::QueryResult result2 = executor.execute(ast2);
+    TissDB::Query::QueryResult result2 = executor.execute(std::move(ast2));
     ASSERT_EQ(2, result2.size()); // Alice, Charlie
 
     // Test case 3: Contains 'li'
     TissDB::Query::AST ast3 = parser.parse("SELECT name FROM users WHERE name LIKE '%li%'");
-    TissDB::Query::QueryResult result3 = executor.execute(ast3);
+    TissDB::Query::QueryResult result3 = executor.execute(std::move(ast3));
     ASSERT_EQ(2, result3.size());
 
     // Test case 4: Single character wildcard

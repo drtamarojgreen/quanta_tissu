@@ -31,6 +31,7 @@ public:
     // Document operations (delegated to specific collection)
     virtual void put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID tid = -1);
     virtual std::optional<std::shared_ptr<Document>> get(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1);
+    virtual std::vector<Document> get_many(const std::string& collection_name, const std::vector<std::string>& keys);
     virtual void del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1);
     virtual std::vector<Document> scan(const std::string& collection_name);
     virtual void create_index(const std::string& collection_name, const std::vector<std::string>& field_names);
