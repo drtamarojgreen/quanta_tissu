@@ -7,6 +7,7 @@ import time
 import datetime
 import traceback
 import socket
+import argparse
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -14,8 +15,9 @@ print("BDD Runner: Script started.")
 sys.stdout.flush()
 
 class BDDRunner:
-    def __init__(self, features_path):
+    def __init__(self, features_path, summary=False):
         self.features_path = features_path
+        self.summary = summary
         self.steps = []
         self.db_process = None
         self.db_was_running = False
@@ -114,7 +116,49 @@ class BDDRunner:
             print("BDD Runner: Leaving existing database server running.")
             sys.stdout.flush()
 
+    def _generate_summary_report(self):
+        report_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs', 'tissdb_bdd_summary_report.md')
+
+        duration = (self.report_data['end_time'] - self.report_data['start_time']).total_seconds()
+
+        if self.report_data['fatal_error']:
+            overall_result = "FAIL (FATAL)"
+        elif self.report_data['scenarios_failed'] > 0 or self.report_data['db_start_error']:
+            overall_result = "FAIL"
+        else:
+            overall_result = "PASS"
+
+        content = f"""# TissDB BDD Test Execution Summary
+
+- **Date:** {self.report_data['start_time'].strftime('%Y-%m-%d %H:%M:%S')}
+- **Duration:** {duration:.2f} seconds
+- **Overall Result:** {overall_result}
+
+## Summary
+
+| Metric             | Count |
+| ------------------ | ----- |
+| Scenarios Run      | {self.report_data['scenarios_run']}      |
+| Scenarios Passed   | {self.report_data['scenarios_passed']}    |
+| Scenarios Failed   | {self.report_data['scenarios_failed']}    |
+| Steps Run          | {self.report_data['steps_run']}          |
+| Steps Passed       | {self.report_data['steps_passed']}        |
+| Steps Failed       | {self.report_data['steps_failed']}        |
+| Steps Skipped      | {self.report_data['steps_skipped']}        |
+
+"""
+        os.makedirs(os.path.dirname(report_path), exist_ok=True)
+        with open(report_path, 'w') as f:
+            f.write(content)
+        print(f"BDD Runner: Summary report generated at {report_path}")
+
     def _generate_report(self):
+        if self.summary:
+            self._generate_summary_report()
+        else:
+            self._generate_detailed_report()
+
+    def _generate_detailed_report(self):
         report_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs', 'tissdb_bdd_implementation_plan.md')
 
         duration = (self.report_data['end_time'] - self.report_data['start_time']).total_seconds()
@@ -285,6 +329,10 @@ class BDDRunner:
         return overall_success
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='BDD Test Runner')
+    parser.add_argument('--summary', action='store_true', help='Generate a summary report.')
+    args = parser.parse_args()
+
     features_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'features')
-    runner = BDDRunner(features_path)
+    runner = BDDRunner(features_path, summary=args.summary)
     runner.run()
