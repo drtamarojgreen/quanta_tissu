@@ -33,8 +33,8 @@ void WriteAheadLog::append(const LogEntry& entry) {
     std::string entry_type_str = (entry.type == LogEntryType::PUT) ? "PUT" : "DELETE";
     LOG_DEBUG("Appending to WAL: " + entry_type_str + " for doc ID: " + entry.document_id);
 
-    std::stringstream buffer_ss;
-    BinaryStreamBuffer bsb(static_cast<std::ostream&>(buffer_ss));
+    std::stringstream buffer_stream;
+    BinaryStreamBuffer bsb(static_cast<std::ostream&>(buffer_stream));
 
     // Write entry data to an in-memory buffer first
     bsb.write(entry.type);
@@ -49,14 +49,14 @@ void WriteAheadLog::append(const LogEntry& entry) {
         bsb.write(zero_len);
     }
 
-    std::string buffer_str = buffer_ss.str();
-    uint32_t checksum = Common::crc32(buffer_str.c_str(), buffer_str.size());
+    std::string buffer_str = buffer_stream.str();
+    uint32_t checksum = Common::crc32(buffer_str.data(), buffer_str.size());
     uint32_t entry_size = buffer_str.size();
 
     // Write size, data, and checksum to the file
     BinaryStreamBuffer file_bsb(log_file);
     file_bsb.write(entry_size);
-    log_file.write(buffer_str.c_str(), buffer_str.size());
+    log_file.write(buffer_str.data(), entry_size);
     file_bsb.write(checksum);
 
     log_file.flush();
@@ -106,8 +106,9 @@ std::vector<LogEntry> WriteAheadLog::recover() {
 
             // Parse the entry from the verified data buffer
             LogEntry entry;
-            std::stringstream entry_ss(std::string(entry_data.begin(), entry_data.end()));
-            BinaryStreamBuffer entry_bsb(static_cast<std::istream&>(entry_ss));
+            std::string entry_data_str(entry_data.begin(), entry_data.end());
+            std::istringstream entry_stream(entry_data_str);
+            BinaryStreamBuffer entry_bsb(entry_stream);
             entry_bsb.read(entry.type);
             entry_bsb.read(entry.transaction_id);
             entry.document_id = entry_bsb.read_string();
