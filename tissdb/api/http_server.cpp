@@ -304,10 +304,11 @@ void HttpServer::Impl::handle_client(int client_socket) {
             close(client_socket);
             return;
         } else if (req.method == "GET" && path_parts.size() == 1 && path_parts[0] == "_collections") {
-            // This is a placeholder. A real implementation would query the storage engine.
             Json::JsonArray collections_array;
-            // collections_array.push_back(Json::JsonValue("my_test_collection"));
-            // collections_array.push_back(Json::JsonValue("documents_collection"));
+            auto collections = storage_engine.list_collections();
+            for (const auto& name : collections) {
+                collections_array.push_back(Json::JsonValue(name));
+            }
             LOG_INFO("Sending response: 200 OK");
             send_response(client_socket, "200 OK", "application/json", Json::JsonValue(collections_array).serialize());
             close(client_socket);
