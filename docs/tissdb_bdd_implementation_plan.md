@@ -1,7 +1,7 @@
 # TissDB BDD Test Execution Report
 
-- **Date:** 2025-08-18 04:32:17
-- **Duration:** 30.85 seconds
+- **Date:** 2025-08-18 06:49:48
+- **Duration:** 0.00 seconds
 - **Overall Result:** FAIL (FATAL)
 
 ## Summary
@@ -18,14 +18,14 @@
 ## Details
 
 ### Environment
-- **Compilation Skipped:** No
+- **Compilation Skipped:** Yes
 
 ### Errors
 
 **Database Start Error:**
 
 ```
-Failed to build database: Command '['make', '-C', '/app/tissdb']' returned non-zero exit status 2.
+Database executable not found at /app/tissdb/tissdb and compilation was skipped via NO_COMPILE flag.
 ```
 
 **Fatal Script Error:**
