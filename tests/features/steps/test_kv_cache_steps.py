@@ -7,14 +7,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from quanta_tissu.tisslm.model import QuantaTissu
 from quanta_tissu.tisslm.config import model_config
-from quanta_tissu.tisslm.tokenizer import Tokenizer, vocab
+from quanta_tissu.tisslm.tokenizer import Tokenizer
 
 def register_steps(runner):
     @runner.step(r'^Given a model and tokenizer$')
     def context(context):
         np.random.seed(42)
         model = QuantaTissu(model_config)
-        tokenizer = Tokenizer(vocab)
+        tokenizer = Tokenizer()
         context['model'] = model
         context['tokenizer'] = tokenizer
 

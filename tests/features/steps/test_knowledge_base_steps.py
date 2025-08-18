@@ -1,7 +1,7 @@
 import numpy as np
 from quanta_tissu.tisslm.model import QuantaTissu
 from quanta_tissu.tisslm.config import model_config
-from quanta_tissu.tisslm.tokenizer import Tokenizer, vocab
+from quanta_tissu.tisslm.tokenizer import Tokenizer
 from quanta_tissu.tisslm.knowledge_base import KnowledgeBase
 
 def register_steps(runner):
@@ -9,7 +9,7 @@ def register_steps(runner):
     def knowledge_base_context(context):
         np.random.seed(42)
         model = QuantaTissu(model_config)
-        tokenizer = Tokenizer(vocab)
+        tokenizer = Tokenizer()
         context['model'] = model # Store model for other steps
         context['tokenizer'] = tokenizer # Store tokenizer for other steps
         context['knowledge_base'] = KnowledgeBase(model.embeddings, tokenizer)
