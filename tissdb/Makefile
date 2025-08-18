@@ -10,17 +10,28 @@ CXXFLAGS = -std=c++17 -I.. -I. -Wall -Wextra -g
 SRCS = main.cpp \
        api/http_server.cpp \
        common/binary_stream_buffer.cpp \
+       common/checksum.cpp \
        common/serialization.cpp \
        common/schema_validator.cpp \
        json/json.cpp \
        query/executor.cpp \
+       query/executor_common.cpp \
+       query/executor_delete.cpp \
+       query/executor_insert.cpp \
+       query/executor_select.cpp \
+       query/executor_update.cpp \
        query/join_algorithms.cpp \
        query/parser.cpp \
        storage/collection.cpp \
-       storage/transaction_manager.cpp \
+       storage/indexer.cpp \
+       storage/lsm_tree.cpp \
+       storage/memtable.cpp \
        storage/native_b_tree.cpp \
-       ../tests/db/http_client.cpp \
-       storage/lsm_tree.cpp
+       storage/sstable.cpp \
+       storage/transaction_manager.cpp \
+       storage/wal.cpp \
+       ../quanta_tissu/tissu_sinew.cpp \
+       ../tests/db/http_client.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
