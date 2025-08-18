@@ -11,12 +11,16 @@ namespace TissDB {
 namespace Query {
 
 // --- Aggregation Helper ---
+#include <cstdint>
+
 struct AggregateResult {
     double sum = 0;
-    double count = 0;
+    int64_t count = 0;
     double sum_sq = 0;
     std::optional<double> min;
     std::optional<double> max;
+    std::optional<std::string> min_str;
+    std::optional<std::string> max_str;
 };
 
 // --- Helper function declarations ---
