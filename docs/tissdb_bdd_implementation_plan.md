@@ -22,6 +22,12 @@
 
 ### Errors
 
+**Database Start Error:**
+
+```
+Database executable not found at /app/tissdb/tissdb and compilation was skipped via NO_COMPILE flag.
+```
+
 **Fatal Script Error:**
 
 ```
