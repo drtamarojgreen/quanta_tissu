@@ -60,7 +60,7 @@ As a user, I want the model to handle words that are not in its vocabulary.
 **Given** a QuantaTissu model with a fixed vocabulary
 **And** a sentence "this is a foobar test"
 **When** I tokenize the sentence
-**Then** the token "foobar" should be mapped to the "<unk>" token ID
+**Then** the tokenizer should correctly handle the unknown word
 
 ### 2.3. Generating Text with Knowledge Base
 
