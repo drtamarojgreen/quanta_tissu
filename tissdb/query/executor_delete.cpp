@@ -4,7 +4,7 @@
 namespace TissDB {
 namespace Query {
 
-QueryResult execute_delete_statement(Storage::LSMTree& storage_engine, const DeleteStatement& delete_stmt) {
+QueryResult execute_delete_statement(Storage::LSMTree& storage_engine, DeleteStatement delete_stmt) {
     auto all_docs = storage_engine.scan(delete_stmt.collection_name);
     int deleted_count = 0;
 
