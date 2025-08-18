@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import subprocess
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Callable, Protocol
@@ -163,6 +164,7 @@ class ExecutionEngine:
             return
 
         # Handle tool-based commands
+        start_time = time.monotonic()
         try:
             tool = self.tool_registry.get_tool(command_type)
             args = {k: v for k, v in command.items() if k != 'type'}
@@ -173,6 +175,8 @@ class ExecutionEngine:
             log_entry['error'] = str(e)
             state.is_halted = True
         finally:
+            end_time = time.monotonic()
+            log_entry['duration_ms'] = (end_time - start_time) * 1000
             state.execution_log.append(log_entry)
 
     # --- Tool Implementations ---
