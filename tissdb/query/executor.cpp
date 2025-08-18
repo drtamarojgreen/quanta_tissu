@@ -18,6 +18,8 @@ namespace Query {
 
 // --- Helper functions ---
 
+std::string like_to_regex(std::string pattern);
+
 // Evaluate an expression against a document
 bool evaluate_expression(const Expression& expr, const Document& doc) {
     if (const auto* logical_expr_ptr = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
@@ -107,43 +109,6 @@ void process_aggregation(std::map<std::string, AggregateResult>& results_map, co
     }
 }
 
-// --- NEW HELPER FUNCTION ---
-// Extracts all simple equality conditions (field = 'value') from a WHERE clause.
-void process_aggregation(std::map<std::string, AggregateResult>& results_map, const std::string& result_key, const Document& doc, const AggregateFunction& agg_func) {
-    // Handle COUNT(*) case where field_name can be "*"
-    if (agg_func.field_name == "*") {
-        if (agg_func.function_name == "COUNT") {
-            results_map[result_key].count++;
-        }
-        return;
-    }
-
-    for (const auto& elem : doc.elements) {
-        if (elem.key == agg_func.field_name) {
-            if (auto* num_val = std::get_if<double>(&elem.value)) {
-                auto& result = results_map[result_key]; // Get reference to the result for this key
-
-                if (agg_func.function_name == "SUM" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
-                    result.sum += *num_val;
-                    result.sum_sq += (*num_val) * (*num_val);
-                }
-                if (agg_func.function_name == "COUNT" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
-                    result.count++;
-                }
-                if (agg_func.function_name == "MIN") {
-                    if (!result.min.has_value() || *num_val < result.min.value()) {
-                        result.min = *num_val;
-                    }
-                }
-                if (agg_func.function_name == "MAX") {
-                    if (!result.max.has_value() || *num_val > result.max.value()) {
-                        result.max = *num_val;
-                    }
-                }
-            }
-        }
-    }
-}
 
 // Helper function to combine two documents for a join result
 Document combine_documents(const Document& doc1, const Document& doc2) {
@@ -225,7 +190,7 @@ std::string like_to_regex(std::string pattern) {
 
 Executor::Executor(Storage::LSMTree& storage) : storage_engine(storage) {}
 
-QueryResult Executor::execute(AST ast) {
+QueryResult Executor::execute(const AST& ast) {
     if (auto* select_stmt = std::get_if<SelectStatement>(&ast)) {
         // --- UNION Operation ---
         if (select_stmt->union_clause) {
