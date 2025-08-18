@@ -180,7 +180,7 @@ std::string like_to_regex(std::string pattern) {
         } else if (c == '_') {
             regex_pattern += ".";
         } else if (c == '.' || c == '+' || c == '*' || c == '?' || c == '^' || c == '$' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' || c == '|') {
-            regex_pattern += "\";
+            regex_pattern += "\\";
             regex_pattern += c;
         } else {
             regex_pattern += c;
@@ -199,8 +199,8 @@ QueryResult Executor::execute(const AST& ast) {
         if (select_stmt->union_clause) {
             const auto& union_clause = select_stmt->union_clause.value();
             // Recursively execute the left and right select statements
-            QueryResult left_result = execute(*union_clause.left_select);
-            QueryResult right_result = execute(*union_clause.right_select);
+            QueryResult left_result = execute(AST{*union_clause.left_select});
+            QueryResult right_result = execute(AST{*union_clause.right_select});
 
             std::vector<Document> unioned_docs = left_result; // QueryResult is already std::vector<Document>
 
@@ -577,7 +577,9 @@ QueryResult Executor::execute(const AST& ast) {
             const auto& value = insert_stmt->values[i];
             Element new_element;
             new_element.key = col_name;
-            new_element.value = value;
+            std::visit([&new_element](auto&& arg) {
+                new_element.value = arg;
+            }, value);
             new_doc.elements.push_back(new_element);
         }
 
