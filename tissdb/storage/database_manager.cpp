@@ -68,6 +68,15 @@ bool DatabaseManager::database_exists(const std::string& db_name) const {
     return databases_.count(db_name) > 0;
 }
 
+std::vector<std::string> DatabaseManager::list_databases() const {
+    std::vector<std::string> names;
+    names.reserve(databases_.size());
+    for (const auto& pair : databases_) {
+        names.push_back(pair.first);
+    }
+    return names;
+}
+
 void DatabaseManager::shutdown() {
     for (auto const& [name, db] : databases_) {
         db->shutdown();
