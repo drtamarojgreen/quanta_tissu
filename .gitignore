@@ -13,3 +13,4 @@ dist/
 # C++
 *.out
 test_sinew_app
+tissdb/tissdb
