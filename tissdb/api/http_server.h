@@ -2,8 +2,8 @@
 
 #include <memory>
 
-// Forward declaration of the storage engine to avoid including the full header.
-namespace TissDB { namespace Storage { class LSMTree; } }
+// Forward declaration of the database manager to avoid including the full header.
+namespace TissDB { namespace Storage { class DatabaseManager; } }
 
 namespace TissDB {
 namespace API {
@@ -11,8 +11,8 @@ namespace API {
 // Provides an HTTP interface to the TissDB storage engine.
 class HttpServer {
 public:
-    // Constructor takes a reference to the storage engine and the port to listen on.
-    HttpServer(Storage::LSMTree& storage_engine, int port);
+    // Constructor takes a reference to the database manager and the port to listen on.
+    HttpServer(Storage::DatabaseManager& db_manager, int port);
 
     // Destructor must be defined in the .cpp file when using PIMPL with std::unique_ptr.
     ~HttpServer();

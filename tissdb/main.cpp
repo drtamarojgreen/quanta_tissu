@@ -1,4 +1,4 @@
-#include "storage/lsm_tree.h"
+#include "storage/database_manager.h"
 #include "api/http_server.h"
 #include <iostream>
 #include <string>
@@ -28,11 +28,11 @@ int main(int argc, char* argv[]) {
     std::cout << "  - Listening on port: " << port << std::endl;
 
     try {
-        // 1. Initialize the storage engine
-        TissDB::Storage::LSMTree storage; // Using the simplified, in-memory storage engine
+        // 1. Initialize the database manager
+        TissDB::Storage::DatabaseManager db_manager("tissdb_data");
 
         // 2. Initialize the API server
-        TissDB::API::HttpServer server(storage, port);
+        TissDB::API::HttpServer server(db_manager, port);
 
         // 3. Start the server (this will start a background thread)
         server.start();
