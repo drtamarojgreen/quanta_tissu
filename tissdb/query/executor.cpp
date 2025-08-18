@@ -1,4 +1,5 @@
 #include "executor.h"
+#include "../common/log.h"
 #include <stdexcept>
 #include <iostream>
 #include <sstream>
@@ -214,8 +215,10 @@ Executor::Executor(Storage::LSMTree& storage) : storage_engine(storage) {}
 
 QueryResult Executor::execute(const AST& ast) {
     if (auto* select_stmt = std::get_if<SelectStatement>(&ast)) {
+        LOG_INFO("Executing SELECT statement on collection: " + select_stmt->from_collection);
         // --- UNION Operation ---
         if (select_stmt->union_clause) {
+            LOG_DEBUG("Executing UNION clause.");
             const auto& union_clause = select_stmt->union_clause.value();
             // Recursively execute the left and right select statements
             QueryResult left_result = execute(*union_clause.left_select);
@@ -240,6 +243,7 @@ QueryResult Executor::execute(const AST& ast) {
                     return a.id == b.id; // Remove duplicates based on ID
                 }), unioned_docs.end());
             }
+            LOG_DEBUG("Finished executing SELECT statement. Returning " + std::to_string(unioned_docs.size()) + " documents.");
             return {unioned_docs};
         }
 
@@ -291,7 +295,7 @@ QueryResult Executor::execute(const AST& ast) {
                     for(size_t i = 0; i < best_index_fields.size(); ++i) {
                         ss << best_index_fields[i] << (i < best_index_fields.size() - 1 ? ", " : "");
                     }
-                    std::cout << "Using compound index for query on fields: " << ss.str() << std::endl;
+                    LOG_INFO("Using compound index for query on fields: " + ss.str());
                 }
             }
         }
@@ -308,7 +312,7 @@ QueryResult Executor::execute(const AST& ast) {
             }
         } else {
             // Full scan if no index is used
-            std::cout << "No suitable index found. Performing full collection scan." << std::endl;
+            LOG_INFO("No suitable index found. Performing full collection scan.");
             all_docs = storage_engine.scan(select_stmt->from_collection);
         }
 
@@ -472,6 +476,7 @@ QueryResult Executor::execute(const AST& ast) {
         }
 
         if (select_all) {
+            LOG_DEBUG("Finished executing SELECT statement. Returning " + std::to_string(filtered_docs.size()) + " documents.");
             return {filtered_docs};
         } else {
             std::vector<Document> projected_docs;
@@ -489,10 +494,12 @@ QueryResult Executor::execute(const AST& ast) {
                 }
                 projected_docs.push_back(projected_doc);
             }
+            LOG_DEBUG("Finished executing SELECT statement. Returning " + std::to_string(projected_docs.size()) + " documents.");
             return {projected_docs};
         }
 
     } else if (auto* update_stmt = std::get_if<UpdateStatement>(&ast)) {
+        LOG_INFO("Executing UPDATE statement on collection: " + update_stmt->collection_name);
         auto all_docs = storage_engine.scan(update_stmt->collection_name);
         int updated_count = 0;
 
@@ -535,12 +542,14 @@ QueryResult Executor::execute(const AST& ast) {
             }
         }
 
+        LOG_INFO("UPDATE statement affected " + std::to_string(updated_count) + " documents.");
         Document result_doc;
         result_doc.id = "summary";
         result_doc.elements.push_back({"updated_count", (double)updated_count});
         return {result_doc};
 
     } else if (auto* delete_stmt = std::get_if<DeleteStatement>(&ast)) {
+        LOG_INFO("Executing DELETE statement on collection: " + delete_stmt->collection_name);
         auto all_docs = storage_engine.scan(delete_stmt->collection_name);
         int deleted_count = 0;
 
@@ -560,11 +569,13 @@ QueryResult Executor::execute(const AST& ast) {
             }
         }
 
+        LOG_INFO("DELETE statement affected " + std::to_string(deleted_count) + " documents.");
         Document result_doc;
         result_doc.id = "summary";
         result_doc.elements.push_back({"deleted_count", (double)deleted_count});
         return {result_doc};
     } else if (auto* insert_stmt = std::get_if<InsertStatement>(&ast)) {
+        LOG_INFO("Executing INSERT statement on collection: " + insert_stmt->collection_name);
         Document new_doc;
 
         // Generate a somewhat unique key. This is not robust.
@@ -575,6 +586,7 @@ QueryResult Executor::execute(const AST& ast) {
 
 
         if (insert_stmt->columns.size() != insert_stmt->values.size()) {
+            LOG_ERROR("Column count does not match value count in INSERT statement.");
             throw std::runtime_error("Column count does not match value count.");
         }
 
@@ -586,6 +598,7 @@ QueryResult Executor::execute(const AST& ast) {
 
         storage_engine.put(insert_stmt->collection_name, new_doc.id, new_doc);
 
+        LOG_INFO("Successfully inserted document with ID: " + new_doc.id);
         Document result_doc;
         result_doc.id = "summary";
         result_doc.elements.push_back({"inserted_count", 1.0});
