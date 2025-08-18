@@ -191,6 +191,16 @@ void HttpServer::Impl::handle_client(int client_socket) {
             return;
         }
 
+        if (req.method == "GET" && path_parts.size() == 1 && path_parts[0] == "_databases") {
+            Json::JsonArray db_array;
+            for (const auto& name : db_manager_.list_databases()) {
+                db_array.push_back(Json::JsonValue(name));
+            }
+            send_response(client_socket, "200 OK", "application/json", Json::JsonValue(db_array).serialize());
+            close(client_socket);
+            return;
+        }
+
         if (req.method == "PUT" && path_parts.size() == 1) {
             db_manager_.create_database(path_parts[0]);
             send_response(client_socket, "201 Created", "text/plain", "Database '" + path_parts[0] + "' created.");

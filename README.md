@@ -67,6 +67,7 @@ TissDB is a lightweight, high-performance NoSQL database built from scratch in C
 
 ### Features
 
+*   **Multi-Database Support:** TissDB can manage multiple, isolated databases on a single server instance.
 *   **LSM-Tree Storage Engine:** TissDB uses a log-structured merge-tree (LSM-Tree) for high write throughput.
 *   **JSON-like Document Model:** TissDB stores data in a flexible, JSON-like document model.
 *   **TissQL Query Language:** TissDB provides a simple, SQL-like query language called TissQL for querying data.
