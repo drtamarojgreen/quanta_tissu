@@ -29,6 +29,7 @@ class BDDRunner:
             'steps_run': 0,
             'steps_passed': 0,
             'steps_failed': 0,
+            'steps_skipped': 0,
             'step_failures': []
         }
 
@@ -121,6 +122,7 @@ class BDDRunner:
 | Steps Run          | {self.report_data['steps_run']}          |
 | Steps Passed       | {self.report_data['steps_passed']}        |
 | Steps Failed       | {self.report_data['steps_failed']}        |
+| Steps Skipped      | {self.report_data['steps_skipped']}        |
 
 ## Details
 
@@ -216,6 +218,11 @@ class BDDRunner:
                         step_line = step_line_full.strip()
 
                         if not step_line or step_line.startswith('#'):
+                            continue
+
+                        if not scenario_success:
+                            print(f"    Skipping step due to previous failure: {step_line}")
+                            self.report_data['steps_skipped'] += 1
                             continue
 
                         self.report_data['steps_run'] += 1

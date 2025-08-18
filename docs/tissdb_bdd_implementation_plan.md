@@ -1,7 +1,7 @@
 # TissDB BDD Test Execution Report
 
-- **Date:** 2025-08-18 04:32:17
-- **Duration:** 30.85 seconds
+- **Date:** 2025-08-18 00:49:47
+- **Duration:** 2.34 seconds
 - **Overall Result:** FAIL (FATAL)
 
 ## Summary
@@ -22,19 +22,17 @@
 
 ### Errors
 
-**Database Start Error:**
-
-```
-Failed to build database: Command '['make', '-C', '/app/tissdb']' returned non-zero exit status 2.
-```
-
 **Fatal Script Error:**
 
 ```
 Traceback (most recent call last):
-  File "/app/tests/bdd_runner.py", line 170, in run
-    raise Exception("Database failed to start.")
-Exception: Database failed to start.
+  File "C:\Users\tamar\Documents\DataAnnotation\Gemini\quanta_tissu\tests\bdd_runner.py", line 176, in run
+    from tests.features.steps import (test_kv_cache_steps, test_tokenizer_steps, test_predict_steps,
+    ...<3 lines>...
+                                      test_select_queries_steps)
+  File "C:\Users\tamar\Documents\DataAnnotation\Gemini\quanta_tissu\tests\features\steps\test_kv_cache_steps.py", line 10, in <module>
+    from quanta_tissu.tisslm.tokenizer import Tokenizer, vocab
+ImportError: cannot import name 'vocab' from 'quanta_tissu.tisslm.tokenizer' (C:\Users\tamar\Documents\DataAnnotation\Gemini\quanta_tissu\quanta_tissu\tisslm\tokenizer.py)
 
 ```
 
