@@ -41,7 +41,7 @@ The "TissDB project" at present consists of the following separate components:
     - It is an **in-memory vector store**, not the planned C++ database.
     - It uses embeddings to store and retrieve documents based on semantic similarity, serving as a practical tool for knowledge management within the Quanta ecosystem.
 
-3.  **A C++ Graph Visualization Utility (`quanta_tissu/knowledge_app/`)**:
+3.  **A C++ Graph Visualization Utility (`quanta_tissu/nexus_flow/`)**:
     - This is a small, standalone console application for rendering graph structures.
     - It is a utility related to the *vision* of graph-based data but is not part of the database itself.
 
