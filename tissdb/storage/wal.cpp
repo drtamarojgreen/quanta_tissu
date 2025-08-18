@@ -4,6 +4,7 @@
 #include "../common/binary_stream_buffer.h"
 #include <iostream>
 #include <vector>
+#include <sstream>
 
 namespace TissDB {
 namespace Storage {
@@ -32,8 +33,8 @@ void WriteAheadLog::append(const LogEntry& entry) {
     std::string entry_type_str = (entry.type == LogEntryType::PUT) ? "PUT" : "DELETE";
     LOG_DEBUG("Appending to WAL: " + entry_type_str + " for doc ID: " + entry.document_id);
 
-    std::vector<uint8_t> buffer;
-    BinaryStreamBuffer bsb(buffer);
+    std::stringstream buffer_stream;
+    BinaryStreamBuffer bsb(static_cast<std::ostream&>(buffer_stream));
 
     // Write entry data to an in-memory buffer first
     bsb.write(entry.type);
@@ -48,13 +49,14 @@ void WriteAheadLog::append(const LogEntry& entry) {
         bsb.write(zero_len);
     }
 
-    uint32_t checksum = Common::crc32(buffer.data(), buffer.size());
-    uint32_t entry_size = buffer.size();
+    std::string buffer_str = buffer_stream.str();
+    uint32_t checksum = Common::crc32(buffer_str.data(), buffer_str.size());
+    uint32_t entry_size = buffer_str.size();
 
     // Write size, data, and checksum to the file
     BinaryStreamBuffer file_bsb(log_file);
     file_bsb.write(entry_size);
-    log_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+    log_file.write(buffer_str.data(), entry_size);
     file_bsb.write(checksum);
 
     log_file.flush();
@@ -104,7 +106,9 @@ std::vector<LogEntry> WriteAheadLog::recover() {
 
             // Parse the entry from the verified data buffer
             LogEntry entry;
-            BinaryStreamBuffer entry_bsb(entry_data);
+            std::string entry_data_str(entry_data.begin(), entry_data.end());
+            std::istringstream entry_stream(entry_data_str);
+            BinaryStreamBuffer entry_bsb(entry_stream);
             entry_bsb.read(entry.type);
             entry_bsb.read(entry.transaction_id);
             entry.document_id = entry_bsb.read_string();
