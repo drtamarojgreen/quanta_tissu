@@ -28,6 +28,9 @@ public:
     // Checks if a database exists.
     bool database_exists(const std::string& db_name) const;
 
+    // Returns a list of all database names.
+    std::vector<std::string> list_databases() const;
+
     // Shuts down all database instances gracefully.
     void shutdown();
 

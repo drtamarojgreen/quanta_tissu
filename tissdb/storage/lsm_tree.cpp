@@ -15,7 +15,7 @@ LSMTree::LSMTree() : path_(""), wal_(nullptr) {
 }
 
 LSMTree::LSMTree(const std::string& path) : path_(path) {
-    std::string wal_path = fs::path(path) / "wal.log";
+    std::string wal_path = (fs::path(path) / "wal.log").string();
     wal_ = std::make_unique<WriteAheadLog>(wal_path);
     recover_from_wal();
 }
