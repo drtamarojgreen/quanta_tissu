@@ -22,7 +22,7 @@ struct Identifier {
 };
 
 // The Expression variant represents any kind of expression in the WHERE clause
-using Expression = std::variant<Identifier, Literal, std::unique_ptr<BinaryExpression>, std::unique_ptr<LogicalExpression>>;
+using Expression = std::variant<Identifier, Literal, std::shared_ptr<BinaryExpression>, std::shared_ptr<LogicalExpression>>;
 
 // Represents a binary expression (e.g., field = 'value', price > 100)
 struct BinaryExpression {
@@ -65,8 +65,8 @@ struct JoinClause {
 
 // Represents a union clause
 struct UnionClause {
-    std::unique_ptr<SelectStatement> left_select;
-    std::unique_ptr<SelectStatement> right_select;
+    std::shared_ptr<SelectStatement> left_select;
+    std::shared_ptr<SelectStatement> right_select;
     bool all; // true for UNION ALL, false for UNION DISTINCT
 };
 
