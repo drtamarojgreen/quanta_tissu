@@ -1,4 +1,5 @@
 #include "lsm_tree.h"
+#include "../common/log.h"
 #include <stdexcept>
 
 namespace TissDB {
@@ -12,15 +13,19 @@ LSMTree::~LSMTree() {}
 
 void LSMTree::create_collection(const std::string& name, const TissDB::Schema& schema) {
     if (collections_.count(name)) {
+        LOG_ERROR("Attempted to create collection that already exists: " + name);
         throw std::runtime_error("Collection already exists: " + name);
     }
+    LOG_INFO("Creating collection: " + name);
     collections_[name] = std::make_unique<Collection>(); // Assuming Collection constructor takes schema
 }
 
 void LSMTree::delete_collection(const std::string& name) {
     if (!collections_.count(name)) {
+        LOG_ERROR("Attempted to delete collection that does not exist: " + name);
         throw std::runtime_error("Collection does not exist: " + name);
     }
+    LOG_INFO("Deleting collection: " + name);
     collections_.erase(name);
 }
 
