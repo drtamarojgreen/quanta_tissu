@@ -289,7 +289,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 send_response(client_socket, "201 Created", "text/plain", "Document created with ID: " + id);
             } else if (req.method == "GET" && doc_path_parts.size() == 1) {
                  auto doc_opt = storage_engine.get(collection_name, doc_path_parts[0], transaction_id);
-                 if (doc_opt) {
+                 if (doc_opt && *doc_opt) { // Check both optional has value and the value is not a nullptr (tombstone)
                      send_response(client_socket, "200 OK", "application/json", Json::JsonValue(document_to_json(*(*doc_opt))).serialize());
                  } else {
                      send_response(client_socket, "404 Not Found", "text/plain", "Document not found.");

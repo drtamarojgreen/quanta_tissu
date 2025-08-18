@@ -42,7 +42,7 @@ void DatabaseManager::create_database(const std::string& db_name) {
 
 void DatabaseManager::delete_database(const std::string& db_name) {
     if (!database_exists(db_name)) {
-        throw std::runtime_error("Database '" + db_name + "' not found.");
+        return; // It's okay to try to delete a non-existent database.
     }
 
     databases_.erase(db_name);
