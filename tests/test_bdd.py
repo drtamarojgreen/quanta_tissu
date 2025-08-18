@@ -95,7 +95,7 @@ def run_bdd_scenarios(features):
 
 @step(r'Given a trained QuantaTissu model')
 def given_a_model(context):
-    context['model'] = QuantaTissu(model_config)
+    context['model'] = QuantaTissu(model_config, use_db=False)
 
 @step(r'And a prompt "(.*)"')
 def and_a_prompt(context, prompt):
@@ -151,7 +151,7 @@ def then_return_sequence_of_token_ids(context, num_tokens):
 
 @step(r'Given a QuantaTissu model with a fixed vocabulary')
 def given_a_model_with_fixed_vocab(context):
-    context['model'] = QuantaTissu(model_config)
+    context['model'] = QuantaTissu(model_config, use_db=False)
 
 @step(r'And a sentence "(.*)"')
 def and_a_sentence(context, sentence):
