@@ -11,7 +11,7 @@ LSMTree::LSMTree(const std::string& path) : path_(path) {}
 
 LSMTree::~LSMTree() {}
 
-void LSMTree::create_collection(const std::string& name, const TissDB::Schema& schema) {
+void LSMTree::create_collection(const std::string& name, const TissDB::Schema& /*schema*/) {
     if (collections_.count(name)) {
         LOG_ERROR("Attempted to create collection that already exists: " + name);
         throw std::runtime_error("Collection already exists: " + name);
@@ -37,7 +37,7 @@ std::vector<std::string> LSMTree::list_collections() const {
     return names;
 }
 
-void LSMTree::put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID tid) {
+void LSMTree::put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID /*tid*/) {
     try {
         Collection& collection = get_collection(collection_name);
         collection.put(key, doc);
@@ -46,7 +46,7 @@ void LSMTree::put(const std::string& collection_name, const std::string& key, co
     }
 }
 
-std::optional<std::shared_ptr<Document>> LSMTree::get(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid) {
+std::optional<std::shared_ptr<Document>> LSMTree::get(const std::string& collection_name, const std::string& key, Transactions::TransactionID /*tid*/) {
     try {
         Collection& collection = get_collection(collection_name);
         return collection.get(key);
@@ -73,7 +73,7 @@ std::vector<Document> LSMTree::get_many(const std::string& collection_name, cons
 }
 
 
-void LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid) {
+void LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID /*tid*/) {
     try {
         Collection& collection = get_collection(collection_name);
         collection.del(key);
@@ -108,17 +108,17 @@ const Collection& LSMTree::get_collection(const std::string& name) const {
     return *it->second;
 }
 
-void LSMTree::create_index(const std::string& collection_name, const std::vector<std::string>& field_names) {
+void LSMTree::create_index(const std::string& /*collection_name*/, const std::vector<std::string>& /*field_names*/) {
     // Placeholder: Implement index creation logic
     throw std::runtime_error("create_index not yet implemented");
 }
 
-std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::string& field_name, const std::string& value) {
+std::vector<std::string> LSMTree::find_by_index(const std::string& /*collection_name*/, const std::string& /*field_name*/, const std::string& /*value*/) {
     // Placeholder: Implement single-field index lookup
     throw std::runtime_error("find_by_index (single field) not yet implemented");
 }
 
-std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::vector<std::string>& values) {
+std::vector<std::string> LSMTree::find_by_index(const std::string& /*collection_name*/, const std::vector<std::string>& /*field_names*/, const std::vector<std::string>& /*values*/) {
     // Placeholder: Implement multi-field index lookup
     throw std::runtime_error("find_by_index (multi-field) not yet implemented");
 }
@@ -128,22 +128,22 @@ Transactions::TransactionID LSMTree::begin_transaction() {
     throw std::runtime_error("begin_transaction not yet implemented");
 }
 
-void LSMTree::commit_transaction(Transactions::TransactionID transaction_id) {
+void LSMTree::commit_transaction(Transactions::TransactionID /*transaction_id*/) {
     // Placeholder: Implement transaction commit logic
     throw std::runtime_error("commit_transaction not yet implemented");
 }
 
-void LSMTree::rollback_transaction(Transactions::TransactionID transaction_id) {
+void LSMTree::rollback_transaction(Transactions::TransactionID /*transaction_id*/) {
     // Placeholder: Implement transaction rollback logic
     throw std::runtime_error("rollback_transaction not yet implemented");
 }
 
-bool LSMTree::has_index(const std::string& collection_name, const std::vector<std::string>& field_names) {
+bool LSMTree::has_index(const std::string& /*collection_name*/, const std::vector<std::string>& /*field_names*/) {
     // Placeholder: Implement index check logic
     return false;
 }
 
-std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::string& collection_name) const {
+std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::string& /*collection_name*/) const {
     // Placeholder: Implement available indexes logic
     return {};
 }

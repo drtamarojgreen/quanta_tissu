@@ -10,7 +10,7 @@ namespace Query {
 
 Executor::Executor(Storage::LSMTree& storage) : storage_engine(storage) {}
 
-QueryResult Executor::execute(AST ast) {
+QueryResult Executor::execute(const AST& ast) {
     if (auto* select_stmt = std::get_if<SelectStatement>(&ast)) {
         return execute_select_statement(storage_engine, *select_stmt);
     } else if (auto* insert_stmt = std::get_if<InsertStatement>(&ast)) {
