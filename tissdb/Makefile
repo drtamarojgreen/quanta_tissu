@@ -8,6 +8,9 @@ CXXFLAGS = -std=c++17 -I.. -I. -Wall -Wextra -g
 
 # Source files
 SRCS = main.cpp \
+       ../quanta_tissu/tissu_sinew.cpp \
+       ../quanta_tissu/schema_manager.cpp \
+       ../quanta_tissu/ddl_parser.cpp \
        api/http_server.cpp \
        common/binary_stream_buffer.cpp \
        common/checksum.cpp \
@@ -25,12 +28,12 @@ SRCS = main.cpp \
        storage/collection.cpp \
        storage/indexer.cpp \
        storage/lsm_tree.cpp \
+       storage/memtable.cpp \
        storage/transaction_manager.cpp \
        storage/native_b_tree.cpp \
        storage/sstable.cpp \
        storage/transaction_manager.cpp \
        storage/wal.cpp \
-       ../quanta_tissu/tissu_sinew.cpp \
        ../tests/db/http_client.cpp
 
 # Object files
