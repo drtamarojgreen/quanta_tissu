@@ -20,6 +20,20 @@ TISSDB_URL = "http://localhost:8080"
 GENERATE_TEXT_SCRIPT = "quanta_tissu/tisslm/generate_text.py"
 
 
+def run_unit_tests():
+    """Runs the Python unit tests."""
+    print("Running unit tests...")
+    try:
+        subprocess.run([sys.executable, "run_tests.py"], check=True)
+        print("Unit tests passed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Unit tests failed: {e}")
+        sys.exit(1)
+    except FileNotFoundError:
+        print("Error: run_tests.py not found. Make sure you are in the root directory.")
+        sys.exit(1)
+
+
 def start_tissdb():
     """Starts the TissDB server in the background."""
     if not os.path.exists(TISSDB_EXECUTABLE):
@@ -154,7 +168,7 @@ def main():
         nargs="+",
         default=["all"],
         help="Which pipeline steps to run. "
-        "Options: all, start_db, stop_db, populate, verify. "
+        "Options: all, test, start_db, stop_db, populate, verify. "
         "Default: all",
     )
     args = parser.parse_args()
@@ -167,6 +181,10 @@ def main():
 
 
     print("Starting QuantaTissu pipeline...")
+
+    if "all" in args.steps or "test" in args.steps:
+        print("\n--- Step: Unit Testing ---")
+        run_unit_tests()
 
     if "all" in args.steps or "start_db" in args.steps:
         print("--- Step: Starting TissDB server ---")
