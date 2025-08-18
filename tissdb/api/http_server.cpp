@@ -234,6 +234,53 @@ void HttpServer::Impl::handle_client(int client_socket) {
             } else {
                 send_response(client_socket, "400 Bad Request", "text/plain", "No active transaction.");
             }
+        } else if (req.method == "POST" && path_parts.size() == 2 && path_parts[0] == "_bi" && path_parts[1] == "dashboards") {
+            // POST /_bi/dashboards
+            try {
+                // Ensure the _bi_dashboards collection exists
+                bool collection_exists = false;
+                auto collections = storage_engine.list_collections();
+                for (const auto& name : collections) {
+                    if (name == "_bi_dashboards") {
+                        collection_exists = true;
+                        break;
+                    }
+                }
+                if (!collection_exists) {
+                    storage_engine.create_collection("_bi_dashboards", TissDB::Schema());
+                }
+
+                Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                Document doc = json_to_document(parsed_body.as_object());
+                // Generate a simple ID
+                std::string id = "_bi_dashboard_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+                doc.id = id;
+                storage_engine.put("_bi_dashboards", id, doc, transaction_id);
+                send_response(client_socket, "201 Created", "application/json", "{\"id\": \"" + id + "\"}");
+            } catch (const std::exception& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
+            }
+        } else if (req.method == "GET" && path_parts.size() == 3 && path_parts[0] == "_bi" && path_parts[1] == "dashboards") {
+            // GET /_bi/dashboards/<id>
+            std::string doc_id = path_parts[2];
+            auto doc_opt = storage_engine.get("_bi_dashboards", doc_id, transaction_id);
+            if (doc_opt) {
+                Json::JsonValue json_doc(document_to_json(*(*doc_opt)));
+                send_response(client_socket, "200 OK", "application/json", json_doc.serialize());
+            } else {
+                send_response(client_socket, "404 Not Found", "text/plain", "Dashboard not found.");
+            }
+        } else if (req.method == "PUT" && path_parts.size() == 3 && path_parts[0] == "_bi" && path_parts[1] == "dashboards") {
+            // PUT /_bi/dashboards/<id>
+            try {
+                Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                Document doc = json_to_document(parsed_body.as_object());
+                doc.id = path_parts[2];
+                storage_engine.put("_bi_dashboards", path_parts[2], doc, transaction_id);
+                send_response(client_socket, "200 OK", "application/json", parsed_body.serialize());
+            } catch (const std::exception& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
+            }
         } else if (req.method == "GET" && path_parts.size() == 1 && path_parts[0] == "_health") {
             send_response(client_socket, "200 OK", "text/plain", "OK");
             close(client_socket);
