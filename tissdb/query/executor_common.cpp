@@ -30,14 +30,14 @@ std::string like_to_regex(std::string pattern) {
 
 // Evaluate an expression against a document
 bool evaluate_expression(const Expression& expr, const Document& doc) {
-    if (const auto* logical_expr_ptr = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
+    if (const auto* logical_expr_ptr = std::get_if<std::shared_ptr<LogicalExpression>>(&expr)) {
         const auto& logical_expr = *logical_expr_ptr;
         if (logical_expr->op == "AND") {
             return evaluate_expression(logical_expr->left, doc) && evaluate_expression(logical_expr->right, doc);
         } else if (logical_expr->op == "OR") {
             return evaluate_expression(logical_expr->left, doc) || evaluate_expression(logical_expr->right, doc);
         }
-    } else if (const auto* binary_expr_ptr = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
+    } else if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
         const auto& binary_expr = *binary_expr_ptr;
         const auto* left_ident = std::get_if<Identifier>(&binary_expr->left);
         const auto* right_literal = std::get_if<Literal>(&binary_expr->right);
@@ -129,13 +129,13 @@ Document combine_documents(const Document& doc1, const Document& doc2) {
 }
 
 void extract_equality_conditions(const Expression& expr, std::map<std::string, std::string>& conditions) {
-    if (const auto* logical_expr_ptr = std::get_if<std::unique_ptr<LogicalExpression>>(&expr)) {
+    if (const auto* logical_expr_ptr = std::get_if<std::shared_ptr<LogicalExpression>>(&expr)) {
         const auto& logical_expr = *logical_expr_ptr;
         if (logical_expr->op == "AND") {
             extract_equality_conditions(logical_expr->left, conditions);
             extract_equality_conditions(logical_expr->right, conditions);
         }
-    } else if (const auto* binary_expr_ptr = std::get_if<std::unique_ptr<BinaryExpression>>(&expr)) {
+    } else if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
         const auto& binary_expr = *binary_expr_ptr;
         if (binary_expr->op == "=") {
             const auto* left_ident = std::get_if<Identifier>(&binary_expr->left);

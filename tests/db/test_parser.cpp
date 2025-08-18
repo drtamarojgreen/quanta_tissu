@@ -33,8 +33,8 @@ TEST_CASE(ParserSelectWithWhereClause) {
     ASSERT_TRUE(select_stmt.where_clause.has_value());
 
     auto& expr = select_stmt.where_clause.value();
-    ASSERT_TRUE(std::holds_alternative<std::unique_ptr<TissDB::Query::BinaryExpression>>(expr));
-    auto& binary_expr = std::get<std::unique_ptr<TissDB::Query::BinaryExpression>>(expr);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::BinaryExpression>>(expr));
+    auto& binary_expr = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(expr);
 
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::Identifier>(binary_expr->left));
     ASSERT_EQ("price", std::get<TissDB::Query::Identifier>(binary_expr->left).name);
@@ -53,13 +53,13 @@ TEST_CASE(ParserSelectWithLogicalOperators) {
     ASSERT_TRUE(select_stmt.where_clause.has_value());
 
     auto& expr = select_stmt.where_clause.value();
-    ASSERT_TRUE(std::holds_alternative<std::unique_ptr<TissDB::Query::LogicalExpression>>(expr));
-    auto& logical_expr = std::get<std::unique_ptr<TissDB::Query::LogicalExpression>>(expr);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::LogicalExpression>>(expr));
+    auto& logical_expr = std::get<std::shared_ptr<TissDB::Query::LogicalExpression>>(expr);
     ASSERT_EQ("AND", logical_expr->op);
 
     // Check left side: status = 'shipped'
-    ASSERT_TRUE(std::holds_alternative<std::unique_ptr<TissDB::Query::BinaryExpression>>(logical_expr->left));
-    auto& left_expr = std::get<std::unique_ptr<TissDB::Query::BinaryExpression>>(logical_expr->left);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical_expr->left));
+    auto& left_expr = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical_expr->left);
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::Identifier>(left_expr->left));
     ASSERT_EQ("status", std::get<TissDB::Query::Identifier>(left_expr->left).name);
     ASSERT_EQ("=", left_expr->op);
@@ -68,8 +68,8 @@ TEST_CASE(ParserSelectWithLogicalOperators) {
 
 
     // Check right side: total > 50
-    ASSERT_TRUE(std::holds_alternative<std::unique_ptr<TissDB::Query::BinaryExpression>>(logical_expr->right));
-    auto& right_expr = std::get<std::unique_ptr<TissDB::Query::BinaryExpression>>(logical_expr->right);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical_expr->right));
+    auto& right_expr = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical_expr->right);
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::Identifier>(right_expr->left));
     ASSERT_EQ("total", std::get<TissDB::Query::Identifier>(right_expr->left).name);
     ASSERT_EQ(">", right_expr->op);
@@ -91,18 +91,18 @@ TEST_CASE(ParserSelectWithParentheses) {
     ASSERT_TRUE(select_stmt.where_clause.has_value());
 
     auto& expr = select_stmt.where_clause.value();
-    ASSERT_TRUE(std::holds_alternative<std::unique_ptr<TissDB::Query::LogicalExpression>>(expr));
-    auto& or_expr = std::get<std::unique_ptr<TissDB::Query::LogicalExpression>>(expr);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::LogicalExpression>>(expr));
+    auto& or_expr = std::get<std::shared_ptr<TissDB::Query::LogicalExpression>>(expr);
     ASSERT_EQ("OR", or_expr->op);
 
     // Check the left side of OR: (category = 'electronics' AND price > 1000)
-    ASSERT_TRUE(std::holds_alternative<std::unique_ptr<TissDB::Query::LogicalExpression>>(or_expr->left));
-    auto& and_expr = std::get<std::unique_ptr<TissDB::Query::LogicalExpression>>(or_expr->left);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::LogicalExpression>>(or_expr->left));
+    auto& and_expr = std::get<std::shared_ptr<TissDB::Query::LogicalExpression>>(or_expr->left);
     ASSERT_EQ("AND", and_expr->op);
 
     // Check the left side of AND: category = 'electronics'
-    ASSERT_TRUE(std::holds_alternative<std::unique_ptr<TissDB::Query::BinaryExpression>>(and_expr->left));
-    auto& cat_expr = std::get<std::unique_ptr<TissDB::Query::BinaryExpression>>(and_expr->left);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::BinaryExpression>>(and_expr->left));
+    auto& cat_expr = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(and_expr->left);
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::Identifier>(cat_expr->left));
     ASSERT_EQ("category", std::get<TissDB::Query::Identifier>(cat_expr->left).name);
     ASSERT_EQ("=", cat_expr->op);
@@ -110,8 +110,8 @@ TEST_CASE(ParserSelectWithParentheses) {
     ASSERT_EQ("electronics", std::get<std::string>(std::get<TissDB::Query::Literal>(cat_expr->right)));
 
     // Check the right side of AND: price > 1000
-    ASSERT_TRUE(std::holds_alternative<std::unique_ptr<TissDB::Query::BinaryExpression>>(and_expr->right));
-    auto& price_expr = std::get<std::unique_ptr<TissDB::Query::BinaryExpression>>(and_expr->right);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::BinaryExpression>>(and_expr->right));
+    auto& price_expr = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(and_expr->right);
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::Identifier>(price_expr->left));
     ASSERT_EQ("price", std::get<TissDB::Query::Identifier>(price_expr->left).name);
     ASSERT_EQ(">", price_expr->op);
@@ -119,8 +119,8 @@ TEST_CASE(ParserSelectWithParentheses) {
     ASSERT_EQ(1000.0, std::get<double>(std::get<TissDB::Query::Literal>(price_expr->right)));
 
     // Check the right side of OR: in_stock = 1
-    ASSERT_TRUE(std::holds_alternative<std::unique_ptr<TissDB::Query::BinaryExpression>>(or_expr->right));
-    auto& stock_expr = std::get<std::unique_ptr<TissDB::Query::BinaryExpression>>(or_expr->right);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::BinaryExpression>>(or_expr->right));
+    auto& stock_expr = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(or_expr->right);
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::Identifier>(stock_expr->left));
     ASSERT_EQ("in_stock", std::get<TissDB::Query::Identifier>(stock_expr->left).name);
     ASSERT_EQ("=", stock_expr->op);

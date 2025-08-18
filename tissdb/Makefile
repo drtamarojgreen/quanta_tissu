@@ -8,20 +8,31 @@ CXXFLAGS = -std=c++17 -I.. -I. -Wall -Wextra -g
 
 # Source files
 SRCS = main.cpp \
+       ../quanta_tissu/tissu_sinew.cpp \
+       ../quanta_tissu/schema_manager.cpp \
+       ../quanta_tissu/ddl_parser.cpp \
        api/http_server.cpp \
        common/binary_stream_buffer.cpp \
        common/serialization.cpp \
        common/schema_validator.cpp \
        json/json.cpp \
        query/executor.cpp \
+       query/executor_common.cpp \
+       query/executor_delete.cpp \
+       query/executor_insert.cpp \
+       query/executor_select.cpp \
+       query/executor_update.cpp \
        query/join_algorithms.cpp \
        query/parser.cpp \
        storage/collection.cpp \
        storage/indexer.cpp \
-       storage/transaction_manager.cpp \
+       storage/lsm_tree.cpp \
+       storage/memtable.cpp \
        storage/native_b_tree.cpp \
-       ../tests/db/http_client.cpp \
-       storage/lsm_tree.cpp
+       storage/sstable.cpp \
+       storage/transaction_manager.cpp \
+       storage/wal.cpp \
+       ../tests/db/http_client.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
