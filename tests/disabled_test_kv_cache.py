@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from quanta_tissu.tisslm.model import QuantaTissu
 from quanta_tissu.tisslm.config import model_config
-from quanta_tissu.tisslm.tokenizer import Tokenizer, vocab
+from quanta_tissu.tisslm.tokenizer import Tokenizer
 
 class TestKVCache(unittest.TestCase):
 
@@ -16,7 +16,7 @@ class TestKVCache(unittest.TestCase):
         """Set up a model and tokenizer for the tests."""
         np.random.seed(42)
         self.model = QuantaTissu(model_config)
-        self.tokenizer = Tokenizer(vocab)
+        self.tokenizer = Tokenizer()
 
     def test_kv_cache_correctness(self):
         """
