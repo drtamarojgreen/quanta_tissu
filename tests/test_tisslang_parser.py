@@ -115,5 +115,21 @@ class TestTissLangParser(unittest.TestCase):
         with self.assertRaises(TissLangParserError):
             parser.parse(script)
 
+    def test_parse_run_with_single_quotes_and_inner_quotes(self):
+        parser = TissLangParser()
+        script = '''
+        STEP "Run a command with quotes" {
+            RUN 'echo "Hello, quoted world!"'
+        }
+        '''
+        expected_ast = [{
+            'type': 'STEP',
+            'description': 'Run a command with quotes',
+            'commands': [{'type': 'RUN', 'command': 'echo "Hello, quoted world!"'}]
+        }]
+        ast = parser.parse(script)
+        self.assertEqual(ast, expected_ast)
+
+
 if __name__ == '__main__':
     unittest.main()
