@@ -253,6 +253,35 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
                         }
                     }
                 }
+
+                if (select_stmt.drilldown_clause) {
+                    std::stringstream drilldown_query;
+                    drilldown_query << "SELECT ";
+                    for (size_t i = 0; i < select_stmt.drilldown_clause->fields.size(); ++i) {
+                        drilldown_query << select_stmt.drilldown_clause->fields[i] << (i == select_stmt.drilldown_clause->fields.size() - 1 ? "" : ", ");
+                    }
+                    drilldown_query << " FROM " << select_stmt.from_collection << " WHERE ";
+                    for (size_t i = 0; i < select_stmt.group_by_clause.size(); ++i) {
+                        auto it = std::find_if(aggregated_doc.elements.begin(), aggregated_doc.elements.end(),
+                                               [&](const Element& e){ return e.key == select_stmt.group_by_clause[i]; });
+                        if (it != aggregated_doc.elements.end()) {
+                            drilldown_query << it->key << " = ";
+                            if (std::holds_alternative<std::string>(it->value)) {
+                                drilldown_query << "'" << std::get<std::string>(it->value) << "'";
+                            } else {
+                                drilldown_query << std::get<double>(it->value);
+                            }
+                            if (i < select_stmt.group_by_clause.size() - 1) {
+                                drilldown_query << " AND ";
+                            }
+                        }
+                    }
+                    drilldown_query << " GROUP BY ";
+                    for (size_t i = 0; i < select_stmt.drilldown_clause->fields.size(); ++i) {
+                        drilldown_query << select_stmt.drilldown_clause->fields[i] << (i == select_stmt.drilldown_clause->fields.size() - 1 ? "" : ", ");
+                    }
+                    aggregated_doc.elements.push_back({"drilldown_query", drilldown_query.str()});
+                }
                 aggregated_docs.push_back(aggregated_doc);
             }
         } else {
