@@ -614,6 +614,33 @@ QueryResult Executor::execute(const AST& ast) {
 namespace TissDB {
 namespace Query {
 
+// --- Helper function for LIKE to regex conversion ---
+std::string like_to_regex(std::string pattern) {
+    std::string result = "^";
+    for (char c : pattern) {
+        switch (c) {
+            case '%':
+                result += ".*";
+                break;
+            case '_':
+                result += ".";
+                break;
+            // Escape special regex characters
+            case '.': case '*': case '+': case '?': case '^':
+            case '$': case '(': case ')': case '[': case ']':
+            case '{': case '}': case '|': case '\\':
+                result += '\\';
+                result += c;
+                break;
+            default:
+                result += c;
+                break;
+        }
+    }
+    result += "$";
+    return result;
+}
+
 // --- Helper functions ---
 
 // Evaluate an expression against a document
@@ -706,44 +733,6 @@ void process_aggregation(std::map<std::string, AggregateResult>& results_map, co
     }
 }
 
-// --- NEW HELPER FUNCTION ---
-// Extracts all simple equality conditions (field = 'value') from a WHERE clause.
-void process_aggregation(std::map<std::string, AggregateResult>& results_map, const std::string& result_key, const Document& doc, const AggregateFunction& agg_func) {
-    // Handle COUNT(*) case where field_name can be "*"
-    if (agg_func.field_name == "*") {
-        if (agg_func.function_name == "COUNT") {
-            results_map[result_key].count++;
-        }
-        return;
-    }
-
-    for (const auto& elem : doc.elements) {
-        if (elem.key == agg_func.field_name) {
-            if (auto* num_val = std::get_if<double>(&elem.value)) {
-                auto& result = results_map[result_key]; // Get reference to the result for this key
-
-                if (agg_func.function_name == "SUM" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
-                    result.sum += *num_val;
-                    result.sum_sq += (*num_val) * (*num_val);
-                }
-                if (agg_func.function_name == "COUNT" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
-                    result.count++;
-                }
-                if (agg_func.function_name == "MIN") {
-                    if (!result.min.has_value() || *num_val < result.min.value()) {
-                        result.min = *num_val;
-                    }
-                }
-                if (agg_func.function_name == "MAX") {
-                    if (!result.max.has_value() || *num_val > result.max.value()) {
-                        result.max = *num_val;
-                    }
-                }
-            }
-        }
-    }
-}
-
 // Helper function to combine two documents for a join result
 Document combine_documents(const Document& doc1, const Document& doc2) {
     Document combined_doc;
@@ -797,21 +786,21 @@ void extract_equality_conditions(const Expression& expr, std::map<std::string, s
     }
 }
 
-
-
-
 // --- Executor ---
 
 Executor::Executor(Storage::LSMTree& storage) : storage_engine(storage) {}
 
-QueryResult Executor::execute(const AST& ast) {
+QueryResult Executor::execute(AST ast) {
     if (auto* select_stmt = std::get_if<SelectStatement>(&ast)) {
         // --- UNION Operation ---
         if (select_stmt->union_clause) {
-            const auto& union_clause = select_stmt->union_clause.value();
-            // Recursively execute the left and right select statements
-            QueryResult left_result = execute(*union_clause.left_select);
-            QueryResult right_result = execute(*union_clause.right_select);
+            // When we have a union, we need to move the sub-queries out
+            // because they contain unique_ptrs and cannot be copied.
+            // This is why the top-level AST is taken by value.
+            UnionClause union_clause = std::move(select_stmt->union_clause.value());
+
+            QueryResult left_result = execute(AST(std::move(*union_clause.left_select)));
+            QueryResult right_result = execute(AST(std::move(*union_clause.right_select)));
 
             std::vector<Document> unioned_docs = left_result; // QueryResult is already std::vector<Document>
 
@@ -1173,7 +1162,9 @@ QueryResult Executor::execute(const AST& ast) {
         for (size_t i = 0; i < insert_stmt->columns.size(); ++i) {
             const auto& col_name = insert_stmt->columns[i];
             const auto& value = insert_stmt->values[i];
-            new_doc.elements.push_back({col_name, value});
+            std::visit([&](auto&& arg) {
+                new_doc.elements.push_back(Element{col_name, Value(arg)});
+            }, value);
         }
 
         storage_engine.put(insert_stmt->collection_name, new_doc.id, new_doc);
