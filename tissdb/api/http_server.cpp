@@ -21,6 +21,9 @@
     #include <winsock2.h>
     #include <ws2tcpip.h> // For inet_pton, etc.
     #pragma comment(lib, "ws2_32.lib") // Link with Winsock library
+
+    // Undefine the ERROR macro which is defined in winsock2.h and conflicts with LogLevel::ERROR.
+    #undef ERROR
 #else
     // POSIX Socket headers
     #include <sys/socket.h>
