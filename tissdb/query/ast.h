@@ -70,6 +70,11 @@ struct UnionClause {
     bool all; // true for UNION ALL, false for UNION DISTINCT
 };
 
+// Represents a drilldown clause
+struct DrilldownClause {
+    std::vector<std::string> fields;
+};
+
 
 // Represents a TissQL SELECT statement.
 struct SelectStatement {
@@ -83,6 +88,7 @@ struct SelectStatement {
     // Optional JOIN and UNION clauses
     std::optional<JoinClause> join_clause; // Added for JOIN
     std::optional<UnionClause> union_clause; // Added for UNION
+    std::optional<DrilldownClause> drilldown_clause; // Added for WITH DRILLDOWN
 };
 
 

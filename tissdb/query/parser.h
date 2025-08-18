@@ -46,6 +46,7 @@ private:
     std::optional<double> parse_limit_clause(); // Added for LIMIT: LIMIT N
     std::optional<JoinClause> parse_join_clause(); // Added for JOIN: JOIN collection ON condition
     std::optional<UnionClause> parse_union_clause(); // Added for UNION: SELECT ... UNION [ALL] SELECT ...
+    std::optional<DrilldownClause> parse_drilldown_clause(); // Added for WITH DRILLDOWN
 
     Expression parse_expression(int precedence = 0);
     Expression parse_primary_expression();

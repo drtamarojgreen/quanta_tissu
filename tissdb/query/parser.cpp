@@ -19,7 +19,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
                 i++;
             }
             std::string value = query_string.substr(start, i - start + 1);
-            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX" || value == "INSERT" || value == "INTO" || value == "VALUES" || value == "STDDEV" || value == "LIKE" || value == "ORDER" || value == "LIMIT" || value == "JOIN" || value == "ON" || value == "UNION" || value == "ALL" || value == "ASC" || value == "DESC") {
+            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX" || value == "INSERT" || value == "INTO" || value == "VALUES" || value == "STDDEV" || value == "LIKE" || value == "ORDER" || value == "LIMIT" || value == "JOIN" || value == "ON" || value == "UNION" || value == "ALL" || value == "ASC" || value == "DESC" || value == "WITH" || value == "DRILLDOWN") {
                 new_tokens.push_back(Token{Token::Type::KEYWORD, value});
             } else {
                 new_tokens.push_back(Token{Token::Type::IDENTIFIER, value});
@@ -97,9 +97,10 @@ SelectStatement Parser::parse_select_statement() {
     auto group_by = parse_group_by_clause();
     auto order_by = parse_order_by_clause();
     auto limit = parse_limit_clause();
+    auto drilldown = parse_drilldown_clause();
 
     // Create the SelectStatement for the query parsed so far.
-    auto current_select = SelectStatement{fields, table, std::move(where), group_by, order_by, limit, std::move(join), std::nullopt};
+    auto current_select = SelectStatement{fields, table, std::move(where), group_by, order_by, limit, std::move(join), std::nullopt, std::move(drilldown)};
 
     // Check if this statement is followed by a UNION.
     if (peek().type == Token::Type::KEYWORD && peek().value == "UNION") {
@@ -343,6 +344,19 @@ std::optional<JoinClause> Parser::parse_join_clause() {
 std::optional<UnionClause> Parser::parse_union_clause() {
     // This function is not called directly.
     // The logic is handled inside parse_select_statement to manage the recursive structure.
+    return std::nullopt;
+}
+
+std::optional<DrilldownClause> Parser::parse_drilldown_clause() {
+    if (peek().type == Token::Type::KEYWORD && peek().value == "WITH") {
+        consume(); // consume "WITH"
+        expect(Token::Type::KEYWORD, "DRILLDOWN");
+        expect(Token::Type::OPERATOR, "(");
+        DrilldownClause clause;
+        clause.fields = parse_column_list();
+        expect(Token::Type::OPERATOR, ")");
+        return clause;
+    }
     return std::nullopt;
 }
 
