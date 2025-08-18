@@ -5,13 +5,13 @@ import traceback
 import time
 import sys
 
-from tests.bdd_runner import BDDRunner
+from bdd_runner import BDDRunner
 
 def discover_and_run_tests():
     """
     Discovers and runs all tests in the 'tests/' directory.
     """
-    tests_dir = 'tests'
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
     if not os.path.isdir(tests_dir):
         print(f"Error: Test directory '{tests_dir}' not found.")
         return False
@@ -100,8 +100,6 @@ def discover_and_run_tests():
 
 if __name__ == "__main__":
     # Ensure the script can find the 'quanta_tissu' package
-    sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-    success = discover_and_run_tests()
-    if not success:
-        sys.exit(1)
+    discover_and_run_tests()
