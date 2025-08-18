@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <cmath>
 
 namespace TissDB {
 namespace Query {
@@ -15,8 +16,8 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, SelectSta
         auto right_result = execute_select_statement(storage_engine, *select_stmt.union_clause->right_select);
 
         // Combine the results
-        std::vector<Document> combined_docs = left_result.documents;
-        combined_docs.insert(combined_docs.end(), right_result.documents.begin(), right_result.documents.end());
+        std::vector<Document> combined_docs = left_result;
+        combined_docs.insert(combined_docs.end(), right_result.begin(), right_result.end());
 
         // If it's a UNION (not UNION ALL), remove duplicates
         if (!select_stmt.union_clause->all) {
@@ -154,7 +155,18 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, SelectSta
                 for (const auto& field_name : select_stmt.group_by_clause) {
                     for (const auto& elem : doc.elements) {
                         if (elem.key == field_name) {
-                            std::visit([&group_key_ss](auto&& arg) { group_key_ss << arg << "-"; }, elem.value);
+                            std::visit([&group_key_ss](auto&& arg) {
+                                using T = std::decay_t<decltype(arg)>;
+                                if constexpr (std::is_same_v<T, DateTime>) {
+                                    group_key_ss << arg.time_since_epoch().count() << "-";
+                                } else if constexpr (std::is_same_v<T, BinaryData>) {
+                                    group_key_ss << "[binary]-";
+                                } else if constexpr (std::is_same_v<T, std::vector<Element>>) {
+                                    group_key_ss << "[elements]-";
+                                } else {
+                                    group_key_ss << arg << "-";
+                                }
+                            }, elem.value);
                         }
                     }
                 }
