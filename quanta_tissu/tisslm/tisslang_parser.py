@@ -23,7 +23,7 @@ class TissLangParser:
         'STEP': re.compile(r'^\s*STEP\s+"([^"]+)"\s*\{\s*$'),
         'SETUP': re.compile(r'^\s*SETUP\s*\{\s*$'),
         'BLOCK_END': re.compile(r'^\s*\}\s*$'),
-        'RUN': re.compile(r'^\s*RUN\s+"([^"]+)"\s*$'),
+        'RUN': re.compile(r'^\s*RUN\s+([\'"])(.*?)\1\s*$'),
         'WRITE': re.compile(r'^\s*WRITE\s+"([^"]+)"\s+<<(\w+)\s*$'),
         'ASSERT': re.compile(r'^\s*ASSERT\s+(.+?)\s*$'),
         'READ': re.compile(r'^\s*READ\s+"([^"]+)"\s+AS\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*$'),
@@ -137,7 +137,7 @@ class TissLangParser:
 
         run_match = self._PATTERNS['RUN'].match(line)
         if run_match:
-            self._current_block.append({'type': 'RUN', 'command': run_match.group(1)})
+            self._current_block.append({'type': 'RUN', 'command': run_match.group(2)})
             return
 
         assert_match = self._PATTERNS['ASSERT'].match(line)

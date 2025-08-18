@@ -21,12 +21,12 @@ While the formal `tissdb` plan calls for a C++ implementation, a related and fun
 
 -   `quanta_tissu/tisslm/knowledge_base.py`: This file contains the `KnowledgeBase` class, an in-memory vector-based knowledge store. It uses embeddings to store and retrieve documents based on semantic similarity. This serves as a practical implementation of some of the core ideas behind TissDB's knowledge management capabilities.
 
-## 4. C++ Graph Visualization Utility (`quanta_tissu/knowledge_app/`)
+## 4. C++ Graph Visualization Utility (`quanta_tissu/nexus_flow/`)
 
 This directory contains a small, standalone C++ application for visualizing graphs in the console. It is not the TissDB database itself, but rather a utility that could be used to display the graph-based data structures mentioned in the TissDB vision.
 
--   `quanta_tissu/knowledge_app/graph_logic.h` & `graph_logic.cpp`: Define and implement the `GraphLogic` class, which handles the rendering of nodes and edges to a text-based canvas.
--   `quanta_tissu/knowledge_app/main.cpp`: The entry point for the C++ application, which runs the graph visualization.
+-   `quanta_tissu/nexus_flow/graph_logic.h` & `graph_logic.cpp`: Define and implement the `GraphLogic` class, which handles the rendering of nodes and edges to a text-based canvas.
+-   `quanta_tissu/nexus_flow/main.cpp`: The entry point for the C++ application, which runs the graph visualization.
 
 ## 5. Tests (`tests/`)
 

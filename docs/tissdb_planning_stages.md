@@ -258,7 +258,7 @@ While the full TissDB C++ database is still in development, several existing com
 *   **`knowledge_base.py`**: This file contains the `KnowledgeBase` class, an in-memory vector-based knowledge store. It uses embeddings to store and retrieve documents based on semantic similarity. This serves as a practical implementation of some of the core ideas behind TissDB's intended knowledge management capabilities.
 *   **`tests/test_knowledge_base.py`**: Unit tests for the `KnowledgeBase` class, providing excellent examples of its usage.
 
-### C++ Utility (`quanta_tissu/knowledge_app/`)
+### C++ Utility (`quanta_tissu/nexus_flow/`)
 This directory contains a small, standalone C++ application for visualizing graphs in the console. It is not the TissDB database itself, but rather a utility that could be used to display the graph-based data structures mentioned in the TissDB vision.
 *   `graph_logic.h` & `graph_logic.cpp`: Define and implement the `GraphLogic` class.
 *   `main.cpp`: The entry point for the C++ application.
