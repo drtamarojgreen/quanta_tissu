@@ -6,11 +6,11 @@ from .tokenizer import tokenize
 from .parameter import Parameter
 
 class TransformerBlock:
-    def __init__(self, d_model, num_heads, d_ff):
-        self.mha = MultiHeadAttention(d_model, num_heads)
-        self.ffn = FeedForward(d_model, d_ff)
-        self.ln1 = LayerNorm(d_model)
-        self.ln2 = LayerNorm(d_model)
+    def __init__(self, d_model, num_heads, d_ff, name=""):
+        self.mha = MultiHeadAttention(d_model, num_heads, name=f"{name}.mha")
+        self.ffn = FeedForward(d_model, d_ff, name=f"{name}.ffn")
+        self.ln1 = LayerNorm(d_model, name=f"{name}.ln1")
+        self.ln2 = LayerNorm(d_model, name=f"{name}.ln2")
         self.cache = {}
 
     def __call__(self, x, mask=None, kv_cache=None):
@@ -91,7 +91,7 @@ class QuantaTissu:
         self.d_model = d_model
         self.embeddings = Parameter(np.random.randn(vocab_size, d_model) / np.sqrt(d_model), name="embeddings")
         self.pos_encoding = PositionalEncoding(d_model)
-        self.transformer_blocks = [TransformerBlock(d_model, num_heads, d_ff) for _ in range(n_layers)]
+        self.transformer_blocks = [TransformerBlock(d_model, num_heads, d_ff, name=f"transformer_blocks.{i}") for i in range(n_layers)]
         self.output_proj = Parameter(np.random.randn(d_model, vocab_size) / np.sqrt(d_model), name="output_proj")
 
         if use_db:
@@ -185,15 +185,40 @@ class QuantaTissu:
 
         try:
             data = np.load(path)
-            print(f"Loading weights from {path}. Found keys: {list(data.keys())}")
-            for param in self.parameters():
-                if param.name in data:
-                    if param.value.shape == data[param.name].shape:
-                        param.value = data[param.name]
+            keys = list(data.keys())
+            print(f"Loading weights from {path}. Found keys: {keys}")
+
+            # Check if we're loading a legacy checkpoint with 'param_d' keys
+            if keys and all(k.startswith('param_') for k in keys):
+                print("Detected legacy checkpoint format. Loading by parameter order.")
+                # Sort keys numerically: param_0, param_1, ...
+                sorted_keys = sorted(keys, key=lambda k: int(k.split('_')[1]))
+                model_params = self.parameters()
+
+                if len(sorted_keys) != len(model_params):
+                    print(f"Warning: Mismatch in parameter count. Checkpoint has {len(sorted_keys)}, model has {len(model_params)}.")
+
+                for i, key in enumerate(sorted_keys):
+                    if i < len(model_params):
+                        param = model_params[i]
+                        if param.value.shape == data[key].shape:
+                            param.value = data[key]
+                        else:
+                            print(f"Warning: Shape mismatch for {param.name} (from {key}). Expected {param.value.shape}, got {data[key].shape}. Skipping.")
                     else:
-                        print(f"Warning: Shape mismatch for {param.name}. Expected {param.value.shape}, got {data[param.name].shape}. Skipping.")
-                else:
-                    print(f"Warning: Parameter {param.name} not found in weights file. Using random initialization.")
+                        break # No more model params to load into
+            else:
+                # Load by hierarchical name
+                print("Loading by hierarchical parameter name.")
+                for param in self.parameters():
+                    if param.name in data:
+                        if param.value.shape == data[param.name].shape:
+                            param.value = data[param.name]
+                        else:
+                            print(f"Warning: Shape mismatch for {param.name}. Expected {param.value.shape}, got {data[param.name].shape}. Skipping.")
+                    else:
+                        print(f"Warning: Parameter {param.name} not found in weights file. Using random initialization.")
+
             print(f"Successfully loaded model weights from {path}")
         except Exception as e:
             print(f"Error loading model weights from {path}: {e}. Using random initialization.")
