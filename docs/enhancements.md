@@ -21,7 +21,7 @@ Status Key: `[Not Started]` `[In Progress]` `[Done]`
     -   **Temperature Scaling**: Add a `temperature` parameter to the final softmax to control output randomness.
     -   **Top-k Sampling**: Select the next token from the `k` most likely candidates.
     -   **Nucleus Sampling (Top-p)**: Select from the smallest set of tokens whose cumulative probability exceeds a threshold `p`.
--   **[Not Started] KV Caching**: During generative inference, cache the Key (K) and Value (V) matrices from the attention layers for previous tokens. This avoids redundant computation and dramatically speeds up the generation of long sequences.
+-   **[Done] KV Caching**: During generative inference, cache the Key (K) and Value (V) matrices from the attention layers for previous tokens. This avoids redundant computation and dramatically speeds up the generation of long sequences.
 
 ## 2. Training
 
