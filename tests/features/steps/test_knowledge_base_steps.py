@@ -51,7 +51,8 @@ def register_steps(runner):
     def check_knowledge_base_content(context, expected_content):
         # This is a simplified check. In a real scenario, you might search for the document.
         # For now, we'll just check if the document was added.
-        assert any(expected_content in doc for doc in context['knowledge_base'].documents)
+        retrieved_docs = context['knowledge_base'].retrieve(expected_content)
+        assert any(expected_content in doc for doc in retrieved_docs)
         return "Test passed!"
 
     @runner.step(r'^(?:When|And) I self-update from interaction with query "(.*)" generated response "(.*)" and no user correction$')

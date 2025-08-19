@@ -112,7 +112,11 @@ class QuantaTissu:
 
         # Only create a causal mask if we are not using a cache (i.e., for the initial prompt processing)
         mask = None
-        if kv_cache is None:
+        # A mask is needed for the first pass (prompt processing), even if a cache is provided.
+        # We can detect this because the cache will be empty.
+        is_prompt_processing = kv_cache is None or not kv_cache[0]
+
+        if is_prompt_processing:
             mask = self._create_causal_mask(seq_len)
             if mask is not None:
                 # Add batch and head dimensions for broadcasting
