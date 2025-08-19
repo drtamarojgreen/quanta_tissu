@@ -40,9 +40,12 @@ namespace TissDB {
 namespace API {
 
 namespace {
+
+JsonValue value_to_json(const Value& value); // Forward declaration
+
 Json::JsonObject document_to_json(const Document& doc) {
     Json::JsonObject obj;
-    obj["id"] = Json::JsonValue(doc.id);
+    obj["_id"] = Json::JsonValue(doc.id);
     for (const auto& elem : doc.elements) {
         if (const auto* str_val = std::get_if<std::string>(&elem.value)) {
             obj[elem.key] = Json::JsonValue(*str_val);
@@ -57,10 +60,47 @@ Json::JsonObject document_to_json(const Document& doc) {
     return obj;
 }
 
+JsonValue value_to_json(const Value& value) {
+    if (std::holds_alternative<std::nullptr_t>(value)) {
+        return Json::JsonValue(nullptr);
+    } else if (const auto* str_val = std::get_if<std::string>(&value)) {
+        return Json::JsonValue(*str_val);
+    } else if (const auto* num_val = std::get_if<double>(&value)) {
+        return Json::JsonValue(*num_val);
+    } else if (const auto* bool_val = std::get_if<bool>(&value)) {
+        return Json::JsonValue(*bool_val);
+    } else if (const auto* vec_val = std::get_if<std::vector<Value>>(&value)) {
+        Json::JsonArray arr;
+        for (const auto& v : *vec_val) {
+            arr.push_back(value_to_json(v));
+        }
+        return Json::JsonValue(arr);
+    } else if (const auto* map_val = std::get_if<std::map<std::string, Value>>(&value)) {
+        Json::JsonObject obj;
+        for (const auto& [k, v] : *map_val) {
+            obj[k] = value_to_json(v);
+        }
+        return Json::JsonValue(obj);
+    } else if (const auto* element_vec_val = std::get_if<std::vector<Element>>(&value)) {
+        Json::JsonArray arr;
+        for (const auto& element : *element_vec_val) {
+            Json::JsonObject obj;
+            obj[element.key] = value_to_json(element.value);
+            arr.push_back(obj);
+        }
+        return Json::JsonValue(arr);
+    }
+    // Fallback for other types not fully handled here
+    throw std::runtime_error("Unsupported value type in value_to_json");
+}
+
+
+Value json_to_value(const Json::JsonValue& json_val); // Forward declaration
+
 Document json_to_document(const Json::JsonObject& obj) {
     Document doc;
     for (const auto& pair : obj) {
-        if (pair.first == "id") continue;
+        if (pair.first == "_id") continue;
         Element elem;
         elem.key = pair.first;
         if (pair.second.is_string()) {
@@ -75,6 +115,31 @@ Document json_to_document(const Json::JsonObject& obj) {
         doc.elements.push_back(elem);
     }
     return doc;
+}
+
+Value json_to_value(const Json::JsonValue& json_val) {
+    if (json_val.is_null()) {
+        return nullptr;
+    } else if (json_val.is_string()) {
+        return json_val.as_string();
+    } else if (json_val.is_number()) {
+        return json_val.as_number();
+    } else if (json_val.is_bool()) {
+        return json_val.as_bool();
+    } else if (json_val.is_array()) {
+        std::vector<Value> vec;
+        for (const auto& v : json_val.as_array()) {
+            vec.push_back(json_to_value(v));
+        }
+        return vec;
+    } else if (json_val.is_object()) {
+        std::map<std::string, Value> map;
+        for (const auto& [k, v] : json_val.as_object()) {
+            map[k] = json_to_value(v);
+        }
+        return map;
+    }
+    return nullptr;
 }
 
 struct HttpRequest {
@@ -265,7 +330,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
             Transactions::TransactionID transaction_id = storage_engine.begin_transaction();
             Json::JsonObject response_obj;
             response_obj["transaction_id"] = Json::JsonValue(static_cast<double>(transaction_id));
-            send_response(client_socket, "201 Created", "application/json", Json::JsonValue(response_obj).serialize());
+            send_response(client_socket, "200 OK", "application/json", Json::JsonValue(response_obj).serialize());
         } else if (sub_path_parts[0] == "_commit" && req.method == "POST") {
             try {
                 const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
@@ -298,6 +363,19 @@ void HttpServer::Impl::handle_client(int client_socket) {
             } catch (const std::exception& e) {
                 send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body.");
             }
+        } else if (sub_path_parts[0] == "_stats" && req.method == "GET") {
+            Json::JsonObject stats_obj;
+            stats_obj["total_docs"] = Json::JsonValue(static_cast<double>(storage_engine.scan("knowledge").size()));
+            stats_obj["feedback_entries"] = Json::JsonValue(static_cast<double>(storage_engine.scan("knowledge_feedback").size()));
+            stats_obj["total_accesses"] = Json::JsonValue(0.0); // Placeholder
+            send_response(client_socket, "200 OK", "application/json", Json::JsonValue(stats_obj).serialize());
+        } else if (sub_path_parts[0] == "_feedback" && req.method == "POST") {
+            Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+            Document doc = json_to_document(parsed_body.as_object());
+            std::string id = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+            doc.id = id;
+            storage_engine.put("knowledge_feedback", id, doc, transaction_id);
+            send_response(client_socket, "201 Created", "text/plain", "Feedback created with ID: " + id);
         } else if (sub_path_parts[0] == "_collections" && req.method == "GET") {
             Json::JsonArray collections_array;
             for (const auto& name : storage_engine.list_collections()) {
@@ -359,11 +437,26 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 storage_engine.put(collection_name, doc.id, doc, transaction_id);
                 send_response(client_socket, "200 OK", "application/json", parsed_body.serialize());
             } else if (req.method == "DELETE" && doc_path_parts.size() == 1) {
-                storage_engine.del(collection_name, doc_path_parts[0], transaction_id);
-                send_response(client_socket, "204 No Content", "text/plain", "");
+                if (storage_engine.del(collection_name, doc_path_parts[0], transaction_id)) {
+                    send_response(client_socket, "204 No Content", "text/plain", "");
+                } else {
+                    send_response(client_socket, "404 Not Found", "text/plain", "Document not found.");
+                }
             } else if (req.method == "PUT" && doc_path_parts.empty()) {
-                storage_engine.create_collection(collection_name, TissDB::Schema());
-                send_response(client_socket, "201 Created", "text/plain", "Collection '" + collection_name + "' created.");
+                auto collections = storage_engine.list_collections();
+                bool exists = false;
+                for (const auto& c : collections) {
+                    if (c == collection_name) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (exists) {
+                    send_response(client_socket, "200 OK", "text/plain", "Collection '" + collection_name + "' already exists.");
+                } else {
+                    storage_engine.create_collection(collection_name, TissDB::Schema());
+                    send_response(client_socket, "201 Created", "text/plain", "Collection '" + collection_name + "' created.");
+                }
             } else if (req.method == "DELETE" && doc_path_parts.empty()) {
                 storage_engine.delete_collection(collection_name);
                 send_response(client_socket, "204 No Content", "text/plain", "");

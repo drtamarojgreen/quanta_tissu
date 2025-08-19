@@ -27,7 +27,9 @@ using Value = std::variant<
     Boolean,
     DateTime,
     BinaryData,
-    std::vector<Element> // For nested elements like <specs> or <reviews> in the example
+    std::vector<Element>, // For nested elements like <specs> or <reviews> in the example
+    std::vector<Value>,
+    std::map<std::string, Value>
 >;
 
 // An Element is a key-value pair, representing a tag in the document.

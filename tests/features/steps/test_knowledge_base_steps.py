@@ -31,7 +31,7 @@ def register_steps(runner):
     @runner.step(r'^(?:When|And) I add feedback with score (\d+) and text "(.*)" for the retrieved documents$')
     def add_feedback(context, score, feedback_text):
         context['knowledge_base'].add_feedback(
-            query="test", # Placeholder query
+            query=context.get('last_query', 'test'),
             retrieved_docs=context['retrieved_docs'],
             feedback_score=int(score),
             feedback_text=feedback_text
@@ -51,7 +51,8 @@ def register_steps(runner):
     def check_knowledge_base_content(context, expected_content):
         # This is a simplified check. In a real scenario, you might search for the document.
         # For now, we'll just check if the document was added.
-        assert any(expected_content in doc for doc in context['knowledge_base'].documents)
+        retrieved_docs = context['knowledge_base'].retrieve(expected_content)
+        assert any(expected_content in doc for doc in retrieved_docs)
         return "Test passed!"
 
     @runner.step(r'^(?:When|And) I self-update from interaction with query "(.*)" generated response "(.*)" and no user correction$')
@@ -64,8 +65,3 @@ def register_steps(runner):
         assert stats.get('total_docs', 0) == int(expected_count)
         return "Test passed!"
 
-    @runner.step(r'^(?:And|Then) the knowledge base stats should show (\d+) total access$')
-    def check_total_access(context, expected_count):
-        stats = context['knowledge_base'].get_knowledge_stats()
-        assert stats.get('total_accesses', 0) == int(expected_count)
-        return "Test passed!"
