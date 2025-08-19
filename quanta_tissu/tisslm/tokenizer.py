@@ -13,6 +13,8 @@ class Tokenizer:
         self.bpe_tokenizer = BPETokenizer()
         # Construct the path to the trained tokenizer files
         tokenizer_prefix = os.path.join(os.path.dirname(system_config["model_save_path"]), "trained_tokenizer")
+        if not os.path.exists(os.path.dirname(tokenizer_prefix)):
+            os.makedirs(os.path.dirname(tokenizer_prefix))
         try:
             self.bpe_tokenizer.load(tokenizer_prefix)
         except FileNotFoundError:
