@@ -53,15 +53,6 @@ def parse_feature_file(file_path):
     return features
 
 def run_bdd_scenarios(features):
-    # Discover and register steps from other files
-    steps_dir = os.path.join(os.path.dirname(__file__), 'features', 'steps')
-    for filename in os.listdir(steps_dir):
-        if filename.endswith('.py') and filename != '__init__.py':
-            module_name = f"tests.features.steps.{filename[:-3]}"
-            module = __import__(module_name, fromlist=['register_steps'])
-            if hasattr(module, 'register_steps'):
-                module.register_steps(step)
-
     overall_success = True
     for feature in features:
         print(f"Feature: {feature['name']}")
@@ -74,18 +65,19 @@ def run_bdd_scenarios(features):
                 for pattern, funcs in step_registry.items():
                     match = re.match(pattern, step_text)
                     if match:
-                        # Use the last registered function for a given step pattern
-                        # This allows overriding default steps
-                        func = funcs[-1]
-                        try:
-                            func(context, *match.groups())
-                            print(f"    - {step_text} [PASSED]")
-                            found_step = True
-                        except Exception as e:
-                            print(f"    - {step_text} [FAILED]")
-                            print(f"      Error: {e}")
-                            scenario_success = False
-                        break # Exit after finding the first matching pattern
+                        for func in funcs:
+                            try:
+                                func(context, *match.groups())
+                                print(f"    - {step_text} [PASSED]")
+                                found_step = True
+                                break
+                            except Exception as e:
+                                print(f"    - {step_text} [FAILED]")
+                                print(f"      Error: {e}")
+                                scenario_success = False
+                                break
+                    if found_step or not scenario_success:
+                        break
                 if not found_step:
                     print(f"    - {step_text} [SKIPPED] (No matching step implementation)")
                     scenario_success = False
@@ -169,14 +161,11 @@ def and_a_sentence(context, sentence):
 def when_tokenize_sentence(context):
     context['tokens'] = tokenize(context['sentence'])
 
-@step(r'Then the tokenizer should correctly handle the unknown word')
-def then_tokenizer_handles_unknown_word(context):
-    # The original test was flawed as this BPE tokenizer implementation doesn't
-    # map OOV words to a single <unk> token. It handles them at the byte level.
-    # A better test is to ensure the tokenizer can losslessly encode and decode
-    # the sentence, which proves it handled all characters correctly.
-    reconstructed_text = detokenize(context['tokens'])
-    assert reconstructed_text == context['sentence']
+@step(r'Then the token "foobar" should be mapped to the "<unk>" token ID')
+def then_foobar_is_unk(context):
+    # The sentence is "this is a foobar test"
+    # "foobar" is the 4th word, so the 4th token (index 3)
+    assert context['tokens'][3] == model_config['vocab_size'] - 1 # <unk> is the last token
 
 @step(r'Given a QuantaTissu model with a knowledge base')
 def given_a_model_with_kb(context):
@@ -261,10 +250,6 @@ def _run_connector_test(context, command):
     compile_command = [
         "g++", "-std=c++17", "-pthread", "-I.", "-o", output_executable
     ] + source_files
-
-    # Add Windows-specific socket library
-    if sys.platform == "win32":
-        compile_command.append("-lws2_32")
 
     compile_process = subprocess.run(compile_command, capture_output=True, text=True)
     if compile_process.returncode != 0:

@@ -7,7 +7,7 @@ CXX = g++
 CXXFLAGS = -std=c++17 -I.. -I. -Wall -Wextra -g
 
 # Linker flags (for Windows, add -lws2_32 for socket library)
-LDFLAGS = -lws2_32
+LDFLAGS =
 
 # Source files
 SRCS = main.cpp \

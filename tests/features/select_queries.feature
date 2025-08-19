@@ -3,7 +3,7 @@ Feature: TissQL Select Queries
   Background:
     Given a running TissDB instance
     And a collection named "products" exists
-    And I create the following documents in "products":
+    And I insert the following documents into "products":
       | _id  | name         | category | price | stock |
       | p001 | Laptop       | Tech     | 1200  | 50    |
       | p002 | Keyboard     | Tech     | 75    | 200   |
