@@ -271,28 +271,28 @@ void GraphLogic::initializeGraphs() {
 
     // Graph 1: 4 Nodes
     Graph g1;
-    g1.nodes = std::vector<Node>{
-        {1, 10, 5, 5, cbt_labels[0]},
-        {2, 30, 15, 3, cbt_labels[1]},
-        {3, 50, 8, 5, cbt_labels[2]},
-        {4, 25, 2, 1, cbt_labels[3]}
+    g1.nodes = {
+        {1, 10, 5, 0, 5, cbt_labels[0]},
+        {2, 30, 15, 0, 3, cbt_labels[1]},
+        {3, 50, 8, 0, 5, cbt_labels[2]},
+        {4, 25, 2, 0, 1, cbt_labels[3]}
     };
-    g1.edges = std::vector<Edge>{{1, 2}, {1, 3}, {2, 3}, {2, 4}};
+    g1.edges = {{1, 2}, {1, 3}, {2, 3}, {2, 4}};
     graphs.push_back(g1);
 
     // Graph 2: 8 Nodes (demonstrates occlusion)
     Graph g2;
-    g2.nodes = std::vector<Node>{
-        {1, 5, 3, 5, cbt_labels[4]},
-        {2, 20, 10, 3, cbt_labels[5]},
-        {3, 18, 9, 1, cbt_labels[6]}, // Occluded by node 2
-        {4, 40, 5, 5, cbt_labels[7]},
-        {5, 60, 18, 3, cbt_labels[8]},
-        {6, 70, 2, 1, cbt_labels[9]},
-        {7, 35, 20, 3, cbt_labels[10]},
-        {8, 5, 20, 5, cbt_labels[11]}
+    g2.nodes = {
+        {1, 5, 3, 0, 5, cbt_labels[4]},
+        {2, 20, 10, 0, 3, cbt_labels[5]},
+        {3, 18, 9, 0, 1, cbt_labels[6]}, // Occluded by node 2
+        {4, 40, 5, 0, 5, cbt_labels[7]},
+        {5, 60, 18, 0, 3, cbt_labels[8]},
+        {6, 70, 2, 0, 1, cbt_labels[9]},
+        {7, 35, 20, 0, 3, cbt_labels[10]},
+        {8, 5, 20, 0, 5, cbt_labels[11]}
     };
-    g2.edges = std::vector<Edge>{{1, 2}, {1, 8}, {2, 4}, {3, 4}, {4, 5}, {5, 7}, {6, 7}, {7, 8}};
+    g2.edges = {{1, 2}, {1, 8}, {2, 4}, {3, 4}, {4, 5}, {5, 7}, {6, 7}, {7, 8}};
     graphs.push_back(g2);
 
     // NOTE: The following block was syntactically incorrect and referred to
