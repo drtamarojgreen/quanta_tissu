@@ -22,6 +22,9 @@ class NLQTranslator:
         np.random.seed(42)
         # We can load the model without the DB knowledge base for this task
         self.model = QuantaTissu(model_config, use_db=False)
+        # Load the trained weights
+        model_path = system_config["model_save_path"]
+        self.model.load_weights(model_path)
         print("NLQTranslator initialized successfully.")
 
     def _create_prompt(self, question: str, schema: dict = None) -> str:
@@ -101,29 +104,26 @@ TissQL: """
 
 if __name__ == '__main__':
     # Example usage of the NLQTranslator
+    # Note: This requires the environment to be fully set up first.
+    # See docs/tisslm_pipeline_implementation.md for instructions.
+
+    # 1. Install dependencies
+    # pip install -r requirements.txt
+
+    # 2. Create the corpus file (or use an existing one)
+    # See documentation for details.
+
+    # 3. Train the tokenizer
+    # python3 -m quanta_tissu.tisslm.train_bpe
+
+    # 4. Train the model
+    # python3 -m quanta_tissu.tisslm.train
+
+    print("Running NLQTranslator example...")
     translator = NLQTranslator()
 
-    # Example 1: Simple query without schema
     print("\n--- Example 1: Simple Query ---")
     question1 = "how many records are in the telemetry collection"
     tissql1 = translator.translate(question1)
     print(f"Question: '{question1}'")
     print(f"TissQL: {tissql1}")
-
-    # Example 2: Query with schema context
-    print("\n--- Example 2: Query with Schema ---")
-    db_schema = {
-        "employees": ["id", "first_name", "last_name", "salary", "department_id"],
-        "departments": ["id", "dept_name"]
-    }
-    question2 = "What is the average salary of employees in department 5?"
-    tissql2 = translator.translate(question2, schema=db_schema)
-    print(f"Question: '{question2}'")
-    print(f"TissQL: {tissql2}")
-
-    # Example 3: More complex query
-    print("\n--- Example 3: Complex Query ---")
-    question3 = "show the last name of the top 3 highest paid employees"
-    tissql3 = translator.translate(question3, schema=db_schema)
-    print(f"Question: '{question3}'")
-    print(f"TissQL: {tissql3}")
