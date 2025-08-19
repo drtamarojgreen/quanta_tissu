@@ -17,7 +17,7 @@ LSMTree::LSMTree(const std::string& path) : path_(path), transaction_manager_(*t
         std::filesystem::create_directories(db_path);
     }
 
-    std::string wal_path = db_path / "wal.log";
+    std::string wal_path = (db_path / "wal.log").string();
     wal_ = std::make_unique<WriteAheadLog>(wal_path);
 
     LOG_INFO("Database opened at: " + path_ + ". Starting recovery.");
