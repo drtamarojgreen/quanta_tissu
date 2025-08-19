@@ -20,5 +20,5 @@ def register_steps(runner):
 
     @runner.step(r'^Then the result should be an empty list of tokens$')
     def check_empty_list(context):
-        assert context['tokens'] == []
+        assert context['tokens'].size == 0
         return "Test passed!"
