@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <chrono>
 #include <random>
+#include <type_traits>
 
 namespace TissDB {
 namespace Query {
@@ -24,9 +25,14 @@ QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertSta
         Element new_element;
         new_element.key = col_name;
         std::visit([&new_element](auto&& arg) {
-            new_element.value = arg;
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, Null>) {
+                new_element.value = nullptr;
+            } else {
+                new_element.value = arg;
+            }
         }, value);
-        new_doc.elements.push_back(new_element);
+        new_doc.elements.push_back(std::move(new_element));
     }
 
     storage_engine.put(insert_stmt.collection_name, new_doc.id, new_doc);
