@@ -66,7 +66,12 @@ private:
     // Storage for the three graph versions
     std::vector<Graph> graphs;
 
-    // Initialization
+    // Workflows
+    void runTissDBWorkflow();
+    void runGenerationWorkflow();
+
+    // Helper methods
+    std::string getUserPrompt();
     void loadGraphsFromTissDB();
 
     // Drawing functions
