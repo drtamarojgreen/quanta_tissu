@@ -160,16 +160,11 @@ void GraphLogic::runGenerationWorkflow() {
         Json parsed_json = Json::parse(json_output);
 
         // Check for an error message from the Python script
-        if (parsed_json.is_object() && parsed_json.as_object().count("error")) {
+        if (parsed_json.type() == Json::Type::OBJECT && parsed_json.as_object().count("error")) {
             clearCanvas();
             canvas[5] = "  An error occurred during graph generation:";
-            // Safe access to the "message" field
-            const auto& obj = parsed_json.as_object();
-            auto it = obj.find("message");
-            if (it != obj.end()) {
-                std::string error_details = it->second.as_string();
-                canvas[7] = "  " + error_details.substr(0, SCREEN_WIDTH - 4);
-            }
+            std::string error_details = parsed_json["message"].as_string();
+            canvas[7] = "  " + error_details.substr(0, SCREEN_WIDTH - 4);
             renderCanvas();
             waitForSpacebar();
             return;
@@ -177,13 +172,11 @@ void GraphLogic::runGenerationWorkflow() {
 
         // Populate the graph object from the parsed JSON
         Graph g;
-        const auto& root_obj = parsed_json.as_object();
-        const Json& nodes_json = root_obj.at("nodes");
+        const Json& nodes_json = parsed_json["nodes"];
         for (const auto& node_json : nodes_json.as_array()) {
             Node n;
-            const auto& node_obj = node_json.as_object();
-            n.id = static_cast<int>(node_obj.at("id").as_number());
-            n.label = node_obj.at("label").as_string();
+            n.id = node_json["id"].as_integer();
+            n.label = node_json["label"].as_string();
             // Assign random positions for visualization
             n.x = (rand() % (SCREEN_WIDTH - 15)) + 5;
             n.y = (rand() % (SCREEN_HEIGHT - 5)) + 2;
@@ -192,12 +185,11 @@ void GraphLogic::runGenerationWorkflow() {
             g.nodes.push_back(n);
         }
 
-        const Json& edges_json = root_obj.at("edges");
+        const Json& edges_json = parsed_json["edges"];
         for (const auto& edge_json : edges_json.as_array()) {
             Edge e;
-            const auto& edge_obj = edge_json.as_object();
-            e.node1_id = static_cast<int>(edge_obj.at("from").as_number());
-            e.node2_id = static_cast<int>(edge_obj.at("to").as_number());
+            e.node1_id = edge_json["from"].as_integer();
+            e.node2_id = edge_json["to"].as_integer();
             g.edges.push_back(e);
         }
 
@@ -271,18 +263,18 @@ void GraphLogic::initializeGraphs() {
 
     // Graph 1: 4 Nodes
     Graph g1;
-    g1.nodes = std::vector<Node>{
+    g1.nodes = {
         {1, 10, 5, 5, cbt_labels[0]},
         {2, 30, 15, 3, cbt_labels[1]},
         {3, 50, 8, 5, cbt_labels[2]},
         {4, 25, 2, 1, cbt_labels[3]}
     };
-    g1.edges = std::vector<Edge>{{1, 2}, {1, 3}, {2, 3}, {2, 4}};
+    g1.edges = {{1, 2}, {1, 3}, {2, 3}, {2, 4}};
     graphs.push_back(g1);
 
     // Graph 2: 8 Nodes (demonstrates occlusion)
     Graph g2;
-    g2.nodes = std::vector<Node>{
+    g2.nodes = {
         {1, 5, 3, 5, cbt_labels[4]},
         {2, 20, 10, 3, cbt_labels[5]},
         {3, 18, 9, 1, cbt_labels[6]}, // Occluded by node 2
@@ -292,20 +284,37 @@ void GraphLogic::initializeGraphs() {
         {7, 35, 20, 3, cbt_labels[10]},
         {8, 5, 20, 5, cbt_labels[11]}
     };
-    g2.edges = std::vector<Edge>{{1, 2}, {1, 8}, {2, 4}, {3, 4}, {4, 5}, {5, 7}, {6, 7}, {7, 8}};
+    g2.edges = {{1, 2}, {1, 8}, {2, 4}, {3, 4}, {4, 5}, {5, 7}, {6, 7}, {7, 8}};
     graphs.push_back(g2);
 
-    // NOTE: The following block was syntactically incorrect and referred to
-    // variables not in scope. It has been removed. It appeared to be a
-    // copy-paste error from another part of the codebase.
-    //
-    //      // Extract nodes
-    //      const Json& nodes_json = graph_doc["nodes"];
-    //      ...
-    //      } catch (const std::exception& e) {
-    //          std::cerr << "Error parsing JSON for graph " << i << ": " << e.what() << std::endl;
-    //      }
-    //  }
+            // Extract nodes
+            const Json& nodes_json = graph_doc["nodes"];
+            for (const auto& node_json : nodes_json.as_array()) {
+                Node n;
+                n.id = node_json["id"].as_integer();
+                n.x = node_json["x"].as_integer();
+                n.y = node_json["y"].as_integer();
+            n.z = (rand() % 20) - 10; // Assign random Z for 3D effect
+                n.size = node_json["size"].as_integer();
+                n.label = node_json["label"].as_string();
+                g.nodes.push_back(n);
+            }
+
+            // Extract edges
+            const Json& edges_json = graph_doc["edges"];
+            for (const auto& edge_json : edges_json.as_array()) {
+                Edge e;
+                e.node1_id = edge_json["from"].as_integer();
+                e.node2_id = edge_json["to"].as_integer();
+                g.edges.push_back(e);
+            }
+
+            graphs.push_back(g);
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing JSON for graph " << i << ": " << e.what() << std::endl;
+        }
+    }
+
 }
 
 /**
