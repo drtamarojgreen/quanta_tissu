@@ -27,11 +27,9 @@ def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length:
         top_p=top_p
     )
 
-    # The full sequence is the prompt + generated tokens
-    full_token_ids = np.concatenate([prompt_token_ids, generated_ids])
-
-    # Detokenize the entire sequence of tokens
-    return tokenizer.detokenize(full_token_ids)
+    # Detokenize the generated IDs and append to the original prompt.
+    generated_text = tokenizer.detokenize(np.array(generated_ids))
+    return prompt + generated_text
 
 def main():
     """
@@ -87,7 +85,6 @@ def main():
          print("Please run `python3 -m quanta_tissu.tisslm.run_training` to train and save a model checkpoint.", file=sys.stderr)
          sys.exit(1)
     model.load_weights(args.checkpoint_path)
-    print(f"Successfully loaded model weights from {args.checkpoint_path}")
 
 
     generated_text = generate_text(
