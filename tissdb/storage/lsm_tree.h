@@ -47,6 +47,7 @@ public:
     // Helper to get a collection, throws if not found
     Collection& get_collection(const std::string& name);
     const Collection& get_collection(const std::string& name) const;
+    const std::string& get_path() const;
 
     bool has_index(const std::string& collection_name, const std::vector<std::string>& field_names);
     std::vector<std::vector<std::string>> get_available_indexes(const std::string& collection_name) const;
