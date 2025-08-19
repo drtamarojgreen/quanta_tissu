@@ -41,7 +41,7 @@ namespace API {
 
 namespace {
 
-JsonValue value_to_json(const Value& value); // Forward declaration
+Json::JsonValue value_to_json(const Value& value); // Forward declaration
 
 Json::JsonObject document_to_json(const Document& doc) {
     Json::JsonObject obj;
@@ -60,7 +60,7 @@ Json::JsonObject document_to_json(const Document& doc) {
     return obj;
 }
 
-JsonValue value_to_json(const Value& value) {
+Json::JsonValue value_to_json(const Value& value) {
     if (std::holds_alternative<std::nullptr_t>(value)) {
         return Json::JsonValue(nullptr);
     } else if (const auto* str_val = std::get_if<std::string>(&value)) {
@@ -69,16 +69,20 @@ JsonValue value_to_json(const Value& value) {
         return Json::JsonValue(*num_val);
     } else if (const auto* bool_val = std::get_if<bool>(&value)) {
         return Json::JsonValue(*bool_val);
-    } else if (const auto* vec_val = std::get_if<std::vector<Value>>(&value)) {
+    } else if (const auto* arr_ptr = std::get_if<std::unique_ptr<Array>>(&value)) {
         Json::JsonArray arr;
-        for (const auto& v : *vec_val) {
-            arr.push_back(value_to_json(v));
+        if (arr_ptr && *arr_ptr) {
+            for (const auto& v : (*arr_ptr)->values) {
+                arr.push_back(value_to_json(v));
+            }
         }
         return Json::JsonValue(arr);
-    } else if (const auto* map_val = std::get_if<std::map<std::string, Value>>(&value)) {
+    } else if (const auto* obj_ptr = std::get_if<std::unique_ptr<Object>>(&value)) {
         Json::JsonObject obj;
-        for (const auto& [k, v] : *map_val) {
-            obj[k] = value_to_json(v);
+        if (obj_ptr && *obj_ptr) {
+            for (const auto& [k, v] : (*obj_ptr)->values) {
+                obj[k] = value_to_json(v);
+            }
         }
         return Json::JsonValue(obj);
     } else if (const auto* element_vec_val = std::get_if<std::vector<Element>>(&value)) {
@@ -127,17 +131,17 @@ Value json_to_value(const Json::JsonValue& json_val) {
     } else if (json_val.is_bool()) {
         return json_val.as_bool();
     } else if (json_val.is_array()) {
-        std::vector<Value> vec;
+        auto arr = std::make_unique<Array>();
         for (const auto& v : json_val.as_array()) {
-            vec.push_back(json_to_value(v));
+            arr->values.push_back(json_to_value(v));
         }
-        return vec;
+        return arr;
     } else if (json_val.is_object()) {
-        std::map<std::string, Value> map;
+        auto obj = std::make_unique<Object>();
         for (const auto& [k, v] : json_val.as_object()) {
-            map[k] = json_to_value(v);
+            obj->values[k] = json_to_value(v);
         }
-        return map;
+        return obj;
     }
     return nullptr;
 }
