@@ -146,4 +146,78 @@ Document deserialize(const std::vector<uint8_t>& bytes) {
     return doc;
 }
 
+// Serializes a schema to a byte vector.
+std::vector<uint8_t> serialize(const Schema& schema) {
+    std::stringstream ss(std::ios::binary | std::ios::out);
+    BinaryStreamBuffer bsb(static_cast<std::ostream&>(ss));
+
+    // Serialize fields
+    size_t field_count = schema.get_fields().size();
+    bsb.write(field_count);
+    for (const auto& field : schema.get_fields()) {
+        bsb.write_string(field.name);
+        bsb.write(static_cast<uint8_t>(field.type));
+        bsb.write(field.required);
+        bsb.write(field.unique);
+    }
+
+    // Serialize primary key
+    bsb.write_string(schema.get_primary_key());
+
+    // Serialize foreign keys
+    size_t fk_count = schema.get_foreign_keys().size();
+    bsb.write(fk_count);
+    for (const auto& fk : schema.get_foreign_keys()) {
+        bsb.write_string(fk.field_name);
+        bsb.write_string(fk.referenced_collection);
+        bsb.write_string(fk.referenced_field);
+    }
+
+    const std::string& str = ss.str();
+    return std::vector<uint8_t>(str.begin(), str.end());
+}
+
+// Deserializes a schema from a byte vector.
+Schema deserialize_schema(const std::vector<uint8_t>& bytes) {
+    if (bytes.empty()) {
+        return Schema{};
+    }
+    std::string byte_string(bytes.begin(), bytes.end());
+    std::stringstream ss(byte_string, std::ios::binary | std::ios::in);
+    BinaryStreamBuffer bsb(static_cast<std::istream&>(ss));
+
+    Schema schema;
+
+    // Deserialize fields
+    size_t field_count;
+    bsb.read(field_count);
+    for (size_t i = 0; i < field_count; ++i) {
+        std::string name = bsb.read_string();
+        uint8_t type_val;
+        bsb.read(type_val);
+        FieldType type = static_cast<FieldType>(type_val);
+        bool required;
+        bsb.read(required);
+        bool unique;
+        bsb.read(unique);
+        schema.add_field(name, type, required, unique);
+    }
+
+    // Deserialize primary key
+    std::string pk = bsb.read_string();
+    schema.set_primary_key(pk);
+
+    // Deserialize foreign keys
+    size_t fk_count;
+    bsb.read(fk_count);
+    for (size_t i = 0; i < fk_count; ++i) {
+        std::string field_name = bsb.read_string();
+        std::string ref_coll = bsb.read_string();
+        std::string ref_field = bsb.read_string();
+        schema.add_foreign_key(field_name, ref_coll, ref_field);
+    }
+
+    return schema;
+}
+
 } // namespace TissDB
