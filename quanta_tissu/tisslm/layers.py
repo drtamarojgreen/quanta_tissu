@@ -9,9 +9,9 @@ def softmax(x, axis=-1, temperature=1.0):
     return e_x / e_x.sum(axis=axis, keepdims=True)
 
 class LayerNorm:
-    def __init__(self, d_model, eps=1e-6):
-        self.gamma = Parameter(np.ones(d_model), name="gamma")
-        self.beta = Parameter(np.zeros(d_model), name="beta")
+    def __init__(self, d_model, eps=1e-6, name=""):
+        self.gamma = Parameter(np.ones(d_model), name=f"{name}.gamma")
+        self.beta = Parameter(np.zeros(d_model), name=f"{name}.beta")
         self.eps = eps
         self.cache = {}
 
@@ -57,15 +57,15 @@ def scaled_dot_product_attention(Q, K, V, mask=None):
     return output, weights
 
 class MultiHeadAttention:
-    def __init__(self, d_model, num_heads):
+    def __init__(self, d_model, num_heads, name=""):
         assert d_model % num_heads == 0
         self.num_heads = num_heads
         self.d_k = d_model // self.num_heads
 
-        self.Wq = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name="Wq")
-        self.Wk = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name="Wk")
-        self.Wv = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name="Wv")
-        self.Wo = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name="Wo")
+        self.Wq = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name=f"{name}.Wq")
+        self.Wk = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name=f"{name}.Wk")
+        self.Wv = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name=f"{name}.Wv")
+        self.Wo = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name=f"{name}.Wo")
 
         self.cache = {}
 
@@ -164,11 +164,11 @@ class MultiHeadAttention:
         return [self.Wq, self.Wk, self.Wv, self.Wo]
 
 class FeedForward:
-    def __init__(self, d_model, d_ff):
-        self.W1 = Parameter(np.random.randn(d_model, d_ff) / np.sqrt(d_model), name="W1")
-        self.b1 = Parameter(np.zeros(d_ff), name="b1")
-        self.W2 = Parameter(np.random.randn(d_ff, d_model) / np.sqrt(d_ff), name="W2")
-        self.b2 = Parameter(np.zeros(d_model), name="b2")
+    def __init__(self, d_model, d_ff, name=""):
+        self.W1 = Parameter(np.random.randn(d_model, d_ff) / np.sqrt(d_model), name=f"{name}.W1")
+        self.b1 = Parameter(np.zeros(d_ff), name=f"{name}.b1")
+        self.W2 = Parameter(np.random.randn(d_ff, d_model) / np.sqrt(d_ff), name=f"{name}.W2")
+        self.b2 = Parameter(np.zeros(d_model), name=f"{name}.b2")
         self.cache = {}
 
     def __call__(self, x):
