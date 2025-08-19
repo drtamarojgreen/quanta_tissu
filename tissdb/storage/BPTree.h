@@ -9,6 +9,7 @@
 #include <string>
 #include <cstring>
 #include <vector>
+#include <type_traits>
 #include "Comp.h"
 #include "Utils.h"
 #include <cassert>
@@ -18,6 +19,8 @@ const unsigned int MIN_ORDER = 2;
 template<typename K, typename V, class Comp = DefaultCompare<K>>
 class BPTree {
 private:
+    static const bool K_is_string = std::is_same_v<K, std::string>;
+    static const bool V_is_string = std::is_same_v<V, std::string>;
     static const std::string SUFFIX;
 
     struct Node {
@@ -642,8 +645,18 @@ void BPTree<K, V, Comp>::serialize(std::string &path) {
     bp_tree_utils::writeValLittle((unsigned char) sizeof(unsigned short), f);
     bp_tree_utils::writeValLittle((unsigned char) sizeof(unsigned int), f);
     bp_tree_utils::writeValLittle((unsigned char) sizeof(unsigned long), f);
-    bp_tree_utils::writeValLittle((unsigned int) sizeof(K), f);
-    bp_tree_utils::writeValLittle((unsigned int) sizeof(V), f);
+
+    if constexpr (K_is_string) {
+        bp_tree_utils::writeValLittle((unsigned int)0, f);
+    } else {
+        bp_tree_utils::writeValLittle((unsigned int)sizeof(K), f);
+    }
+    if constexpr (V_is_string) {
+        bp_tree_utils::writeValLittle((unsigned int)0, f);
+    } else {
+        bp_tree_utils::writeValLittle((unsigned int)sizeof(V), f);
+    }
+
     bp_tree_utils::writeValLittle(order, f);
     bp_tree_utils::writeValLittle(initCap, f);
     bp_tree_utils::writeValLittle(size, f);
@@ -705,13 +718,25 @@ std::shared_ptr<BPTree<K, V, Comp>> BPTree<K, V, Comp>::deserialize(const std::s
         throw std::string("this file is not compatible with machine");
     }
     auto sizeofK = bp_tree_utils::readValLittle<unsigned int>(f);
-    if (sizeofK < sizeof(K)) {
-        throw bp_tree_utils::stringFormat("Wrong sizeof(K): expected %d but got %d (offset: 8)", sizeof(K), sizeofK);
+    if constexpr (K_is_string) {
+        if (sizeofK != 0) {
+            throw bp_tree_utils::stringFormat("Wrong sizeof(K): file is not for std::string keys, got size %d", sizeofK);
+        }
+    } else {
+        if (sizeofK != sizeof(K)) {
+             throw bp_tree_utils::stringFormat("Wrong sizeof(K): expected %d but got %d", (unsigned int)sizeof(K), sizeofK);
+        }
     }
 
     auto sizeofV = bp_tree_utils::readValLittle<unsigned int>(f);
-    if (sizeofV != sizeof(V)) {
-        throw bp_tree_utils::stringFormat("Wrong sizeof(V): expected %d but got %d (offset: 12)", sizeof(V), sizeofV);
+    if constexpr (V_is_string) {
+        if (sizeofV != 0) {
+            throw bp_tree_utils::stringFormat("Wrong sizeof(V): file is not for std::string values, got size %d", sizeofV);
+        }
+    } else {
+        if (sizeofV != sizeof(V)) {
+            throw bp_tree_utils::stringFormat("Wrong sizeof(V): expected %d but got %d", (unsigned int)sizeof(V), sizeofV);
+        }
     }
 
 
