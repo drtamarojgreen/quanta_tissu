@@ -7,11 +7,13 @@
 #include <map>
 #include <variant>
 #include <chrono>
+#include <memory>
 
 namespace TissDB {
 
-// Forward declaration for recursive Element structure
 class Element;
+struct Array;
+struct Object;
 
 // Primitive types supported by TissDB
 using Number = double; // Using double to handle both integer and float values
@@ -19,7 +21,6 @@ using Boolean = bool;
 using DateTime = std::chrono::time_point<std::chrono::system_clock>;
 using BinaryData = std::vector<uint8_t>;
 
-// An Element's value can be a single primitive or a list of nested Elements.
 using Value = std::variant<
     std::nullptr_t,
     std::string,
@@ -27,10 +28,22 @@ using Value = std::variant<
     Boolean,
     DateTime,
     BinaryData,
-    std::vector<Element>, // For nested elements like <specs> or <reviews> in the example
-    std::vector<Value>,
-    std::map<std::string, Value>
+    std::vector<Element>,
+    std::unique_ptr<Array>,
+    std::unique_ptr<Object>
 >;
+
+bool operator==(const Value& lhs, const Value& rhs);
+
+struct Array {
+    std::vector<Value> values;
+    bool operator==(const Array& other) const;
+};
+
+struct Object {
+    std::map<std::string, Value> values;
+    bool operator==(const Object& other) const;
+};
 
 // An Element is a key-value pair, representing a tag in the document.
 class Element {
