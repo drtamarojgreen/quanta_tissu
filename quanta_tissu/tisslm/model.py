@@ -80,7 +80,7 @@ class PositionalEncoding:
         return x + self.pe[np.newaxis, positions, :]
 
 class QuantaTissu:
-    def __init__(self, config, db_host='127.0.0.1', db_port=8080, use_db=True):
+    def __init__(self, config, db_host='127.0.0.1', db_port=8080, use_db=False):
         self.config = config
         d_model = config["d_model"]
         vocab_size = config["vocab_size"]
