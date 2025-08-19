@@ -1,14 +1,13 @@
 #pragma once
 
-#include <string>
-#include <memory>
 #include <map>
+#include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
-#include "collection.h"
-#include "transaction_manager.h"
 #include "../common/schema.h"
+#include "collection.h"
 #include "transaction_manager.h"
 
 namespace TissDB {
@@ -55,6 +54,7 @@ public:
 private:
     std::map<std::string, std::unique_ptr<Collection>> collections_;
     std::string path_;
+    Transactions::TransactionManager transaction_manager_;
 };
 
 } // namespace Storage
