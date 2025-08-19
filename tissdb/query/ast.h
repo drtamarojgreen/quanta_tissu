@@ -95,7 +95,7 @@ struct SelectStatement {
 // Represents a TissQL UPDATE statement.
 struct UpdateStatement {
     std::string collection_name;
-    std::vector<std::pair<std::string, Literal>> set_clause;
+    std::vector<std::pair<std::string, Expression>> set_clause;
     std::optional<Expression> where_clause;
 };
 

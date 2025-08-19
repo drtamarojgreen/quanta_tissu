@@ -20,9 +20,13 @@ QueryResult execute_update_statement(Storage::LSMTree& storage_engine, UpdateSta
         }
 
         if (should_update) {
+            Document original_doc = doc; // Copy original document for expression evaluation
             for (const auto& set_pair : update_stmt.set_clause) {
                 const std::string& field_to_update = set_pair.first;
-                const Literal& new_value = set_pair.second;
+                const Expression& value_expr = set_pair.second;
+
+                // Evaluate the expression based on the original document state
+                Literal new_value = evaluate_update_expression(value_expr, original_doc);
 
                 auto it = std::find_if(doc.elements.begin(), doc.elements.end(),
                                        [&](const Element& elem) { return elem.key == field_to_update; });
@@ -38,7 +42,7 @@ QueryResult execute_update_statement(Storage::LSMTree& storage_engine, UpdateSta
                     // Field does not exist, add it
                     Element new_element;
                     new_element.key = field_to_update;
-                     if (const auto* str_val = std::get_if<std::string>(&new_value)) {
+                    if (const auto* str_val = std::get_if<std::string>(&new_value)) {
                         new_element.value = *str_val;
                     } else if (const auto* num_val = std::get_if<double>(&new_value)) {
                         new_element.value = *num_val;
