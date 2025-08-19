@@ -22,7 +22,8 @@ def train():
     dataset = Dataset(tokenized_data, training_config["batch_size"], tokenizer_config["max_len"])
 
     # 5. Initialize the model
-    model = QuantaTissu(model_config)
+    # The database connection is not needed for training, so we disable it.
+    model = QuantaTissu(model_config, use_db=False)
 
     # 6. Initialize the optimizer and loss function
     optimizer = AdamW(model.parameters(), lr=training_config["learning_rate"], weight_decay=training_config["weight_decay"])
@@ -48,7 +49,7 @@ def train():
                 print(f"Epoch {epoch+1}/{training_config['num_epochs']}, Step {i}, Loss: {loss}")
 
     # 8. Save the model
-    model_path = os.path.join(models_dir, 'quanta_tissu.npz')
+    model_path = system_config["model_save_path"]
     # Create a dictionary of parameters to save
     model_params_to_save = {p.name: p.value for p in model.parameters()}
     np.savez(model_path, **model_params_to_save)
