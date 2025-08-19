@@ -5,6 +5,7 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <optional>
 
 #include "../common/document.h"
 #include "../common/checksum.h"
@@ -32,6 +33,7 @@ struct LogEntry {
     std::string document_id;
     Document doc;
     std::vector<TissDB::Transactions::Operation> operations;
+    std::optional<std::vector<uint8_t>> schema_data;
 };
 
 // Manages the Write-Ahead Log for ensuring durability of writes.

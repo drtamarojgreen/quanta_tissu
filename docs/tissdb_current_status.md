@@ -1,71 +1,59 @@
-# TissDB: Current Status and Development Roadmap
+# TissDB Project: Current Status (Q3 2025)
 
 ## 1. Introduction
 
-This document provides a clear overview of the current status of the TissDB project as of Q3 2025. It is intended to be a single source of truth for developers and stakeholders, clarifying the project's vision, the concrete implementation plan, and the actual work that has been completed so far.
+This document provides a verified, up-to-date assessment of the TissDB project's implementation status as of August 2025. It is based on a direct review of the source code and serves as the single source of truth for the project's current state.
 
-There is a significant distinction between the long-term conceptual vision for TissDB and the practical, phased implementation currently underway. This document aims to reconcile these two aspects.
+The repository contains two primary, interconnected components at vastly different stages of maturity:
+*   **TissDB**: A NoSQL database engine written in C++.
+*   **QuantaTissu**: A language model framework written in Python.
 
-## 2. The Long-Term Vision: A Self-Organizing Data Tissue
+## 2. TissDB (C++ Database) Status
 
-The foundational vision for TissDB is highly ambitious, modeling a database on the biological principles of living tissue. This concept, known as **TissLang**, envisions a system where data exists as "cellular atoms" that form "adhesion bonds" with each other, creating a self-healing, adaptive, and resilient data fabric.
+**Summary:** Contrary to previous documentation, the TissDB C++ database is **partially implemented**. A significant amount of foundational work has been completed, but the engine lacks critical features required for practical use.
 
-Key aspects of this vision include:
-- **Graph-based model:** Data cells as nodes and bonds as edges.
-- **Decentralized architecture:** Peer-to-peer and fault-tolerant.
-- **Active data structures:** Cells can contain their own logic.
+### Implemented Features:
+A review of the code in `tissdb/` reveals a functional core, including:
+- **Multi-threaded HTTP API Server**: A server capable of handling concurrent requests is implemented in `api/http_server.cpp`.
+- **RESTful API Endpoints**: The API supports a range of operations, including:
+    - Database and collection lifecycle management (create, list, delete).
+    - Full CRUD (Create, Read, Update, Delete) operations on documents.
+    - Endpoints for initiating queries (`/_query`) and transactions (`/_begin`, `/_commit`).
+- **Durability and Recovery**: A Write-Ahead Log (WAL) is implemented in `storage/wal.cpp`, allowing the database to recover its state after a restart.
+- **Storage Management**: A storage layer (`storage/lsm_tree.cpp`) manages collections and delegates basic storage operations.
 
-This vision serves as the philosophical guide for the project's long-term development.
+### Critical Missing Features:
+Despite the progress, the database is missing core functionality:
+- **No Indexing**: The single most critical missing feature is indexing. All functions related to index creation and lookup (`create_index`, `find_by_index`) are non-functional placeholders that throw `runtime_error`.
+- **Poor Query Performance**: As a direct result of the lack of indexing, all queries, including key-based lookups, must perform slow, full scans of the data.
+- **Incomplete Transaction Logic**: While transaction endpoints exist, the underlying recovery logic for transactional operations is incomplete, posing a risk to data integrity under concurrent workloads.
 
-## 3. The Concrete Plan: A Phased C++ NoSQL Database
+**Conclusion:** TissDB is a functional prototype, not a production-ready database. It is a solid foundation, but the absence of indexing makes it unsuitable for any performance-sensitive applications.
 
-To realize this vision, a concrete development plan has been created, which outlines the creation of a high-performance C++ NoSQL database. This plan is the official roadmap for the TissDB implementation.
+## 3. QuantaTissu (Python LLM) Status
 
-The key features of this planned database are:
-- **Storage Engine**: A Log-Structured Merge-Tree (LSM-Tree) for high write throughput.
-- **Data Model**: A flexible JSON-like document model.
-- **Query Language**: TissQL, a SQL-like query language for interacting with data via a RESTful API.
-- **Indexing**: B-Tree indexing for fast lookups.
-- **Phased Rollout**: Development is broken into three main phases, starting with a Minimum Viable Product (MVP) and progressively adding features like replication, sharding, and advanced security.
+**Summary:** The QuantaTissu Python framework is **mature and feature-rich**. Its implementation aligns closely with the extensive plans laid out in `docs/plan.md` and `docs/enhancements.md`.
 
-## 4. Current Implementation Status (As of August 2025)
+### Implemented Features:
+The framework, located in `quanta_tissu/tisslm/`, includes:
+- **Modular Transformer Architecture**: A flexible model (`model.py`) composed of configurable `TransformerBlock`s.
+- **Full Training Pipeline**: A complete training script (`train.py`) is implemented, featuring:
+    - An `AdamW` optimizer.
+    - `CrossEntropyLoss`.
+    - A standard training loop that saves model weights.
+- **Advanced Tokenization**: The tokenizer has evolved to use **Byte-Pair Encoding (BPE)**, with training and inference logic fully implemented.
+- **Sophisticated Inference**: The model supports a wide range of modern inference techniques:
+    - Batched inference.
+    - **KV Caching** for efficient, autoregressive generation.
+    - Multiple sampling strategies: greedy, top-k, and nucleus (top-p) sampling.
+- **Documentation Note**: The `enhancements.md` document is largely accurate but slightly lags behind the codebase; for example, it incorrectly lists KV Caching as "Not Started" when it is, in fact, implemented.
 
-**The C++ NoSQL database described in the development plan is currently in the design and planning stage and has not yet been implemented.**
+**Conclusion:** QuantaTissu is a well-developed and capable LLM framework suitable for advanced experimentation and further development.
 
-The "TissDB project" at present consists of the following separate components:
+## 4. Project-Wide Integration
 
-1.  **Conceptual Documentation (`docs/`)**: A rich set of documents outlining the vision (`tissdb_vision.md`) and the detailed implementation plan (`tissdb_plan.md`).
+The two components are designed to integrate. The `QuantaTissu` `KnowledgeBase` class can connect to the TissDB server, using it as a vector store for Retrieval-Augmented Generation (RAG). However, the utility of this feature is severely hampered by TissDB's lack of indexing, which would prevent efficient semantic retrieval over large datasets.
 
-2.  **A Functional Python Knowledge Store (`quanta_tissu/tisslm/knowledge_base.py`)**:
-    - This is the primary piece of *functional* code related to the TissDB concept.
-    - It is an **in-memory vector store**, not the planned C++ database.
-    - It uses embeddings to store and retrieve documents based on semantic similarity, serving as a practical tool for knowledge management within the Quanta ecosystem.
+## 5. Overall Assessment
 
-3.  **A C++ Graph Visualization Utility (`quanta_tissu/nexus_flow/`)**:
-    - This is a small, standalone console application for rendering graph structures.
-    - It is a utility related to the *vision* of graph-based data but is not part of the database itself.
-
-In summary, TissDB as a database does not yet exist. The project is currently a collection of design documents and related, but distinct, software utilities.
-
-## 5. Immediate Next Steps: The Phase 1 MVP
-
-The active development work will focus on implementing **Phase 1 (MVP)** as detailed in the `tissdb_plan.md`. This constitutes the immediate roadmap for the project. The key tasks are:
-
-- **Task 1.2: Core Append-Only Storage Layer**:
-  - Implement a Write-Ahead Log (WAL) and an in-memory `memtable`.
-  - Implement the mechanism to flush the `memtable` to persistent segment files on disk.
-
-- **Task 1.3: Basic REST API for Document CRUD**:
-  - Implement a lightweight C++ HTTP server.
-  - Create endpoints for basic Create, Read, Update, and Delete operations on documents.
-
-- **Task 1.4: TissQL Parser for Basic SELECT**:
-  - Define a formal grammar for a subset of TissQL.
-  - Implement a parser that can execute simple `SELECT ... WHERE` queries via a full collection scan.
-
-- **Task 1.5: Single-Field B-Tree Indexing**:
-  - Implement or integrate a B-Tree library.
-  - Create an API to add an index to a field.
-  - Modify the write path and query planner to use the index.
-
-Completion of these tasks will result in the first functional, single-node version of TissDB, forming the foundation for all future development.
+The project has made significant, though uneven, progress. The Python LLM component is far more advanced than the C++ database component. The top priority for advancing the TissDB project should be the full implementation of B-Tree indexing to enable efficient queries and unlock the potential of the integrated RAG system.

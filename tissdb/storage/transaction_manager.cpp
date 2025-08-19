@@ -13,11 +13,11 @@ TransactionID TransactionManager::begin_transaction() {
     return new_tid;
 }
 
-void TransactionManager::commit_transaction(TransactionID tid) {
+bool TransactionManager::commit_transaction(TransactionID tid) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = transactions_.find(tid);
     if (it == transactions_.end() || it->second->get_state() != Transaction::State::ACTIVE) {
-        throw std::runtime_error("Cannot commit transaction: not active or does not exist.");
+        return false;
     }
 
     auto& transaction = it->second;
@@ -41,13 +41,14 @@ void TransactionManager::commit_transaction(TransactionID tid) {
 
     transaction->set_state(Transaction::State::COMMITTED);
     transactions_.erase(it);
+    return true;
 }
 
-void TransactionManager::rollback_transaction(TransactionID tid) {
+bool TransactionManager::rollback_transaction(TransactionID tid) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = transactions_.find(tid);
     if (it == transactions_.end() || it->second->get_state() != Transaction::State::ACTIVE) {
-        return; // Idempotent
+        return true; // Idempotent
     }
 
     Storage::LogEntry abort_entry;
@@ -57,6 +58,7 @@ void TransactionManager::rollback_transaction(TransactionID tid) {
 
     it->second->set_state(Transaction::State::ABORTED);
     transactions_.erase(it);
+    return true;
 }
 
 void TransactionManager::add_put_operation(TransactionID tid, std::string collection, std::string key, Document doc) {
