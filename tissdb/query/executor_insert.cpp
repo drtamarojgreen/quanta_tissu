@@ -24,7 +24,12 @@ QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertSta
         Element new_element;
         new_element.key = col_name;
         std::visit([&new_element](auto&& arg) {
-            new_element.value = arg;
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, TissDB::Query::Null>) {
+                new_element.value = nullptr;
+            } else {
+                new_element.value = arg;
+            }
         }, value);
         new_doc.elements.push_back(new_element);
     }

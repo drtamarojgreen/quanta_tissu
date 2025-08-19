@@ -69,7 +69,7 @@ Json::JsonValue value_to_json(const Value& value) {
         return Json::JsonValue(*num_val);
     } else if (const auto* bool_val = std::get_if<bool>(&value)) {
         return Json::JsonValue(*bool_val);
-    } else if (const auto* arr_ptr = std::get_if<std::shared_ptr<Array>>(&value)) {
+    } else if (const auto* arr_ptr = std::get_if<std::unique_ptr<Array>>(&value)) {
         Json::JsonArray arr;
         if (arr_ptr && *arr_ptr) {
             for (const auto& v : (*arr_ptr)->values) {
@@ -77,7 +77,7 @@ Json::JsonValue value_to_json(const Value& value) {
             }
         }
         return Json::JsonValue(arr);
-    } else if (const auto* obj_ptr = std::get_if<std::shared_ptr<Object>>(&value)) {
+    } else if (const auto* obj_ptr = std::get_if<std::unique_ptr<Object>>(&value)) {
         Json::JsonObject obj;
         if (obj_ptr && *obj_ptr) {
             for (const auto& [k, v] : (*obj_ptr)->values) {
@@ -131,13 +131,13 @@ Value json_to_value(const Json::JsonValue& json_val) {
     } else if (json_val.is_bool()) {
         return json_val.as_bool();
     } else if (json_val.is_array()) {
-        auto arr = std::make_shared<Array>();
+        auto arr = std::make_unique<Array>();
         for (const auto& v : json_val.as_array()) {
             arr->values.push_back(json_to_value(v));
         }
         return arr;
     } else if (json_val.is_object()) {
-        auto obj = std::make_shared<Object>();
+        auto obj = std::make_unique<Object>();
         for (const auto& [k, v] : json_val.as_object()) {
             obj->values[k] = json_to_value(v);
         }

@@ -30,6 +30,9 @@ struct GroupKeyVisitor {
         // For now, we'll use a placeholder.
         ss << "[sub_document]";
     }
+    void operator()(std::nullptr_t) const { ss << "null"; }
+    void operator()(const std::shared_ptr<TissDB::Array>&) const { ss << "[array]"; }
+    void operator()(const std::shared_ptr<TissDB::Object>&) const { ss << "[object]"; }
 };
 
 QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const SelectStatement& select_stmt) {
