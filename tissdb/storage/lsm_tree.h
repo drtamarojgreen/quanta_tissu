@@ -9,7 +9,7 @@
 #include "collection.h"
 #include "transaction_manager.h"
 #include "../common/schema.h"
-#include "transaction_manager.h"
+#include "wal.h"
 
 namespace TissDB {
 namespace Storage {
@@ -55,6 +55,7 @@ public:
 private:
     std::map<std::string, std::unique_ptr<Collection>> collections_;
     std::string path_;
+    std::unique_ptr<WriteAheadLog> wal_;
     Transactions::TransactionManager transaction_manager_;
 };
 
