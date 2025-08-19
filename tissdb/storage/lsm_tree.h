@@ -28,15 +28,15 @@ public:
     void recover();
 
     // Collection management
-    virtual void create_collection(const std::string& name, const TissDB::Schema& schema);
+    virtual void create_collection(const std::string& name, const TissDB::Schema& schema, bool is_recovery = false);
     virtual void delete_collection(const std::string& name);
     virtual std::vector<std::string> list_collections() const;
 
     // Document operations (delegated to specific collection)
-    virtual void put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID tid = -1);
+    virtual void put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID tid = -1, bool is_recovery = false);
     virtual std::optional<std::shared_ptr<Document>> get(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1);
     virtual std::vector<Document> get_many(const std::string& collection_name, const std::vector<std::string>& keys);
-    virtual void del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1);
+    virtual void del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1, bool is_recovery = false);
     virtual std::vector<Document> scan(const std::string& collection_name);
     virtual void create_index(const std::string& collection_name, const std::vector<std::string>& field_names);
 
