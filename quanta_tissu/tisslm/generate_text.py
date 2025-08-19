@@ -7,7 +7,7 @@ from .model import QuantaTissu
 from .tokenizer import Tokenizer
 from .config import model_config
 
-def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int) -> str:
+def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float) -> str:
     """
     Generates text of a specified length, starting with a prompt.
     """
@@ -18,7 +18,7 @@ def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length:
         return ""
 
     # Use the new efficient generate method
-    generated_ids = model.generate(prompt_token_ids, n_new_tokens=length, method="greedy")
+    generated_ids = model.generate(prompt_token_ids, n_new_tokens=length, method=method, temperature=temperature)
 
     # The full sequence is the prompt + generated tokens
     full_token_ids = np.concatenate([prompt_token_ids, generated_ids])
@@ -49,6 +49,18 @@ def main():
         required=True,
         help="Path to the model checkpoint (.npz file)."
     )
+    parser.add_argument(
+        "--method",
+        type=str,
+        default="greedy",
+        help="The generation method to use (e.g., 'greedy', 'nucleus', 'top_k', 'random')."
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=1.0,
+        help="The temperature for sampling methods."
+    )
     args = parser.parse_args()
 
     # --- Initialize Tokenizer ---
@@ -77,7 +89,7 @@ def main():
     print(f"Successfully loaded model weights from {args.checkpoint_path}")
 
 
-    generated_text = generate_text(model, tokenizer, args.prompt, args.length)
+    generated_text = generate_text(model, tokenizer, args.prompt, args.length, args.method, args.temperature)
     print(generated_text)
 
 if __name__ == "__main__":
