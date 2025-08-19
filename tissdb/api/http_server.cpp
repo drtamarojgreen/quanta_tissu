@@ -202,8 +202,11 @@ void HttpServer::Impl::handle_client(int client_socket) {
         }
 
         if (req.method == "PUT" && path_parts.size() == 1) {
-            db_manager_.create_database(path_parts[0]);
-            send_response(client_socket, "201 Created", "text/plain", "Database '" + path_parts[0] + "' created.");
+            if (db_manager_.create_database(path_parts[0])) {
+                send_response(client_socket, "201 Created", "text/plain", "Database '" + path_parts[0] + "' created.");
+            } else {
+                send_response(client_socket, "200 OK", "text/plain", "Database '" + path_parts[0] + "' already exists.");
+            }
             close(client_socket);
             return;
         }
