@@ -26,7 +26,7 @@ QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertSta
         new_element.key = col_name;
         std::visit([&new_element](auto&& arg) {
             using T = std::decay_t<decltype(arg)>;
-            if constexpr (std::is_same_v<T, Null>) {
+            if constexpr (std::is_same_v<T, TissDB::Query::Null>) {
                 new_element.value = nullptr;
             } else {
                 new_element.value = arg;
