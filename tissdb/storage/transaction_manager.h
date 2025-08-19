@@ -10,6 +10,11 @@
 #include "../common/document.h"
 
 namespace TissDB {
+
+namespace Storage {
+class LSMTree; // Forward declaration
+}
+
 namespace Transactions {
 
 using TransactionID = int;
@@ -54,7 +59,8 @@ private:
 
 class TransactionManager {
 public:
-    TransactionManager() : next_transaction_id_(1) {}
+    explicit TransactionManager(Storage::LSMTree& lsm_tree)
+        : lsm_tree_(lsm_tree), next_transaction_id_(1) {}
 
     TransactionID begin_transaction();
     void commit_transaction(TransactionID tid);
@@ -66,6 +72,7 @@ public:
     const std::unordered_map<TransactionID, std::unique_ptr<Transaction>>& get_transactions() const;
 
 private:
+    Storage::LSMTree& lsm_tree_;
     std::atomic<TransactionID> next_transaction_id_;
     std::unordered_map<TransactionID, std::unique_ptr<Transaction>> transactions_;
     mutable std::mutex mutex_;

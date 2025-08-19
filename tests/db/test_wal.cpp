@@ -23,9 +23,9 @@ TEST_CASE(WALAppendAndRecover) {
         TissDB::Element elem2_1; elem2_1.key = "field2"; elem2_1.value = 123.45;
         doc2.elements.push_back(elem2_1);
 
-        TissDB::Storage::LogEntry entry1 = {TissDB::Storage::LogEntryType::PUT, -1, doc1, doc1.id};
-        TissDB::Storage::LogEntry entry2 = {TissDB::Storage::LogEntryType::PUT, -1, doc2, doc2.id};
-        TissDB::Storage::LogEntry entry3 = {TissDB::Storage::LogEntryType::DELETE, -1, TissDB::Document{}, "doc1"};
+        TissDB::Storage::LogEntry entry1 = {TissDB::Storage::LogEntryType::PUT, -1, "test_collection", doc1.id, doc1};
+        TissDB::Storage::LogEntry entry2 = {TissDB::Storage::LogEntryType::PUT, -1, "test_collection", doc2.id, doc2};
+        TissDB::Storage::LogEntry entry3 = {TissDB::Storage::LogEntryType::DELETE, -1, "test_collection", "doc1", {}};
 
         wal.append(entry1);
         wal.append(entry2);
@@ -64,7 +64,7 @@ TEST_CASE(WALClear) {
         TissDB::Storage::WriteAheadLog wal(wal_path);
         TissDB::Document doc;
         doc.id = "temp_doc";
-        TissDB::Storage::LogEntry entry = {TissDB::Storage::LogEntryType::PUT, -1, doc, doc.id};
+        TissDB::Storage::LogEntry entry = {TissDB::Storage::LogEntryType::PUT, -1, "test_collection", doc.id, doc};
         wal.append(entry);
     }
 
