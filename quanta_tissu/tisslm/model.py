@@ -232,11 +232,19 @@ class QuantaTissu:
             print(f"Error loading model weights from {path}: {e}. Using random initialization.")
 
     def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None):
+        # Ensure logits are a 1D array for consistent processing
+        if logits.ndim > 1:
+            logits = np.squeeze(logits)
+
         if method == "greedy":
             next_token = np.argmax(logits)
             return int(next_token)
 
         probs = softmax(logits, temperature=temperature)
+
+        # Ensure probs is also 1D, in case softmax re-adds a dimension
+        if probs.ndim > 1:
+            probs = np.squeeze(probs)
         
         if method == "top_k":
             if top_k is None:
