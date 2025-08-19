@@ -49,6 +49,24 @@ Feature: TissDB UPDATE and DELETE Query Operations
     And the document with ID "prod4" in "products" should exist
     And the document with ID "prod5" in "products" should exist
 
+  Scenario: Update with subtraction
+    When I execute the TissQL query "UPDATE products SET price = price - 10 WHERE name = 'Desk Chair'" on "products"
+    Then the document with ID "prod4" in "products" should have content {"name": "Desk Chair", "category": "Furniture", "price": 140}
+
+  Scenario: Update with multiplication
+    When I execute the TissQL query "UPDATE products SET price = price * 1.1 WHERE category = 'Electronics'" on "products"
+    Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 1320}
+    And the document with ID "prod2" in "products" should have content {"name": "Keyboard", "category": "Electronics", "price": 82.5}
+    And the document with ID "prod3" in "products" should have content {"name": "Mouse", "category": "Electronics", "price": 27.5}
+
+  Scenario: Update with division
+    When I execute the TissQL query "UPDATE products SET price = price / 2 WHERE name = 'Laptop'" on "products"
+    Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 600}
+
+  Scenario: Update multiple fields with expressions
+    When I execute the TissQL query "UPDATE products SET price = price + 100, name = 'Gaming Laptop' WHERE id = 'prod1'" on "products"
+    Then the document with ID "prod1" in "products" should have content {"name": "Gaming Laptop", "category": "Electronics", "price": 1300}
+
   Scenario Teardown:
     When I delete the collection "products"
     Then the collection "products" should not exist
