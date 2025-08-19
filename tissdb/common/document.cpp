@@ -16,10 +16,10 @@ bool operator==(const Value& lhs, const Value& rhs) {
         [](const auto& a, const auto& b) -> bool {
             using T = std::decay_t<decltype(a)>;
 
-            if constexpr (std::is_same_v<T, std::unique_ptr<Array>>) {
+            if constexpr (std::is_same_v<T, std::shared_ptr<Array>>) {
                 if (a && b) return *a == *b;
                 return !a && !b;
-            } else if constexpr (std::is_same_v<T, std::unique_ptr<Object>>) {
+            } else if constexpr (std::is_same_v<T, std::shared_ptr<Object>>) {
                 if (a && b) return *a == *b;
                 return !a && !b;
             } else {
