@@ -13,11 +13,6 @@
 #include <windows.h> // For Windows-specific console functions
 #include <conio.h>   // For _getch()
 
-#include "json/json.h"
-
-// Type alias for convenience
-using Json = NexusFlow::Json::JsonValue;
-
 // --- 3D Math Utilities ---
 
 struct Point3D {
@@ -244,12 +239,6 @@ std::string GraphLogic::getUserPrompt() {
  * sizes, labels, and the edges connecting them. The data is designed to
  * demonstrate occlusion and various node sizes.
  */
-void GraphLogic::loadGraphsFromTissDB() {
-    // For this standalone example, we'll call the hardcoded graph initializer.
-    // In a real scenario, this would involve a network request to TissDB.
-    initializeGraphs();
-}
-
 void GraphLogic::initializeGraphs() {
     // Cognitive Behavioral Therapy related labels
     std::vector<std::string> cbt_labels = {
