@@ -39,6 +39,30 @@ TEST_CASE(TransactionCommit) {
     std::filesystem::remove_all(data_dir);
 }
 
+TEST_CASE(TransactionRecovery) {
+    std::string data_dir = "transaction_recovery_test_data";
+    std::filesystem::remove_all(data_dir);
+
+    // 1. Create a DB, commit a transaction, then let it go out of scope (and shut down)
+    {
+        TissDB::Storage::LSMTree db(data_dir);
+        db.create_collection("users", {});
+        auto tid = db.begin_transaction();
+        db.put("users", "user1", TissDB::Document{"user1", {{"name", std::string("Eve")}}}, tid);
+        db.commit_transaction(tid);
+    }
+
+    // 2. Create a new DB instance from the same path. It should recover the data.
+    {
+        TissDB::Storage::LSMTree db(data_dir);
+        auto res = db.get("users", "user1");
+        ASSERT_TRUE(res.has_value());
+        ASSERT_EQ(std::get<std::string>((*res)->elements[0].value), std::string("Eve"));
+    }
+
+    std::filesystem::remove_all(data_dir);
+}
+
 TEST_CASE(TransactionRollback) {
     std::string data_dir = "transaction_rollback_test_data";
     std::filesystem::remove_all(data_dir);

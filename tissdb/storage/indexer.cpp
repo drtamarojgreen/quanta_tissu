@@ -1,5 +1,6 @@
 #include "indexer.h"
 #include <algorithm>
+#include <fstream>
 #include <sstream>
 #include <filesystem>
 #include "../json/json.h"
