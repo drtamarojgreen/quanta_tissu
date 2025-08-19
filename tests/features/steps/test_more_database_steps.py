@@ -37,3 +37,17 @@ def register_steps(runner):
     @runner.step(r'^Then the operation should fail with status code (.*)$')
     def operation_should_fail(context, status_code):
         assert context['response_status_code'] == int(status_code)
+
+    @runner.step(r'^Then the document list should contain "(.*)"$')
+    def then_document_list_should_contain(context, doc_id):
+        found = False
+        # Documents returned from a query have their ID in the '_id' field.
+        for doc in context.get('document_list', []):
+            if doc.get('_id') == doc_id:
+                found = True
+                break
+        assert found, f"Document with ID {doc_id} not found in list."
+
+    @runner.step(r'^And the document list should contain "(.*)"$')
+    def and_document_list_should_contain(context, doc_id):
+        then_document_list_should_contain(context, doc_id)

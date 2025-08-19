@@ -4,7 +4,7 @@ Feature: TissQL Select Queries
     Given a running TissDB instance
     And a collection named "products" exists
     And I insert the following documents into "products":
-      | _id  | name         | category | price | stock |
+      | id   | name         | category | price | stock |
       | p001 | Laptop       | Tech     | 1200  | 50    |
       | p002 | Keyboard     | Tech     | 75    | 200   |
       | p003 | Mouse        | Tech     | 25    | 500   |

@@ -171,3 +171,11 @@ def register_steps(runner):
     @runner.step(r'^And I create a document with ID "(.*)" and content (.*) in "(.*)"$')
     def and_create_document_with_id(context, doc_id, content_str, collection_name):
         create_document_with_id(context, doc_id, content_str, collection_name)
+
+    @runner.step(r'^And the query result should contain "(.*)"$')
+    def and_query_result_should_contain(context, expected_value):
+        query_result_should_contain(context, expected_value)
+
+    @runner.step(r'^And the document with ID "(.*)" in "(.*)" should have content (.*)$')
+    def and_document_should_have_content(context, doc_id, collection_name, expected_content_str):
+        document_should_have_content(context, doc_id, collection_name, expected_content_str)
