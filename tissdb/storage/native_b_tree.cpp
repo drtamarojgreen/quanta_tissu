@@ -277,12 +277,69 @@ void BTree<Key, Value, Order>::erase_recursive(BTreeNode* node, const Key& key) 
 
 template<typename Key, typename Value, int Order>
 void BTree<Key, Value, Order>::dump(std::ostream& os) {
-    // Placeholder for dump
+    if (root_) {
+        dump_recursive(root_.get(), os);
+    }
+}
+
+template<typename Key, typename Value, int Order>
+void BTree<Key, Value, Order>::dump_recursive(BTreeNode* node, std::ostream& os) {
+    os.write(reinterpret_cast<const char*>(&node->is_leaf), sizeof(node->is_leaf));
+    size_t num_keys = node->keys.size();
+    os.write(reinterpret_cast<const char*>(&num_keys), sizeof(num_keys));
+    for (const auto& key : node->keys) {
+        size_t key_len = key.size();
+        os.write(reinterpret_cast<const char*>(&key_len), sizeof(key_len));
+        os.write(key.data(), key_len);
+    }
+    for (const auto& value : node->values) {
+        size_t val_len = value.size();
+        os.write(reinterpret_cast<const char*>(&val_len), sizeof(val_len));
+        os.write(value.data(), val_len);
+    }
+
+    if (!node->is_leaf) {
+        for (const auto& child : node->children) {
+            dump_recursive(child.get(), os);
+        }
+    }
 }
 
 template<typename Key, typename Value, int Order>
 void BTree<Key, Value, Order>::load(std::istream& is) {
-    // Placeholder for load
+    if (is.peek() != EOF) {
+        root_ = load_recursive(is);
+    }
+}
+
+template<typename Key, typename Value, int Order>
+std::unique_ptr<typename BTree<Key, Value, Order>::BTreeNode> BTree<Key, Value, Order>::load_recursive(std::istream& is) {
+    auto node = std::make_unique<BTreeNode>();
+    is.read(reinterpret_cast<char*>(&node->is_leaf), sizeof(node->is_leaf));
+    size_t num_keys;
+    is.read(reinterpret_cast<char*>(&num_keys), sizeof(num_keys));
+    node->keys.resize(num_keys);
+    node->values.resize(num_keys);
+    for (size_t i = 0; i < num_keys; ++i) {
+        size_t key_len;
+        is.read(reinterpret_cast<char*>(&key_len), sizeof(key_len));
+        node->keys[i].resize(key_len);
+        is.read(&node->keys[i][0], key_len);
+    }
+    for (size_t i = 0; i < num_keys; ++i) {
+        size_t val_len;
+        is.read(reinterpret_cast<char*>(&val_len), sizeof(val_len));
+        node->values[i].resize(val_len);
+        is.read(&node->values[i][0], val_len);
+    }
+
+    if (!node->is_leaf) {
+        node->children.resize(num_keys + 1);
+        for (size_t i = 0; i < num_keys + 1; ++i) {
+            node->children[i] = load_recursive(is);
+        }
+    }
+    return node;
 }
 
 // Explicit template instantiation

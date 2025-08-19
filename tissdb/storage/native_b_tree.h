@@ -53,6 +53,10 @@ private:
     void borrow_from_next(BTreeNode* node, int index);
     void merge(BTreeNode* node, int index);
     int find_key(BTreeNode* node, const Key& key);
+
+    // Dump/Load methods
+    void dump_recursive(BTreeNode* node, std::ostream& os);
+    std::unique_ptr<BTreeNode> load_recursive(std::istream& is);
 };
 
 } // namespace Storage
