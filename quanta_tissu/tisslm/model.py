@@ -275,7 +275,18 @@ class QuantaTissu:
 
         return int(next_token)
 
-    def generate(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None):
+    def generate(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, use_cache=True):
+        if not use_cache:
+            # Generate without cache by calling predict in a loop
+            generated_ids = []
+            current_tokens = list(prompt_tokens)
+            for _ in range(n_new_tokens):
+                token_ids_np = np.array(current_tokens)
+                next_token_id = self.predict(token_ids_np, method=method, temperature=temperature, top_k=top_k, top_p=top_p)
+                generated_ids.append(next_token_id)
+                current_tokens.append(next_token_id)
+            return generated_ids
+
         # 1. Initialize cache for each layer
         kv_cache = [{} for _ in self.transformer_blocks]
 
