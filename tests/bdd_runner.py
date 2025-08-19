@@ -135,24 +135,12 @@ class BDDRunner:
                 sys.stdout.flush()
                 return
 
-            print("BDD Runner: Attempting to build the database...")
+            print("BDD Runner: Compilation disabled.")
             sys.stdout.flush()
-            try:
-                subprocess.run(['make', '-C', os.path.join(base_path, 'tissdb')], check=True)
-                if not os.path.exists(db_path):
-                    error_msg = "Build completed but executable still not found."
-                    self.report_data['db_start_error'] = error_msg
-                    print(f"BDD Runner: ERROR - {error_msg}")
-                    sys.stdout.flush()
-                    return
-                print("BDD Runner: Build successful, continuing...")
-                sys.stdout.flush()
-            except (subprocess.CalledProcessError, FileNotFoundError) as e:
-                error_msg = f"Failed to build database: {e}"
-                self.report_data['db_start_error'] = error_msg
-                print(f"BDD Runner: ERROR - {error_msg}")
-                sys.stdout.flush()
-                return
+            error_msg = "Compilation is disabled, cannot build database."
+            self.report_data['db_start_error'] = error_msg
+            self.report_data['compilation_skipped'] = True
+            return
 
         try:
             self.db_process = subprocess.Popen([db_path])
