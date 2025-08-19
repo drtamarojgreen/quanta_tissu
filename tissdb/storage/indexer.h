@@ -6,7 +6,7 @@
 #include <map>
 #include <memory>
 
-#include "native_b_tree.h"
+#include "BPTree.h"
 
 #include "../common/document.h"
 
@@ -37,7 +37,7 @@ private:
     // Maps an index name (e.g., "lastname_firstname") to a B+ tree instance.
     // The B+ tree maps a composite key (e.g., "Smith\0John") to a string
     // containing a JSON array of document IDs (e.g., "[\"doc1\", \"doc2\"]").
-    std::map<std::string, std::unique_ptr<BTree<std::string, std::string>>> indexes_;
+    std::map<std::string, std::shared_ptr<BPTree<std::string, std::string>>> indexes_;
     // Maps an index name to the list of fields it covers.
     std::map<std::string, std::vector<std::string>> index_fields_;
 };
