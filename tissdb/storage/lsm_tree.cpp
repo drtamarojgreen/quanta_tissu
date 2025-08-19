@@ -1,5 +1,6 @@
 #include "lsm_tree.h"
 #include "../common/log.h"
+#include "../common/serialization.h"
 #include <stdexcept>
 #include <filesystem>
 #include <set>
@@ -40,21 +41,30 @@ void LSMTree::recover() {
     for (const auto& entry : log_entries) {
         switch (entry.type) {
             case LogEntryType::PUT:
-                put(entry.collection_name, entry.document_id, entry.doc);
+                if (entry.transaction_id == -1) {
+                    put(entry.collection_name, entry.document_id, entry.doc, -1, true);
+                }
                 break;
             case LogEntryType::DELETE:
-                del(entry.collection_name, entry.document_id);
+                if (entry.transaction_id == -1) {
+                    del(entry.collection_name, entry.document_id, -1, true);
+                }
                 break;
             case LogEntryType::CREATE_COLLECTION:
-                create_collection(entry.collection_name, {}); // Assuming default schema
+                if (entry.schema_data) {
+                    auto schema = TissDB::deserialize_schema(*entry.schema_data);
+                    create_collection(entry.collection_name, schema, true);
+                } else {
+                    create_collection(entry.collection_name, {}, true); // Fallback for old log entries
+                }
                 break;
             case LogEntryType::TXN_COMMIT:
                 if (aborted_tids.find(entry.transaction_id) == aborted_tids.end()) {
                     for (const auto& op : entry.operations) {
                         if (op.type == Transactions::OperationType::PUT) {
-                            put(op.collection_name, op.key, op.doc);
+                            put(op.collection_name, op.key, op.doc, -1, true);
                         } else if (op.type == Transactions::OperationType::DELETE) {
-                            del(op.collection_name, op.key);
+                            del(op.collection_name, op.key, -1, true);
                         }
                     }
                 }
@@ -72,17 +82,19 @@ LSMTree::~LSMTree() {
     }
 }
 
-void LSMTree::create_collection(const std::string& name, const TissDB::Schema& schema) {
+void LSMTree::create_collection(const std::string& name, const TissDB::Schema& schema, bool is_recovery) {
     if (collections_.count(name)) {
         LOG_ERROR("Attempted to create collection that already exists: " + name);
         throw std::runtime_error("Collection already exists: " + name);
     }
 
-    LogEntry entry;
-    entry.type = LogEntryType::CREATE_COLLECTION;
-    entry.collection_name = name;
-    // Note: Schema is not persisted in the WAL.
-    wal_->append(entry);
+    if (!is_recovery) {
+        LogEntry entry;
+        entry.type = LogEntryType::CREATE_COLLECTION;
+        entry.collection_name = name;
+        entry.schema_data = TissDB::serialize(schema);
+        wal_->append(entry);
+    }
 
     LOG_INFO("Creating collection: " + name);
     auto collection = std::make_unique<Collection>(this);
@@ -113,24 +125,21 @@ std::vector<std::string> LSMTree::list_collections() const {
     return names;
 }
 
-void LSMTree::put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID tid) {
+void LSMTree::put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID tid, bool is_recovery) {
     if (tid != -1) {
         transaction_manager_.add_put_operation(tid, collection_name, key, doc);
     } else {
-        LogEntry entry;
-        entry.type = LogEntryType::PUT;
-        entry.collection_name = collection_name;
-        entry.document_id = key;
-        entry.doc = doc;
-        wal_->append(entry);
-
-        try {
-            Collection& collection = get_collection(collection_name);
-            collection.put(key, doc);
-        } catch (const std::runtime_error& e) {
-            // Collection not found, ignore.
-            // The WAL entry is still written, which is acceptable.
+        if (!is_recovery) {
+            LogEntry entry;
+            entry.type = LogEntryType::PUT;
+            entry.collection_name = collection_name;
+            entry.document_id = key;
+            entry.doc = doc;
+            wal_->append(entry);
         }
+
+        Collection& collection = get_collection(collection_name);
+        collection.put(key, doc);
     }
 }
 
@@ -150,7 +159,7 @@ std::vector<Document> LSMTree::get_many(const std::string& collection_name, cons
         Collection& collection = get_collection(collection_name);
         for (const auto& key : keys) {
             auto doc_opt = collection.get(key);
-            if (doc_opt) {
+            if (doc_opt && *doc_opt) {
                 result_docs.push_back(**doc_opt);
             }
         }
@@ -161,23 +170,20 @@ std::vector<Document> LSMTree::get_many(const std::string& collection_name, cons
 }
 
 
-void LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid) {
+void LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid, bool is_recovery) {
     if (tid != -1) {
         transaction_manager_.add_delete_operation(tid, collection_name, key);
     } else {
-        LogEntry entry;
-        entry.type = LogEntryType::DELETE;
-        entry.collection_name = collection_name;
-        entry.document_id = key;
-        wal_->append(entry);
-
-        try {
-            Collection& collection = get_collection(collection_name);
-            collection.del(key);
-        } catch (const std::runtime_error& e) {
-            // Collection not found, ignore.
-            // The WAL entry is still written, which is acceptable.
+        if (!is_recovery) {
+            LogEntry entry;
+            entry.type = LogEntryType::DELETE;
+            entry.collection_name = collection_name;
+            entry.document_id = key;
+            wal_->append(entry);
         }
+
+        Collection& collection = get_collection(collection_name);
+        collection.del(key);
     }
 }
 
