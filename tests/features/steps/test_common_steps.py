@@ -4,7 +4,7 @@ import json
 BASE_URL = "http://localhost:8080"
 
 def register_steps(runner):
-    @runner.step(r'I insert the following documents into "([^"]*)":')
+    @runner.step(r'^And I insert the following documents into "([^"]*)":')
     def insert_documents(context, collection_name, table):
         db_name = context.get('db_name', 'testdb')
         headers = [h.strip() for h in table[0].strip('|').split('|')]

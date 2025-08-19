@@ -260,8 +260,8 @@ class QuantaTissu:
             nucleus_probs[indices_to_remove_orig] = 0
             nucleus_probs /= np.sum(nucleus_probs)
             next_token = np.random.choice(len(probs), p=nucleus_probs)
-        elif method == "random":
-             next_token = np.random.choice(len(probs), p=probs)
+        elif method == "random" or method == "sampling":
+             next_token = np.random.choice(len(probs), p=probs.flatten())
         else:
             raise ValueError(f"Unknown sampling method: {method}")
 
