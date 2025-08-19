@@ -1,13 +1,14 @@
 #pragma once
 
-#include <map>
-#include <memory>
-#include <optional>
 #include <string>
+#include <memory>
+#include <map>
+#include <optional>
 #include <vector>
 
-#include "../common/schema.h"
 #include "collection.h"
+#include "transaction_manager.h"
+#include "../common/schema.h"
 #include "transaction_manager.h"
 
 namespace TissDB {
