@@ -97,7 +97,6 @@ private:
     int server_port;
     std::atomic<bool> is_running{false};
     std::thread server_thread;
-    std::map<int, int> client_transactions_;
 };
 
 HttpServer::Impl::Impl(Storage::DatabaseManager& manager, int port) : db_manager_(manager), server_port(port) {
@@ -169,8 +168,34 @@ void HttpServer::Impl::handle_client(int client_socket) {
     std::string request_str(buffer);
     std::stringstream request_ss(request_str);
     HttpRequest req;
-    request_ss >> req.method >> req.path;
+
+    // Parse request line
+    std::string request_line;
+    std::getline(request_ss, request_line);
+    if (!request_line.empty() && request_line.back() == '\r') {
+        request_line.pop_back();
+    }
+    std::stringstream request_line_ss(request_line);
+    request_line_ss >> req.method >> req.path;
+
     LOG_INFO("Incoming request: " + req.method + " " + req.path);
+
+    // Parse headers
+    std::string header_line;
+    while (std::getline(request_ss, header_line) && !header_line.empty() && header_line != "\r") {
+        auto colon_pos = header_line.find(':');
+        if (colon_pos != std::string::npos) {
+            std::string key = header_line.substr(0, colon_pos);
+            std::string value = header_line.substr(colon_pos + 1);
+            // Trim leading whitespace from value
+            value.erase(0, value.find_first_not_of(" \t"));
+            // Trim trailing carriage return
+            if (!value.empty() && value.back() == '\r') {
+                value.pop_back();
+            }
+            req.headers[key] = value;
+        }
+    }
 
     size_t body_start = request_str.find("\r\n\r\n");
     if (body_start != std::string::npos) {
@@ -218,29 +243,56 @@ void HttpServer::Impl::handle_client(int client_socket) {
         std::string db_name = path_parts[0];
         auto& storage_engine = db_manager_.get_database(db_name);
         std::vector<std::string> sub_path_parts(path_parts.begin() + 1, path_parts.end());
-        Transactions::TransactionID transaction_id = client_transactions_.count(client_socket) ? client_transactions_[client_socket] : -1;
+
+        Transactions::TransactionID transaction_id = -1;
+        if (req.headers.count("X-Transaction-ID")) {
+            try {
+                transaction_id = std::stoi(req.headers.at("X-Transaction-ID"));
+            } catch (const std::exception& e) {
+                LOG_WARNING("Could not parse X-Transaction-ID header: " + std::string(e.what()));
+                // Invalid header, proceed without transaction context
+                transaction_id = -1;
+            }
+        }
 
         if (sub_path_parts.empty()) {
             send_response(client_socket, "400 Bad Request", "text/plain", "Collection name missing from URL.");
         } else if (sub_path_parts[0] == "_begin" && req.method == "POST") {
-            transaction_id = storage_engine.begin_transaction();
-            client_transactions_[client_socket] = transaction_id;
-            send_response(client_socket, "200 OK", "text/plain", "Transaction started with ID: " + std::to_string(transaction_id));
+            Transactions::TransactionID transaction_id = storage_engine.begin_transaction();
+            Json::JsonObject response_obj;
+            response_obj["transaction_id"] = Json::JsonValue(static_cast<double>(transaction_id));
+            send_response(client_socket, "201 Created", "application/json", Json::JsonValue(response_obj).serialize());
         } else if (sub_path_parts[0] == "_commit" && req.method == "POST") {
-            if (transaction_id != -1) {
-                storage_engine.commit_transaction(transaction_id);
-                client_transactions_.erase(client_socket);
-                send_response(client_socket, "200 OK", "text/plain", "Transaction committed.");
-            } else {
-                send_response(client_socket, "400 Bad Request", "text/plain", "No active transaction.");
+            try {
+                const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                if (!parsed_body.is_object() || !parsed_body.as_object().count("transaction_id")) {
+                    send_response(client_socket, "400 Bad Request", "text/plain", "Missing transaction_id in request body.");
+                    close(client_socket);
+                    return;
+                }
+                Transactions::TransactionID transaction_id = static_cast<Transactions::TransactionID>(parsed_body.as_object().at("transaction_id").as_number());
+                bool success = storage_engine.commit_transaction(transaction_id);
+                Json::JsonObject response_obj;
+                response_obj["success"] = Json::JsonValue(success);
+                send_response(client_socket, "200 OK", "application/json", Json::JsonValue(response_obj).serialize());
+            } catch (const std::exception& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body.");
             }
         } else if (sub_path_parts[0] == "_rollback" && req.method == "POST") {
-            if (transaction_id != -1) {
-                storage_engine.rollback_transaction(transaction_id);
-                client_transactions_.erase(client_socket);
-                send_response(client_socket, "200 OK", "text/plain", "Transaction rolled back.");
-            } else {
-                send_response(client_socket, "400 Bad Request", "text/plain", "No active transaction.");
+            try {
+                const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                if (!parsed_body.is_object() || !parsed_body.as_object().count("transaction_id")) {
+                    send_response(client_socket, "400 Bad Request", "text/plain", "Missing transaction_id in request body.");
+                    close(client_socket);
+                    return;
+                }
+                Transactions::TransactionID transaction_id = static_cast<Transactions::TransactionID>(parsed_body.as_object().at("transaction_id").as_number());
+                bool success = storage_engine.rollback_transaction(transaction_id);
+                Json::JsonObject response_obj;
+                response_obj["success"] = Json::JsonValue(success);
+                send_response(client_socket, "200 OK", "application/json", Json::JsonValue(response_obj).serialize());
+            } catch (const std::exception& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body.");
             }
         } else if (sub_path_parts[0] == "_collections" && req.method == "GET") {
             Json::JsonArray collections_array;
