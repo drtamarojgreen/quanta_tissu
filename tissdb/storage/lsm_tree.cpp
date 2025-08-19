@@ -6,9 +6,27 @@
 namespace TissDB {
 namespace Storage {
 
+void replay_log_entry(LSMTree* tree, const LogEntry& entry);
+
 LSMTree::LSMTree() : path_(""), transaction_manager_(*this) {}
 
 LSMTree::LSMTree(const std::string& path) : path_(path), transaction_manager_(*this) {
+    std::filesystem::path db_path(path_);
+    if (!std::filesystem::exists(db_path)) {
+        std::filesystem::create_directories(db_path);
+    }
+
+    std::string wal_path = db_path / "wal.log";
+    wal_ = std::make_unique<WriteAheadLog>(wal_path);
+
+    LOG_INFO("Starting recovery for database at: " + path);
+    auto log_entries = wal_->recover();
+    LOG_INFO("Found " + std::to_string(log_entries.size()) + " entries in WAL to replay.");
+
+    for (const auto& entry : log_entries) {
+        replay_log_entry(this, entry);
+    }
+    LOG_INFO("Recovery complete for database at: " + path);
     std::filesystem::create_directories(path_);
     wal_ = std::make_unique<WriteAheadLog>(path_ + "/wal.log");
     recover();
@@ -66,6 +84,13 @@ void LSMTree::create_collection(const std::string& name, const TissDB::Schema& s
         LOG_ERROR("Attempted to create collection that already exists: " + name);
         throw std::runtime_error("Collection already exists: " + name);
     }
+
+    LogEntry entry;
+    entry.type = LogEntryType::CREATE_COLLECTION;
+    entry.collection_name = name;
+    // Note: Schema is not persisted in the WAL.
+    wal_->append(entry);
+
     LOG_INFO("Creating collection: " + name);
     auto collection = std::make_unique<Collection>(this);
     collection->set_schema(schema);
@@ -77,6 +102,12 @@ void LSMTree::delete_collection(const std::string& name) {
         LOG_ERROR("Attempted to delete collection that does not exist: " + name);
         throw std::runtime_error("Collection does not exist: " + name);
     }
+
+    LogEntry entry;
+    entry.type = LogEntryType::DELETE_COLLECTION;
+    entry.collection_name = name;
+    wal_->append(entry);
+
     LOG_INFO("Deleting collection: " + name);
     collections_.erase(name);
 }
@@ -93,11 +124,19 @@ void LSMTree::put(const std::string& collection_name, const std::string& key, co
     if (tid != -1) {
         transaction_manager_.add_put_operation(tid, collection_name, key, doc);
     } else {
+        LogEntry entry;
+        entry.type = LogEntryType::PUT;
+        entry.collection_name = collection_name;
+        entry.document_id = key;
+        entry.doc = doc;
+        wal_->append(entry);
+
         try {
             Collection& collection = get_collection(collection_name);
             collection.put(key, doc);
         } catch (const std::runtime_error& e) {
-            // Collection not found, ignore
+            // Collection not found, ignore.
+            // The WAL entry is still written, which is acceptable.
         }
     }
 }
@@ -133,11 +172,18 @@ void LSMTree::del(const std::string& collection_name, const std::string& key, Tr
     if (tid != -1) {
         transaction_manager_.add_delete_operation(tid, collection_name, key);
     } else {
+        LogEntry entry;
+        entry.type = LogEntryType::DELETE;
+        entry.collection_name = collection_name;
+        entry.document_id = key;
+        wal_->append(entry);
+
         try {
             Collection& collection = get_collection(collection_name);
             collection.del(key);
         } catch (const std::runtime_error& e) {
-            // Collection not found, ignore
+            // Collection not found, ignore.
+            // The WAL entry is still written, which is acceptable.
         }
     }
 }
@@ -208,6 +254,37 @@ std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::
 void LSMTree::shutdown() {
     if (wal_) {
         wal_->shutdown();
+    }
+}
+
+void replay_log_entry(LSMTree* tree, const LogEntry& entry) {
+    switch (entry.type) {
+        case LogEntryType::CREATE_COLLECTION:
+            try {
+                // NOTE: The schema is not persisted in the WAL. Using an empty schema for recovery.
+                tree->create_collection(entry.collection_name, TissDB::Schema({}));
+            } catch (const std::runtime_error& e) {
+                // It's possible the collection already exists if the log has duplicate entries.
+                LOG_WARNING("During WAL replay, could not create collection '" + entry.collection_name + "': " + e.what());
+            }
+            break;
+        case LogEntryType::DELETE_COLLECTION:
+            try {
+                tree->delete_collection(entry.collection_name);
+            } catch (const std::runtime_error& e) {
+                LOG_WARNING("During WAL replay, could not delete collection '" + entry.collection_name + "': " + e.what());
+            }
+            break;
+        case LogEntryType::PUT:
+            tree->put(entry.collection_name, entry.document_id, entry.doc);
+            break;
+        case LogEntryType::DELETE:
+            tree->del(entry.collection_name, entry.document_id);
+            break;
+        case LogEntryType::TXN_COMMIT:
+        case LogEntryType::TXN_ABORT:
+            // Transaction replay logic is not yet implemented.
+            break;
     }
 }
 
