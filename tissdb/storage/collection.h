@@ -13,12 +13,14 @@
 namespace TissDB {
 namespace Storage {
 
+class LSMTree; // Forward declaration
+
 // A Collection is an in-memory sorted data structure that holds all documents for a single collection.
 // It is managed by the Database class.
 class Collection {
 public:
-    Collection();
-    Collection(const std::string& path);
+    Collection(LSMTree* parent_db);
+    Collection(const std::string& path, LSMTree* parent_db);
 
     // Inserts or updates a document in the collection.
     void put(const std::string& key, const Document& doc);
@@ -58,6 +60,7 @@ private:
     std::map<std::string, std::shared_ptr<Document>> data;
     size_t estimated_size;
     TissDB::Schema schema_;
+    LSMTree* parent_db_; // Pointer to the parent database
 };
 
 } // namespace Storage

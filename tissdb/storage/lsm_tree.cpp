@@ -11,13 +11,15 @@ LSMTree::LSMTree(const std::string& path) : path_(path) {}
 
 LSMTree::~LSMTree() {}
 
-void LSMTree::create_collection(const std::string& name, const TissDB::Schema& /*schema*/) {
+void LSMTree::create_collection(const std::string& name, const TissDB::Schema& schema) {
     if (collections_.count(name)) {
         LOG_ERROR("Attempted to create collection that already exists: " + name);
         throw std::runtime_error("Collection already exists: " + name);
     }
     LOG_INFO("Creating collection: " + name);
-    collections_[name] = std::make_unique<Collection>(); // Assuming Collection constructor takes schema
+    auto collection = std::make_unique<Collection>(this);
+    collection->set_schema(schema);
+    collections_[name] = std::move(collection);
 }
 
 void LSMTree::delete_collection(const std::string& name) {
