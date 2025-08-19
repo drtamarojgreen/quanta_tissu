@@ -70,6 +70,7 @@ private:
     // Helper methods
     std::string getUserPrompt();
     void loadGraphsFromTissDB();
+    void initializeGraphs();
 
     // Drawing functions
     void clearCanvas();
