@@ -112,8 +112,37 @@ struct InsertStatement {
     std::vector<Literal> values;
 };
 
+// Represents a column definition in a CREATE TABLE statement
+struct ColumnDefinition {
+    std::string column_name;
+    std::string data_type;
+};
+
+// Represents a primary key constraint
+struct PrimaryKeyConstraint {
+    std::vector<std::string> columns;
+};
+
+// Represents a foreign key constraint
+struct ForeignKeyConstraint {
+    std::vector<std::string> columns;
+    std::string foreign_table;
+    std::vector<std::string> foreign_columns;
+};
+
+// Represents a constraint in a CREATE TABLE statement
+using Constraint = std::variant<PrimaryKeyConstraint, ForeignKeyConstraint>;
+
+// Represents a TissQL CREATE TABLE statement
+struct CreateTableStatement {
+    std::string table_name;
+    std::vector<ColumnDefinition> columns;
+    std::vector<Constraint> constraints;
+};
+
+
 // The Abstract Syntax Tree (AST) for a query.
-using AST = std::variant<SelectStatement, UpdateStatement, DeleteStatement, InsertStatement>;
+using AST = std::variant<SelectStatement, UpdateStatement, DeleteStatement, InsertStatement, CreateTableStatement>;
 
 } // namespace Query
 } // namespace TissDB
