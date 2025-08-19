@@ -71,6 +71,48 @@ bool evaluate_expression(const Expression& expr, const Document& doc) {
     return false;
 }
 
+// --- New function to evaluate expressions in an UPDATE SET clause ---
+Literal evaluate_update_expression(const Expression& expr, const Document& doc) {
+    if (const auto* lit_ptr = std::get_if<Literal>(&expr)) {
+        return *lit_ptr;
+    }
+
+    if (const auto* ident_ptr = std::get_if<Identifier>(&expr)) {
+        for (const auto& elem : doc.elements) {
+            if (elem.key == ident_ptr->name) {
+                if (const auto* str_val = std::get_if<std::string>(&elem.value)) {
+                    return *str_val;
+                } else if (const auto* num_val = std::get_if<double>(&elem.value)) {
+                    return *num_val;
+                }
+            }
+        }
+        throw std::runtime_error("Field not found in document: " + ident_ptr->name);
+    }
+
+    if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
+        const auto& binary_expr = *binary_expr_ptr;
+        Literal left_val = evaluate_update_expression(binary_expr->left, doc);
+        Literal right_val = evaluate_update_expression(binary_expr->right, doc);
+
+        if (const auto* left_num = std::get_if<double>(&left_val)) {
+            if (const auto* right_num = std::get_if<double>(&right_val)) {
+                if (binary_expr->op == "+") return *left_num + *right_num;
+                if (binary_expr->op == "-") return *left_num - *right_num;
+                if (binary_expr->op == "*") return *left_num * *right_num;
+                if (binary_expr->op == "/") {
+                    if (*right_num == 0) throw std::runtime_error("Division by zero");
+                    return *left_num / *right_num;
+                }
+            }
+        }
+        // Add more type combinations if needed (e.g., string concatenation)
+        throw std::runtime_error("Unsupported operator or type combination in SET clause");
+    }
+
+    throw std::runtime_error("Unsupported expression type in SET clause");
+}
+
 void process_aggregation(std::map<std::string, AggregateResult>& results_map, const std::string& result_key, const Document& doc, const AggregateFunction& agg_func) {
     if (agg_func.field_name == "*") {
         if (agg_func.function_name == "COUNT") {
