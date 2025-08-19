@@ -54,7 +54,7 @@ all: $(TARGET)
 
 # Rule to link the object files into the executable
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS)
 
 # Rule to compile the source files into object files
 %.o: %.cpp
@@ -69,7 +69,7 @@ TEST_MAIN_SRC = ../tests/db/test_main.cpp
 TEST_MAIN_OBJ = test_main.o
 
 $(TEST_TARGET): $(TEST_OBJS) $(TEST_MAIN_OBJ)
-	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(TEST_OBJS) $(TEST_MAIN_OBJ)
+	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(TEST_OBJS) $(TEST_MAIN_OBJ) $(LDFLAGS)
 
 $(TEST_MAIN_OBJ): $(TEST_MAIN_SRC)
 	$(CXX) $(CXXFLAGS) -I.. -c $(TEST_MAIN_SRC) -o $(TEST_MAIN_OBJ)

@@ -202,11 +202,8 @@ void HttpServer::Impl::handle_client(int client_socket) {
         }
 
         if (req.method == "PUT" && path_parts.size() == 1) {
-            if (db_manager_.create_database(path_parts[0])) {
-                send_response(client_socket, "201 Created", "text/plain", "Database '" + path_parts[0] + "' created.");
-            } else {
-                send_response(client_socket, "200 OK", "text/plain", "Database '" + path_parts[0] + "' already exists.");
-            }
+            db_manager_.create_database(path_parts[0]);
+            send_response(client_socket, "201 Created", "text/plain", "Database '" + path_parts[0] + "' created.");
             close(client_socket);
             return;
         }
@@ -292,8 +289,9 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 send_response(client_socket, "201 Created", "text/plain", "Document created with ID: " + id);
             } else if (req.method == "GET" && doc_path_parts.size() == 1) {
                  auto doc_opt = storage_engine.get(collection_name, doc_path_parts[0], transaction_id);
-                 if (doc_opt && *doc_opt) { // Check both optional has value and the value is not a nullptr (tombstone)
-                     send_response(client_socket, "200 OK", "application/json", Json::JsonValue(document_to_json(*(*doc_opt))).serialize());
+                 if (doc_opt && *doc_opt) {
+                     // Optional has a value and the shared_ptr is not null
+                     send_response(client_socket, "200 OK", "application/json", Json::JsonValue(document_to_json(**doc_opt)).serialize());
                  } else {
                      // Optional is empty OR contains a tombstone (nullptr)
                      send_response(client_socket, "404 Not Found", "text/plain", "Document not found.");
@@ -308,21 +306,8 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 storage_engine.del(collection_name, doc_path_parts[0], transaction_id);
                 send_response(client_socket, "204 No Content", "text/plain", "");
             } else if (req.method == "PUT" && doc_path_parts.empty()) {
-                auto collections = storage_engine.list_collections();
-                bool exists = false;
-                for (const auto& col : collections) {
-                    if (col == collection_name) {
-                        exists = true;
-                        break;
-                    }
-                }
-
-                if (exists) {
-                    send_response(client_socket, "409 Conflict", "text/plain", "Collection '" + collection_name + "' already exists.");
-                } else {
-                    storage_engine.create_collection(collection_name, TissDB::Schema());
-                    send_response(client_socket, "201 Created", "text/plain", "Collection '" + collection_name + "' created.");
-                }
+                storage_engine.create_collection(collection_name, TissDB::Schema());
+                send_response(client_socket, "201 Created", "text/plain", "Collection '" + collection_name + "' created.");
             } else if (req.method == "DELETE" && doc_path_parts.empty()) {
                 storage_engine.delete_collection(collection_name);
                 send_response(client_socket, "204 No Content", "text/plain", "");
