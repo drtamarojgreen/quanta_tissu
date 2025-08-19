@@ -80,3 +80,26 @@ def register_steps(runner):
     def sinew_deletes_document(context, doc_id, collection_name):
         response = requests.delete(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}")
         assert response.status_code == 204
+
+    @runner.step(r'^Given a user prompt "(.*)"$')
+    def given_user_prompt_2(context, prompt):
+        context['user_prompt'] = prompt
+
+    @runner.step(r'^And a retrieved context from TissDB: "(.*)"$')
+    def given_retrieved_context_2(context, retrieved_context):
+        context['retrieved_context'] = retrieved_context
+
+    @runner.step(r'^When the TissLM augments the prompt with the retrieved context$')
+    def tisslm_augments_prompt_2(context):
+        context['final_prompt'] = f"context: {{{context['retrieved_context']}}} question: {{{context['user_prompt']}}}"
+
+    @runner.step(r'Then the final prompt sent to the language model should be:\s*"""\s*([\s\S]*?)\s*"""')
+    def final_prompt_should_be_2(context, expected_prompt):
+        normalized_actual = re.sub(r'\s+', ' ', context['final_prompt']).strip()
+        normalized_expected = re.sub(r'\s+', ' ', expected_prompt).strip()
+        assert normalized_actual == normalized_expected
+
+    @runner.step(r'^When a simulated Sinew client deletes the document with ID "(.*)" from "(.*)"$')
+    def sinew_deletes_document_2(context, doc_id, collection_name):
+        response = requests.delete(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}")
+        assert response.status_code == 204
