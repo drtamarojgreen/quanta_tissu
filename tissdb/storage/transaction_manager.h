@@ -52,8 +52,8 @@ public:
         : lsm_tree_(lsm_tree), next_transaction_id_(1) {}
 
     TransactionID begin_transaction();
-    void commit_transaction(TransactionID tid);
-    void rollback_transaction(TransactionID tid);
+    bool commit_transaction(TransactionID tid);
+    bool rollback_transaction(TransactionID tid);
 
     void add_put_operation(TransactionID tid, std::string collection, std::string key, Document doc);
     void add_delete_operation(TransactionID tid, std::string collection, std::string key);
