@@ -1,4 +1,5 @@
 import numpy as np
+import os
 from .layers import MultiHeadAttention, FeedForward, LayerNorm, softmax
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
@@ -176,6 +177,26 @@ class QuantaTissu:
         for block in self.transformer_blocks:
             params.extend(block.parameters())
         return params
+
+    def load_weights(self, path):
+        if not os.path.exists(path):
+            print(f"Warning: Model weights file not found at {path}. Using random initialization.")
+            return
+
+        try:
+            data = np.load(path)
+            print(f"Loading weights from {path}. Found keys: {list(data.keys())}")
+            for param in self.parameters():
+                if param.name in data:
+                    if param.value.shape == data[param.name].shape:
+                        param.value = data[param.name]
+                    else:
+                        print(f"Warning: Shape mismatch for {param.name}. Expected {param.value.shape}, got {data[param.name].shape}. Skipping.")
+                else:
+                    print(f"Warning: Parameter {param.name} not found in weights file. Using random initialization.")
+            print(f"Successfully loaded model weights from {path}")
+        except Exception as e:
+            print(f"Error loading model weights from {path}: {e}. Using random initialization.")
 
     def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None):
         if method == "greedy":
