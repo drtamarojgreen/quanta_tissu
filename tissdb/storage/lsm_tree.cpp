@@ -2,6 +2,7 @@
 #include "../common/log.h"
 #include <stdexcept>
 #include <filesystem>
+#include <set>
 
 namespace TissDB {
 namespace Storage {
@@ -19,17 +20,9 @@ LSMTree::LSMTree(const std::string& path) : path_(path), transaction_manager_(*t
     std::string wal_path = db_path / "wal.log";
     wal_ = std::make_unique<WriteAheadLog>(wal_path);
 
-    LOG_INFO("Starting recovery for database at: " + path);
-    auto log_entries = wal_->recover();
-    LOG_INFO("Found " + std::to_string(log_entries.size()) + " entries in WAL to replay.");
-
-    for (const auto& entry : log_entries) {
-        replay_log_entry(this, entry);
-    }
-    LOG_INFO("Recovery complete for database at: " + path);
-    std::filesystem::create_directories(path_);
-    wal_ = std::make_unique<WriteAheadLog>(path_ + "/wal.log");
+    LOG_INFO("Database opened at: " + path_ + ". Starting recovery.");
     recover();
+    LOG_INFO("Recovery complete.");
 }
 
 void LSMTree::recover() {
