@@ -188,15 +188,23 @@ class QuantaTissu:
             keys = list(data.keys())
             print(f"Loading weights from {path}. Found keys: {keys}")
 
-            # Check if we're loading a legacy checkpoint with 'param_d' keys
-            if keys and all(k.startswith('param_') for k in keys):
+            # A legacy checkpoint is one that contains 'param_d' keys.
+            # It might also contain optimizer states, so we check with any().
+            is_legacy = any(k.startswith('param_') for k in keys)
+
+            if keys and is_legacy:
                 print("Detected legacy checkpoint format. Loading by parameter order.")
+                # Filter for model parameter keys only
+                param_keys = [k for k in keys if k.startswith('param_')]
                 # Sort keys numerically: param_0, param_1, ...
-                sorted_keys = sorted(keys, key=lambda k: int(k.split('_')[1]))
+                sorted_keys = sorted(param_keys, key=lambda k: int(k.split('_')[1]))
                 model_params = self.parameters()
 
-                if len(sorted_keys) != len(model_params):
-                    print(f"Warning: Mismatch in parameter count. Checkpoint has {len(sorted_keys)}, model has {len(model_params)}.")
+                # Filter out optimizer state from the loaded keys before comparing lengths
+                num_model_params_in_ckpt = len(sorted_keys)
+
+                if num_model_params_in_ckpt != len(model_params):
+                    print(f"Warning: Mismatch in parameter count. Checkpoint has {num_model_params_in_ckpt} model params, but model requires {len(model_params)}.")
 
                 for i, key in enumerate(sorted_keys):
                     if i < len(model_params):
@@ -206,7 +214,7 @@ class QuantaTissu:
                         else:
                             print(f"Warning: Shape mismatch for {param.name} (from {key}). Expected {param.value.shape}, got {data[key].shape}. Skipping.")
                     else:
-                        break # No more model params to load into
+                        break  # No more model params to load into
             else:
                 # Load by hierarchical name
                 print("Loading by hierarchical parameter name.")
