@@ -132,11 +132,13 @@ void Collection::put(const std::string& key, const Document& doc) {
     data[key] = new_doc_ptr;
 }
 
-void Collection::del(const std::string& key) {
+bool Collection::del(const std::string& key) {
     LOG_DEBUG("DELETE key: " + key);
     size_t old_value_size = 0;
     auto it = data.find(key);
-    if (it != data.end()) {
+    bool existed = (it != data.end());
+
+    if (existed) {
         // If the key exists, get the size of the document being replaced.
         if (it->second) {
             old_value_size = TissDB::serialize(*(it->second)).size();
@@ -151,6 +153,7 @@ void Collection::del(const std::string& key) {
 
     // Insert a null pointer as a tombstone marker.
     data[key] = nullptr;
+    return existed;
 }
 
 std::optional<std::shared_ptr<Document>> Collection::get(const std::string& key) {
@@ -183,7 +186,9 @@ std::vector<Document> Collection::scan() const {
     std::vector<Document> documents;
     for (const auto& pair : data) {
         if (pair.second) { // If it's a document, not a tombstone
-            documents.push_back(*pair.second);
+            Document doc_with_id = *pair.second;
+            doc_with_id.id = pair.first;
+            documents.push_back(doc_with_id);
         } else {
             // Tombstone
             Document tombstone;

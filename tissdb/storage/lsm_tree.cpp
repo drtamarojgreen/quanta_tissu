@@ -1,5 +1,6 @@
 #include "lsm_tree.h"
 #include "../common/log.h"
+#include "../common/serialization.h"
 #include <stdexcept>
 #include <filesystem>
 #include <set>
@@ -139,6 +140,9 @@ void LSMTree::put(const std::string& collection_name, const std::string& key, co
             // Collection not found, ignore.
             // The WAL entry is still written, which is acceptable.
         }
+
+        Collection& collection = get_collection(collection_name);
+        collection.put(key, doc);
     }
 }
 
@@ -158,7 +162,7 @@ std::vector<Document> LSMTree::get_many(const std::string& collection_name, cons
         Collection& collection = get_collection(collection_name);
         for (const auto& key : keys) {
             auto doc_opt = collection.get(key);
-            if (doc_opt) {
+            if (doc_opt && *doc_opt) {
                 result_docs.push_back(**doc_opt);
             }
         }
@@ -172,6 +176,7 @@ std::vector<Document> LSMTree::get_many(const std::string& collection_name, cons
 void LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid, bool is_recovery) {
     if (tid != -1) {
         transaction_manager_.add_delete_operation(tid, collection_name, key);
+        return true; // Assume success for transactional deletes for now
     } else {
         if (!is_recovery) {
             LogEntry entry;
@@ -183,10 +188,10 @@ void LSMTree::del(const std::string& collection_name, const std::string& key, Tr
 
         try {
             Collection& collection = get_collection(collection_name);
-            collection.del(key);
+            return collection.del(key);
         } catch (const std::runtime_error& e) {
-            // Collection not found, ignore.
-            // The WAL entry is still written, which is acceptable.
+            // Collection not found
+            return false;
         }
     }
 }

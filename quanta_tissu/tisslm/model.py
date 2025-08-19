@@ -80,7 +80,7 @@ class PositionalEncoding:
         return x + self.pe[np.newaxis, positions, :]
 
 class QuantaTissu:
-    def __init__(self, config, db_host='127.0.0.1', db_port=8080, use_db=True):
+    def __init__(self, config, db_host='127.0.0.1', db_port=8080, use_db=False):
         self.config = config
         d_model = config["d_model"]
         vocab_size = config["vocab_size"]
@@ -112,7 +112,11 @@ class QuantaTissu:
 
         # Only create a causal mask if we are not using a cache (i.e., for the initial prompt processing)
         mask = None
-        if kv_cache is None:
+        # A mask is needed for the first pass (prompt processing), even if a cache is provided.
+        # We can detect this because the cache will be empty.
+        is_prompt_processing = kv_cache is None or not kv_cache[0]
+
+        if is_prompt_processing:
             mask = self._create_causal_mask(seq_len)
             if mask is not None:
                 # Add batch and head dimensions for broadcasting
@@ -188,15 +192,23 @@ class QuantaTissu:
             keys = list(data.keys())
             print(f"Loading weights from {path}. Found keys: {keys}")
 
-            # Check if we're loading a legacy checkpoint with 'param_d' keys
-            if keys and all(k.startswith('param_') for k in keys):
+            # A legacy checkpoint is one that contains 'param_d' keys.
+            # It might also contain optimizer states, so we check with any().
+            is_legacy = any(k.startswith('param_') for k in keys)
+
+            if keys and is_legacy:
                 print("Detected legacy checkpoint format. Loading by parameter order.")
+                # Filter for model parameter keys only
+                param_keys = [k for k in keys if k.startswith('param_')]
                 # Sort keys numerically: param_0, param_1, ...
-                sorted_keys = sorted(keys, key=lambda k: int(k.split('_')[1]))
+                sorted_keys = sorted(param_keys, key=lambda k: int(k.split('_')[1]))
                 model_params = self.parameters()
 
-                if len(sorted_keys) != len(model_params):
-                    print(f"Warning: Mismatch in parameter count. Checkpoint has {len(sorted_keys)}, model has {len(model_params)}.")
+                # Filter out optimizer state from the loaded keys before comparing lengths
+                num_model_params_in_ckpt = len(sorted_keys)
+
+                if num_model_params_in_ckpt != len(model_params):
+                    print(f"Warning: Mismatch in parameter count. Checkpoint has {num_model_params_in_ckpt} model params, but model requires {len(model_params)}.")
 
                 for i, key in enumerate(sorted_keys):
                     if i < len(model_params):
@@ -206,7 +218,7 @@ class QuantaTissu:
                         else:
                             print(f"Warning: Shape mismatch for {param.name} (from {key}). Expected {param.value.shape}, got {data[key].shape}. Skipping.")
                     else:
-                        break # No more model params to load into
+                        break  # No more model params to load into
             else:
                 # Load by hierarchical name
                 print("Loading by hierarchical parameter name.")
@@ -224,11 +236,19 @@ class QuantaTissu:
             print(f"Error loading model weights from {path}: {e}. Using random initialization.")
 
     def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None):
+        # Ensure logits are a 1D array for consistent processing
+        if logits.ndim > 1:
+            logits = np.squeeze(logits)
+
         if method == "greedy":
             next_token = np.argmax(logits)
             return int(next_token)
 
         probs = softmax(logits, temperature=temperature)
+
+        # Ensure probs is also 1D, in case softmax re-adds a dimension
+        if probs.ndim > 1:
+            probs = np.squeeze(probs)
         
         if method == "top_k":
             if top_k is None:
@@ -252,14 +272,25 @@ class QuantaTissu:
             nucleus_probs[indices_to_remove_orig] = 0
             nucleus_probs /= np.sum(nucleus_probs)
             next_token = np.random.choice(len(probs), p=nucleus_probs)
-        elif method == "random":
-             next_token = np.random.choice(len(probs), p=probs)
+        elif method == "random" or method == "sampling":
+             next_token = np.random.choice(len(probs), p=probs.flatten())
         else:
             raise ValueError(f"Unknown sampling method: {method}")
 
         return int(next_token)
 
-    def generate(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None):
+    def generate(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, use_cache=True):
+        if not use_cache:
+            # Generate without cache by calling predict in a loop
+            generated_ids = []
+            current_tokens = list(prompt_tokens)
+            for _ in range(n_new_tokens):
+                token_ids_np = np.array(current_tokens)
+                next_token_id = self.predict(token_ids_np, method=method, temperature=temperature, top_k=top_k, top_p=top_p)
+                generated_ids.append(next_token_id)
+                current_tokens.append(next_token_id)
+            return generated_ids
+
         # 1. Initialize cache for each layer
         kv_cache = [{} for _ in self.transformer_blocks]
 

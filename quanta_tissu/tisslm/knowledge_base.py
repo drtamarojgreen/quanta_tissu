@@ -32,13 +32,20 @@ class KnowledgeBase:
         try:
             # Create the database
             response = requests.put(f"{self.base_url}/{self.db_name}")
-            if response.status_code not in [201, 200, 409]: # 409 if it already exists, which is fine
+            # The server may incorrectly return 500 when the DB already exists.
+            if response.status_code not in [201, 200, 409] and "already exists" not in response.text:
                  response.raise_for_status()
 
-            # Create the collection
-            collection_name = "knowledge"
+            # Create the collections
+            for collection_name in ["knowledge", "knowledge_feedback"]:
+                response = requests.put(f"{self.base_url}/{self.db_name}/{collection_name}")
+                if response.status_code not in [201, 200, 409] and "already exists" not in response.text:
+                    response.raise_for_status()
+
+            # Create the feedback collection
+            collection_name = "feedback"
             response = requests.put(f"{self.base_url}/{self.db_name}/{collection_name}")
-            if response.status_code not in [201, 200, 409]:
+            if response.status_code not in [201, 200, 409] and "already exists" not in response.text:
                  response.raise_for_status()
 
             print("Database and collection setup complete.")
@@ -48,10 +55,10 @@ class KnowledgeBase:
 
     def _embed_text(self, text):
         """Generates an embedding for a text by averaging its token embeddings."""
-        token_ids = self.tokenizer(text)
+        token_ids = self.tokenizer.tokenize(text)
         if token_ids.size == 0:
             return np.zeros(self.model_embeddings.shape[1])
-        embeddings = self.model_embeddings[token_ids]
+        embeddings = self.model_embeddings.value[token_ids]
         return np.mean(embeddings, axis=0)
 
     def add_document(self, text, metadata=None):
@@ -127,9 +134,45 @@ class KnowledgeBase:
     # Other methods like self_update, get_knowledge_stats, add_feedback would
     # also need to be refactored to use the HTTP API. For now, we focus on
     # the core functionality needed for the BDD tests.
-    def self_update_from_interaction(self, *args, **kwargs):
-        pass
-    def get_knowledge_stats(self, *args, **kwargs):
-        return {}
-    def add_feedback(self, *args, **kwargs):
-        pass
+    def self_update_from_interaction(self, query, generated_response, user_correction=None):
+        """
+        Updates the knowledge base from a user interaction.
+        If a user correction is provided, it's treated as the ground truth.
+        """
+        if user_correction:
+            document_text = f"Query: {query} Correct Answer: {user_correction}"
+            metadata = {'source': 'user_correction'}
+        else:
+            document_text = f"Query: {query} Response: {generated_response}"
+            metadata = {'source': 'generated_response'}
+
+        self.add_document(document_text, metadata=metadata)
+
+    def get_knowledge_stats(self):
+        """
+        Retrieves statistics about the knowledge base from TissDB.
+        """
+        try:
+            response = requests.get(f"{self.base_url}/{self.db_name}/_stats")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to get KB stats: {e}")
+            return {}
+
+    def add_feedback(self, query, retrieved_docs, feedback_score, feedback_text):
+        """
+        Adds feedback for a set of retrieved documents to TissDB.
+        """
+        feedback_data = {
+            'query': query,
+            'retrieved_docs': retrieved_docs,
+            'score': feedback_score,
+            'text': feedback_text,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        try:
+            response = requests.post(f"{self.base_url}/{self.db_name}/_feedback", json=feedback_data)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to add feedback to KB: {e}")

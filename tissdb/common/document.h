@@ -21,12 +21,15 @@ using BinaryData = std::vector<uint8_t>;
 
 // An Element's value can be a single primitive or a list of nested Elements.
 using Value = std::variant<
+    std::nullptr_t,
     std::string,
     Number,
     Boolean,
     DateTime,
     BinaryData,
-    std::vector<Element> // For nested elements like <specs> or <reviews> in the example
+    std::vector<Element>, // For nested elements like <specs> or <reviews> in the example
+    std::vector<Value>,
+    std::map<std::string, Value>
 >;
 
 // An Element is a key-value pair, representing a tag in the document.
