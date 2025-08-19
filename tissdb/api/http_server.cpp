@@ -50,6 +50,8 @@ Json::JsonObject document_to_json(const Document& doc) {
             obj[elem.key] = Json::JsonValue(*num_val);
         } else if (const auto* bool_val = std::get_if<bool>(&elem.value)) {
             obj[elem.key] = Json::JsonValue(*bool_val);
+        } else if (std::get_if<std::nullptr_t>(&elem.value)) {
+            obj[elem.key] = Json::JsonValue(nullptr);
         }
     }
     return obj;
@@ -67,6 +69,8 @@ Document json_to_document(const Json::JsonObject& obj) {
             elem.value = pair.second.as_number();
         } else if (pair.second.is_bool()) {
             elem.value = pair.second.as_bool();
+        } else if (pair.second.is_null()) {
+            elem.value = nullptr;
         }
         doc.elements.push_back(elem);
     }

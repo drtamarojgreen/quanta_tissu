@@ -21,6 +21,7 @@ using BinaryData = std::vector<uint8_t>;
 
 // An Element's value can be a single primitive or a list of nested Elements.
 using Value = std::variant<
+    std::nullptr_t,
     std::string,
     Number,
     Boolean,

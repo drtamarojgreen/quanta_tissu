@@ -2,6 +2,7 @@
 #include "../common/log.h"
 #include <stdexcept>
 #include <cctype>
+#include <algorithm>
 
 namespace TissDB {
 namespace Query {
@@ -19,8 +20,11 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
                 i++;
             }
             std::string value = query_string.substr(start, i - start + 1);
-            if (value == "SELECT" || value == "FROM" || value == "WHERE" || value == "AND" || value == "OR" || value == "UPDATE" || value == "DELETE" || value == "SET" || value == "GROUP" || value == "BY" || value == "COUNT" || value == "AVG" || value == "SUM" || value == "MIN" || value == "MAX" || value == "INSERT" || value == "INTO" || value == "VALUES" || value == "STDDEV" || value == "LIKE" || value == "ORDER" || value == "LIMIT" || value == "JOIN" || value == "ON" || value == "UNION" || value == "ALL" || value == "ASC" || value == "DESC" || value == "WITH" || value == "DRILLDOWN") {
-                new_tokens.push_back(Token{Token::Type::KEYWORD, value});
+            std::string upper_value = value;
+            std::transform(upper_value.begin(), upper_value.end(), upper_value.begin(), ::toupper);
+
+            if (upper_value == "SELECT" || upper_value == "FROM" || upper_value == "WHERE" || upper_value == "AND" || upper_value == "OR" || upper_value == "UPDATE" || upper_value == "DELETE" || upper_value == "SET" || upper_value == "GROUP" || upper_value == "BY" || upper_value == "COUNT" || upper_value == "AVG" || upper_value == "SUM" || upper_value == "MIN" || upper_value == "MAX" || upper_value == "INSERT" || upper_value == "INTO" || upper_value == "VALUES" || upper_value == "STDDEV" || upper_value == "LIKE" || upper_value == "ORDER" || upper_value == "LIMIT" || upper_value == "JOIN" || upper_value == "ON" || upper_value == "UNION" || upper_value == "ALL" || upper_value == "ASC" || upper_value == "DESC" || upper_value == "WITH" || upper_value == "DRILLDOWN" || upper_value == "TRUE" || upper_value == "FALSE" || upper_value == "NULL") {
+                new_tokens.push_back(Token{Token::Type::KEYWORD, upper_value});
             } else {
                 new_tokens.push_back(Token{Token::Type::IDENTIFIER, value});
             }
@@ -214,6 +218,12 @@ std::vector<Literal> Parser::parse_value_list() {
             values.push_back(std::stod(token.value));
         } else if (token.type == Token::Type::STRING_LITERAL) {
             values.push_back(token.value);
+        } else if (token.type == Token::Type::KEYWORD && token.value == "TRUE") {
+            values.push_back(true);
+        } else if (token.type == Token::Type::KEYWORD && token.value == "FALSE") {
+            values.push_back(false);
+        } else if (token.type == Token::Type::KEYWORD && token.value == "NULL") {
+            values.push_back(Null{});
         } else {
             LOG_ERROR("Parse error: Expected a literal value in value list.");
             throw std::runtime_error("Expected a literal value.");
@@ -391,6 +401,12 @@ Expression Parser::parse_primary_expression() {
         return Literal{std::stod(token.value)};
     } else if (token.type == Token::Type::STRING_LITERAL) {
         return Literal{token.value};
+    } else if (token.type == Token::Type::KEYWORD && token.value == "TRUE") {
+        return Literal{true};
+    } else if (token.type == Token::Type::KEYWORD && token.value == "FALSE") {
+        return Literal{false};
+    } else if (token.type == Token::Type::KEYWORD && token.value == "NULL") {
+        return Literal{Null{}};
     }
     LOG_ERROR("Parse error: Unexpected token in expression: " + token.value);
     throw std::runtime_error("Unexpected token in expression");
