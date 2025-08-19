@@ -46,7 +46,11 @@ void LSMTree::recover() {
                 del(entry.collection_name, entry.document_id);
                 break;
             case LogEntryType::CREATE_COLLECTION:
-                create_collection(entry.collection_name, {}); // Assuming default schema
+                if (!collections_.count(entry.collection_name)) {
+                    create_collection(entry.collection_name, {}); // Assuming default schema
+                } else {
+                    LOG_WARNING("Recovery: Attempted to re-create collection '" + entry.collection_name + "' which already exists. Skipping.");
+                }
                 break;
             case LogEntryType::TXN_COMMIT:
                 if (aborted_tids.find(entry.transaction_id) == aborted_tids.end()) {
