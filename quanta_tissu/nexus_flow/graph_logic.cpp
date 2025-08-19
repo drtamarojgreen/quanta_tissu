@@ -235,38 +235,46 @@ std::string GraphLogic::getUserPrompt() {
 /**
  * @brief Loads graph data from the TissDB server.
  *
- * This function connects to a TissDB instance, queries for graph data,
- * parses the JSON response, and populates the `graphs` vector.
+ * This function populates the `graphs` vector with predefined node positions,
+ * sizes, labels, and the edges connecting them. The data is designed to
+ * demonstrate occlusion and various node sizes.
  */
-void GraphLogic::loadGraphsFromTissDB() {
-    TissDB::Test::HttpClient client("localhost", 8080);
+void GraphLogic::initializeGraphs() {
+    // Cognitive Behavioral Therapy related labels
+    std::vector<std::string> cbt_labels = {
+        "Challenge negative thoughts", "Cognitive-Behavioral Therapy", "Practice self-compassion",
+        "Develop coping strategies", "Mindfulness and relaxation", "Break harmful patterns",
+        "A holistic approach", "Build resilience", "Emotional regulation",
+        "Seek professional help", "It's okay to not be okay", "Your feelings are valid",
+        "Set healthy boundaries", "A journey of self-discovery", "Nurture your well-being",
+        "Bloom into your better self"
+    };
 
-    for (int i = 1; i <= 3; ++i) {
-        // Form the JSON query to select the graph document
-        std::stringstream query_stream;
-        query_stream << "{\"query\": \"SELECT * WHERE graph_id = " << i << "\"}";
-        std::string query_json = query_stream.str();
+    // Graph 1: 4 Nodes
+    Graph g1;
+    g1.nodes = {
+        {1, 10, 5, 5, cbt_labels[0]},
+        {2, 30, 15, 3, cbt_labels[1]},
+        {3, 50, 8, 5, cbt_labels[2]},
+        {4, 25, 2, 1, cbt_labels[3]}
+    };
+    g1.edges = {{1, 2}, {1, 3}, {2, 3}, {2, 4}};
+    graphs.push_back(g1);
 
-        // Send the query to the TissDB server
-        TissDB::Test::HttpResponse response = client.post("/_query", query_json, "application/json");
-
-        if (response.status_code != 200) {
-            std::cerr << "Error fetching graph " << i << ": HTTP " << response.status_code << std::endl;
-            continue;
-        }
-
-        try {
-            // Parse the JSON response body
-            Json parsed_json = Json::parse(response.body);
-
-            // The response should be an array containing a single graph document
-            if (parsed_json.type() != Json::Type::ARRAY || parsed_json.as_array().empty()) {
-                std::cerr << "Warning: No data returned for graph " << i << std::endl;
-                continue;
-            }
-            const Json& graph_doc = parsed_json.as_array()[0];
-
-            Graph g;
+    // Graph 2: 8 Nodes (demonstrates occlusion)
+    Graph g2;
+    g2.nodes = {
+        {1, 5, 3, 5, cbt_labels[4]},
+        {2, 20, 10, 3, cbt_labels[5]},
+        {3, 18, 9, 1, cbt_labels[6]}, // Occluded by node 2
+        {4, 40, 5, 5, cbt_labels[7]},
+        {5, 60, 18, 3, cbt_labels[8]},
+        {6, 70, 2, 1, cbt_labels[9]},
+        {7, 35, 20, 3, cbt_labels[10]},
+        {8, 5, 20, 5, cbt_labels[11]}
+    };
+    g2.edges = {{1, 2}, {1, 8}, {2, 4}, {3, 4}, {4, 5}, {5, 7}, {6, 7}, {7, 8}};
+    graphs.push_back(g2);
 
             // Extract nodes
             const Json& nodes_json = graph_doc["nodes"];
@@ -295,6 +303,7 @@ void GraphLogic::loadGraphsFromTissDB() {
             std::cerr << "Error parsing JSON for graph " << i << ": " << e.what() << std::endl;
         }
     }
+
 }
 
 /**

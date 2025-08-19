@@ -1,7 +1,7 @@
 #include "http_server.h"
 #include "../common/log.h"
 #include "../common/schema.h"
-#include "../storage/lsm_tree.h"
+#include "../storage/database_manager.h"
 #include "../json/json.h"
 #include "../common/document.h"
 #include "../query/parser.h"
@@ -16,49 +16,34 @@
 #include <cstring>
 #include <sstream>
 #include <map>
+#include <chrono>
 
 #ifdef _WIN32
     #include <winsock2.h>
-    #include <ws2tcpip.h> // For inet_pton, etc.
-    #pragma comment(lib, "ws2_32.lib") // Link with Winsock library
-
-    // Undefine the ERROR macro which is defined in winsock2.h and conflicts with LogLevel::ERROR.
+    #include <ws2tcpip.h>
+    #pragma comment(lib, "ws2_32.lib")
     #undef ERROR
 #else
-    // POSIX Socket headers
     #include <sys/socket.h>
     #include <netinet/in.h>
     #include <arpa/inet.h>
-    #include <unistd.h> // For close()
+    #include <unistd.h>
 #endif
 
 #ifdef _WIN32
-    // Type redefinitions
-    using socklen_t = int; // Winsock uses int for socklen_t
-
-    // Function redefinitions
+    using socklen_t = int;
     #define close(s) closesocket(s)
-    #define SHUT_RDWR SD_BOTH // For shutdown()
-    #define SHUT_RD SD_RECEIVE
-    #define SHUT_WR SD_SEND
-
-    // Winsock specific initialization/cleanup
-    // These will be called in constructor/destructor
+    #define SHUT_RDWR SD_BOTH
 #endif
 
 namespace TissDB {
 namespace API {
 
-// --- Helper Functions ---
 namespace {
-
-// Converts a TissDB Document to a JSON Object
 Json::JsonObject document_to_json(const Document& doc) {
     Json::JsonObject obj;
     obj["id"] = Json::JsonValue(doc.id);
     for (const auto& elem : doc.elements) {
-        // This is a simplification. A full implementation would handle
-        // nested elements and different value types correctly.
         if (const auto* str_val = std::get_if<std::string>(&elem.value)) {
             obj[elem.key] = Json::JsonValue(*str_val);
         } else if (const auto* num_val = std::get_if<double>(&elem.value)) {
@@ -70,13 +55,10 @@ Json::JsonObject document_to_json(const Document& doc) {
     return obj;
 }
 
-// Converts a JSON Object to a TissDB Document
 Document json_to_document(const Json::JsonObject& obj) {
     Document doc;
-    // The document ID is part of the URL, not the body, for PUT/POST.
-    // So we only parse the elements.
     for (const auto& pair : obj) {
-        if (pair.first == "id") continue; // Skip id field in body
+        if (pair.first == "id") continue;
         Element elem;
         elem.key = pair.first;
         if (pair.second.is_string()) {
@@ -86,25 +68,22 @@ Document json_to_document(const Json::JsonObject& obj) {
         } else if (pair.second.is_bool()) {
             elem.value = pair.second.as_bool();
         }
-        // This simplification ignores nested objects and arrays.
         doc.elements.push_back(elem);
     }
     return doc;
 }
 
-// A simple struct to hold parsed request info
 struct HttpRequest {
     std::string method;
     std::string path;
     std::map<std::string, std::string> headers;
     std::string body;
 };
-
 } // anonymous namespace
 
 class HttpServer::Impl {
 public:
-    Impl(Storage::LSMTree& storage, int port);
+    Impl(Storage::DatabaseManager& manager, int port);
     ~Impl();
     void start();
     void stop();
@@ -113,7 +92,7 @@ private:
     void handle_client(int client_socket);
     void send_response(int sock, const std::string& code, const std::string& ctype, const std::string& body);
 
-    Storage::LSMTree& storage_engine;
+    Storage::DatabaseManager& db_manager_;
     int server_fd = -1;
     int server_port;
     std::atomic<bool> is_running{false};
@@ -121,15 +100,10 @@ private:
     std::map<int, int> client_transactions_;
 };
 
-// --- Implementation ---
-
-HttpServer::Impl::Impl(Storage::LSMTree& storage, int port) : storage_engine(storage), server_port(port) {
+HttpServer::Impl::Impl(Storage::DatabaseManager& manager, int port) : db_manager_(manager), server_port(port) {
 #ifdef _WIN32
     WSADATA wsaData;
-    int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
-    if (iResult != 0) {
-        throw std::runtime_error("WSAStartup failed: " + std::to_string(iResult));
-    }
+    if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0) throw std::runtime_error("WSAStartup failed");
 #endif
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == -1) throw std::runtime_error("Socket creation failed.");
@@ -196,17 +170,13 @@ void HttpServer::Impl::handle_client(int client_socket) {
     std::stringstream request_ss(request_str);
     HttpRequest req;
     request_ss >> req.method >> req.path;
-
     LOG_INFO("Incoming request: " + req.method + " " + req.path);
 
-    // In a real server, we would parse headers and body properly.
-    // This is a major simplification.
     size_t body_start = request_str.find("\r\n\r\n");
     if (body_start != std::string::npos) {
         req.body = request_str.substr(body_start + 4);
     }
 
-    // --- Routing ---
     std::vector<std::string> path_parts;
     std::stringstream path_ss(req.path);
     std::string segment;
@@ -214,278 +184,138 @@ void HttpServer::Impl::handle_client(int client_socket) {
        if(!segment.empty()) path_parts.push_back(segment);
     }
 
-    Transactions::TransactionID transaction_id = -1;
-    if (client_transactions_.count(client_socket)) {
-        transaction_id = client_transactions_[client_socket];
-    }
-
     try {
-        if (req.method == "POST" && path_parts.size() == 1 && path_parts[0] == "_begin") {
-            transaction_id = storage_engine.begin_transaction();
-            client_transactions_[client_socket] = transaction_id;
-            LOG_INFO("Sending response: 200 OK");
-            send_response(client_socket, "200 OK", "text/plain", "Transaction started with ID: " + std::to_string(transaction_id));
-        } else if (req.method == "POST" && path_parts.size() == 1 && path_parts[0] == "_commit") {
-            if (transaction_id != -1) {
-                storage_engine.commit_transaction(transaction_id);
-                client_transactions_.erase(client_socket);
-                LOG_INFO("Sending response: 200 OK");
-                send_response(client_socket, "200 OK", "text/plain", "Transaction committed.");
-            } else {
-                LOG_WARNING("Sending response: 400 Bad Request (No active transaction)");
-                send_response(client_socket, "400 Bad Request", "text/plain", "No active transaction.");
-            }
-        } else if (req.method == "POST" && path_parts.size() == 1 && path_parts[0] == "_rollback") {
-            if (transaction_id != -1) {
-                storage_engine.rollback_transaction(transaction_id);
-                client_transactions_.erase(client_socket);
-                LOG_INFO("Sending response: 200 OK");
-                send_response(client_socket, "200 OK", "text/plain", "Transaction rolled back.");
-            } else {
-                LOG_WARNING("Sending response: 400 Bad Request (No active transaction)");
-                send_response(client_socket, "400 Bad Request", "text/plain", "No active transaction.");
-            }
-        } else if (req.method == "POST" && path_parts.size() == 2 && path_parts[0] == "_bi" && path_parts[1] == "dashboards") {
-            // POST /_bi/dashboards
-            try {
-                // Ensure the _bi_dashboards collection exists
-                bool collection_exists = false;
-                auto collections = storage_engine.list_collections();
-                for (const auto& name : collections) {
-                    if (name == "_bi_dashboards") {
-                        collection_exists = true;
-                        break;
-                    }
-                }
-                if (!collection_exists) {
-                    storage_engine.create_collection("_bi_dashboards", TissDB::Schema());
-                }
-
-                Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
-                Document doc = json_to_document(parsed_body.as_object());
-                // Generate a simple ID
-                std::string id = "_bi_dashboard_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
-                doc.id = id;
-                storage_engine.put("_bi_dashboards", id, doc, transaction_id);
-                LOG_INFO("Sending response: 201 Created");
-                send_response(client_socket, "201 Created", "application/json", "{\"id\": \"" + id + "\"}");
-            } catch (const std::exception& e) {
-                LOG_ERROR("Sending response: 400 Bad Request (Invalid JSON body)");
-                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
-            }
-        } else if (req.method == "GET" && path_parts.size() == 3 && path_parts[0] == "_bi" && path_parts[1] == "dashboards") {
-            // GET /_bi/dashboards/<id>
-            std::string doc_id = path_parts[2];
-            auto doc_opt = storage_engine.get("_bi_dashboards", doc_id, transaction_id);
-            if (doc_opt) {
-                Json::JsonValue json_doc(document_to_json(*(*doc_opt)));
-                LOG_INFO("Sending response: 200 OK");
-                send_response(client_socket, "200 OK", "application/json", json_doc.serialize());
-            } else {
-                LOG_INFO("Sending response: 404 Not Found");
-                send_response(client_socket, "404 Not Found", "text/plain", "Dashboard not found.");
-            }
-        } else if (req.method == "PUT" && path_parts.size() == 3 && path_parts[0] == "_bi" && path_parts[1] == "dashboards") {
-            // PUT /_bi/dashboards/<id>
-            try {
-                Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
-                Document doc = json_to_document(parsed_body.as_object());
-                doc.id = path_parts[2];
-                storage_engine.put("_bi_dashboards", path_parts[2], doc, transaction_id);
-                LOG_INFO("Sending response: 200 OK");
-                send_response(client_socket, "200 OK", "application/json", parsed_body.serialize());
-            } catch (const std::exception& e) {
-                LOG_ERROR("Sending response: 400 Bad Request (Invalid JSON body)");
-                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
-            }
-        } else if (req.method == "GET" && path_parts.size() == 1 && path_parts[0] == "_health") {
-            LOG_INFO("Sending response: 200 OK");
+        if (path_parts.empty() || (req.method == "GET" && path_parts.size() == 1 && path_parts[0] == "_health")) {
             send_response(client_socket, "200 OK", "text/plain", "OK");
             close(client_socket);
             return;
-        } else if (req.method == "GET" && path_parts.size() == 1 && path_parts[0] == "_collections") {
+        }
+
+        if (req.method == "GET" && path_parts.size() == 1 && path_parts[0] == "_databases") {
+            Json::JsonArray db_array;
+            for (const auto& name : db_manager_.list_databases()) {
+                db_array.push_back(Json::JsonValue(name));
+            }
+            send_response(client_socket, "200 OK", "application/json", Json::JsonValue(db_array).serialize());
+            close(client_socket);
+            return;
+        }
+
+        if (req.method == "PUT" && path_parts.size() == 1) {
+            db_manager_.create_database(path_parts[0]);
+            send_response(client_socket, "201 Created", "text/plain", "Database '" + path_parts[0] + "' created.");
+            close(client_socket);
+            return;
+        }
+
+        if (req.method == "DELETE" && path_parts.size() == 1) {
+            db_manager_.delete_database(path_parts[0]);
+            send_response(client_socket, "204 No Content", "text/plain", "");
+            close(client_socket);
+            return;
+        }
+
+        std::string db_name = path_parts[0];
+        auto& storage_engine = db_manager_.get_database(db_name);
+        std::vector<std::string> sub_path_parts(path_parts.begin() + 1, path_parts.end());
+        Transactions::TransactionID transaction_id = client_transactions_.count(client_socket) ? client_transactions_[client_socket] : -1;
+
+        if (sub_path_parts.empty()) {
+            send_response(client_socket, "400 Bad Request", "text/plain", "Collection name missing from URL.");
+        } else if (sub_path_parts[0] == "_begin" && req.method == "POST") {
+            transaction_id = storage_engine.begin_transaction();
+            client_transactions_[client_socket] = transaction_id;
+            send_response(client_socket, "200 OK", "text/plain", "Transaction started with ID: " + std::to_string(transaction_id));
+        } else if (sub_path_parts[0] == "_commit" && req.method == "POST") {
+            if (transaction_id != -1) {
+                storage_engine.commit_transaction(transaction_id);
+                client_transactions_.erase(client_socket);
+                send_response(client_socket, "200 OK", "text/plain", "Transaction committed.");
+            } else {
+                send_response(client_socket, "400 Bad Request", "text/plain", "No active transaction.");
+            }
+        } else if (sub_path_parts[0] == "_rollback" && req.method == "POST") {
+            if (transaction_id != -1) {
+                storage_engine.rollback_transaction(transaction_id);
+                client_transactions_.erase(client_socket);
+                send_response(client_socket, "200 OK", "text/plain", "Transaction rolled back.");
+            } else {
+                send_response(client_socket, "400 Bad Request", "text/plain", "No active transaction.");
+            }
+        } else if (sub_path_parts[0] == "_collections" && req.method == "GET") {
             Json::JsonArray collections_array;
-            auto collections = storage_engine.list_collections();
-            for (const auto& name : collections) {
+            for (const auto& name : storage_engine.list_collections()) {
                 collections_array.push_back(Json::JsonValue(name));
             }
-            LOG_INFO("Sending response: 200 OK");
             send_response(client_socket, "200 OK", "application/json", Json::JsonValue(collections_array).serialize());
-            close(client_socket);
-            return;
-        } else if (path_parts.empty()) {
-            LOG_WARNING("Sending response: 400 Bad Request (Collection name missing)");
-            send_response(client_socket, "400 Bad Request", "text/plain", "Collection name missing from URL.");
-            close(client_socket);
-            return;
-        }
+        } else {
+            std::string collection_name = sub_path_parts[0];
+            std::vector<std::string> doc_path_parts(sub_path_parts.begin() + 1, sub_path_parts.end());
 
-        std::string collection_name = path_parts[0];
-
-        if (req.method == "GET" && path_parts.size() == 2 && path_parts[1] == "_all") {
-            // This is a placeholder. A real implementation would query the storage engine.
-            Json::JsonArray docs_array;
-            // docs_array.push_back(Json::JsonValue("doc_a"));
-            // docs_array.push_back(Json::JsonValue("doc_b"));
-            LOG_INFO("Sending response: 200 OK");
-            send_response(client_socket, "200 OK", "application/json", Json::JsonValue(docs_array).serialize());
-            close(client_socket);
-            return;
-        }
-
-        if (req.method == "GET" && path_parts.size() == 2 && path_parts[1] != "_all") {
-            // GET /<collection>/<id>
-            std::string doc_id = path_parts[1];
-            auto doc_opt = storage_engine.get(collection_name, doc_id, transaction_id);
-            if (doc_opt) {
-                Json::JsonValue json_doc(document_to_json(*(*doc_opt)));
-                LOG_INFO("Sending response: 200 OK");
-                send_response(client_socket, "200 OK", "application/json", json_doc.serialize());
-            } else {
-                LOG_INFO("Sending response: 404 Not Found");
-                send_response(client_socket, "404 Not Found", "text/plain", "Document not found.");
-            }
-        } else if (req.method == "POST" && path_parts.size() == 1) {
-            // POST /<collection>
-            try {
+            if (!doc_path_parts.empty() && req.method == "POST") {
+                if (doc_path_parts[0] == "_query") {
+                    const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                    std::string query_string = parsed_body.as_object().at("query").as_string();
+                    Query::Parser parser;
+                    Query::AST ast = parser.parse(query_string);
+                    Query::Executor executor(storage_engine);
+                    Query::QueryResult result = executor.execute(ast);
+                    Json::JsonArray result_array;
+                    for (const auto& doc : result) {
+                        result_array.push_back(Json::JsonValue(document_to_json(doc)));
+                    }
+                    send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
+                } else if (doc_path_parts[0] == "_index") {
+                    const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                    std::vector<std::string> field_names;
+                    if (parsed_body.as_object().count("field")) {
+                        field_names.push_back(parsed_body.as_object().at("field").as_string());
+                    } else if (parsed_body.as_object().count("fields")) {
+                        for (const auto& field : parsed_body.as_object().at("fields").as_array()) {
+                            field_names.push_back(field.as_string());
+                        }
+                    }
+                    storage_engine.create_index(collection_name, field_names);
+                    send_response(client_socket, "200 OK", "text/plain", "Index creation initiated.");
+                } else {
+                    send_response(client_socket, "404 Not Found", "text/plain", "Endpoint not found.");
+                }
+            } else if (req.method == "POST" && doc_path_parts.empty()) {
                 Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
                 Document doc = json_to_document(parsed_body.as_object());
-                // Generate a simple ID
                 std::string id = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
                 doc.id = id;
                 storage_engine.put(collection_name, id, doc, transaction_id);
-                LOG_INFO("Sending response: 201 Created");
                 send_response(client_socket, "201 Created", "text/plain", "Document created with ID: " + id);
-            } catch (const std::exception& e) {
-                LOG_ERROR("Sending response: 400 Bad Request (Invalid JSON body)");
-                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
-            }
-        } else if (req.method == "PUT" && path_parts.size() == 2) {
-            // PUT /<collection>/<id>
-            try {
+            } else if (req.method == "GET" && doc_path_parts.size() == 1) {
+                 auto doc_opt = storage_engine.get(collection_name, doc_path_parts[0], transaction_id);
+                 if (doc_opt && *doc_opt) {
+                     // Optional has a value and the shared_ptr is not null
+                     send_response(client_socket, "200 OK", "application/json", Json::JsonValue(document_to_json(**doc_opt)).serialize());
+                 } else {
+                     // Optional is empty OR contains a tombstone (nullptr)
+                     send_response(client_socket, "404 Not Found", "text/plain", "Document not found.");
+                 }
+            } else if (req.method == "PUT" && doc_path_parts.size() == 1) {
                 Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
                 Document doc = json_to_document(parsed_body.as_object());
-                doc.id = path_parts[1];
-                storage_engine.put(collection_name, path_parts[1], doc, transaction_id);
-                LOG_INFO("Sending response: 200 OK");
+                doc.id = doc_path_parts[0];
+                storage_engine.put(collection_name, doc.id, doc, transaction_id);
                 send_response(client_socket, "200 OK", "application/json", parsed_body.serialize());
-            } catch (const std::exception& e) {
-                LOG_ERROR("Sending response: 400 Bad Request (Invalid JSON body)");
-                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid JSON body: " + std::string(e.what()));
-            }
-        } else if (req.method == "DELETE" && path_parts.size() == 2) {
-            // DELETE /<collection>/<id>
-            std::string doc_id = path_parts[1];
-            storage_engine.del(collection_name, doc_id, transaction_id);
-            LOG_INFO("Sending response: 204 No Content");
-            send_response(client_socket, "204 No Content", "text/plain", "");
-        } else if (req.method == "POST" && path_parts.size() == 2 && path_parts[1] == "_query") {
-            // POST /<collection>/_query
-            try {
-                const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
-                std::string query_string = parsed_body.as_object().at("query").as_string();
-
-                Query::Parser parser;
-                Query::AST ast = parser.parse(query_string);
-
-                Query::Executor executor(storage_engine);
-                Query::QueryResult result = executor.execute(ast);
-
-                Json::JsonArray result_array;
-                for (const auto& doc : result) {
-                    result_array.push_back(Json::JsonValue(document_to_json(doc)));
-                }
-
-                LOG_INFO("Sending response: 200 OK");
-                send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
-            } catch (const std::exception& e) {
-                LOG_ERROR("Sending response: 400 Bad Request (Invalid query)");
-                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid query: " + std::string(e.what()));
-            }
-        } else if (req.method == "POST" && path_parts.size() == 2 && path_parts[1] == "_index") {
-            // POST /<collection>/_index
-            try {
-                const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
-                std::vector<std::string> field_names;
-                if (parsed_body.as_object().count("field")) {
-                    field_names.push_back(parsed_body.as_object().at("field").as_string());
-                } else if (parsed_body.as_object().count("fields")) {
-                    for (const auto& field : parsed_body.as_object().at("fields").as_array()) {
-                        field_names.push_back(field.as_string());
-                    }
-                }
-
-                storage_engine.create_index(collection_name, field_names);
-
-                LOG_INFO("Sending response: 200 OK");
-                send_response(client_socket, "200 OK", "text/plain", "Index created on fields: " + parsed_body.serialize());
-            } catch (const std::exception& e) {
-                LOG_ERROR("Sending response: 400 Bad Request (Invalid index request)");
-                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid index request: " + std::string(e.what()));
-            }
-        } else if (req.method == "PUT" && path_parts.size() == 1) {
-            // PUT /<collection> (Create collection)
-            try {
-                storage_engine.create_collection(collection_name, TissDB::Schema());
-                LOG_INFO("Sending response: 201 Created");
-                send_response(client_socket, "201 Created", "text/plain", "Collection '" + collection_name + "' created.");
-            } catch (const std::exception& e) {
-                LOG_ERROR("Sending response: 400 Bad Request (Failed to create collection)");
-                send_response(client_socket, "400 Bad Request", "text/plain", "Failed to create collection: " + std::string(e.what()));
-            }
-        } else if (req.method == "PUT" && path_parts.size() == 2 && path_parts[1] == "_schema") {
-            // PUT /<collection>/_schema
-            try {
-                const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
-                const Json::JsonObject& schema_json = parsed_body.as_object();
-                
-                TissDB::Schema schema;
-                if (schema_json.count("fields")) {
-                    const Json::JsonArray& fields = schema_json.at("fields").as_array();
-                    for (const auto& field_val : fields) {
-                        const Json::JsonObject& field_obj = field_val.as_object();
-                        std::string name = field_obj.at("name").as_string();
-                        std::string type_str = field_obj.at("type").as_string();
-                        bool required = field_obj.count("required") ? field_obj.at("required").as_bool() : false;
-                        
-                        TissDB::FieldType type;
-                        if (type_str == "String") type = TissDB::FieldType::String;
-                        else if (type_str == "Number") type = TissDB::FieldType::Number;
-                        else if (type_str == "Boolean") type = TissDB::FieldType::Boolean;
-                        else if (type_str == "DateTime") type = TissDB::FieldType::DateTime;
-                        else if (type_str == "Binary") type = TissDB::FieldType::Binary;
-                        else if (type_str == "Object") type = TissDB::FieldType::Object;
-                        else if (type_str == "Array") type = TissDB::FieldType::Array;
-                        else {
-                            throw std::runtime_error("Unknown field type: " + type_str);
-                        }
-                        
-                        schema.add_field(name, type, required);
-                    }
-                }
-                
-                storage_engine.get_collection(collection_name).set_schema(schema);
-                LOG_INFO("Sending response: 200 OK");
-                send_response(client_socket, "200 OK", "text/plain", "Schema updated for collection '" + collection_name + "'.");
-
-            } catch (const std::exception& e) {
-                LOG_ERROR("Sending response: 400 Bad Request (Invalid schema format)");
-                send_response(client_socket, "400 Bad Request", "text/plain", "Invalid schema format: " + std::string(e.what()));
-            }
-        } else if (req.method == "DELETE" && path_parts.size() == 1) {
-            // DELETE /<collection> (Delete collection)
-            try {
-                storage_engine.delete_collection(collection_name);
-                LOG_INFO("Sending response: 204 No Content");
+            } else if (req.method == "DELETE" && doc_path_parts.size() == 1) {
+                storage_engine.del(collection_name, doc_path_parts[0], transaction_id);
                 send_response(client_socket, "204 No Content", "text/plain", "");
-            } catch (const std::exception& e) {
-                LOG_ERROR("Sending response: 400 Bad Request (Failed to delete collection)");
-                send_response(client_socket, "400 Bad Request", "text/plain", "Failed to delete collection: " + std::string(e.what()));
+            } else if (req.method == "PUT" && doc_path_parts.empty()) {
+                storage_engine.create_collection(collection_name, TissDB::Schema());
+                send_response(client_socket, "201 Created", "text/plain", "Collection '" + collection_name + "' created.");
+            } else if (req.method == "DELETE" && doc_path_parts.empty()) {
+                storage_engine.delete_collection(collection_name);
+                send_response(client_socket, "204 No Content", "text/plain", "");
+            } else {
+                 send_response(client_socket, "404 Not Found", "text/plain", "Endpoint not found.");
             }
-        } else {
-            LOG_WARNING("Sending response: 404 Not Found (Endpoint not found)");
-            send_response(client_socket, "404 Not Found", "text/plain", "Endpoint not found.");
         }
+
     } catch (const std::exception& e) {
         LOG_ERROR("Sending response: 500 Internal Server Error: " + std::string(e.what()));
         send_response(client_socket, "500 Internal Server Error", "text/plain", "Server error: " + std::string(e.what()));
@@ -494,8 +324,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
     close(client_socket);
 }
 
-// --- Public Methods ---
-HttpServer::HttpServer(Storage::LSMTree& storage_engine, int port) : pimpl(std::make_unique<Impl>(storage_engine, port)) {}
+HttpServer::HttpServer(Storage::DatabaseManager& db_manager, int port) : pimpl(std::make_unique<Impl>(db_manager, port)) {}
 HttpServer::~HttpServer() = default;
 void HttpServer::start() { pimpl->start(); }
 void HttpServer::stop() { pimpl->stop(); }

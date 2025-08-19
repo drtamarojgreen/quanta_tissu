@@ -14,19 +14,23 @@ namespace Storage {
 
 // Defines the type of operation recorded in the log.
 enum class LogEntryType : uint8_t {
-    PUT,    // A document was created or updated.
-    DELETE  // A document was deleted.
+    PUT,
+    DELETE,
+    CREATE_COLLECTION,
+    DELETE_COLLECTION,
+    TXN_COMMIT,
+    TXN_ABORT
 };
 
 // Represents a single entry in the Write-Ahead Log.
 struct LogEntry {
     LogEntryType type;
-    int transaction_id = -1; // -1 for non-transactional operations
-    // For PUT operations, the full document is stored.
-    // For DELETE, only the document_id is needed.
-    // We can use std::optional or a union for optimization later.
-    Document doc;
+    int transaction_id = -1;
+    std::string collection_name; // Which collection this entry belongs to.
     std::string document_id;
+    // For PUT operations, the full document is stored.
+    // For DELETE, only the document_id and collection_name are needed.
+    Document doc;
 };
 
 // Manages the Write-Ahead Log for ensuring durability of writes.
@@ -46,6 +50,9 @@ public:
 
     // Clears the log file, typically after a successful flush of a memtable to disk.
     void clear();
+
+    // Ensures the log file is properly flushed and closed.
+    void shutdown();
 
 private:
     std::string log_path;
