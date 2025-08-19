@@ -1,7 +1,0 @@
-SELECT * FROM collection WHERE field = 'value';
-INSERT INTO collection (col1, col2) VALUES (val1, val2);
-UPDATE collection SET col1 = val1 WHERE field = 'value';
-DELETE FROM collection WHERE field = 'value';
-JOIN ON AND OR GROUP BY ORDER BY LIMIT ASC DESC COUNT SUM AVG MIN MAX STDDEV LIKE WITH DRILLDOWN;
-users employees departments telemetry id name email signup_date order_date salary department_id dept_name;
-how many what is show me list the top highest paid;
