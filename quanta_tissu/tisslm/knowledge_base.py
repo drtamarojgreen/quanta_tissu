@@ -36,11 +36,11 @@ class KnowledgeBase:
             if response.status_code not in [201, 200, 409] and "already exists" not in response.text:
                  response.raise_for_status()
 
-            # Create the collection
-            collection_name = "knowledge"
-            response = requests.put(f"{self.base_url}/{self.db_name}/{collection_name}")
-            if response.status_code not in [201, 200, 409] and "already exists" not in response.text:
-                 response.raise_for_status()
+            # Create the collections
+            for collection_name in ["knowledge", "knowledge_feedback"]:
+                response = requests.put(f"{self.base_url}/{self.db_name}/{collection_name}")
+                if response.status_code not in [201, 200, 409] and "already exists" not in response.text:
+                    response.raise_for_status()
 
             # Create the feedback collection
             collection_name = "feedback"
@@ -131,45 +131,40 @@ class KnowledgeBase:
             print(f"Failed to parse response from KB: {e}")
             return []
 
+    # Other methods like self_update, get_knowledge_stats, add_feedback would
+    # also need to be refactored to use the HTTP API. For now, we focus on
+    # the core functionality needed for the BDD tests.
     def self_update_from_interaction(self, query, generated_response, user_correction=None):
         """
         Updates the knowledge base from a user interaction.
+        If a user correction is provided, it's treated as the ground truth.
         """
         if user_correction:
-            text_to_add = f"Query: {query} Correct Answer: {user_correction}"
+            document_text = f"Query: {query} Correct Answer: {user_correction}"
+            metadata = {'source': 'user_correction'}
         else:
-            text_to_add = f"Query: {query} Response: {generated_response}"
-        self.add_document(text_to_add, metadata={'source': 'self_update'})
+            document_text = f"Query: {query} Response: {generated_response}"
+            metadata = {'source': 'generated_response'}
+
+        self.add_document(document_text, metadata=metadata)
 
     def get_knowledge_stats(self):
         """
-        Retrieves statistics about the knowledge base.
+        Retrieves statistics about the knowledge base from TissDB.
         """
-        stats = {}
         try:
-            # Get document count
-            query = {"query": "SELECT id FROM knowledge"}
-            response = requests.post(f"{self.base_url}/{self.db_name}/knowledge/_query", json=query)
+            response = requests.get(f"{self.base_url}/{self.db_name}/_stats")
             response.raise_for_status()
-            stats['total_docs'] = len(response.json())
-
-            # Get feedback count
-            query = {"query": "SELECT id FROM feedback"}
-            response = requests.post(f"{self.base_url}/{self.db_name}/feedback/_query", json=query)
-            if response.status_code == 200:
-                stats['feedback_entries'] = len(response.json())
-            else:
-                stats['feedback_entries'] = 0
-        except requests.exceptions.RequestException:
-            stats['total_docs'] = 0
-            stats['feedback_entries'] = 0
-        return stats
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to get KB stats: {e}")
+            return {}
 
     def add_feedback(self, query, retrieved_docs, feedback_score, feedback_text):
         """
-        Adds feedback to the knowledge base.
+        Adds feedback for a set of retrieved documents to TissDB.
         """
-        feedback_doc = {
+        feedback_data = {
             'query': query,
             'retrieved_docs': retrieved_docs,
             'score': feedback_score,
@@ -177,7 +172,7 @@ class KnowledgeBase:
             'timestamp': datetime.utcnow().isoformat()
         }
         try:
-            response = requests.post(f"{self.base_url}/{self.db_name}/feedback", json=feedback_doc)
+            response = requests.post(f"{self.base_url}/{self.db_name}/_feedback", json=feedback_data)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print(f"Failed to add feedback: {e}")
+            print(f"Failed to add feedback to KB: {e}")

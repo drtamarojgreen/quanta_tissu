@@ -62,6 +62,19 @@ bool evaluate_expression(const Expression& expr, const Document& doc) {
                             if (binary_expr->op == ">") return *num_val > *lit_val;
                             if (binary_expr->op == "<=") return *num_val <= *lit_val;
                             if (binary_expr->op == ">=") return *num_val >= *lit_val;
+                        } else if (const auto* lit_val_str = std::get_if<std::string>(right_literal)) {
+                            // The parser might interpret a number as a string, so we try to convert it.
+                            try {
+                                double val = std::stod(*lit_val_str);
+                                if (binary_expr->op == "=") return *num_val == val;
+                                if (binary_expr->op == "!=") return *num_val != val;
+                                if (binary_expr->op == "<") return *num_val < val;
+                                if (binary_expr->op == ">") return *num_val > val;
+                                if (binary_expr->op == "<=") return *num_val <= val;
+                                if (binary_expr->op == ">=") return *num_val >= val;
+                            } catch (const std::invalid_argument& ia) {
+                                // Not a number, so the comparison is false
+                            }
                         }
                     }
                 }

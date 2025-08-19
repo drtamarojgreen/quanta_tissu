@@ -169,9 +169,10 @@ std::vector<Document> LSMTree::get_many(const std::string& collection_name, cons
 }
 
 
-void LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid, bool is_recovery) {
+bool LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid, bool is_recovery) {
     if (tid != -1) {
         transaction_manager_.add_delete_operation(tid, collection_name, key);
+        return true; // Assume success for transactional deletes for now
     } else {
         if (!is_recovery) {
             LogEntry entry;
@@ -181,8 +182,13 @@ void LSMTree::del(const std::string& collection_name, const std::string& key, Tr
             wal_->append(entry);
         }
 
-        Collection& collection = get_collection(collection_name);
-        collection.del(key);
+        try {
+            Collection& collection = get_collection(collection_name);
+            return collection.del(key);
+        } catch (const std::runtime_error& e) {
+            // Collection not found
+            return false;
+        }
     }
 }
 
