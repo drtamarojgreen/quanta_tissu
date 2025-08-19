@@ -32,13 +32,13 @@ class KnowledgeBase:
         try:
             # Create the database
             response = requests.put(f"{self.base_url}/{self.db_name}")
-            if response.status_code not in [201, 200, 400]: # 400 if it already exists, which is fine
+            if response.status_code not in [201, 200, 409]: # 409 if it already exists, which is fine
                  response.raise_for_status()
 
             # Create the collection
             collection_name = "knowledge"
             response = requests.put(f"{self.base_url}/{self.db_name}/{collection_name}")
-            if response.status_code not in [201, 200, 400]:
+            if response.status_code not in [201, 200, 409]:
                  response.raise_for_status()
 
             print("Database and collection setup complete.")
