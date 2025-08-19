@@ -1,7 +1,8 @@
 #pragma once
 
 #include "document.h"
-#include "binary_stream_buffer.h" // Include the new header
+#include "binary_stream_buffer.h"
+#include "schema.h"
 #include <vector>
 
 namespace TissDB {
