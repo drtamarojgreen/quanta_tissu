@@ -8,6 +8,7 @@
 
 // --- Configuration ---
 const int DEFAULT_PORT = 8080;
+const std::string DEFAULT_DB_NAME = "tissdb";
 
 int main(int argc, char* argv[]) {
     // --- Basic command-line argument parsing ---
