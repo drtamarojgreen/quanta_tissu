@@ -27,9 +27,57 @@ LSMTree::LSMTree(const std::string& path) : path_(path), transaction_manager_(*t
         replay_log_entry(this, entry);
     }
     LOG_INFO("Recovery complete for database at: " + path);
+    std::filesystem::create_directories(path_);
+    wal_ = std::make_unique<WriteAheadLog>(path_ + "/wal.log");
+    recover();
 }
 
-LSMTree::~LSMTree() {}
+void LSMTree::recover() {
+    auto log_entries = wal_->recover();
+    std::set<Transactions::TransactionID> aborted_tids;
+
+    // First pass: find aborted transactions
+    for (const auto& entry : log_entries) {
+        if (entry.type == LogEntryType::TXN_ABORT) {
+            aborted_tids.insert(entry.transaction_id);
+        }
+    }
+
+    // Second pass: replay committed entries
+    for (const auto& entry : log_entries) {
+        switch (entry.type) {
+            case LogEntryType::PUT:
+                put(entry.collection_name, entry.document_id, entry.doc);
+                break;
+            case LogEntryType::DELETE:
+                del(entry.collection_name, entry.document_id);
+                break;
+            case LogEntryType::CREATE_COLLECTION:
+                create_collection(entry.collection_name, {}); // Assuming default schema
+                break;
+            case LogEntryType::TXN_COMMIT:
+                if (aborted_tids.find(entry.transaction_id) == aborted_tids.end()) {
+                    for (const auto& op : entry.operations) {
+                        if (op.type == Transactions::OperationType::PUT) {
+                            put(op.collection_name, op.key, op.doc);
+                        } else if (op.type == Transactions::OperationType::DELETE) {
+                            del(op.collection_name, op.key);
+                        }
+                    }
+                }
+                break;
+            default:
+                // Other types like ABORT, DELETE_COLLECTION etc. are ignored during replay
+                break;
+        }
+    }
+}
+
+LSMTree::~LSMTree() {
+    if (wal_) {
+        wal_->shutdown();
+    }
+}
 
 void LSMTree::create_collection(const std::string& name, const TissDB::Schema& schema) {
     if (collections_.count(name)) {
@@ -204,7 +252,9 @@ std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::
 }
 
 void LSMTree::shutdown() {
-    // Placeholder: Implement shutdown logic
+    if (wal_) {
+        wal_->shutdown();
+    }
 }
 
 void replay_log_entry(LSMTree* tree, const LogEntry& entry) {
