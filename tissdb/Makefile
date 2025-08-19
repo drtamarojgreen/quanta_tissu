@@ -6,6 +6,9 @@ CXX = g++
 # Compiler flags
 CXXFLAGS = -std=c++17 -I.. -I. -Wall -Wextra -g
 
+# Linker flags (for Windows, add -lws2_32 for socket library)
+LDFLAGS =
+
 # Source files
 SRCS = main.cpp \
        ../quanta_tissu/tissu_sinew.cpp \

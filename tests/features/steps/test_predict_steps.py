@@ -3,8 +3,8 @@ from quanta_tissu.tisslm.model import QuantaTissu
 from quanta_tissu.tisslm.config import model_config
 from quanta_tissu.tisslm.tokenizer import Tokenizer
 
-def register_steps(step): # Changed
-    @step(r'^Given a model and tokenizer$') # Changed
+def register_steps(runner):
+    @runner.step(r'^Given a model and tokenizer$')
     def context(context):
         np.random.seed(42)
         model = QuantaTissu(model_config)
@@ -12,14 +12,14 @@ def register_steps(step): # Changed
         context['model'] = model
         context['tokenizer'] = tokenizer
 
-    @step(r'^When I predict the next token for the prompt "(.*)"$') # Changed
+    @runner.step(r'^When I predict the next token for the prompt "(.*)"$')
     def predict_next_token(context, prompt):
         prompt_tokens = context['tokenizer'].tokenize(prompt)
         token_ids_np = np.array(prompt_tokens)
         next_token_id = context['model'].predict(token_ids_np, method="greedy")
         context['next_token_id'] = next_token_id
 
-    @step(r'^Then the next token should be a valid token id$') # Changed
+    @runner.step(r'^Then the next token should be a valid token id$')
     def check_next_token(context):
         assert isinstance(context['next_token_id'], int)
         assert context['next_token_id'] >= 0
