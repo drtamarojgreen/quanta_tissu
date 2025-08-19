@@ -26,7 +26,8 @@ public:
     void put(const std::string& key, const Document& doc);
 
     // Marks a document as deleted by writing a "tombstone".
-    void del(const std::string& key);
+    // Returns true if the key existed, false otherwise.
+    bool del(const std::string& key);
 
     // Retrieves a document from the collection.
     // Returns a pointer to the document if found.

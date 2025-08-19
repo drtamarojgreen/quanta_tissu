@@ -2,6 +2,7 @@ Feature: TissDB UPDATE and DELETE Query Operations
 
   Background:
     Given a running TissDB instance
+    When I delete the collection "products"
     And a collection named "products" exists
     And I insert the following documents into "products":
       | id    | content                                            |
