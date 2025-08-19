@@ -8,8 +8,9 @@ def register_steps(runner):
     @runner.step(r'^(?:Given|And) a knowledge base with a model and tokenizer$')
     def knowledge_base_context(context):
         np.random.seed(42)
-        model = QuantaTissu(model_config)
         tokenizer = Tokenizer()
+        model_config['vocab_size'] = tokenizer.get_vocab_size()
+        model = QuantaTissu(model_config)
         context['model'] = model # Store model for other steps
         context['tokenizer'] = tokenizer # Store tokenizer for other steps
         context['knowledge_base'] = KnowledgeBase(model.embeddings, tokenizer)
