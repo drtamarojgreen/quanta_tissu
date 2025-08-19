@@ -16,7 +16,7 @@ const int SCREEN_HEIGHT = 25;
  */
 struct Node {
     int id;
-    int x, y;
+    int x, y, z;
     int size;
     std::string label;
 };
@@ -63,16 +63,22 @@ private:
     // Storage for the three graph versions
     std::vector<Graph> graphs;
 
-    // Initialization
-    void initializeGraphs();
+    // Workflows
+    void runTissDBWorkflow();
+    void runGenerationWorkflow();
+
+    // Helper methods
+    std::string getUserPrompt();
+    void loadGraphsFromTissDB();
 
     // Drawing functions
     void clearCanvas();
     void renderCanvas();
-    void drawGraph(const Graph& graph);
-    void drawNode(const Node& node);
+    void drawGraph(const Graph& graph, double angle);
+    void drawNode(int x, int y, int size, char c);
     void drawLine(int x1, int y1, int x2, int y2);
     void drawLabel(int x, int y, int nodeSize, const std::string& text);
+    void animateGraph(const Graph& graph);
 
     // User input
     void waitForSpacebar();
