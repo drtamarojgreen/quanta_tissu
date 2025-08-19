@@ -9,6 +9,7 @@
 
 #include "../common/document.h"
 #include "../common/schema.h"
+#include "indexer.h"
 
 namespace TissDB {
 namespace Storage {
@@ -61,6 +62,7 @@ private:
     size_t estimated_size;
     TissDB::Schema schema_;
     LSMTree* parent_db_; // Pointer to the parent database
+    std::unique_ptr<Indexer> indexer_;
 };
 
 } // namespace Storage
