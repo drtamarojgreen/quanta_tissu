@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='utf-8'?>
+<data>
+	<item>
+		<id>1</id>
+		<name>Alice</name>
+		<age>30</age>
+		<city>New York</city>
+		<is_member>True</is_member>
+	</item>
+	<item>
+		<id>2</id>
+		<name>Bob</name>
+		<age>25</age>
+		<city>Los Angeles</city>
+		<is_member>False</is_member>
+	</item>
+	<item>
+		<id>3</id>
+		<name>Charlie</name>
+		<age>35</age>
+		<city>Chicago</city>
+		<is_member>True</is_member>
+	</item>
+	<item>
+		<id>4</id>
+		<name>David</name>
+		<age>40</age>
+		<city>Houston</city>
+		<is_member>None</is_member>
+	</item>
+	<item>
+		<id>5</id>
+		<name>Eve</name>
+		<age>28</age>
+		<city>Phoenix</city>
+		<is_member>True</is_member>
+	</item>
+</data>
