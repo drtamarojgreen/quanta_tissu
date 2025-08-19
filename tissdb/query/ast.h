@@ -10,7 +10,8 @@ namespace TissDB {
 namespace Query {
 
 // Represents a literal value in a query
-using Literal = std::variant<std::string, double>;
+struct Null {};
+using Literal = std::variant<std::string, double, bool, Null>;
 
 // Forward-declare recursive types
 struct BinaryExpression;
