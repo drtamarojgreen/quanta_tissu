@@ -1,6 +1,7 @@
 #include "collection.h"
 #include "../common/log.h"
 #include "../common/serialization.h" // For calculating document size accurately
+#include "sstable.h" // For loading from disk
 #include <stdexcept> // For std::runtime_error
 #include <algorithm> // For std::find_if
 #include "lsm_tree.h" // For LSMTree pointer
@@ -21,7 +22,17 @@ namespace Storage {
 Collection::Collection(LSMTree* parent_db) : estimated_size(0), parent_db_(parent_db) {}
 
 Collection::Collection(const std::string& path, LSMTree* parent_db) : estimated_size(0), parent_db_(parent_db) {
-    // TODO: Implement loading collection from path
+    SSTable sstable(path);
+    auto documents = sstable.scan();
+    for (const auto& doc : documents) {
+        if (!doc.is_tombstone()) {
+            data[doc.id] = std::make_shared<Document>(doc);
+            estimated_size += doc.id.size() + TissDB::serialize(doc).size();
+        } else {
+            data[doc.id] = nullptr; // Tombstone
+            estimated_size += doc.id.size();
+        }
+    }
 }
 
 void Collection::set_schema(const TissDB::Schema& schema) {
