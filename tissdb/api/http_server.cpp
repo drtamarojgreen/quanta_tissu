@@ -308,8 +308,21 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 storage_engine.del(collection_name, doc_path_parts[0], transaction_id);
                 send_response(client_socket, "204 No Content", "text/plain", "");
             } else if (req.method == "PUT" && doc_path_parts.empty()) {
-                storage_engine.create_collection(collection_name, TissDB::Schema());
-                send_response(client_socket, "201 Created", "text/plain", "Collection '" + collection_name + "' created.");
+                auto collections = storage_engine.list_collections();
+                bool exists = false;
+                for (const auto& col : collections) {
+                    if (col == collection_name) {
+                        exists = true;
+                        break;
+                    }
+                }
+
+                if (exists) {
+                    send_response(client_socket, "409 Conflict", "text/plain", "Collection '" + collection_name + "' already exists.");
+                } else {
+                    storage_engine.create_collection(collection_name, TissDB::Schema());
+                    send_response(client_socket, "201 Created", "text/plain", "Collection '" + collection_name + "' created.");
+                }
             } else if (req.method == "DELETE" && doc_path_parts.empty()) {
                 storage_engine.delete_collection(collection_name);
                 send_response(client_socket, "204 No Content", "text/plain", "");
