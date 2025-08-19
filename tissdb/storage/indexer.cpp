@@ -7,6 +7,9 @@
 namespace TissDB {
 namespace Storage {
 
+// Define a default order for the B-Tree
+const unsigned int BPTREE_ORDER = 32;
+
 std::string Indexer::get_index_name(const std::vector<std::string>& field_names) const {
     std::stringstream ss;
     for (size_t i = 0; i < field_names.size(); ++i) {
@@ -21,7 +24,7 @@ std::string Indexer::get_index_name(const std::vector<std::string>& field_names)
 void Indexer::create_index(const std::vector<std::string>& field_names) {
     std::string index_name = get_index_name(field_names);
     if (indexes_.find(index_name) == indexes_.end()) {
-        indexes_[index_name] = std::make_unique<BTree<std::string, std::string>>();
+        indexes_[index_name] = std::make_shared<BPTree<std::string, std::string>>(BPTREE_ORDER);
         index_fields_[index_name] = field_names;
     }
 }
@@ -70,12 +73,12 @@ void Indexer::update_indexes(const std::string& document_id, const Document& doc
         }
 
         auto& btree = indexes_[index_name];
-        auto existing_json_str = btree->find(key);
+        std::string* existing_json_str_ptr = btree->get(key);
 
         Json::JsonArray doc_ids_array;
-        if (existing_json_str.has_value()) {
+        if (existing_json_str_ptr != nullptr) {
             try {
-                doc_ids_array = Json::JsonValue::parse(*existing_json_str).as_array();
+                doc_ids_array = Json::JsonValue::parse(*existing_json_str_ptr).as_array();
             } catch (...) { /* Ignore parse error, start fresh */ }
         }
 
@@ -89,7 +92,7 @@ void Indexer::update_indexes(const std::string& document_id, const Document& doc
 
         if (!already_exists) {
             doc_ids_array.push_back(Json::JsonValue(document_id));
-            btree->insert(key, Json::JsonValue(doc_ids_array).serialize());
+            btree->put(key, Json::JsonValue(doc_ids_array).serialize());
         }
     }
 }
@@ -105,13 +108,13 @@ void Indexer::remove_from_indexes(const std::string& document_id, const Document
         }
 
         auto& btree = indexes_[index_name];
-        auto existing_json_str = btree->find(key);
+        std::string* existing_json_str_ptr = btree->get(key);
 
-        if (existing_json_str.has_value()) {
+        if (existing_json_str_ptr != nullptr) {
             Json::JsonArray new_doc_ids_array;
             bool found = false;
             try {
-                Json::JsonArray old_doc_ids_array = Json::JsonValue::parse(*existing_json_str).as_array();
+                Json::JsonArray old_doc_ids_array = Json::JsonValue::parse(*existing_json_str_ptr).as_array();
                 for (const auto& id_val : old_doc_ids_array) {
                     if (id_val.as_string() != document_id) {
                         new_doc_ids_array.push_back(id_val);
@@ -123,9 +126,9 @@ void Indexer::remove_from_indexes(const std::string& document_id, const Document
 
             if (found) {
                 if (new_doc_ids_array.empty()) {
-                    btree->erase(key);
+                    btree->remove(key);
                 } else {
-                    btree->insert(key, Json::JsonValue(new_doc_ids_array).serialize());
+                    btree->put(key, Json::JsonValue(new_doc_ids_array).serialize());
                 }
             }
         }
@@ -139,12 +142,12 @@ std::vector<std::string> Indexer::find_by_index(const std::string& index_name, c
     }
 
     const auto& btree = it->second;
-    auto json_str = btree->find(value);
+    std::string* json_str_ptr = btree->get(value);
 
-    if (json_str.has_value()) {
+    if (json_str_ptr != nullptr) {
         std::vector<std::string> doc_ids;
         try {
-            Json::JsonArray ids_array = Json::JsonValue::parse(*json_str).as_array();
+            Json::JsonArray ids_array = Json::JsonValue::parse(*json_str_ptr).as_array();
             for (const auto& id_val : ids_array) {
                 doc_ids.push_back(id_val.as_string());
             }
@@ -177,12 +180,12 @@ std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& 
     std::string key = key_ss.str();
 
     const auto& btree = it->second;
-    auto json_str = btree->find(key);
+    std::string* json_str_ptr = btree->get(key);
 
-    if (json_str.has_value()) {
+    if (json_str_ptr != nullptr) {
         std::vector<std::string> doc_ids;
         try {
-            Json::JsonArray ids_array = Json::JsonValue::parse(*json_str).as_array();
+            Json::JsonArray ids_array = Json::JsonValue::parse(*json_str_ptr).as_array();
             for (const auto& id_val : ids_array) {
                 doc_ids.push_back(id_val.as_string());
             }
@@ -197,21 +200,28 @@ std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& 
     std::string index_name = get_index_name(field_names);
     auto it = indexes_.find(index_name);
     if (it == indexes_.end()) {
-        // No index found for this combination of fields
         return {};
     }
 
-    // TODO: Implement logic to retrieve all document IDs from the B-tree for this index.
-    // This would require a method in BTree to iterate through all its values.
-    // For now, returning an empty vector to allow compilation.
-    return {};
+    std::vector<std::string> all_doc_ids;
+    const auto& btree = it->second;
+
+    btree->foreach([&all_doc_ids](const std::string& key, const std::string& value) {
+        try {
+            Json::JsonArray ids_array = Json::JsonValue::parse(value).as_array();
+            for (const auto& id_val : ids_array) {
+                all_doc_ids.push_back(id_val.as_string());
+            }
+        } catch (...) { /* Ignore malformed JSON */ }
+        return false; // Continue iteration
+    });
+
+    return all_doc_ids;
 }
 
 void Indexer::save_indexes(const std::string& data_dir) {
-    // Save the B-Tree data
-    for (const auto& pair : indexes_) {
-        std::ofstream ofs(data_dir + "/" + pair.first + ".idx", std::ios::binary);
-        pair.second->dump(ofs);
+    if (!std::filesystem::exists(data_dir)) {
+        std::filesystem::create_directories(data_dir);
     }
 
     // Save the index metadata
@@ -223,8 +233,16 @@ void Indexer::save_indexes(const std::string& data_dir) {
         }
         meta_obj[pair.first] = Json::JsonValue(fields_array);
     }
-    std::ofstream meta_ofs(data_dir + "/indexes.meta");
+    std::string meta_path = data_dir + "/indexes.meta";
+    std::ofstream meta_ofs(meta_path);
     meta_ofs << Json::JsonValue(meta_obj).serialize();
+    meta_ofs.close();
+
+    // Save the B-Tree data
+    for (const auto& pair : indexes_) {
+        std::string bpt_path = data_dir + "/" + pair.first + ".bpt";
+        pair.second->serialize(bpt_path);
+    }
 }
 
 std::vector<std::vector<std::string>> Indexer::get_available_indexes() const {
@@ -237,8 +255,16 @@ std::vector<std::vector<std::string>> Indexer::get_available_indexes() const {
 
 
 void Indexer::load_indexes(const std::string& data_dir) {
+    indexes_.clear();
+    index_fields_.clear();
+
+    std::string meta_path = data_dir + "/indexes.meta";
+    if (!std::filesystem::exists(meta_path)) {
+        return; // No indexes to load
+    }
+
     // Load index metadata
-    std::ifstream meta_ifs(data_dir + "/indexes.meta");
+    std::ifstream meta_ifs(meta_path);
     if (meta_ifs.is_open()) {
         std::string meta_content((std::istreambuf_iterator<char>(meta_ifs)), std::istreambuf_iterator<char>());
         try {
@@ -251,18 +277,20 @@ void Indexer::load_indexes(const std::string& data_dir) {
                 index_fields_[pair.first] = fields;
             }
         } catch (...) {
-            // Handle parsing error if necessary
+            // Handle parsing error if necessary, maybe log it
+            return;
         }
     }
 
     // Load B-Tree data
-    for (const auto& entry : std::filesystem::directory_iterator(data_dir)) {
-        if (entry.path().extension() == ".idx") {
-            std::string index_name = entry.path().stem().string();
-            if (index_fields_.count(index_name)) {
-                indexes_[index_name] = std::make_unique<BTree<std::string, std::string>>();
-                std::ifstream ifs(entry.path(), std::ios::binary);
-                indexes_[index_name]->load(ifs);
+    for (const auto& pair : index_fields_) {
+        std::string index_name = pair.first;
+        std::string bpt_path = data_dir + "/" + index_name + ".bpt";
+        if (std::filesystem::exists(bpt_path)) {
+            try {
+                indexes_[index_name] = BPTree<std::string, std::string>::deserialize(bpt_path, DefaultCompare<std::string>());
+            } catch (...) {
+                // Handle B-Tree deserialization error, maybe log it
             }
         }
     }
