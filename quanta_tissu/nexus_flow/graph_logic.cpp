@@ -3,36 +3,197 @@
 #include <vector>
 #include <string>
 #include <cmath>
-#include <sstream> // Required for building JSON query strings
+#include <sstream>   // Required for building JSON query strings
+#include <stdexcept> // Required for std::runtime_error
+#include <cstdio>    // For _popen, _pclose
+#include <array>     // For std::array
+#include <cstdlib>   // For rand, srand
+#include <ctime>     // For time
 #include <windows.h> // For Windows-specific console functions
 #include <conio.h>   // For _getch()
 
 /**
  * @brief Constructor for GraphLogic class.
- * Initializes the canvas and loads the graph data from the TissDB server.
+ * Initializes the canvas.
  */
 GraphLogic::GraphLogic() {
     canvas.resize(SCREEN_HEIGHT, std::string(SCREEN_WIDTH, ' '));
-    loadGraphsFromTissDB();
+    srand(time(NULL)); // Seed random number generator for node positioning
 }
 
 /**
  * @brief The main execution loop of the application.
  *
- * It cycles through the predefined graphs, rendering each one and waiting for
- * the user to press the spacebar to continue.
+ * Displays a menu and allows the user to choose a workflow.
  */
 void GraphLogic::run() {
+    while (true) {
+        clearCanvas();
+        canvas[4] = "  Nexus Flow";
+        canvas[5] = "  ----------";
+        canvas[7] = "  1. Load Graphs from TissDB";
+        canvas[8] = "  2. Generate Graph from Prompt";
+        canvas[10] = "  3. Exit";
+        canvas[12] = "  Enter your choice: ";
+        renderCanvas();
+
+        char choice = _getch();
+
+        if (choice == '1') {
+            runTissDBWorkflow();
+        } else if (choice == '2') {
+            runGenerationWorkflow();
+        } else if (choice == '3') {
+            break; // Exit loop
+        }
+    }
+}
+
+/**
+ * @brief Executes the workflow for loading and displaying graphs from TissDB.
+ */
+void GraphLogic::runTissDBWorkflow() {
+    graphs.clear(); // Clear previous data
+    loadGraphsFromTissDB();
+
     if (graphs.empty()) {
-        std::cerr << "No graphs were loaded. Please ensure TissDB is running and populated." << std::endl;
+        clearCanvas();
+        canvas[SCREEN_HEIGHT / 2] = std::string(2, ' ') + "No graphs loaded. Is TissDB running and populated?";
+        renderCanvas();
+        waitForSpacebar();
         return;
     }
-    for (size_t i = 0; i < graphs.size(); ++i) {
+
+    for (const auto& graph : graphs) {
         clearCanvas();
-        drawGraph(graphs[i]);
+        drawGraph(graph);
         renderCanvas();
         waitForSpacebar();
     }
+}
+
+// Helper function to execute a command and capture its output
+std::string executeCommand(const std::string& command) {
+    std::array<char, 128> buffer;
+    std::string result;
+    FILE* pipe = _popen(command.c_str(), "r");
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+        result += buffer.data();
+    }
+    _pclose(pipe);
+    return result;
+}
+
+/**
+ * @brief Executes the workflow for generating a graph from a user prompt.
+ */
+void GraphLogic::runGenerationWorkflow() {
+    std::string prompt = getUserPrompt();
+    if (prompt.empty()) {
+        return; // User entered nothing
+    }
+
+    clearCanvas();
+    canvas[5] = "  Generating graph from prompt...";
+    canvas[6] = "  Please wait, this may take a moment...";
+    renderCanvas();
+
+    // Construct the command to execute the Python script
+    std::string script_path = "../tisslm/generate_graph_from_prompt.py";
+    std::string escaped_prompt = prompt;
+    size_t pos = 0;
+    while ((pos = escaped_prompt.find('"', pos)) != std::string::npos) {
+        escaped_prompt.replace(pos, 1, "\\\"");
+        pos += 2;
+    }
+    std::stringstream command;
+    command << "python " << script_path << " \"" << escaped_prompt << "\"";
+
+    try {
+        std::string json_output = executeCommand(command.str());
+        Json parsed_json = Json::parse(json_output);
+
+        // Check for an error message from the Python script
+        if (parsed_json.type() == Json::Type::OBJECT && parsed_json.as_object().count("error")) {
+            clearCanvas();
+            canvas[5] = "  An error occurred during graph generation:";
+            std::string error_details = parsed_json["message"].as_string();
+            canvas[7] = "  " + error_details.substr(0, SCREEN_WIDTH - 4);
+            renderCanvas();
+            waitForSpacebar();
+            return;
+        }
+
+        // Populate the graph object from the parsed JSON
+        Graph g;
+        const Json& nodes_json = parsed_json["nodes"];
+        for (const auto& node_json : nodes_json.as_array()) {
+            Node n;
+            n.id = node_json["id"].as_integer();
+            n.label = node_json["label"].as_string();
+            // Assign random positions for visualization
+            n.x = (rand() % (SCREEN_WIDTH - 15)) + 5;
+            n.y = (rand() % (SCREEN_HEIGHT - 5)) + 2;
+            n.size = 3;
+            g.nodes.push_back(n);
+        }
+
+        const Json& edges_json = parsed_json["edges"];
+        for (const auto& edge_json : edges_json.as_array()) {
+            Edge e;
+            e.node1_id = edge_json["from"].as_integer();
+            e.node2_id = edge_json["to"].as_integer();
+            g.edges.push_back(e);
+        }
+
+        // Render the newly generated graph
+        clearCanvas();
+        drawGraph(g);
+        renderCanvas();
+        waitForSpacebar();
+
+    } catch (const std::exception& e) {
+        clearCanvas();
+        canvas[5] = "  An error occurred:";
+        canvas[7] = std::string("  ") + e.what();
+        renderCanvas();
+        waitForSpacebar();
+    }
+}
+
+/**
+ * @brief Prompts the user to enter a text string and returns it.
+ *
+ * @return The string entered by the user.
+ */
+std::string GraphLogic::getUserPrompt() {
+    clearCanvas();
+    canvas[5] = "  Enter a prompt to generate a graph (e.g., 'a simple solar system'):";
+    renderCanvas();
+
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_CURSOR_INFO cursorInfo;
+
+    // Show cursor
+    GetConsoleCursorInfo(hConsole, &cursorInfo);
+    cursorInfo.bVisible = TRUE;
+    SetConsoleCursorInfo(hConsole, &cursorInfo);
+
+    // Move cursor to input position
+    COORD coord = {2, 7}; // Column 2, Row 7
+    SetConsoleCursorPosition(hConsole, coord);
+
+    std::string prompt;
+    std::getline(std::cin, prompt);
+
+    // Hide cursor again
+    cursorInfo.bVisible = FALSE;
+    SetConsoleCursorInfo(hConsole, &cursorInfo);
+
+    return prompt;
 }
 
 /**
