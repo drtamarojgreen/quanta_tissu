@@ -1,13 +1,27 @@
 #include "collection.h"
 #include "../common/log.h"
 #include "../common/serialization.h" // For calculating document size accurately
+#include <stdexcept> // For std::runtime_error
+#include <algorithm> // For std::find_if
+
+// Helper function to get a value from a document
+const TissDB::Value* get_value(const TissDB::Document& doc, const std::string& key) {
+    auto it = std::find_if(doc.elements.begin(), doc.elements.end(),
+                           [&](const TissDB::Element& elem) { return elem.key == key; });
+    if (it != doc.elements.end()) {
+        return &it->value;
+    }
+    return nullptr;
+}
 
 namespace TissDB {
 namespace Storage {
 
-Collection::Collection() : estimated_size(0) {}
+#include "lsm_tree.h" // For LSMTree pointer
 
-Collection::Collection(const std::string& path) : estimated_size(0) {
+Collection::Collection(LSMTree* parent_db) : estimated_size(0), parent_db_(parent_db) {}
+
+Collection::Collection(const std::string& path, LSMTree* parent_db) : estimated_size(0), parent_db_(parent_db) {
     // TODO: Implement loading collection from path
 }
 
@@ -25,6 +39,75 @@ void Collection::shutdown() {
 
 void Collection::put(const std::string& key, const Document& doc) {
     LOG_DEBUG("PUT key: " + key);
+
+    // =================================================================
+    // Primary Key Enforcement
+    // =================================================================
+    const std::string& pk_field = schema_.get_primary_key();
+    if (!pk_field.empty()) {
+        // 1. Find the primary key value in the new document
+        const Value* pk_value_ptr = get_value(doc, pk_field);
+
+        // 2. Check for presence
+        if (pk_value_ptr == nullptr) {
+            throw std::runtime_error("Primary key field '" + pk_field + "' is missing.");
+        }
+
+        // 3. Check for nullness (a string is used for the key)
+        if (std::holds_alternative<std::string>(*pk_value_ptr) && std::get<std::string>(*pk_value_ptr).empty()) {
+            throw std::runtime_error("Primary key value for field '" + pk_field + "' cannot be empty.");
+        }
+
+        // 4. Check for uniqueness (O(N) scan)
+        // TODO: This should be replaced with an index lookup for performance.
+        for (const auto& pair : data) {
+            if (pair.first != key && pair.second) { // Exclude the document being updated and tombstones
+                const Value* existing_pk_value = get_value(*pair.second, pk_field);
+                if (existing_pk_value && *existing_pk_value == *pk_value_ptr) {
+                    throw std::runtime_error("Primary key constraint violated. Value for field '" + pk_field + "' already exists.");
+                }
+            }
+        }
+    }
+
+    // =================================================================
+    // Foreign Key Enforcement
+    // =================================================================
+    if (parent_db_) {
+        for (const auto& fk : schema_.get_foreign_keys()) {
+            const Value* fk_value_ptr = get_value(doc, fk.field_name);
+
+            // Only check the constraint if the FK value is present
+            if (fk_value_ptr) {
+                // This assumes the referenced field is a primary key or has a unique index.
+                // This check is O(M) where M is the number of documents in the referenced collection.
+                // TODO: This should be replaced with an index lookup for performance.
+                try {
+                    const Collection& referenced_collection = parent_db_->get_collection(fk.referenced_collection);
+                    const auto& referenced_data = referenced_collection.get_all();
+
+                    bool found = false;
+                    for (const auto& pair : referenced_data) {
+                        if (pair.second) { // Exclude tombstones
+                            const Value* referenced_value = get_value(*pair.second, fk.referenced_field);
+                            if (referenced_value && *referenced_value == *fk_value_ptr) {
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!found) {
+                        throw std::runtime_error("Foreign key constraint violated on field '" + fk.field_name + "'. No matching value in referenced collection '" + fk.referenced_collection + "'.");
+                    }
+                } catch (const std::runtime_error& e) {
+                    // This could be thrown by get_collection if the collection doesn't exist
+                    throw std::runtime_error("Foreign key constraint error: " + std::string(e.what()));
+                }
+            }
+        }
+    }
+
     // To accurately track memory usage, we account for the change in size.
     size_t old_value_size = 0;
     auto it = data.find(key);
