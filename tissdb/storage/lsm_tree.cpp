@@ -51,11 +51,10 @@ void LSMTree::recover() {
                 }
                 break;
             case LogEntryType::CREATE_COLLECTION:
-                if (entry.schema_data) {
-                    auto schema = TissDB::deserialize_schema(*entry.schema_data);
-                    create_collection(entry.collection_name, schema, true);
+                if (!collections_.count(entry.collection_name)) {
+                    create_collection(entry.collection_name, {}); // Assuming default schema
                 } else {
-                    create_collection(entry.collection_name, {}, true); // Fallback for old log entries
+                    LOG_WARNING("Recovery: Attempted to re-create collection '" + entry.collection_name + "' which already exists. Skipping.");
                 }
                 break;
             case LogEntryType::TXN_COMMIT:
