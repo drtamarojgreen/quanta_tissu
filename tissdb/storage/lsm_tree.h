@@ -45,8 +45,8 @@ public:
 
     // Transaction management
     Transactions::TransactionID begin_transaction();
-    void commit_transaction(Transactions::TransactionID transaction_id);
-    void rollback_transaction(Transactions::TransactionID transaction_id);
+    bool commit_transaction(Transactions::TransactionID transaction_id);
+    bool rollback_transaction(Transactions::TransactionID transaction_id);
 
     // Helper to get a collection, throws if not found
     Collection& get_collection(const std::string& name);

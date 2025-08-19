@@ -232,12 +232,12 @@ Transactions::TransactionID LSMTree::begin_transaction() {
     return transaction_manager_.begin_transaction();
 }
 
-void LSMTree::commit_transaction(Transactions::TransactionID transaction_id) {
-    transaction_manager_.commit_transaction(transaction_id);
+bool LSMTree::commit_transaction(Transactions::TransactionID transaction_id) {
+    return transaction_manager_.commit_transaction(transaction_id);
 }
 
-void LSMTree::rollback_transaction(Transactions::TransactionID transaction_id) {
-    transaction_manager_.rollback_transaction(transaction_id);
+bool LSMTree::rollback_transaction(Transactions::TransactionID transaction_id) {
+    return transaction_manager_.rollback_transaction(transaction_id);
 }
 
 bool LSMTree::has_index(const std::string& /*collection_name*/, const std::vector<std::string>& /*field_names*/) {
