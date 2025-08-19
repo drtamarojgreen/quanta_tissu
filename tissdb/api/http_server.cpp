@@ -116,7 +116,7 @@ Document json_to_document(const Json::JsonObject& obj) {
         } else if (pair.second.is_null()) {
             elem.value = nullptr;
         }
-        doc.elements.push_back(elem);
+        doc.elements.push_back(std::move(elem));
     }
     return doc;
 }
