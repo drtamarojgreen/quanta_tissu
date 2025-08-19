@@ -271,8 +271,11 @@ class BDDRunner:
                     scenario_title = lines[0].strip()
                     print(f"  Running Scenario: {scenario_title}")
 
-                    for line_num, step_line_full in enumerate(lines[1:]):
+                    line_index = 1
+                    while line_index < len(lines):
+                        step_line_full = lines[line_index]
                         step_line = step_line_full.strip()
+                        line_index += 1
 
                         if not step_line or step_line.startswith('#'):
                             continue
@@ -287,10 +290,18 @@ class BDDRunner:
                         for pattern, func in self.steps:
                             match = pattern.match(step_line)
                             if match:
+                                table = []
+                                while line_index < len(lines) and lines[line_index].strip().startswith('|'):
+                                    table.append(lines[line_index].strip())
+                                    line_index += 1
+
                                 print(f"    Executing step: {step_line}")
                                 sys.stdout.flush()
                                 try:
-                                    func(context, *match.groups())
+                                    args = list(match.groups())
+                                    if table:
+                                        args.append(table)
+                                    func(context, *args)
                                     self.report_data['steps_passed'] += 1
                                 except Exception as e:
                                     tb = traceback.format_exc()

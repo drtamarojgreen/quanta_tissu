@@ -34,9 +34,8 @@ int main(int argc, char* argv[]) {
         TissDB::Storage::DatabaseManager db_manager(DEFAULT_DATA_PATH);
 
         // 2. Ensure a default database exists
-        if (!db_manager.database_exists(DEFAULT_DB_NAME)) {
+        if (db_manager.create_database(DEFAULT_DB_NAME)) {
             std::cout << "Creating default database: " << DEFAULT_DB_NAME << std::endl;
-            db_manager.create_database(DEFAULT_DB_NAME);
         }
 
         // 3. Initialize the API server

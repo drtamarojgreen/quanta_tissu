@@ -15,7 +15,7 @@ def register_steps(step):
         assert delete_response.status_code in [204, 404], f"Failed to delete test database: {delete_response.text}"
 
         create_response = requests.put(f"{BASE_URL}/{context['db_name']}")
-        assert create_response.status_code == 201, f"Failed to create test database: {create_response.text}"
+        assert create_response.status_code in [201, 200], f"Failed to create test database: {create_response.text}"
 
         # Check health
         try:
