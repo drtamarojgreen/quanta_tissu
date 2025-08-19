@@ -4,9 +4,6 @@
 #include <vector>
 #include <string>
 
-#include "http_client.h"
-#include "json.h"
-
 // Define screen dimensions
 const int SCREEN_WIDTH = 80;
 const int SCREEN_HEIGHT = 25;
@@ -67,7 +64,7 @@ private:
     std::vector<Graph> graphs;
 
     // Initialization
-    void loadGraphsFromTissDB();
+    void initializeGraphs();
 
     // Drawing functions
     void clearCanvas();
