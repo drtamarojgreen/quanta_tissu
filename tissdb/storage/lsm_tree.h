@@ -22,6 +22,10 @@ public:
     LSMTree(const std::string& path);
     ~LSMTree();
 
+    WriteAheadLog& get_wal() { return *wal_; }
+
+    // Recovery
+    void recover();
 
     // Collection management
     virtual void create_collection(const std::string& name, const TissDB::Schema& schema);
