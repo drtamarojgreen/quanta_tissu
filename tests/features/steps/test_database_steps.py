@@ -9,12 +9,8 @@ def register_steps(runner):
     @runner.step(r'^Given a running TissDB instance$')
     def running_tissdb_instance(context):
         context['db_name'] = "testdb"
-        # Clean up any old test database and create a fresh one
-        delete_response = requests.delete(f"{BASE_URL}/{context['db_name']}")
-        assert delete_response.status_code in [204, 404], f"Failed to delete test database: {delete_response.text}"
-
-        create_response = requests.put(f"{BASE_URL}/{context['db_name']}")
-        assert create_response.status_code in [201, 200], f"Failed to create test database: {create_response.text}"
+        # Try to delete the database to ensure a clean state, ignore errors if it doesn't exist
+        requests.delete(f"{BASE_URL}/{context['db_name']}")
 
         # Create the database for the test
         response = requests.put(f"{BASE_URL}/{context['db_name']}")
@@ -27,8 +23,8 @@ def register_steps(runner):
 
         # Check if the server is healthy
         try:
-            health_response = requests.get(f"{BASE_URL}/_health")
-            health_response.raise_for_status()
+            response = requests.get(f"{BASE_URL}/_health")
+            response.raise_for_status()
         except requests.exceptions.RequestException as e:
             raise Exception(f"TissDB instance is not responsive: {e}")
 

@@ -249,15 +249,13 @@ def _run_connector_test(context, command):
 
     compile_command = [
         "g++", "-std=c++17", "-pthread", "-I.", "-o", output_executable
-    ] + source_files + ["-lws2_32"]
+    ] + source_files
 
     compile_process = subprocess.run(compile_command, capture_output=True, text=True)
     if compile_process.returncode != 0:
         raise Exception(f"C++ compilation failed:\n{compile_process.stderr}")
 
-    # On Windows, we don't need the ./ to run the executable
-    executable_path = os.path.join(".", output_executable)
-    run_command = [executable_path, host, str(port), command]
+    run_command = [f"./{output_executable}", host, str(port), command]
     run_process = subprocess.run(run_command, capture_output=True, text=True)
 
     context['connector_result'] = {
@@ -281,39 +279,10 @@ def then_connector_returns_successfully(context, expected_output):
     assert result['returncode'] == 0, f"Expected exit code 0, but got {result['returncode']}. Stderr: {result['stderr']}"
     assert result['stdout'] == expected_output, f"Expected stdout '{expected_output}', but got '{result['stdout']}'"
 
-@step(r'Then the tokenizer should correctly handle the unknown word')
-def then_tokenizer_handles_unknown(context):
-    # This is essentially the same as the other step, but with a different name
-    # "foobar" is the 4th word, so the 4th token (index 3)
-    assert context['tokens'][3] == model_config['vocab_size'] - 1 # <unk> is the last token
-
-@step(r'Given a running TissDB instance')
-def given_running_tissdb(context):
-    # For now, we'll just assume the server is running at the default location.
-    # A more robust test would start the server if it's not running.
-    context['db_host'] = '127.0.0.1'
-    context['db_port'] = 8080
-    # Health check
-    try:
-        import requests
-        response = requests.get(f"http://{context['db_host']}:{context['db_port']}/_health")
-        response.raise_for_status()
-    except Exception as e:
-        raise Exception(f"TissDB instance at {context['db_host']}:{context['db_port']} is not responsive: {e}")
-
-@step(r'Given a document with ID "(.*)" exists in TissDB')
-def given_document_exists(context, doc_id):
-    import requests
-    db_host = context.get('db_host', '127.0.0.1')
-    db_port = context.get('db_port', 8080)
-    db_name = 'testdb' # Or get from context if set elsewhere
-    collection_name = 'test_collection' # Or get from context
-
-    # Ensure the database and collection exist
-    requests.put(f'http://{db_host}:{db_port}/{db_name}')
-    requests.put(f'http://{db_host}:{db_port}/{db_name}/{collection_name}')
-
-    # Create the document
-    doc_content = {'data': f'This is document {doc_id}'}
-    response = requests.put(f'http://{db_host}:{db_port}/{db_name}/{collection_name}/{doc_id}', json=doc_content)
-    response.raise_for_status()
+@step(r'Then the connector should fail with a connection error')
+def then_connector_fails_with_connection_error(context):
+    result = context['connector_result']
+    assert result['returncode'] != 0, "Expected a non-zero exit code for connection failure, but got 0."
+    error_msg = result['stderr'].lower()
+    assert "connect" in error_msg or "connection refused" in error_msg or "failed to create" in error_msg, \
+        f"Expected a connection error in stderr, but got: {result['stderr']}"
