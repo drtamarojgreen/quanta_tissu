@@ -29,8 +29,8 @@ using Value = std::variant<
     DateTime,
     BinaryData,
     std::vector<Element>,
-    std::unique_ptr<Array>,
-    std::unique_ptr<Object>
+    std::shared_ptr<Array>,
+    std::shared_ptr<Object>
 >;
 
 bool operator==(const Value& lhs, const Value& rhs);
