@@ -198,7 +198,7 @@ class BDDRunner:
                            test_more_database_steps, test_extended_database_steps, test_parser_steps,
                            test_model_integration_steps, test_integration_steps, test_update_delete_steps,
                            test_select_queries_steps, test_common_steps]:
-                module.register_steps(self.step)
+                module.register_steps(self)
             print("BDD Runner: All steps registered.")
             sys.stdout.flush()
 
@@ -250,42 +250,6 @@ class BDDRunner:
                         if not success:
                             scenario_success = False
                             overall_success = False
-                        self.report_data['steps_run'] += 1
-                        step_found = False
-                        for pattern, func in self.steps:
-                            match = pattern.match(step_line)
-                            if match:
-                                table = []
-                                while line_index < len(lines) and lines[line_index].strip().startswith('|'):
-                                    table.append(lines[line_index].strip())
-                                    line_index += 1
-
-                                print(f"    Executing step: {step_line}")
-                                sys.stdout.flush()
-                                try:
-                                    args = list(match.groups())
-                                    if table:
-                                        args.append(table)
-                                    func(context, *args)
-                                    self.report_data['steps_passed'] += 1
-                                except Exception as e:
-                                    tb = traceback.format_exc()
-                                    print(f"      ERROR executing step: {e}\n{tb}")
-                                    sys.stdout.flush()
-                                    self.report_data['steps_failed'] += 1
-                                    self.report_data['step_failures'].append({
-                                        'feature': feature_name,
-                                        'scenario': scenario_title,
-                                        'step': step_line,
-                                        'traceback': tb
-                                    })
-                                    scenario_success = False
-                                    overall_success = False
-                                step_found = True
-                                break
-                        if not step_found and step_line.startswith(('Given', 'When', 'Then', 'And', 'But')):
-                            print(f"    WARNING - No step definition found for line: {step_line}")
-                            sys.stdout.flush()
 
                     if scenario_success:
                         self.report_data['scenarios_passed'] += 1

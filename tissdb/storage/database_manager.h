@@ -14,8 +14,8 @@ public:
     ~DatabaseManager();
 
     // Creates a new database.
-    // Returns true if the database was created, false if it already existed.
-    bool create_database(const std::string& db_name);
+    // Throws a runtime_error if the database already exists.
+    void create_database(const std::string& db_name);
 
     // Deletes an existing database.
     // Throws a runtime_error if the database does not exist.
