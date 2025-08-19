@@ -17,7 +17,9 @@ enum class LogEntryType : uint8_t {
     PUT,
     DELETE,
     CREATE_COLLECTION,
-    DELETE_COLLECTION
+    DELETE_COLLECTION,
+    TXN_COMMIT,
+    TXN_ABORT
 };
 
 // Represents a single entry in the Write-Ahead Log.

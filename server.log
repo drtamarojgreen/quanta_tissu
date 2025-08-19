@@ -1,3 +1,1 @@
-TissDB starting...
-  - Data directory: tissdb_data
-A critical error occurred: Socket bind failed.
+-bash: ./tissdb/tissdb: No such file or directory

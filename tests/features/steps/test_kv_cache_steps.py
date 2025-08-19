@@ -9,8 +9,8 @@ from quanta_tissu.tisslm.model import QuantaTissu
 from quanta_tissu.tisslm.config import model_config
 from quanta_tissu.tisslm.tokenizer import Tokenizer
 
-def register_steps(step): # Changed
-    @step(r'^Given a model and tokenizer$') # Changed
+def register_steps(runner):
+    @runner.step(r'^Given a model and tokenizer$')
     def context(context):
         np.random.seed(42)
         model = QuantaTissu(model_config)
@@ -18,7 +18,7 @@ def register_steps(step): # Changed
         context['model'] = model
         context['tokenizer'] = tokenizer
 
-    @step(r'^When I generate text with a prompt "(.*)" and (\d+) new tokens using the KV cache$') # Changed
+    @runner.step(r'^When I generate text with a prompt "(.*)" and (\d+) new tokens using the KV cache$')
     def generate_with_cache(context, prompt, n_new_tokens):
         n_new_tokens = int(n_new_tokens)
         prompt_tokens = context['tokenizer'].tokenize(prompt)
@@ -31,7 +31,7 @@ def register_steps(step): # Changed
         context['prompt'] = prompt
         context['n_new_tokens'] = n_new_tokens
 
-    @step(r'^And I generate text with the same prompt and new tokens without the KV cache$') # Changed
+    @runner.step(r'^And I generate text with the same prompt and new tokens without the KV cache$')
     def generate_without_cache(context):
         prompt = context['prompt']
         n_new_tokens = context['n_new_tokens']
@@ -45,7 +45,7 @@ def register_steps(step): # Changed
             current_tokens.append(next_token_id)
         context['non_cached_generated_ids'] = non_cached_generated_ids
 
-    @step(r'^Then the generated tokens should be the same$') # Changed
+    @runner.step(r'^Then the generated tokens should be the same$')
     def compare_results(context):
         assert context['cached_generated_ids'] == context['non_cached_generated_ids']
         return "Test passed!"

@@ -3,7 +3,7 @@ Feature: TissDB Advanced Database Operations
   Scenario: Batch document insertion
     Given a running TissDB instance
     And a collection named "batch_collection" exists
-    When I insert the following documents into "batch_collection":
+    And I insert the following documents into "batch_collection":
       | id   | content                               |
       | doc1 | {"name": "First Document", "value": 1}  |
       | doc2 | {"name": "Second Document", "value": 2} |
