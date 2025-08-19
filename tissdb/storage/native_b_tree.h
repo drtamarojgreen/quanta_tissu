@@ -40,7 +40,19 @@ private:
     void insert_non_full(BTreeNode* node, const Key& key, const Value& value);
     void split_child(BTreeNode* parent, int index);
     std::optional<Value> find_recursive(BTreeNode* node, const Key& key);
-    // Erase methods would be here
+    // Erase methods
+    void erase_recursive(BTreeNode* node, const Key& key);
+    void remove_from_leaf(BTreeNode* node, int index);
+    void remove_from_non_leaf(BTreeNode* node, int index);
+    Key get_predecessor(BTreeNode* node, int index);
+    Value get_predecessor_value(BTreeNode* node, int index);
+    Key get_successor(BTreeNode* node, int index);
+    Value get_successor_value(BTreeNode* node, int index);
+    void fill(BTreeNode* node, int index);
+    void borrow_from_prev(BTreeNode* node, int index);
+    void borrow_from_next(BTreeNode* node, int index);
+    void merge(BTreeNode* node, int index);
+    int find_key(BTreeNode* node, const Key& key);
 };
 
 } // namespace Storage

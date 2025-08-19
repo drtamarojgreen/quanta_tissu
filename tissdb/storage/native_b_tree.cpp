@@ -101,7 +101,178 @@ std::optional<Value> BTree<Key, Value, Order>::find_recursive(BTreeNode* node, c
 
 template<typename Key, typename Value, int Order>
 void BTree<Key, Value, Order>::erase(const Key& key) {
-    // Placeholder for erase
+    if (!root_) return;
+    erase_recursive(root_.get(), key);
+    if (root_->keys.empty() && !root_->is_leaf) {
+        root_ = std::move(root_->children[0]);
+    }
+}
+
+template<typename Key, typename Value, int Order>
+int BTree<Key, Value, Order>::find_key(BTreeNode* node, const Key& key) {
+    int idx = 0;
+    while (idx < node->keys.size() && node->keys[idx] < key)
+        ++idx;
+    return idx;
+}
+
+template<typename Key, typename Value, int Order>
+void BTree<Key, Value, Order>::remove_from_leaf(BTreeNode* node, int index) {
+    node->keys.erase(node->keys.begin() + index);
+    node->values.erase(node->values.begin() + index);
+}
+
+template<typename Key, typename Value, int Order>
+void BTree<Key, Value, Order>::remove_from_non_leaf(BTreeNode* node, int index) {
+    Key key = node->keys[index];
+    if (node->children[index]->keys.size() >= Order) {
+        Key pred_key = get_predecessor(node, index);
+        Value pred_val = get_predecessor_value(node, index);
+        node->keys[index] = pred_key;
+        node->values[index] = pred_val;
+        erase_recursive(node->children[index].get(), pred_key);
+    } else if (node->children[index + 1]->keys.size() >= Order) {
+        Key succ_key = get_successor(node, index);
+        Value succ_val = get_successor_value(node, index);
+        node->keys[index] = succ_key;
+        node->values[index] = succ_val;
+        erase_recursive(node->children[index + 1].get(), succ_key);
+    } else {
+        merge(node, index);
+        erase_recursive(node->children[index].get(), key);
+    }
+}
+
+template<typename Key, typename Value, int Order>
+Key BTree<Key, Value, Order>::get_predecessor(BTreeNode* node, int index) {
+    BTreeNode* cur = node->children[index].get();
+    while (!cur->is_leaf)
+        cur = cur->children[cur->keys.size()].get();
+    return cur->keys.back();
+}
+
+template<typename Key, typename Value, int Order>
+Value BTree<Key, Value, Order>::get_predecessor_value(BTreeNode* node, int index) {
+    BTreeNode* cur = node->children[index].get();
+    while (!cur->is_leaf)
+        cur = cur->children[cur->keys.size()].get();
+    return cur->values.back();
+}
+
+template<typename Key, typename Value, int Order>
+Key BTree<Key, Value, Order>::get_successor(BTreeNode* node, int index) {
+    BTreeNode* cur = node->children[index + 1].get();
+    while (!cur->is_leaf)
+        cur = cur->children[0].get();
+    return cur->keys.front();
+}
+
+template<typename Key, typename Value, int Order>
+Value BTree<Key, Value, Order>::get_successor_value(BTreeNode* node, int index) {
+    BTreeNode* cur = node->children[index + 1].get();
+    while (!cur->is_leaf)
+        cur = cur->children[0].get();
+    return cur->values.front();
+}
+
+template<typename Key, typename Value, int Order>
+void BTree<Key, Value, Order>::fill(BTreeNode* node, int index) {
+    if (index != 0 && node->children[index - 1]->keys.size() >= Order)
+        borrow_from_prev(node, index);
+    else if (index != node->keys.size() && node->children[index + 1]->keys.size() >= Order)
+        borrow_from_next(node, index);
+    else {
+        if (index != node->keys.size())
+            merge(node, index);
+        else
+            merge(node, index - 1);
+    }
+}
+
+template<typename Key, typename Value, int Order>
+void BTree<Key, Value, Order>::borrow_from_prev(BTreeNode* node, int index) {
+    BTreeNode* child = node->children[index].get();
+    BTreeNode* sibling = node->children[index - 1].get();
+
+    child->keys.insert(child->keys.begin(), node->keys[index - 1]);
+    child->values.insert(child->values.begin(), node->values[index - 1]);
+
+    node->keys[index - 1] = sibling->keys.back();
+    node->values[index - 1] = sibling->values.back();
+
+    if (!child->is_leaf) {
+        child->children.insert(child->children.begin(), std::move(sibling->children.back()));
+        sibling->children.pop_back();
+    }
+
+    sibling->keys.pop_back();
+    sibling->values.pop_back();
+}
+
+template<typename Key, typename Value, int Order>
+void BTree<Key, Value, Order>::borrow_from_next(BTreeNode* node, int index) {
+    BTreeNode* child = node->children[index].get();
+    BTreeNode* sibling = node->children[index + 1].get();
+
+    child->keys.push_back(node->keys[index]);
+    child->values.push_back(node->values[index]);
+
+    node->keys[index] = sibling->keys.front();
+    node->values[index] = sibling->values.front();
+
+    if (!child->is_leaf) {
+        child->children.push_back(std::move(sibling->children.front()));
+        sibling->children.erase(sibling->children.begin());
+    }
+
+    sibling->keys.erase(sibling->keys.begin());
+    sibling->values.erase(sibling->values.begin());
+}
+
+template<typename Key, typename Value, int Order>
+void BTree<Key, Value, Order>::merge(BTreeNode* node, int index) {
+    BTreeNode* child = node->children[index].get();
+    BTreeNode* sibling = node->children[index + 1].get();
+
+    child->keys.push_back(node->keys[index]);
+    child->values.push_back(node->values[index]);
+
+    child->keys.insert(child->keys.end(), sibling->keys.begin(), sibling->keys.end());
+    child->values.insert(child->values.end(), sibling->values.begin(), sibling->values.end());
+
+    if (!child->is_leaf) {
+        child->children.insert(child->children.end(),
+                               std::make_move_iterator(sibling->children.begin()),
+                               std::make_move_iterator(sibling->children.end()));
+    }
+
+    node->keys.erase(node->keys.begin() + index);
+    node->values.erase(node->values.begin() + index);
+    node->children.erase(node->children.begin() + index + 1);
+}
+
+template<typename Key, typename Value, int Order>
+void BTree<Key, Value, Order>::erase_recursive(BTreeNode* node, const Key& key) {
+    int idx = find_key(node, key);
+
+    if (idx < node->keys.size() && node->keys[idx] == key) {
+        if (node->is_leaf)
+            remove_from_leaf(node, idx);
+        else
+            remove_from_non_leaf(node, idx);
+    } else {
+        if (node->is_leaf) return;
+
+        bool flag = (idx == node->keys.size());
+
+        if (node->children[idx]->keys.size() < Order)
+            fill(node, idx);
+
+        if (flag && idx > node->keys.size())
+            erase_recursive(node->children[idx - 1].get(), key);
+        else
+            erase_recursive(node->children[idx].get(), key);
+    }
 }
 
 template<typename Key, typename Value, int Order>
