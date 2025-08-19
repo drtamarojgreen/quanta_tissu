@@ -5,6 +5,7 @@
 #include <stdexcept> // For std::runtime_error
 #include <algorithm> // For std::find_if
 #include "lsm_tree.h" // For LSMTree pointer
+#include <filesystem>
 
 // Helper function to get a value from a document
 const TissDB::Value* get_value(const TissDB::Document& doc, const std::string& key) {
@@ -19,9 +20,9 @@ const TissDB::Value* get_value(const TissDB::Document& doc, const std::string& k
 namespace TissDB {
 namespace Storage {
 
-Collection::Collection(LSMTree* parent_db) : estimated_size(0), parent_db_(parent_db), indexer_(std::make_unique<Indexer>()) {}
+Collection::Collection(const std::string& name, LSMTree* parent_db) : Memtable(), name_(name), parent_db_(parent_db), indexer_(std::make_unique<Indexer>()) {}
 
-Collection::Collection(const std::string& path, LSMTree* parent_db) : estimated_size(0), parent_db_(parent_db), indexer_(std::make_unique<Indexer>()) {
+Collection::Collection(const std::string& name, const std::string& path, LSMTree* parent_db) : Memtable(), name_(name), parent_db_(parent_db), indexer_(std::make_unique<Indexer>()) {
     SSTable sstable(path);
     auto documents = sstable.scan();
     for (const auto& doc : documents) {
@@ -50,7 +51,13 @@ void Collection::create_index(const std::vector<std::string>& field_names) {
 }
 
 void Collection::shutdown() {
-    // TODO: Implement shutdown
+    if (parent_db_ && !data.empty()) {
+        std::string collection_path = parent_db_->get_path() + "/" + name_;
+        if (!std::filesystem::exists(collection_path)) {
+            std::filesystem::create_directories(collection_path);
+        }
+        SSTable::write_from_memtable(collection_path, *this);
+    }
 }
 
 void Collection::put(const std::string& key, const Document& doc) {
@@ -173,46 +180,6 @@ void Collection::del(const std::string& key) {
     data[key] = nullptr;
 }
 
-std::optional<std::shared_ptr<Document>> Collection::get(const std::string& key) {
-    LOG_DEBUG("GET key: " + key);
-    auto it = data.find(key);
-    if (it == data.end()) {
-        // The key is not in the collection at all.
-        return std::nullopt;
-    }
-    // The key is in the collection. The value could be a document or a tombstone (nullptr).
-    return it->second;
-}
-
-const std::map<std::string, std::shared_ptr<Document>>& Collection::get_all() const {
-    return data;
-}
-
-void Collection::clear() {
-    data.clear();
-    estimated_size = 0;
-}
-
-
-size_t Collection::approximate_size() const {
-    return estimated_size;
-}
-
-std::vector<Document> Collection::scan() const {
-    LOG_DEBUG("SCAN collection");
-    std::vector<Document> documents;
-    for (const auto& pair : data) {
-        if (pair.second) { // If it's a document, not a tombstone
-            documents.push_back(*pair.second);
-        } else {
-            // Tombstone
-            Document tombstone;
-            tombstone.id = pair.first;
-            documents.push_back(tombstone);
-        }
-    }
-    return documents;
-}
 
 
 } // namespace Storage

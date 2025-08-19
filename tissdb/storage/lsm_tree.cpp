@@ -17,7 +17,7 @@ void LSMTree::create_collection(const std::string& name, const TissDB::Schema& s
         throw std::runtime_error("Collection already exists: " + name);
     }
     LOG_INFO("Creating collection: " + name);
-    auto collection = std::make_unique<Collection>(this);
+    auto collection = std::make_unique<Collection>(name, this);
     collection->set_schema(schema);
     collections_[name] = std::move(collection);
 }
@@ -110,6 +110,10 @@ Collection& LSMTree::get_collection(const std::string& name) {
     return *it->second;
 }
 
+const std::string& LSMTree::get_path() const {
+    return path_;
+}
+
 const Collection& LSMTree::get_collection(const std::string& name) const {
     auto it = collections_.find(name);
     if (it == collections_.end()) {
@@ -156,7 +160,9 @@ std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::
 }
 
 void LSMTree::shutdown() {
-    // Placeholder: Implement shutdown logic
+    for (auto const& [name, collection] : collections_) {
+        collection->shutdown();
+    }
 }
 
 } // namespace Storage

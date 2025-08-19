@@ -46,8 +46,7 @@ public:
     // Scans all documents in the memtable.
     std::vector<Document> scan() const;
 
-private:
-    size_t max_size_in_bytes;
+protected:
     // We use a sorted map to store documents in memory. The key is the document ID.
     // A shared_ptr to a Document allows us to distinguish between:
     // 1. Key not present -> map::find() returns end()
@@ -55,6 +54,9 @@ private:
     // 3. Key present but deleted -> null shared_ptr (tombstone)
     std::map<std::string, std::shared_ptr<Document>> data;
     size_t estimated_size;
+
+private:
+    size_t max_size_in_bytes;
 };
 
 } // namespace Storage
