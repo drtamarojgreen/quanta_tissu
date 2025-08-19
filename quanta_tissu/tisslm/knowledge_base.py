@@ -32,13 +32,14 @@ class KnowledgeBase:
         try:
             # Create the database
             response = requests.put(f"{self.base_url}/{self.db_name}")
-            if response.status_code not in [201, 200, 409]: # 409 if it already exists, which is fine
+            # The server may incorrectly return 500 when the DB already exists.
+            if response.status_code not in [201, 200, 409] and "already exists" not in response.text:
                  response.raise_for_status()
 
             # Create the collection
             collection_name = "knowledge"
             response = requests.put(f"{self.base_url}/{self.db_name}/{collection_name}")
-            if response.status_code not in [201, 200, 409]:
+            if response.status_code not in [201, 200, 409] and "already exists" not in response.text:
                  response.raise_for_status()
 
             print("Database and collection setup complete.")
@@ -48,10 +49,10 @@ class KnowledgeBase:
 
     def _embed_text(self, text):
         """Generates an embedding for a text by averaging its token embeddings."""
-        token_ids = self.tokenizer(text)
+        token_ids = self.tokenizer.tokenize(text)
         if token_ids.size == 0:
             return np.zeros(self.model_embeddings.shape[1])
-        embeddings = self.model_embeddings[token_ids]
+        embeddings = self.model_embeddings.value[token_ids]
         return np.mean(embeddings, axis=0)
 
     def add_document(self, text, metadata=None):

@@ -92,9 +92,7 @@ def register_steps(runner):
         response = requests.get(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}")
         assert response.status_code == 200
         actual_content = response.json()
-        # Replace null with None for Python compatibility
-        expected_content_str = expected_content_str.replace('null', 'None')
-        expected_content = eval(expected_content_str)
+        expected_content = json.loads(expected_content_str)
         for key, value in expected_content.items():
             assert key in actual_content
             assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
