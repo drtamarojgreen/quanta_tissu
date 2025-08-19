@@ -17,6 +17,7 @@ SRCS = main.cpp \
        api/http_server.cpp \
        common/binary_stream_buffer.cpp \
        common/checksum.cpp \
+       common/document.cpp \
        common/serialization.cpp \
        common/schema_validator.cpp \
        json/json.cpp \
