@@ -24,9 +24,9 @@ DatabaseManager::DatabaseManager(const std::string& base_path) : base_data_path_
 
 DatabaseManager::~DatabaseManager() = default;
 
-void DatabaseManager::create_database(const std::string& db_name) {
+bool DatabaseManager::create_database(const std::string& db_name) {
     if (database_exists(db_name)) {
-        throw std::runtime_error("Database '" + db_name + "' already exists.");
+        return false; // Database already exists.
     }
 
     std::string db_path = (fs::path(base_data_path_) / db_name).string();
@@ -38,11 +38,12 @@ void DatabaseManager::create_database(const std::string& db_name) {
 
     // Update the manifest on disk
     save_manifest((fs::path(base_data_path_) / "manifest.json").string(), databases_);
+    return true;
 }
 
 void DatabaseManager::delete_database(const std::string& db_name) {
     if (!database_exists(db_name)) {
-        throw std::runtime_error("Database '" + db_name + "' not found.");
+        return; // It's okay to try to delete a non-existent database.
     }
 
     databases_.erase(db_name);
