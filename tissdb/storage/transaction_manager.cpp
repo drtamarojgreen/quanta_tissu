@@ -1,5 +1,6 @@
 #include "transaction_manager.h"
 #include "lsm_tree.h"
+#include "wal.h"
 #include <stdexcept>
 
 namespace TissDB {
@@ -19,7 +20,17 @@ void TransactionManager::commit_transaction(TransactionID tid) {
         throw std::runtime_error("Cannot commit transaction: not active or does not exist.");
     }
 
-    const auto& operations = it->second->get_operations();
+    auto& transaction = it->second;
+    const auto& operations = transaction->get_operations();
+
+    // 1. Write to WAL first
+    Storage::LogEntry commit_entry;
+    commit_entry.type = Storage::LogEntryType::TXN_COMMIT;
+    commit_entry.transaction_id = tid;
+    commit_entry.operations = operations;
+    lsm_tree_.get_wal().append(commit_entry);
+
+    // 2. Apply to in-memory store
     for (const auto& op : operations) {
         if (op.type == OperationType::PUT) {
             lsm_tree_.put(op.collection_name, op.key, op.doc, -1);
@@ -28,7 +39,7 @@ void TransactionManager::commit_transaction(TransactionID tid) {
         }
     }
 
-    it->second->set_state(Transaction::State::COMMITTED);
+    transaction->set_state(Transaction::State::COMMITTED);
     transactions_.erase(it);
 }
 
@@ -36,9 +47,14 @@ void TransactionManager::rollback_transaction(TransactionID tid) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = transactions_.find(tid);
     if (it == transactions_.end() || it->second->get_state() != Transaction::State::ACTIVE) {
-         // It's okay to roll back a non-existent or already-completed transaction.
-        return;
+        return; // Idempotent
     }
+
+    Storage::LogEntry abort_entry;
+    abort_entry.type = Storage::LogEntryType::TXN_ABORT;
+    abort_entry.transaction_id = tid;
+    lsm_tree_.get_wal().append(abort_entry);
+
     it->second->set_state(Transaction::State::ABORTED);
     transactions_.erase(it);
 }
