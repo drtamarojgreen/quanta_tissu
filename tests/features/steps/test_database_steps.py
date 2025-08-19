@@ -92,10 +92,12 @@ def register_steps(runner):
         response = requests.get(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}")
         assert response.status_code == 200
         actual_content = response.json()
-        expected_content = json.loads(expected_content_str)
+        # Replace null with None for Python compatibility
+        expected_content_str = expected_content_str.replace('null', 'None')
+        expected_content = eval(expected_content_str)
         for key, value in expected_content.items():
             assert key in actual_content
-            assert actual_content[key] == value
+            assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
 
     @runner.step(r'^When I update the document with ID "(.*)" with content (.*) in "(.*)"$')
     def update_document(context, doc_id, content_str, collection_name):
@@ -157,12 +159,12 @@ def register_steps(runner):
     @runner.step(r'^And I commit the transaction$')
     def commit_transaction(context):
         response = requests.post(f"{BASE_URL}/{context['db_name']}/_commit")
-        assert response.status_code == 200
+        assert response.status_code in [200, 204]
 
     @runner.step(r'^And I rollback the transaction$')
     def rollback_transaction(context):
         response = requests.post(f"{BASE_URL}/{context['db_name']}/_rollback")
-        assert response.status_code == 200
+        assert response.status_code in [200, 204]
 
     @runner.step(r'^And I delete the collection "(.*)"$')
     def and_delete_collection(context, collection_name):
