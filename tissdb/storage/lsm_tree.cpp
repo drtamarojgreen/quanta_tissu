@@ -41,20 +41,16 @@ void LSMTree::recover() {
     for (const auto& entry : log_entries) {
         switch (entry.type) {
             case LogEntryType::PUT:
-                if (entry.transaction_id == -1) {
-                    put(entry.collection_name, entry.document_id, entry.doc, -1, true);
-                }
+                put(entry.collection_name, entry.document_id, entry.doc, -1, true);
                 break;
             case LogEntryType::DELETE:
-                if (entry.transaction_id == -1) {
-                    del(entry.collection_name, entry.document_id, -1, true);
-                }
+                del(entry.collection_name, entry.document_id, -1, true);
                 break;
             case LogEntryType::CREATE_COLLECTION:
-                if (!collections_.count(entry.collection_name)) {
-                    create_collection(entry.collection_name, {}); // Assuming default schema
-                } else {
-                    LOG_WARNING("Recovery: Attempted to re-create collection '" + entry.collection_name + "' which already exists. Skipping.");
+                try {
+                    create_collection(entry.collection_name, {}, true);
+                } catch (const std::runtime_error& e) {
+                    LOG_WARNING("During WAL replay, could not create collection '" + entry.collection_name + "': " + e.what());
                 }
                 break;
             case LogEntryType::TXN_COMMIT:
@@ -91,7 +87,7 @@ void LSMTree::create_collection(const std::string& name, const TissDB::Schema& s
         LogEntry entry;
         entry.type = LogEntryType::CREATE_COLLECTION;
         entry.collection_name = name;
-        entry.schema_data = TissDB::serialize(schema);
+        // Note: Schema is not persisted in the WAL.
         wal_->append(entry);
     }
 
@@ -137,6 +133,14 @@ void LSMTree::put(const std::string& collection_name, const std::string& key, co
             wal_->append(entry);
         }
 
+        try {
+            Collection& collection = get_collection(collection_name);
+            collection.put(key, doc);
+        } catch (const std::runtime_error& e) {
+            // Collection not found, ignore.
+            // The WAL entry is still written, which is acceptable.
+        }
+
         Collection& collection = get_collection(collection_name);
         collection.put(key, doc);
     }
@@ -169,7 +173,7 @@ std::vector<Document> LSMTree::get_many(const std::string& collection_name, cons
 }
 
 
-bool LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid, bool is_recovery) {
+void LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid, bool is_recovery) {
     if (tid != -1) {
         transaction_manager_.add_delete_operation(tid, collection_name, key);
         return true; // Assume success for transactional deletes for now
