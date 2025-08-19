@@ -32,8 +32,8 @@ public:
 
     // Placeholder for Sort-Merge Join
     static std::vector<Document> sortMergeJoin(
-        const std::vector<Document>& left_table,
-        const std::vector<Document>& right_table,
+        std::vector<Document> left_table,
+        std::vector<Document> right_table,
         const std::string& left_join_key,
         const std::string& right_join_key
     );
