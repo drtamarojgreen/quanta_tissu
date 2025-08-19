@@ -4,7 +4,7 @@ import json
 BASE_URL = "http://localhost:8080"
 
 def register_steps(runner):
-    @runner.step(r'I insert the following documents into "([^"]*)":')
+    @runner.step(r'^And I insert the following documents into "([^"]*)":')
     def insert_documents(context, collection_name, table):
         db_name = context.get('db_name', 'testdb')
         headers = [h.strip() for h in table[0].strip('|').split('|')]
@@ -22,6 +22,17 @@ def register_steps(runner):
                 content = json.loads(doc['content'])
             else:
                 content = {k: v for k, v in doc.items() if k != 'id'}
+
+            # Attempt to convert string values to numbers
+            for key, value in content.items():
+                if isinstance(value, str):
+                    try:
+                        content[key] = int(value)
+                    except ValueError:
+                        try:
+                            content[key] = float(value)
+                        except ValueError:
+                            pass # Keep as string if it's not a valid number
 
             response = requests.put(f"{BASE_URL}/{db_name}/{collection_name}/{doc_id}", json=content)
             response.raise_for_status()

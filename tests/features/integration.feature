@@ -21,10 +21,7 @@ Feature: TissDB and TissLM Integration
     And a retrieved context from TissDB: "A Log-Structured Merge-Tree (LSM-Tree) is a data structure with performance characteristics that make it attractive for write-heavy workloads."
 
     When the TissLM augments the prompt with the retrieved context
-    Then the final prompt sent to the language model should be:
-      """
-      context: {A Log-Structured Merge-Tree (LSM-Tree) is a data structure with performance characteristics that make it attractive for write-heavy workloads.} question: {What is a Log-Structured Merge-Tree?}
-      """
+    Then the final prompt sent to the language model should be "context: {A Log-Structured Merge-Tree (LSM-Tree) is a data structure with performance characteristics that make it attractive for write-heavy workloads.} question: {What is a Log-Structured Merge-Tree?}"
 
   Scenario: Sinew C++ client interaction pattern with TissDB
     # This scenario simulates the interaction of a C++ application using the Sinew client.

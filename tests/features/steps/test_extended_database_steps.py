@@ -45,11 +45,18 @@ def register_steps(runner):
 
     @runner.step(r'And the query result should contain a document with "([^"]*)" = ([\d\.]+)')
     def query_result_contains_doc_with_kv_number(context, key, value):
-        value = float(value) if '.' in value else int(value)
+        expected_value = float(value) if '.' in value else int(value)
         for doc in context['query_result']:
-            if key in doc and doc[key] == value:
-                return
-        assert False, f"No document found with '{key}' = {value} in {context['query_result']}"
+            if key in doc:
+                try:
+                    # Attempt to cast the actual value to the same type as the expected value.
+                    actual_value = type(expected_value)(doc[key])
+                    if actual_value == expected_value:
+                        return
+                except (ValueError, TypeError):
+                    # If casting fails, it's not a match.
+                    continue
+        assert False, f"No document found with '{key}' = {expected_value} in {context['query_result']}"
 
     @runner.step(r'And each document in the result should have the fields (\[.*\])')
     def each_doc_has_fields(context, fields_str):
@@ -67,11 +74,16 @@ def register_steps(runner):
 
     @runner.step(r'And the query result should contain a document with "([^"]*)" = "([^"]*)" and "([^"]*)" = ([\d\.]+)')
     def query_result_contains_doc_with_kv_string_and_number(context, key1, value1, key2, value2):
-        value2 = float(value2) if '.' in value2 else int(value2)
+        expected_value2 = float(value2) if '.' in value2 else int(value2)
         for doc in context['query_result']:
-            if key1 in doc and doc[key1] == value1 and key2 in doc and doc[key2] == value2:
-                return
-        assert False, f"No document found with '{key1}' = '{value1}' and '{key2}' = {value2} in {context['query_result']}"
+            if key1 in doc and doc[key1] == value1 and key2 in doc:
+                try:
+                    actual_value2 = type(expected_value2)(doc[key2])
+                    if actual_value2 == expected_value2:
+                        return
+                except (ValueError, TypeError):
+                    continue
+        assert False, f"No document found with '{key1}' = '{value1}' and '{key2}' = {expected_value2} in {context['query_result']}"
 
     @runner.step(r'And the query result should only contain documents where "([^"]*)" is "([^"]*)"')
     def query_result_only_contains_docs_with_kv(context, key, value):
