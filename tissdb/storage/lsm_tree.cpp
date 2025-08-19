@@ -5,9 +5,9 @@
 namespace TissDB {
 namespace Storage {
 
-LSMTree::LSMTree() : path_("") {}
+LSMTree::LSMTree() : path_(""), transaction_manager_(*this) {}
 
-LSMTree::LSMTree(const std::string& path) : path_(path) {}
+LSMTree::LSMTree(const std::string& path) : path_(path), transaction_manager_(*this) {}
 
 LSMTree::~LSMTree() {}
 
@@ -37,12 +37,16 @@ std::vector<std::string> LSMTree::list_collections() const {
     return names;
 }
 
-void LSMTree::put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID /*tid*/) {
-    try {
-        Collection& collection = get_collection(collection_name);
-        collection.put(key, doc);
-    } catch (const std::runtime_error& e) {
-        // Collection not found, ignore
+void LSMTree::put(const std::string& collection_name, const std::string& key, const Document& doc, Transactions::TransactionID tid) {
+    if (tid != -1) {
+        transaction_manager_.add_put_operation(tid, collection_name, key, doc);
+    } else {
+        try {
+            Collection& collection = get_collection(collection_name);
+            collection.put(key, doc);
+        } catch (const std::runtime_error& e) {
+            // Collection not found, ignore
+        }
     }
 }
 
@@ -73,12 +77,16 @@ std::vector<Document> LSMTree::get_many(const std::string& collection_name, cons
 }
 
 
-void LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID /*tid*/) {
-    try {
-        Collection& collection = get_collection(collection_name);
-        collection.del(key);
-    } catch (const std::runtime_error& e) {
-        // Collection not found, ignore
+void LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid) {
+    if (tid != -1) {
+        transaction_manager_.add_delete_operation(tid, collection_name, key);
+    } else {
+        try {
+            Collection& collection = get_collection(collection_name);
+            collection.del(key);
+        } catch (const std::runtime_error& e) {
+            // Collection not found, ignore
+        }
     }
 }
 
@@ -124,18 +132,15 @@ std::vector<std::string> LSMTree::find_by_index(const std::string& /*collection_
 }
 
 Transactions::TransactionID LSMTree::begin_transaction() {
-    // Placeholder: Implement transaction begin logic
-    throw std::runtime_error("begin_transaction not yet implemented");
+    return transaction_manager_.begin_transaction();
 }
 
-void LSMTree::commit_transaction(Transactions::TransactionID /*transaction_id*/) {
-    // Placeholder: Implement transaction commit logic
-    throw std::runtime_error("commit_transaction not yet implemented");
+void LSMTree::commit_transaction(Transactions::TransactionID transaction_id) {
+    transaction_manager_.commit_transaction(transaction_id);
 }
 
-void LSMTree::rollback_transaction(Transactions::TransactionID /*transaction_id*/) {
-    // Placeholder: Implement transaction rollback logic
-    throw std::runtime_error("rollback_transaction not yet implemented");
+void LSMTree::rollback_transaction(Transactions::TransactionID transaction_id) {
+    transaction_manager_.rollback_transaction(transaction_id);
 }
 
 bool LSMTree::has_index(const std::string& /*collection_name*/, const std::vector<std::string>& /*field_names*/) {
