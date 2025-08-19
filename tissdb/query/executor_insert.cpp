@@ -2,7 +2,6 @@
 #include <stdexcept>
 #include <chrono>
 #include <random>
-#include <type_traits>
 
 namespace TissDB {
 namespace Query {
@@ -32,7 +31,7 @@ QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertSta
                 new_element.value = arg;
             }
         }, value);
-        new_doc.elements.push_back(std::move(new_element));
+        new_doc.elements.push_back(new_element);
     }
 
     storage_engine.put(insert_stmt.collection_name, new_doc.id, new_doc);
