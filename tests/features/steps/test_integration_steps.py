@@ -64,7 +64,7 @@ def register_steps(runner):
     def when_tisslm_augments_prompt(context):
         context['final_prompt'] = f"context: {{{context['retrieved_context']}}} question: {{{context['user_prompt']}}}"
 
-    @runner.step(r'Then the final prompt sent to the language model should be:\s*"""([\s\S]*?)"""')
+    @runner.step(r'^Then the final prompt sent to the language model should be "(.*)"$')
     def then_final_prompt_should_be(context, expected_prompt):
         normalized_actual = re.sub(r'\s+', ' ', context['final_prompt']).strip()
         normalized_expected = re.sub(r'\s+', ' ', expected_prompt).strip()
