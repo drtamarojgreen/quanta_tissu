@@ -42,6 +42,12 @@ class KnowledgeBase:
                 if response.status_code not in [201, 200, 409] and "already exists" not in response.text:
                     response.raise_for_status()
 
+            # Create the feedback collection
+            collection_name = "feedback"
+            response = requests.put(f"{self.base_url}/{self.db_name}/{collection_name}")
+            if response.status_code not in [201, 200, 409] and "already exists" not in response.text:
+                 response.raise_for_status()
+
             print("Database and collection setup complete.")
         except requests.exceptions.RequestException as e:
             print(f"Database setup failed: {e}")
