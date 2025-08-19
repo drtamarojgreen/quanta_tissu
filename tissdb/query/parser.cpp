@@ -36,7 +36,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
                 i++;
             }
             new_tokens.push_back(Token{Token::Type::STRING_LITERAL, query_string.substr(start, i - start)});
-        } else if (query_string[i] == '=' || query_string[i] == '!' || query_string[i] == '<' || query_string[i] == '>') {
+        } else if (query_string[i] == '=' || query_string[i] == '!' || query_string[i] == '<' || query_string[i] == '>' || query_string[i] == '+' || query_string[i] == '-' || query_string[i] == '*' || query_string[i] == '/') {
             size_t start = i;
             if (i + 1 < query_string.length() && query_string[i + 1] == '=') {
                 i++;
@@ -44,8 +44,6 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             new_tokens.push_back(Token{Token::Type::OPERATOR, query_string.substr(start, i - start + 1)});
         } else if (query_string[i] == ',' || query_string[i] == '(' || query_string[i] == ')') {
             new_tokens.push_back(Token{Token::Type::OPERATOR, std::string(1, query_string[i])});
-        } else if (query_string[i] == '*') {
-            new_tokens.push_back(Token{Token::Type::OPERATOR, "*"});
         }
     }
     new_tokens.push_back(Token{Token::Type::EOI, ""});
@@ -238,13 +236,13 @@ std::optional<Expression> Parser::parse_where_clause() {
     return std::nullopt;
 }
 
-std::vector<std::pair<std::string, Literal>> Parser::parse_set_clause() {
-    std::vector<std::pair<std::string, Literal>> set_clause;
+std::vector<std::pair<std::string, Expression>> Parser::parse_set_clause() {
+    std::vector<std::pair<std::string, Expression>> set_clause;
     do {
         auto identifier = consume();
         expect(Token::Type::OPERATOR, "=");
-        auto literal = consume();
-        set_clause.push_back({identifier.value, literal.value});
+        auto value_expr = parse_expression();
+        set_clause.push_back({identifier.value, std::move(value_expr)});
         if (peek().type == Token::Type::OPERATOR && peek().value == ",") {
             consume();
         } else {
@@ -367,16 +365,18 @@ Expression Parser::parse_expression(int precedence) {
         auto op = peek().value;
         int new_precedence = 0;
         if (op == "AND" || op == "OR") new_precedence = 1;
-        if (op == "=" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=" || op == "LIKE") new_precedence = 2;
+        else if (op == "=" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=" || op == "LIKE") new_precedence = 2;
+        else if (op == "+" || op == "-") new_precedence = 3;
+        else if (op == "*" || op == "/") new_precedence = 4;
 
-        if (new_precedence <= precedence) break;
+        if (new_precedence == 0 || new_precedence <= precedence) break;
 
         consume();
         auto right = parse_expression(new_precedence);
         if (op == "AND" || op == "OR") {
-            left = std::make_unique<LogicalExpression>(LogicalExpression{std::move(left), op, std::move(right)});
+            left = std::make_shared<LogicalExpression>(LogicalExpression{std::move(left), op, std::move(right)});
         } else {
-            left = std::make_unique<BinaryExpression>(BinaryExpression{std::move(left), op, std::move(right)});
+            left = std::make_shared<BinaryExpression>(BinaryExpression{std::move(left), op, std::move(right)});
         }
     }
 
