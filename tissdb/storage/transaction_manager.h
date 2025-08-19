@@ -8,7 +8,6 @@
 #include <string>
 
 #include "../common/document.h"
-#include "../common/operation.h"
 
 namespace TissDB {
 
@@ -19,6 +18,18 @@ class LSMTree; // Forward declaration
 namespace Transactions {
 
 using TransactionID = int;
+
+enum class OperationType {
+    PUT,
+    DELETE
+};
+
+struct Operation {
+    OperationType type;
+    std::string collection_name;
+    std::string key;
+    Document doc; // Used for PUT
+};
 
 class Transaction {
 public:
@@ -58,7 +69,7 @@ public:
     void add_put_operation(TransactionID tid, std::string collection, std::string key, Document doc);
     void add_delete_operation(TransactionID tid, std::string collection, std::string key);
 
-    const std::unordered_map<TransactionID, std::unique_ptr<Transaction>>& get_transactions() const;
+    const Transaction* get_transaction(TransactionID tid) const;
 
 private:
     Storage::LSMTree& lsm_tree_;

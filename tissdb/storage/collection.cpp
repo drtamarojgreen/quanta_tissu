@@ -182,5 +182,24 @@ void Collection::del(const std::string& key) {
 
 
 
+// --- Indexing ---
+
+std::vector<std::string> Collection::find_by_index(const std::string& field_name, const std::string& value) const {
+    return indexer_->find_by_index(field_name, value);
+}
+
+std::vector<std::string> Collection::find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const {
+    return indexer_->find_by_index(field_names, values);
+}
+
+bool Collection::has_index(const std::vector<std::string>& field_names) const {
+    return indexer_->has_index(field_names);
+}
+
+std::vector<std::vector<std::string>> Collection::get_available_indexes() const {
+    return indexer_->get_available_indexes();
+}
+
+
 } // namespace Storage
 } // namespace TissDB

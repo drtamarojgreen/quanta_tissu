@@ -1,6 +1,5 @@
 #include "transaction_manager.h"
 #include "lsm_tree.h"
-#include "wal.h"
 #include <stdexcept>
 
 namespace TissDB {
@@ -20,17 +19,7 @@ void TransactionManager::commit_transaction(TransactionID tid) {
         throw std::runtime_error("Cannot commit transaction: not active or does not exist.");
     }
 
-    auto& transaction = it->second;
-    const auto& operations = transaction->get_operations();
-
-    // 1. Write to WAL first
-    Storage::LogEntry commit_entry;
-    commit_entry.type = Storage::LogEntryType::TXN_COMMIT;
-    commit_entry.transaction_id = tid;
-    commit_entry.operations = operations;
-    lsm_tree_.get_wal().append(commit_entry);
-
-    // 2. Apply to in-memory store
+    const auto& operations = it->second->get_operations();
     for (const auto& op : operations) {
         if (op.type == OperationType::PUT) {
             lsm_tree_.put(op.collection_name, op.key, op.doc, -1);
@@ -39,7 +28,7 @@ void TransactionManager::commit_transaction(TransactionID tid) {
         }
     }
 
-    transaction->set_state(Transaction::State::COMMITTED);
+    it->second->set_state(Transaction::State::COMMITTED);
     transactions_.erase(it);
 }
 
@@ -47,14 +36,9 @@ void TransactionManager::rollback_transaction(TransactionID tid) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = transactions_.find(tid);
     if (it == transactions_.end() || it->second->get_state() != Transaction::State::ACTIVE) {
-        return; // Idempotent
+         // It's okay to roll back a non-existent or already-completed transaction.
+        return;
     }
-
-    Storage::LogEntry abort_entry;
-    abort_entry.type = Storage::LogEntryType::TXN_ABORT;
-    abort_entry.transaction_id = tid;
-    lsm_tree_.get_wal().append(abort_entry);
-
     it->second->set_state(Transaction::State::ABORTED);
     transactions_.erase(it);
 }
@@ -77,8 +61,13 @@ void TransactionManager::add_delete_operation(TransactionID tid, std::string col
     it->second->add_operation({OperationType::DELETE, std::move(collection), std::move(key), {}});
 }
 
-const std::unordered_map<TransactionID, std::unique_ptr<Transaction>>& TransactionManager::get_transactions() const {
-    return transactions_;
+const Transaction* TransactionManager::get_transaction(TransactionID tid) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = transactions_.find(tid);
+    if (it != transactions_.end()) {
+        return it->second.get();
+    }
+    return nullptr;
 }
 
 } // namespace Transactions
