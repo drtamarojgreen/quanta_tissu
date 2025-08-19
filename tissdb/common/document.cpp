@@ -15,15 +15,20 @@ bool operator==(const Value& lhs, const Value& rhs) {
     return std::visit(
         [](const auto& a, const auto& b) -> bool {
             using T = std::decay_t<decltype(a)>;
+            using U = std::decay_t<decltype(b)>;
 
-            if constexpr (std::is_same_v<T, std::unique_ptr<Array>>) {
-                if (a && b) return *a == *b;
-                return !a && !b;
-            } else if constexpr (std::is_same_v<T, std::unique_ptr<Object>>) {
-                if (a && b) return *a == *b;
-                return !a && !b;
+            if constexpr (std::is_same_v<T, U>) {
+                if constexpr (std::is_same_v<T, std::unique_ptr<Array>>) {
+                    if (a && b) return *a == *b;
+                    return !a && !b;
+                } else if constexpr (std::is_same_v<T, std::unique_ptr<Object>>) {
+                    if (a && b) return *a == *b;
+                    return !a && !b;
+                } else {
+                    return a == b;
+                }
             } else {
-                return a == b;
+                return false;
             }
         },
         lhs, rhs);
