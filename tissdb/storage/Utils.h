@@ -90,6 +90,25 @@ namespace bp_tree_utils {
         return val;
     }
 
+    // Template specialization for std::string
+    template<>
+    inline void writeValLittle<std::string>(const std::string &val, FILE *stream) {
+        size_t len = val.length();
+        writeValLittle(len, stream);
+        fwrite(val.c_str(), 1, len, stream);
+    }
+
+    template<>
+    inline std::string readValLittle<std::string>(FILE *stream) {
+        size_t len = readValLittle<size_t>(stream);
+        if (len > 0) {
+            std::vector<char> buf(len);
+            fread(buf.data(), 1, len, stream);
+            return std::string(buf.data(), len);
+        }
+        return "";
+    }
+
     template<typename T>
     T readVal(FILE *stream) {
         T val;
