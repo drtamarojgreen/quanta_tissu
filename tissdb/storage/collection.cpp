@@ -3,6 +3,7 @@
 #include "../common/serialization.h" // For calculating document size accurately
 #include <stdexcept> // For std::runtime_error
 #include <algorithm> // For std::find_if
+#include "lsm_tree.h" // For LSMTree pointer
 
 // Helper function to get a value from a document
 const TissDB::Value* get_value(const TissDB::Document& doc, const std::string& key) {
@@ -16,8 +17,6 @@ const TissDB::Value* get_value(const TissDB::Document& doc, const std::string& k
 
 namespace TissDB {
 namespace Storage {
-
-#include "lsm_tree.h" // For LSMTree pointer
 
 Collection::Collection(LSMTree* parent_db) : estimated_size(0), parent_db_(parent_db) {}
 
