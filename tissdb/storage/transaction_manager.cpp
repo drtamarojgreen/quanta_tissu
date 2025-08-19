@@ -1,4 +1,5 @@
 #include "transaction_manager.h"
+#include "lsm_tree.h"
 #include <stdexcept>
 
 namespace TissDB {
@@ -17,9 +18,17 @@ void TransactionManager::commit_transaction(TransactionID tid) {
     if (it == transactions_.end() || it->second->get_state() != Transaction::State::ACTIVE) {
         throw std::runtime_error("Cannot commit transaction: not active or does not exist.");
     }
+
+    const auto& operations = it->second->get_operations();
+    for (const auto& op : operations) {
+        if (op.type == OperationType::PUT) {
+            lsm_tree_.put(op.collection_name, op.key, op.doc, -1);
+        } else if (op.type == OperationType::DELETE) {
+            lsm_tree_.del(op.collection_name, op.key, -1);
+        }
+    }
+
     it->second->set_state(Transaction::State::COMMITTED);
-    // In a real system, we might keep committed transactions for a while for recovery.
-    // Here we'll just remove it.
     transactions_.erase(it);
 }
 

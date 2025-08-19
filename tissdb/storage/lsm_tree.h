@@ -55,6 +55,7 @@ public:
 private:
     std::map<std::string, std::unique_ptr<Collection>> collections_;
     std::string path_;
+    Transactions::TransactionManager transaction_manager_;
 };
 
 } // namespace Storage

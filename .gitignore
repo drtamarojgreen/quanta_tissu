@@ -14,3 +14,6 @@ dist/
 *.out
 test_sinew_app
 tissdb/tissdb
+tissdb/test_tissdb
+*_test_data/
+*.bin
