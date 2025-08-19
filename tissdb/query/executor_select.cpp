@@ -1,5 +1,6 @@
 #include "executor_select.h"
 #include "executor_common.h"
+#include "../common/checksum.h"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -18,17 +19,22 @@ struct GroupKeyVisitor {
     void operator()(const DateTime& dt) const {
         ss << std::chrono::duration_cast<std::chrono::milliseconds>(dt.time_since_epoch()).count();
     }
-    void operator()(const BinaryData& /*bd*/) const {
+    void operator()(const BinaryData& bd) const {
         // Note: Grouping by binary data is tricky.
         // A proper implementation might hash the data.
-        // For now, we'll use a placeholder.
-        ss << "[binary_data]";
+        ss << "hash:" << TissDB::Common::crc32(bd.data(), bd.size());
     }
-    void operator()(const std::vector<TissDB::Element>& /*elements*/) const {
+    void operator()(const std::vector<TissDB::Element>& elements) const {
         // Note: Grouping by a whole sub-document is also tricky.
         // A proper implementation might serialize and hash.
         // For now, we'll use a placeholder.
-        ss << "[sub_document]";
+        ss << "[";
+        for (const auto& elem : elements) {
+            ss << "{" << elem.key << ":";
+            std::visit(*this, elem.value);
+            ss << "}";
+        }
+        ss << "]";
     }
 };
 

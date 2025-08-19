@@ -1,9 +1,11 @@
 #include "collection.h"
 #include "../common/log.h"
 #include "../common/serialization.h" // For calculating document size accurately
+#include "sstable.h" // For loading from disk
 #include <stdexcept> // For std::runtime_error
 #include <algorithm> // For std::find_if
 #include "lsm_tree.h" // For LSMTree pointer
+#include <filesystem>
 
 // Helper function to get a value from a document
 const TissDB::Value* get_value(const TissDB::Document& doc, const std::string& key) {
@@ -18,10 +20,20 @@ const TissDB::Value* get_value(const TissDB::Document& doc, const std::string& k
 namespace TissDB {
 namespace Storage {
 
-Collection::Collection(LSMTree* parent_db) : estimated_size(0), parent_db_(parent_db) {}
+Collection::Collection(const std::string& name, LSMTree* parent_db) : Memtable(), name_(name), parent_db_(parent_db), indexer_(std::make_unique<Indexer>()) {}
 
-Collection::Collection(const std::string& path, LSMTree* parent_db) : estimated_size(0), parent_db_(parent_db) {
-    // TODO: Implement loading collection from path
+Collection::Collection(const std::string& name, const std::string& path, LSMTree* parent_db) : Memtable(), name_(name), parent_db_(parent_db), indexer_(std::make_unique<Indexer>()) {
+    SSTable sstable(path);
+    auto documents = sstable.scan();
+    for (const auto& doc : documents) {
+        if (!doc.is_tombstone()) {
+            data[doc.id] = std::make_shared<Document>(doc);
+            estimated_size += doc.id.size() + TissDB::serialize(doc).size();
+        } else {
+            data[doc.id] = nullptr; // Tombstone
+            estimated_size += doc.id.size();
+        }
+    }
 }
 
 void Collection::set_schema(const TissDB::Schema& schema) {
@@ -29,11 +41,23 @@ void Collection::set_schema(const TissDB::Schema& schema) {
 }
 
 void Collection::create_index(const std::vector<std::string>& field_names) {
-    // TODO: Implement index creation
+    indexer_->create_index(field_names);
+    // Populate the new index with existing data
+    for (const auto& pair : data) {
+        if (pair.second) { // Check for not-tombstone
+            indexer_->update_indexes(pair.first, *pair.second);
+        }
+    }
 }
 
 void Collection::shutdown() {
-    // TODO: Implement shutdown
+    if (parent_db_ && !data.empty()) {
+        std::string collection_path = parent_db_->get_path() + "/" + name_;
+        if (!std::filesystem::exists(collection_path)) {
+            std::filesystem::create_directories(collection_path);
+        }
+        SSTable::write_from_memtable(collection_path, *this);
+    }
 }
 
 void Collection::put(const std::string& key, const Document& doc) {
@@ -114,6 +138,7 @@ void Collection::put(const std::string& key, const Document& doc) {
         // If the key already exists, find the size of the old value.
         if (it->second) { // If it's a document, not a tombstone
             old_value_size = TissDB::serialize(*(it->second)).size();
+            indexer_->remove_from_indexes(key, *it->second);
         }
     } else {
         // If the key is new, it adds the key's size to the total.
@@ -130,6 +155,7 @@ void Collection::put(const std::string& key, const Document& doc) {
 
     // Insert the new document into the map.
     data[key] = new_doc_ptr;
+    indexer_->update_indexes(key, *new_doc_ptr);
 }
 
 void Collection::del(const std::string& key) {
@@ -140,6 +166,7 @@ void Collection::del(const std::string& key) {
         // If the key exists, get the size of the document being replaced.
         if (it->second) {
             old_value_size = TissDB::serialize(*(it->second)).size();
+            indexer_->remove_from_indexes(key, *it->second);
         }
     } else {
         // If the key is new, it adds its own size.
@@ -153,46 +180,6 @@ void Collection::del(const std::string& key) {
     data[key] = nullptr;
 }
 
-std::optional<std::shared_ptr<Document>> Collection::get(const std::string& key) {
-    LOG_DEBUG("GET key: " + key);
-    auto it = data.find(key);
-    if (it == data.end()) {
-        // The key is not in the collection at all.
-        return std::nullopt;
-    }
-    // The key is in the collection. The value could be a document or a tombstone (nullptr).
-    return it->second;
-}
-
-const std::map<std::string, std::shared_ptr<Document>>& Collection::get_all() const {
-    return data;
-}
-
-void Collection::clear() {
-    data.clear();
-    estimated_size = 0;
-}
-
-
-size_t Collection::approximate_size() const {
-    return estimated_size;
-}
-
-std::vector<Document> Collection::scan() const {
-    LOG_DEBUG("SCAN collection");
-    std::vector<Document> documents;
-    for (const auto& pair : data) {
-        if (pair.second) { // If it's a document, not a tombstone
-            documents.push_back(*pair.second);
-        } else {
-            // Tombstone
-            Document tombstone;
-            tombstone.id = pair.first;
-            documents.push_back(tombstone);
-        }
-    }
-    return documents;
-}
 
 
 } // namespace Storage
