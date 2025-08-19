@@ -23,6 +23,17 @@ def register_steps(runner):
             else:
                 content = {k: v for k, v in doc.items() if k != 'id'}
 
+            # Attempt to convert string values to numbers
+            for key, value in content.items():
+                if isinstance(value, str):
+                    try:
+                        content[key] = int(value)
+                    except ValueError:
+                        try:
+                            content[key] = float(value)
+                        except ValueError:
+                            pass # Keep as string if it's not a valid number
+
             response = requests.put(f"{BASE_URL}/{db_name}/{collection_name}/{doc_id}", json=content)
             response.raise_for_status()
             assert response.status_code == 200, f"Failed to insert doc {doc_id}. Status: {response.status_code}, Body: {response.text}"
