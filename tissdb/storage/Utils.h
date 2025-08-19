@@ -95,7 +95,7 @@ namespace bp_tree_utils {
     inline void writeValLittle<std::string>(const std::string &val, FILE *stream) {
         size_t len = val.length();
         writeValLittle(len, stream);
-        fwrite(val.c_str(), 1, len, stream);
+        bp_tree_utils::fwrite(val.c_str(), 1, len, stream);
     }
 
     template<>
@@ -103,7 +103,7 @@ namespace bp_tree_utils {
         size_t len = readValLittle<size_t>(stream);
         if (len > 0) {
             std::vector<char> buf(len);
-            fread(buf.data(), 1, len, stream);
+            bp_tree_utils::fread(buf.data(), 1, len, stream);
             return std::string(buf.data(), len);
         }
         return "";
