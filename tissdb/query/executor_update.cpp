@@ -37,6 +37,10 @@ QueryResult execute_update_statement(Storage::LSMTree& storage_engine, UpdateSta
                         it->value = *str_val;
                     } else if (const auto* num_val = std::get_if<double>(&new_value)) {
                         it->value = *num_val;
+                    } else if (const auto* bool_val = std::get_if<bool>(&new_value)) {
+                        it->value = *bool_val;
+                    } else if (std::get_if<Null>(&new_value)) {
+                        it->value = nullptr;
                     }
                 } else {
                     // Field does not exist, add it
@@ -46,6 +50,10 @@ QueryResult execute_update_statement(Storage::LSMTree& storage_engine, UpdateSta
                         new_element.value = *str_val;
                     } else if (const auto* num_val = std::get_if<double>(&new_value)) {
                         new_element.value = *num_val;
+                    } else if (const auto* bool_val = std::get_if<bool>(&new_value)) {
+                        new_element.value = *bool_val;
+                    } else if (std::get_if<Null>(&new_value)) {
+                        new_element.value = nullptr;
                     }
                     doc.elements.push_back(new_element);
                 }
