@@ -60,6 +60,13 @@ private:
     std::unique_ptr<BTreeNode> load_node(std::istream& is);
     void write_string(std::ostream& os, const std::string& s);
     std::string read_string(std::istream& is);
+
+    // Iteration helper
+    template<typename Func>
+    void foreach_recursive(BTreeNode* node, Func& func);
+public:
+    template<typename Func>
+    void foreach(Func func);
 };
 
 } // namespace Storage
