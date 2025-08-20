@@ -11,21 +11,31 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def train_bpe_tokenizer(corpus_path: str, vocab_size: int, save_path: str):
     """
     Trains a Byte-Level BPE tokenizer from a text corpus and saves it.
+    This version reads files manually to handle potential encoding errors.
     """
     # Find all .txt files in the corpus directory
     files = glob.glob(os.path.join(corpus_path, "*.txt"))
     if not files:
         logging.error(f"No .txt files found in the specified corpus path: {corpus_path}")
         return
-
     logging.info(f"Found {len(files)} files for training the tokenizer.")
+
+    # Define a generator to read files with error handling to prevent UTF-8 crashes.
+    # The `errors="replace"` argument will substitute any invalid characters.
+    def file_iterator():
+        for file_path in files:
+            try:
+                with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                    yield f.read()
+            except Exception as e:
+                logging.warning(f"Could not read file {file_path}: {e}. Skipping.")
 
     # 1. Initialize a tokenizer
     tokenizer = ByteLevelBPETokenizer()
 
     # 2. Train the tokenizer
     logging.info(f"Training tokenizer with vocab size {vocab_size}...")
-    tokenizer.train(files=files, vocab_size=vocab_size, min_frequency=2, special_tokens=[
+    tokenizer.train_from_iterator(file_iterator(), vocab_size=vocab_size, min_frequency=2, special_tokens=[
         "<s>",
         "<pad>",
         "</s>",
