@@ -28,6 +28,38 @@ std::string like_to_regex(std::string pattern) {
     return regex_pattern;
 }
 
+// --- Conversion helpers to make evaluation more robust ---
+std::optional<double> get_as_numeric(const Value& val) {
+    if (const auto* num_val = std::get_if<double>(&val)) {
+        return *num_val;
+    }
+    if (const auto* str_val = std::get_if<std::string>(&val)) {
+        try {
+            return std::stod(*str_val);
+        } catch (const std::invalid_argument&) {
+            return std::nullopt;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> get_as_string(const Value& val) {
+    if (const auto* str_val = std::get_if<std::string>(&val)) {
+        return *str_val;
+    }
+    if (const auto* num_val = std::get_if<double>(&val)) {
+        return std::to_string(*num_val);
+    }
+    if (const auto* bool_val = std::get_if<bool>(&val)) {
+        return *bool_val ? "true" : "false";
+    }
+    if (std::holds_alternative<std::nullptr_t>(val)) {
+        return "null";
+    }
+    return std::nullopt; // Incompatible types for string comparison
+}
+
+
 // Evaluate an expression against a document
 bool evaluate_expression(const Expression& expr, const Document& doc) {
     if (const auto* logical_expr_ptr = std::get_if<std::shared_ptr<LogicalExpression>>(&expr)) {
@@ -40,49 +72,61 @@ bool evaluate_expression(const Expression& expr, const Document& doc) {
     } else if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
         const auto& binary_expr = *binary_expr_ptr;
         const auto* left_ident = std::get_if<Identifier>(&binary_expr->left);
-        const auto* right_literal = std::get_if<Literal>(&binary_expr->right);
+        const auto* right_literal_ptr = std::get_if<Literal>(&binary_expr->right);
 
-        if (left_ident && right_literal) {
-            for (const auto& elem : doc.elements) {
-                if (elem.key == left_ident->name) {
-                    if (auto* str_val = std::get_if<std::string>(&elem.value)) {
-                        if (auto* lit_val = std::get_if<std::string>(right_literal)) {
-                            if (binary_expr->op == "=") return *str_val == *lit_val;
-                            if (binary_expr->op == "!=") return *str_val != *lit_val;
-                            if (binary_expr->op == "LIKE") {
-                                std::regex re(like_to_regex(*lit_val));
-                                return std::regex_match(*str_val, re);
-                            }
-                        }
-                    } else if (auto* num_val = std::get_if<double>(&elem.value)) {
-                        if (auto* lit_val = std::get_if<double>(right_literal)) {
-                            if (binary_expr->op == "=") return *num_val == *lit_val;
-                            if (binary_expr->op == "!=") return *num_val != *lit_val;
-                            if (binary_expr->op == "<") return *num_val < *lit_val;
-                            if (binary_expr->op == ">") return *num_val > *lit_val;
-                            if (binary_expr->op == "<=") return *num_val <= *lit_val;
-                            if (binary_expr->op == ">=") return *num_val >= *lit_val;
-                        } else if (const auto* lit_val_str = std::get_if<std::string>(right_literal)) {
-                            // The parser might interpret a number as a string, so we try to convert it.
-                            try {
-                                double val = std::stod(*lit_val_str);
-                                if (binary_expr->op == "=") return *num_val == val;
-                                if (binary_expr->op == "!=") return *num_val != val;
-                                if (binary_expr->op == "<") return *num_val < val;
-                                if (binary_expr->op == ">") return *num_val > val;
-                                if (binary_expr->op == "<=") return *num_val <= val;
-                                if (binary_expr->op == ">=") return *num_val >= val;
-                            } catch (const std::invalid_argument& ia) {
-                                // Not a number, so the comparison is false
-                            }
-                        }
-                    }
-                    // We found the element, so we can stop looking
-                    break;
+        if (!left_ident || !right_literal_ptr) {
+            return false; // Invalid expression structure
+        }
+
+        const auto* doc_value_ptr = get_value_from_doc(doc, left_ident->name);
+        if (!doc_value_ptr) {
+            return false; // Field does not exist in document
+        }
+
+        const Value& doc_value = *doc_value_ptr;
+        const Value& literal_value = *right_literal_ptr;
+        const std::string& op = binary_expr->op;
+
+        // Try numeric comparison first
+        auto doc_num_opt = get_as_numeric(doc_value);
+        auto lit_num_opt = get_as_numeric(literal_value);
+
+        if (doc_num_opt && lit_num_opt) {
+            double doc_num = *doc_num_opt;
+            double lit_num = *lit_num_opt;
+            if (op == "=") return doc_num == lit_num;
+            if (op == "!=") return doc_num != lit_num;
+            if (op == ">") return doc_num > lit_num;
+            if (op == "<") return doc_num < lit_num;
+            if (op == ">=") return doc_num >= lit_num;
+            if (op == "<=") return doc_num <= lit_num;
+        }
+
+        // Fallback to string comparison
+        auto doc_str_opt = get_as_string(doc_value);
+        auto lit_str_opt = get_as_string(literal_value);
+
+        if (doc_str_opt && lit_str_opt) {
+            const std::string& doc_str = *doc_str_opt;
+            const std::string& lit_str = *lit_str_opt;
+            if (op == "=") return doc_str == lit_str;
+            if (op == "!=") return doc_str != lit_str;
+            if (op == ">") return doc_str > lit_str;
+            if (op == "<") return doc_str < lit_str;
+            if (op == ">=") return doc_str >= lit_str;
+            if (op == "<=") return doc_str <= lit_str;
+            if (op == "LIKE") {
+                try {
+                    std::regex re(like_to_regex(lit_str));
+                    return std::regex_match(doc_str, re);
+                } catch (const std::regex_error& e) {
+                    // Invalid LIKE pattern
+                    return false;
                 }
             }
         }
     }
+    // If no comparison could be made, or if it's not a recognized expression type
     return false;
 }
 
