@@ -106,8 +106,8 @@ public:
 
 class NullLogger : public ILogger {
 public:
-    void info(const std::string& message) override {}
-    void error(const std::string& message) override {}
+    void info(const std::string& /*message*/) override {}
+    void error(const std::string& /*message*/) override {}
 };
 
 class StdLogger : public ILogger {

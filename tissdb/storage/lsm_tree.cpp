@@ -222,9 +222,14 @@ const Collection& LSMTree::get_collection(const std::string& name) const {
     return *it->second;
 }
 
-void LSMTree::create_index(const std::string& /*collection_name*/, const std::vector<std::string>& /*field_names*/) {
-    // Placeholder: Implement index creation logic
-    throw std::runtime_error("create_index not yet implemented");
+void LSMTree::create_index(const std::string& collection_name, const std::vector<std::string>& field_names, bool is_unique) {
+    try {
+        Collection& collection = get_collection(collection_name);
+        collection.create_index(field_names, is_unique);
+    } catch (const std::runtime_error& e) {
+        LOG_ERROR("Error creating index: " + std::string(e.what()));
+        throw;
+    }
 }
 
 std::vector<std::string> LSMTree::find_by_index(const std::string& /*collection_name*/, const std::string& /*field_name*/, const std::string& /*value*/) {

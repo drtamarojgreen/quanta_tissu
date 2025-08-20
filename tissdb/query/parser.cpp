@@ -124,7 +124,7 @@ SelectStatement Parser::parse_select_statement() {
 
         // Return a new, "wrapper" select statement that only holds the union clause.
         // The executor must check for the presence of union_clause first.
-        return SelectStatement{{}, "", std::nullopt, {}, {}, std::nullopt, std::nullopt, std::make_optional(std::move(union_clause))};
+        return SelectStatement{{}, "", std::nullopt, {}, {}, std::nullopt, std::nullopt, std::make_optional(std::move(union_clause)), {}};
     }
 
     // If there was no UNION, just return the single statement we parsed.
