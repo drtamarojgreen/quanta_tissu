@@ -62,8 +62,6 @@ private:
     std::string read_string(std::istream& is);
 
     // Iteration helper
-    template<typename Func>
-    void foreach_recursive(BTreeNode* node, Func& func);
 public:
     template<typename Func>
     void foreach(Func func) {
