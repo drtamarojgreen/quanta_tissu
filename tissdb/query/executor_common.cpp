@@ -220,5 +220,26 @@ void extract_equality_conditions(const Expression& expr, std::map<std::string, s
     }
 }
 
+const Value* get_value_from_doc(const Document& doc, const std::string& key) {
+    for (const auto& elem : doc.elements) {
+        if (elem.key == key) {
+            return &elem.value;
+        }
+    }
+    return nullptr;
+}
+
+std::string value_to_string(const Value& value) {
+    std::stringstream ss;
+    if (const auto* str_val = std::get_if<std::string>(&value)) {
+        ss << *str_val;
+    } else if (const auto* num_val = std::get_if<double>(&value)) {
+        ss << *num_val;
+    } else if (const auto* bool_val = std::get_if<bool>(&value)) {
+        ss << (*bool_val ? "true" : "false");
+    }
+    return ss.str();
+}
+
 } // namespace Query
 } // namespace TissDB
