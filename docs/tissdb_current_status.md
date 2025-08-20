@@ -37,7 +37,7 @@ Despite the progress, the database is missing core functionality:
 ### Implemented Features:
 The framework, located in `quanta_tissu/tisslm/`, includes:
 - **Modular Transformer Architecture**: A flexible model (`model.py`) composed of configurable `TransformerBlock`s.
-- **Full Training Pipeline**: A complete training script (`train.py`) is implemented, featuring:
+- **Full Training Pipeline**: A complete training script (`legacylm/train.py`) is implemented, featuring:
     - An `AdamW` optimizer.
     - `CrossEntropyLoss`.
     - A standard training loop that saves model weights.
