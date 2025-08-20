@@ -1,0 +1,5 @@
+This is a test of the new tokenizer, demonstrating resilience.
+The quick brown fox jumps over the lazy dog.
+Tokenization and detokenization are core functions of a language model pipeline.
+We must ensure that the process is reversible and lossless for known vocabulary.
+hello, world! 123? <test>
