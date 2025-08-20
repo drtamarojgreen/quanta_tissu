@@ -40,7 +40,7 @@ After the build was successful, running the tests revealed a failing test and a 
 
 **Symptom:** Even after fixing the `DocumentSerialization` test, the test suite still crashed with a segmentation fault. The crash was preceded by error messages like `Error during SSTable scan: Attempted to read excessively large byte array...`, which pointed to data corruption.
 
-**Root Cause:** The root cause of the segmentation fault is a series of critical memory management bugs in the custom container class `tissdb/storage/List.h`. This class is used by the `BPTree` implementation, and the crash was triggered by the `test_bpp_tree.cpp` tests.
+**Root Cause:** The root cause of the segmentation fault is a series of critical memory management bugs in the custom container class `tissdb/storage/List.h`.
 
 The `List.h` class manually manages memory for a list of objects of type `T`. However, it does so in a way that is only safe for Plain Old Data (POD) types. When used with complex, non-trivial types like `std::string` (which is the case in `BPTree`), its behavior is undefined and leads to memory corruption.
 
