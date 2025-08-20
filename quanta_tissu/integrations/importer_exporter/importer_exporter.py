@@ -364,7 +364,7 @@ def import_from_sql(collection_name: str, file_path: str, base_url: str):
                 return token.value
 
             value_tokens = [t for t in values_part.tokens if t.ttype is not None and not t.is_whitespace and t.value not in ('(', ')', ',')]
-            values = [_convert_value(_parse_sql_.value(t)) for t in value_tokens]
+            values = [_convert_value(_parse_sql_value(t)) for t in value_tokens]
 
             if len(column_names) != len(values):
                 print(f"Warning: Mismatch between column count ({len(column_names)}) and value count ({len(values)}) in statement: {stmt}")
@@ -422,5 +422,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-# Trivial change for staging
-# Trivial change for staging
