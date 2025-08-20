@@ -160,7 +160,7 @@ More details on this initiative can be found in `docs/ecological_awareness.md`.
 
 To train the model from scratch on the provided corpus:
 ```bash
-python quanta_tissu/tisslm/train.py
+python quanta_tissu/tisslm/legacylm/train.py
 ```
 This will train a new tokenizer and save it to `models/tokenizer.json`, and save the trained model weights to `models/quanta_tissu.npz`.
 
@@ -168,7 +168,7 @@ This will train a new tokenizer and save it to `models/tokenizer.json`, and save
 
 To run inference with a trained model:
 ```bash
-python quanta_tissu/scripts/run_inference.py --prompt "Your prompt here"
+python quanta_tissu/tisslm/legacylm/run_inference.py --prompt "Your prompt here"
 ```
 
 ## How it Works
