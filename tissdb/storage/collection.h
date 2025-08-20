@@ -53,6 +53,11 @@ public:
     void create_index(const std::vector<std::string>& field_names, bool is_unique = false);
     void shutdown();
 
+    // Indexer Wrappers
+    bool has_index(const std::vector<std::string>& field_names) const;
+    std::vector<std::vector<std::string>> get_available_indexes() const;
+    std::vector<std::string> find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const;
+
 private:
     // We use a sorted map to store documents in memory. The key is the document ID.
     // A shared_ptr to a Document allows us to distinguish between:

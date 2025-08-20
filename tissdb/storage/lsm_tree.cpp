@@ -245,10 +245,8 @@ std::vector<std::string> LSMTree::find_by_index(const std::string& collection_na
 
 std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::vector<std::string>& values) {
     try {
-        Collection& collection = get_collection(collection_name);
-        // This needs to be const correct. get_collection should have a const overload.
-        // For now, we cast away constness to call a non-const method.
-        return const_cast<Collection&>(collection).indexer_.find_by_index(field_names, values);
+        const Collection& collection = get_collection(collection_name);
+        return collection.find_by_index(field_names, values);
     } catch (const std::runtime_error& e) {
         LOG_ERROR("Error finding by index: " + std::string(e.what()));
         return {};
@@ -269,8 +267,8 @@ bool LSMTree::rollback_transaction(Transactions::TransactionID transaction_id) {
 
 bool LSMTree::has_index(const std::string& collection_name, const std::vector<std::string>& field_names) {
     try {
-        Collection& collection = get_collection(collection_name);
-        return const_cast<Collection&>(collection).indexer_.has_index(field_names);
+        const Collection& collection = get_collection(collection_name);
+        return collection.has_index(field_names);
     } catch (const std::runtime_error& e) {
         return false;
     }
@@ -279,7 +277,7 @@ bool LSMTree::has_index(const std::string& collection_name, const std::vector<st
 std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::string& collection_name) const {
     try {
         const Collection& collection = get_collection(collection_name);
-        return const_cast<Collection&>(collection).indexer_.get_available_indexes();
+        return collection.get_available_indexes();
     } catch (const std::runtime_error& e) {
         return {};
     }
