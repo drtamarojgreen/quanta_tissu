@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--resume_from", type=str, default=None, help="Path to a checkpoint to resume training from.")
     parser.add_argument("--tokenizer_path", type=str, default=os.path.join(system_config["_project_root"], "tokenizers", "bpe-tokenizer.json"), help="Path to the trained tokenizer file.")
     parser.add_argument("--save_every", type=int, default=100, help="Save a checkpoint every N steps.")
+    parser.add_argument("--keep_checkpoints", type=int, default=-1, help="Number of recent checkpoints to keep. Use -1 to keep all.")
 
     args = parser.parse_args()
 
@@ -107,13 +108,13 @@ def main():
 
             # Save checkpoint periodically
             if step > 0 and step % args.save_every == 0:
-                save_checkpoint(model, optimizer, epoch, step, args.checkpoint_dir)
+                save_checkpoint(model, optimizer, epoch, step, args.checkpoint_dir, keep_last=args.keep_checkpoints)
 
             step += 1
 
     logging.info("\n--- Training complete ---")
     # Save final model
-    save_checkpoint(model, optimizer, args.epochs - 1, step, args.checkpoint_dir)
+    save_checkpoint(model, optimizer, args.epochs - 1, step, args.checkpoint_dir, keep_last=args.keep_checkpoints)
 
 
 if __name__ == "__main__":

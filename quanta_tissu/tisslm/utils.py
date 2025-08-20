@@ -2,11 +2,12 @@ import numpy as np
 import os
 import logging
 
-def save_checkpoint(model, optimizer, epoch, step, checkpoint_dir):
+def save_checkpoint(model, optimizer, epoch, step, checkpoint_dir, keep_last=-1):
     """Saves model and optimizer state to a checkpoint file."""
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
 
+    # --- Save the current checkpoint ---
     filename = os.path.join(checkpoint_dir, f"checkpoint_step_{step}.npz")
 
     # Get model state
@@ -30,6 +31,17 @@ def save_checkpoint(model, optimizer, epoch, step, checkpoint_dir):
 
     np.savez(filename, **full_state)
     logging.info(f"Saved checkpoint to {filename}")
+
+    # --- Clean up old checkpoints ---
+    if keep_last > 0:
+        checkpoints = sorted(
+            [os.path.join(checkpoint_dir, f) for f in os.listdir(checkpoint_dir) if f.startswith("checkpoint_step_") and f.endswith(".npz")],
+            key=os.path.getmtime
+        )
+        if len(checkpoints) > keep_last:
+            for old_checkpoint in checkpoints[:-keep_last]:
+                os.remove(old_checkpoint)
+                logging.info(f"Removed old checkpoint: {os.path.basename(old_checkpoint)}")
 
 def load_checkpoint(model, optimizer, file_path):
     """Loads model and optimizer state from a checkpoint file."""
