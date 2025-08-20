@@ -94,6 +94,12 @@ void LSMTree::create_collection(const std::string& name, const TissDB::Schema& s
     LOG_INFO("Creating collection: " + name);
     auto collection = std::make_unique<Collection>(this);
     collection->set_schema(schema);
+
+    // Automatically create a unique index for the primary key
+    if (!schema.get_primary_key().empty()) {
+        collection->create_index({schema.get_primary_key()}, true);
+    }
+
     collections_[name] = std::move(collection);
 }
 
@@ -222,19 +228,31 @@ const Collection& LSMTree::get_collection(const std::string& name) const {
     return *it->second;
 }
 
-void LSMTree::create_index(const std::string& /*collection_name*/, const std::vector<std::string>& /*field_names*/) {
-    // Placeholder: Implement index creation logic
-    throw std::runtime_error("create_index not yet implemented");
+void LSMTree::create_index(const std::string& collection_name, const std::vector<std::string>& field_names, bool is_unique) {
+    try {
+        Collection& collection = get_collection(collection_name);
+        collection.create_index(field_names, is_unique);
+    } catch (const std::runtime_error& e) {
+        LOG_ERROR("Error creating index: " + std::string(e.what()));
+        throw;
+    }
 }
 
-std::vector<std::string> LSMTree::find_by_index(const std::string& /*collection_name*/, const std::string& /*field_name*/, const std::string& /*value*/) {
-    // Placeholder: Implement single-field index lookup
-    throw std::runtime_error("find_by_index (single field) not yet implemented");
+std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::string& field_name, const std::string& value) {
+    // This is a convenience for single-field lookups.
+    return find_by_index(collection_name, std::vector<std::string>{field_name}, std::vector<std::string>{value});
 }
 
-std::vector<std::string> LSMTree::find_by_index(const std::string& /*collection_name*/, const std::vector<std::string>& /*field_names*/, const std::vector<std::string>& /*values*/) {
-    // Placeholder: Implement multi-field index lookup
-    throw std::runtime_error("find_by_index (multi-field) not yet implemented");
+std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::vector<std::string>& values) {
+    try {
+        Collection& collection = get_collection(collection_name);
+        // This needs to be const correct. get_collection should have a const overload.
+        // For now, we cast away constness to call a non-const method.
+        return const_cast<Collection&>(collection).indexer_.find_by_index(field_names, values);
+    } catch (const std::runtime_error& e) {
+        LOG_ERROR("Error finding by index: " + std::string(e.what()));
+        return {};
+    }
 }
 
 Transactions::TransactionID LSMTree::begin_transaction() {
@@ -249,14 +267,22 @@ bool LSMTree::rollback_transaction(Transactions::TransactionID transaction_id) {
     return transaction_manager_.rollback_transaction(transaction_id);
 }
 
-bool LSMTree::has_index(const std::string& /*collection_name*/, const std::vector<std::string>& /*field_names*/) {
-    // Placeholder: Implement index check logic
-    return false;
+bool LSMTree::has_index(const std::string& collection_name, const std::vector<std::string>& field_names) {
+    try {
+        Collection& collection = get_collection(collection_name);
+        return const_cast<Collection&>(collection).indexer_.has_index(field_names);
+    } catch (const std::runtime_error& e) {
+        return false;
+    }
 }
 
-std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::string& /*collection_name*/) const {
-    // Placeholder: Implement available indexes logic
-    return {};
+std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::string& collection_name) const {
+    try {
+        const Collection& collection = get_collection(collection_name);
+        return const_cast<Collection&>(collection).indexer_.get_available_indexes();
+    } catch (const std::runtime_error& e) {
+        return {};
+    }
 }
 
 void LSMTree::shutdown() {

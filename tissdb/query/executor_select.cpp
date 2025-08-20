@@ -116,41 +116,55 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
     // --- Join Operation ---
     if (select_stmt.join_clause) {
         const auto& join_clause = select_stmt.join_clause.value();
-        std::vector<Document> right_docs = storage_engine.scan(join_clause.collection_name);
         std::vector<Document> joined_docs;
 
         if (join_clause.type == JoinType::CROSS) {
+            std::vector<Document> right_docs = storage_engine.scan(join_clause.collection_name);
             for (const auto& left_doc : all_docs) {
                 for (const auto& right_doc : right_docs) {
                     joined_docs.push_back(combine_documents(left_doc, right_doc));
                 }
             }
-        } else { // For INNER, LEFT, RIGHT, FULL joins that have a condition
-            std::vector<bool> right_doc_matched(right_docs.size(), false);
+        } else {
+            // Improved join logic with index lookup
+            const auto* on_cond = std::get_if<std::shared_ptr<BinaryExpression>>(&join_clause.on_condition);
+            std::string left_key, right_key;
+
+            if (on_cond && (*on_cond)->op == "=") {
+                if (const auto* left_ident = std::get_if<Identifier>(&(*on_cond)->left)) {
+                    left_key = left_ident->name;
+                }
+                if (const auto* right_ident = std::get_if<Identifier>(&(*on_cond)->right)) {
+                    right_key = right_ident->name;
+                }
+            }
+
+            bool can_use_index = !left_key.empty() && !right_key.empty() && storage_engine.has_index(join_clause.collection_name, {right_key});
 
             for (const auto& left_doc : all_docs) {
                 bool left_doc_matched = false;
-                for (size_t i = 0; i < right_docs.size(); ++i) {
-                    const auto& right_doc = right_docs[i];
+                std::vector<Document> right_docs_to_join;
+
+                if (can_use_index) {
+                    const auto* left_val_ptr = get_value_from_doc(left_doc, left_key);
+                    if (left_val_ptr) {
+                        std::string val_str = value_to_string(*left_val_ptr);
+                        auto doc_ids = storage_engine.find_by_index(join_clause.collection_name, {right_key}, {val_str});
+                        right_docs_to_join = storage_engine.get_many(join_clause.collection_name, doc_ids);
+                    }
+                } else {
+                    right_docs_to_join = storage_engine.scan(join_clause.collection_name);
+                }
+
+                for (const auto& right_doc : right_docs_to_join) {
                     if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc))) {
                         joined_docs.push_back(combine_documents(left_doc, right_doc));
                         left_doc_matched = true;
-                        right_doc_matched[i] = true;
                     }
                 }
 
                 if (!left_doc_matched && (join_clause.type == JoinType::LEFT || join_clause.type == JoinType::FULL)) {
-                    // For LEFT and FULL joins, add the left doc with nulls for the right.
-                    joined_docs.push_back(left_doc); // Assuming combine with null doc is implicit
-                }
-            }
-
-            if (join_clause.type == JoinType::RIGHT || join_clause.type == JoinType::FULL) {
-                for (size_t i = 0; i < right_docs.size(); ++i) {
-                    if (!right_doc_matched[i]) {
-                        // For RIGHT and FULL joins, add the unmatched right docs with nulls for the left.
-                        joined_docs.push_back(right_docs[i]); // Assuming combine with null doc is implicit
-                    }
+                    joined_docs.push_back(left_doc);
                 }
             }
         }
