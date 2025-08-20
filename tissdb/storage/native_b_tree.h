@@ -5,11 +5,11 @@
 #include <memory>
 #include <optional>
 #include <fstream>
+#include <algorithm> // For std::lower_bound
 
 namespace TissDB {
 namespace Storage {
 
-// A basic B-Tree implementation
 template<typename Key, typename Value, int Order = 10>
 class BTree {
 public:
@@ -36,11 +36,30 @@ private:
 
     std::unique_ptr<BTreeNode> root_;
 
-    // Helper methods
+    // Insert helpers
     void insert_non_full(BTreeNode* node, const Key& key, const Value& value);
     void split_child(BTreeNode* parent, int index);
+
+    // Find helper
     std::optional<Value> find_recursive(BTreeNode* node, const Key& key);
-    // Erase methods would be here
+
+    // Erase helpers
+    void erase_recursive(BTreeNode* node, const Key& key);
+    void remove_from_leaf(BTreeNode* node, int index);
+    void remove_from_non_leaf(BTreeNode* node, int index);
+    Key get_predecessor(BTreeNode* node, int index);
+    Key get_successor(BTreeNode* node, int index);
+    void fill(BTreeNode* node, int index);
+    void borrow_from_prev(BTreeNode* node, int index);
+    void borrow_from_next(BTreeNode* node, int index);
+    void merge(BTreeNode* node, int index);
+    int find_key(BTreeNode* node, const Key& key);
+
+    // Serialization helpers
+    void dump_node(std::ostream& os, const BTreeNode* node);
+    std::unique_ptr<BTreeNode> load_node(std::istream& is);
+    void write_string(std::ostream& os, const std::string& s);
+    std::string read_string(std::istream& is);
 };
 
 } // namespace Storage
