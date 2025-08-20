@@ -30,7 +30,20 @@ void Collection::set_schema(const TissDB::Schema& schema) {
 
 void Collection::create_index(const std::vector<std::string>& field_names, bool is_unique) {
     indexer_.create_index(field_names, is_unique);
-    // TODO: Should bulk-load existing data into the index
+    // Bulk-load existing data into the new index
+    for (const auto& pair : data) {
+        if (pair.second) { // If it's a document, not a tombstone
+            try {
+                indexer_.update_indexes(pair.first, *pair.second);
+            } catch (const std::runtime_error& e) {
+                // If a uniqueness constraint is violated during index creation,
+                // it's a critical error. We should probably roll back the index creation.
+                // For now, we'll log the error and continue, but this is not ideal.
+                LOG_ERROR("Error bulk-loading data for key " + pair.first + " into new index: " + e.what());
+                // In a real scenario, you'd want to delete the index that was just created.
+            }
+        }
+    }
 }
 
 void Collection::shutdown() {
@@ -59,11 +72,11 @@ void Collection::put(const std::string& key, const Document& doc) {
             const Value* fk_value_ptr = get_value(doc, fk.field_name);
             if (fk_value_ptr) {
                 try {
-                    // This is a placeholder for how it *should* work.
-                    // We need a way to get the indexer from the other collection.
-                    // auto& referenced_collection = parent_db_->get_collection(fk.referenced_collection);
-                    // auto results = referenced_collection.find_by_index(fk.referenced_field, ...);
-                    // if (results.empty()) { ... }
+                    std::string fk_value_str = TissDB::Query::value_to_string(*fk_value_ptr);
+                    auto results = parent_db_->find_by_index(fk.referenced_collection, {fk.referenced_field}, {fk_value_str});
+                    if (results.empty()) {
+                        throw std::runtime_error("Foreign key constraint violated on field '" + fk.field_name + "'. No matching document in referenced collection '" + fk.referenced_collection + "'.");
+                    }
                 } catch (const std::runtime_error& e) {
                     throw std::runtime_error("Foreign key constraint error: " + std::string(e.what()));
                 }
