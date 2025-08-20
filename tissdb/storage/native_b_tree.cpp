@@ -392,25 +392,6 @@ std::unique_ptr<typename BTree<Key, Value, Order>::BTreeNode> BTree<Key, Value, 
 // Explicit template instantiation
 template class BTree<std::string, std::string>;
 
-template<typename Key, typename Value, int Order>
-template<typename Func>
-void BTree<Key, Value, Order>::foreach_recursive(BTreeNode* node, Func& func) {
-    if (node->is_leaf) {
-        for (size_t i = 0; i < node->keys.size(); ++i) {
-            func(node->keys[i], node->values[i]);
-        }
-    } else {
-        for (size_t i = 0; i < node->children.size(); ++i) {
-            foreach_recursive(node->children[i].get(), func);
-        }
-    }
-}
-
-template<typename Key, typename Value, int Order>
-template<typename Func>
-void BTree<Key, Value, Order>::foreach(Func func) {
-    foreach_recursive(root_.get(), func);
-}
 
 } // namespace Storage
 } // namespace TissDB
