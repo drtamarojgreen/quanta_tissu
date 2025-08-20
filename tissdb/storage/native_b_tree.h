@@ -66,7 +66,22 @@ private:
     void foreach_recursive(BTreeNode* node, Func& func);
 public:
     template<typename Func>
-    void foreach(Func func);
+    void foreach(Func func) {
+        foreach_recursive(root_.get(), func);
+    }
+private:
+    template<typename Func>
+    void foreach_recursive(BTreeNode* node, Func& func) {
+        if (node->is_leaf) {
+            for (size_t i = 0; i < node->keys.size(); ++i) {
+                func(node->keys[i], node->values[i]);
+            }
+        } else {
+            for (size_t i = 0; i < node->children.size(); ++i) {
+                foreach_recursive(node->children[i].get(), func);
+            }
+        }
+    }
 };
 
 } // namespace Storage

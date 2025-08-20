@@ -204,7 +204,7 @@ std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& 
     std::vector<std::string> all_doc_ids;
     const auto& btree = it->second;
 
-    btree->foreach([&all_doc_ids](const std::string& key, const std::string& value) {
+    btree->foreach([&all_doc_ids](const std::string& /*key*/, const std::string& value) {
         try {
             Json::JsonArray ids_array = Json::JsonValue::parse(value).as_array();
             for (const auto& id_val : ids_array) {
