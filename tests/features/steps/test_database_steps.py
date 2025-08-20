@@ -46,24 +46,21 @@ def register_steps(runner):
         response = requests.delete(f"{BASE_URL}/{context['db_name']}/{collection_name}")
         assert response.status_code in [204, 404]
 
-    @runner.step(r'a TissDB collection named "(.*)" is available for TissLM')
+    @runner.step(r'^a TissDB collection named "(.*)" is available for TissLM$')
     def collection_is_available(context, collection_name):
         db_name = context.get('db_name', 'testdb')
         response = requests.put(f"{BASE_URL}/{db_name}/{collection_name}")
-        # This can be 200 (created) or 500/409 (if it exists).
-        # We just want to make sure it exists for the test.
-        assert response.status_code in [200, 500, 409]
+        assert response.status_code in [201, 200, 409]
 
-    @runner.step(r'a document with ID "(.*)" and content (.*) in "(.*)"')
+    @runner.step(r'^a document with ID "(.*)" and content (.*) in "(.*)"$')
     def create_document_with_content(context, doc_id, content, collection_name):
         db_name = context.get('db_name', 'testdb')
         url = f"{BASE_URL}/{db_name}/{collection_name}/{doc_id}"
         response = requests.put(url, json=json.loads(content))
-        response.raise_for_status()
+        assert response.status_code == 200
 
-    @runner.step(r'a simulated Sinew client creates a document with ID "(.*)" and content (.*) in "(.*)"')
+    @runner.step(r'^a simulated Sinew client creates a document with ID "(.*)" and content (.*) in "(.*)"$')
     def sinew_create_document(context, doc_id, content, collection_name):
-        # This is the same as the step above, just with a different sentence.
         create_document_with_content(context, doc_id, content, collection_name)
 
     @runner.step(r'^Then the collection "(.*)" should not exist$')
@@ -185,15 +182,3 @@ def get_headers(context):
     @runner.step(r'^And I delete the collection "(.*)"$')
     def and_delete_collection(context, collection_name):
         delete_collection(context, collection_name)
-
-    @runner.step(r'^And I create a document with ID "(.*)" and content (.*) in "(.*)"$')
-    def and_create_document_with_id(context, doc_id, content_str, collection_name):
-        create_document_with_id(context, doc_id, content_str, collection_name)
-
-    @runner.step(r'^And the query result should contain "(.*)"$')
-    def and_query_result_should_contain(context, expected_value):
-        query_result_should_contain(context, expected_value)
-
-    @runner.step(r'^And the document with ID "(.*)" in "(.*)" should have content (.*)$')
-    def and_document_should_have_content(context, doc_id, collection_name, expected_content_str):
-        document_should_have_content(context, doc_id, collection_name, expected_content_str)
