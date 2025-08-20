@@ -2,9 +2,13 @@ import numpy as np
 import os
 from .tokenizer import Tokenizer
 
-def load_corpus(corpus_path: str):
+def load_corpus(corpus_path: str, tokenizer):
     """
     Loads text from all .txt files in the specified corpus path and tokenizes it.
+
+    Args:
+        corpus_path (str): The directory containing .txt files.
+        tokenizer: A loaded Hugging Face tokenizer instance.
     """
     full_text = ""
     for filename in os.listdir(corpus_path):
@@ -13,9 +17,8 @@ def load_corpus(corpus_path: str):
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 full_text += f.read() + "\n" # Add newline to separate content from different files
 
-    tokenizer = Tokenizer()
-    token_ids = tokenizer.tokenize(full_text)
-    return token_ids
+    encoding = tokenizer.encode(full_text)
+    return encoding.ids
 
 class Dataset:
     def __init__(self, token_ids, batch_size, seq_len):

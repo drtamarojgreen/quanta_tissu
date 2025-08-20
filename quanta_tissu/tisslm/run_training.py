@@ -3,8 +3,8 @@ import numpy as np
 import logging
 import os
 
+from tokenizers import Tokenizer as HFTokenizer
 from .model import QuantaTissu
-from .tokenizer import Tokenizer
 from .loss import CrossEntropyLoss
 from .optimizer import AdamW
 from .data import Dataset, load_corpus
@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--max_grad_norm", type=float, default=1.0, help="Maximum value for gradient clipping.")
     parser.add_argument("--checkpoint_dir", type=str, default=os.path.join(system_config["_project_root"], "checkpoints"), help="Directory to save checkpoints.")
     parser.add_argument("--resume_from", type=str, default=None, help="Path to a checkpoint to resume training from.")
+    parser.add_argument("--tokenizer_path", type=str, default=os.path.join(system_config["_project_root"], "tokenizers", "bpe-tokenizer.json"), help="Path to the trained tokenizer file.")
     parser.add_argument("--save_every", type=int, default=100, help="Save a checkpoint every N steps.")
 
     args = parser.parse_args()
@@ -34,15 +35,20 @@ def main():
     logging.info("--- Initializing training ---")
 
     # 1. Components Initialization
-    tokenizer = Tokenizer()
-    model_config["vocab_size"] = tokenizer.get_vocab_size() # Set vocab_size dynamically
+    try:
+        tokenizer = HFTokenizer.from_file(args.tokenizer_path)
+    except Exception as e:
+        logging.error(f"Could not load tokenizer from {args.tokenizer_path}. Please train it first. Error: {e}")
+        return
+
+    model_config["vocab_size"] = tokenizer.get_vocab_size()
     model = QuantaTissu(model_config)
     loss_fn = CrossEntropyLoss()
     optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     # Load corpus and create dataset
     logging.info(f"Loading corpus from: {args.corpus_path}")
-    token_ids = load_corpus(args.corpus_path)
+    token_ids = load_corpus(args.corpus_path, tokenizer)
     logging.info(f"Corpus loaded. Total tokens: {len(token_ids)}")
 
     dataset = Dataset(token_ids, args.batch_size, args.seq_len)
