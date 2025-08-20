@@ -77,6 +77,8 @@ bool evaluate_expression(const Expression& expr, const Document& doc) {
                             }
                         }
                     }
+                    // We found the element, so we can stop looking
+                    break;
                 }
             }
         }

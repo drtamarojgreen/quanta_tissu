@@ -53,10 +53,12 @@ def register_steps(runner):
         response = requests.put(f"{BASE_URL}/{db_name}/{collection_name}")
         assert response.status_code in [201, 200, 409]
 
-    @runner.step(r'^a document with ID "(.*)" and content (.*) in "(.*)"$')
+    @runner.step(r'^a document with ID "(.*)" and content (\'{.*}\'|\"{.*}\") in "(.*)"$')
     def create_document_with_content(context, doc_id, content, collection_name):
         db_name = context.get('db_name', 'testdb')
         url = f"{BASE_URL}/{db_name}/{collection_name}/{doc_id}"
+        # remove the outer quotes from the content string
+        content = content[1:-1]
         response = requests.put(url, json=json.loads(content))
         assert response.status_code == 200
 
@@ -85,8 +87,9 @@ def get_headers(context):
 
 # ... (inside register_steps)
 
-    @runner.step(r'^When I create a document with ID "(.*)" and content (.*) in "(.*)"$')
+    @runner.step(r'^When I create a document with ID "(.*)" and content (\'{.*}\'|\"{.*}\") in "(.*)"$')
     def create_document_with_id(context, doc_id, content_str, collection_name):
+        content_str = content_str[1:-1]
         content = json.loads(content_str)
         headers = get_headers(context)
         response = requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", json=content, headers=headers)
@@ -94,12 +97,13 @@ def get_headers(context):
         context['doc_id'] = doc_id
         context['doc_content'] = content
 
-    @runner.step(r'^Then the document with ID "(.*)" in "(.*)" should have content (.*)$')
+    @runner.step(r'^Then the document with ID "(.*)" in "(.*)" should have content (\'{.*}\'|\"{.*}\")$')
     def document_should_have_content(context, doc_id, collection_name, expected_content_str):
         headers = get_headers(context)
         response = requests.get(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", headers=headers)
         assert response.status_code == 200
         actual_content = response.json()
+        expected_content_str = expected_content_str[1:-1]
         expected_content = json.loads(expected_content_str)
         for key, value in expected_content.items():
             assert key in actual_content
@@ -108,8 +112,9 @@ def get_headers(context):
                 continue
             assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
 
-    @runner.step(r'^When I update the document with ID "(.*)" with content (.*) in "(.*)"$')
+    @runner.step(r'^When I update the document with ID "(.*)" with content (\'{.*}\'|\"{.*}\") in "(.*)"$')
     def update_document(context, doc_id, content_str, collection_name):
+        content_str = content_str[1:-1]
         content = json.loads(content_str)
         headers = get_headers(context)
         response = requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", json=content, headers=headers)
