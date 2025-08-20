@@ -4,6 +4,7 @@
 #include <stdexcept> // For std::runtime_error
 #include <algorithm> // For std::find_if
 #include "lsm_tree.h" // For LSMTree pointer
+#include "../query/executor_common.h" // For value_to_string
 
 // Helper function to get a value from a document
 const TissDB::Value* get_value(const TissDB::Document& doc, const std::string& key) {
@@ -48,6 +49,18 @@ void Collection::create_index(const std::vector<std::string>& field_names, bool 
 
 void Collection::shutdown() {
     // TODO: Implement shutdown
+}
+
+bool Collection::has_index(const std::vector<std::string>& field_names) const {
+    return indexer_.has_index(field_names);
+}
+
+std::vector<std::vector<std::string>> Collection::get_available_indexes() const {
+    return indexer_.get_available_indexes();
+}
+
+std::vector<std::string> Collection::find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const {
+    return indexer_.find_by_index(field_names, values);
 }
 
 void Collection::put(const std::string& key, const Document& doc) {
