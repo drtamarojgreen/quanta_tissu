@@ -192,7 +192,7 @@ class QuantaTissu:
             keys = list(data.keys())
             print(f"Loading weights from {path}. Found keys: {keys}")
 
-            # A legacy checkpoint is one that contains 'param_d' keys.
+            # A legacy checkpoint is one that contains 'param_' keys.
             # It might also contain optimizer states, so we check with any().
             is_legacy = any(k.startswith('param_') for k in keys)
 
