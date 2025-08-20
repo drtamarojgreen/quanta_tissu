@@ -7,10 +7,10 @@ DB_NAME = "testdb" # Use a consistent test database
 
 def register_steps(runner):
 
-    @runner.step(r'Given a TissDB collection named "(.*)" is available for TissLM')
+    @runner.step(r'^a TissDB collection named "(.*)" is available for TissLM$')
     def given_tissdb_collection_is_available(context, collection_name):
         response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}")
-        assert response.status_code in [201, 200]
+        assert response.status_code in [201, 200, 409] # 409 Conflict is ok if it already exists
         context['collection_name'] = collection_name
 
     @runner.step(r'And the "(.*)" collection contains a document with ID "(.*)" and content (.*)')

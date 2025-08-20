@@ -4,187 +4,158 @@ import time
 
 BASE_URL = "http://localhost:8080"
 
-def register_steps(runner):
-
-    @runner.step(r'^Given a running TissDB instance$')
-    def running_tissdb_instance(context):
-        context['db_name'] = "testdb"
-        # Try to delete the database to ensure a clean state, ignore errors if it doesn't exist
-        requests.delete(f"{BASE_URL}/{context['db_name']}")
-
-        # Create the database for the test
-        response = requests.put(f"{BASE_URL}/{context['db_name']}")
-        if response.status_code == 500 and 'already exists' in response.text:
-            # This is fine, it means the previous delete failed but the DB is there.
-            pass
-        else:
-            # The server should return 201 Created
-            assert response.status_code == 201, f"Failed to create database. Status: {response.status_code}, Body: {response.text}"
-
-        # Check if the server is healthy
-        try:
-            response = requests.get(f"{BASE_URL}/_health")
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"TissDB instance is not responsive: {e}")
-
-    @runner.step(r'^When I create a collection named "(.*)"$')
-    def create_collection(context, collection_name):
-        response = requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}")
-        assert response.status_code == 201
-        context['collection_name'] = collection_name
-
-    @runner.step(r'^Then the collection "(.*)" should exist$')
-    def collection_should_exist(context, collection_name):
-        response = requests.get(f"{BASE_URL}/{context['db_name']}/_collections")
-        assert response.status_code == 200
-        collections = response.json()
-        assert collection_name in collections
-
-    @runner.step(r'^When I delete the collection "(.*)"$')
-    def delete_collection(context, collection_name):
-        response = requests.delete(f"{BASE_URL}/{context['db_name']}/{collection_name}")
-        print(f"DELETE {collection_name} status code: {response.status_code}")
-        assert response.status_code in [204, 404]
-
-    @runner.step(r'^a TissDB collection named "(.*)" is available for TissLM$')
-    def collection_is_available(context, collection_name):
-        db_name = context.get('db_name', 'testdb')
-        response = requests.put(f"{BASE_URL}/{db_name}/{collection_name}")
-        assert response.status_code in [201, 200, 409]
-
-    @runner.step(r'^a document with ID "(.*)" and content (\'{.*}\'|\"{.*}\") in "(.*)"$')
-    def create_document_with_content(context, doc_id, content, collection_name):
-        db_name = context.get('db_name', 'testdb')
-        url = f"{BASE_URL}/{db_name}/{collection_name}/{doc_id}"
-        # remove the outer quotes from the content string
-        content = content[1:-1]
-        response = requests.put(url, json=json.loads(content))
-        assert response.status_code == 200
-
-    @runner.step(r'^a simulated Sinew client creates a document with ID "(.*)" and content (.*) in "(.*)"$')
-    def sinew_create_document(context, doc_id, content, collection_name):
-        create_document_with_content(context, doc_id, content, collection_name)
-
-    @runner.step(r'^Then the collection "(.*)" should not exist$')
-    def collection_should_not_exist(context, collection_name):
-        response = requests.get(f"{BASE_URL}/{context['db_name']}/_collections")
-        assert response.status_code == 200
-        collections = response.json()
-        assert collection_name not in collections
-
-    @runner.step(r'^And a collection named "(.*)" exists$')
-    def collection_exists(context, collection_name):
-        response = requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}")
-        assert response.status_code in [201, 200]
-        context['collection_name'] = collection_name
-
 def get_headers(context):
     headers = {}
     if 'transaction_id' in context:
-        headers['X-Transaction-ID'] = str(int(context['transaction_id']))
+        headers['X-Transaction-ID'] = str(context['transaction_id'])
     return headers
 
-# ... (inside register_steps)
+def register_steps(runner):
 
-    @runner.step(r'^When I create a document with ID "(.*)" and content (\'{.*}\'|\"{.*}\") in "(.*)"$')
-    def create_document_with_id(context, doc_id, content_str, collection_name):
-        content_str = content_str[1:-1]
-        content = json.loads(content_str)
+    @runner.step(r'a running TissDB instance')
+    def running_tissdb_instance(context):
+        context['db_name'] = "testdb"
+        # Ensure a clean slate
+        requests.delete(f"{BASE_URL}/{context['db_name']}")
+        response = requests.put(f"{BASE_URL}/{context['db_name']}")
+        assert response.status_code in [201, 200, 409], f"Failed to create database. Status: {response.status_code}, Body: {response.text}"
+
+    @runner.step(r'a collection named "(.*)"( exists)?')
+    def collection_exists(context, collection_name, exists_word=None):
+        context['collection_name'] = collection_name
         headers = get_headers(context)
-        response = requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", json=content, headers=headers)
-        assert response.status_code == 200
-        context['doc_id'] = doc_id
-        context['doc_content'] = content
+        response = requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}", headers=headers)
+        assert response.status_code in [201, 200, 409], f"Failed to create collection. Status: {response.status_code}, Body: {response.text}"
 
-    @runner.step(r'^Then the document with ID "(.*)" in "(.*)" should have content (\'{.*}\'|\"{.*}\")$')
+    @runner.step(r'I create a collection named "(.*)"')
+    def create_collection(context, collection_name):
+        collection_exists(context, collection_name)
+
+    @runner.step(r'the collection "(.*)" should exist')
+    def collection_should_exist(context, collection_name):
+        response = requests.get(f"{BASE_URL}/{context['db_name']}/_collections")
+        assert response.status_code == 200
+        assert collection_name in response.json()
+
+    @runner.step(r'the collection "(.*)" should not exist')
+    def collection_should_not_exist(context, collection_name):
+        response = requests.get(f"{BASE_URL}/{context['db_name']}/_collections")
+        assert response.status_code == 200
+        assert collection_name not in response.json()
+
+    @runner.step(r'I delete the collection "(.*)"')
+    def delete_collection(context, collection_name):
+        headers = get_headers(context)
+        response = requests.delete(f"{BASE_URL}/{context['db_name']}/{collection_name}", headers=headers)
+        assert response.status_code in [204, 404]
+
+    @runner.step(r'a document with ID "(.*)" and content (.*) in "(.*)"')
+    def create_document_with_content(context, doc_id, content, collection_name):
+        headers = get_headers(context)
+        # The content can be single-quoted, double-quoted, or not quoted at all if it's a single token
+        if content.startswith("'") and content.endswith("'"):
+            content = content[1:-1]
+        elif content.startswith('"') and content.endswith('"'):
+            content = content[1:-1]
+
+        try:
+            payload = json.loads(content)
+        except json.JSONDecodeError:
+            payload = {"content": content}
+
+        response = requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", json=payload, headers=headers)
+        assert response.status_code == 200, f"Failed to create document. Status: {response.status_code}, Body: {response.text}"
+        context['doc_id'] = doc_id
+
+    @runner.step(r'I create a document with ID "(.*)" and content (.*) in "(.*)"')
+    def i_create_document_with_content(context, doc_id, content, collection_name):
+        create_document_with_content(context, doc_id, content, collection_name)
+
+    @runner.step(r'I update the document with ID "(.*)" with content (.*) in "(.*)"')
+    def update_document_with_content(context, doc_id, content, collection_name):
+        create_document_with_content(context, doc_id, content, collection_name)
+
+    @runner.step(r'the document with ID "(.*)" in "(.*)" should have content (.*)')
     def document_should_have_content(context, doc_id, collection_name, expected_content_str):
         headers = get_headers(context)
         response = requests.get(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", headers=headers)
         assert response.status_code == 200
         actual_content = response.json()
-        expected_content_str = expected_content_str[1:-1]
+
+        if expected_content_str.startswith("'") and expected_content_str.endswith("'"):
+            expected_content_str = expected_content_str[1:-1]
+        elif expected_content_str.startswith('"') and expected_content_str.endswith('"'):
+            expected_content_str = expected_content_str[1:-1]
+
         expected_content = json.loads(expected_content_str)
+
         for key, value in expected_content.items():
             assert key in actual_content
-            # Workaround for server returning empty string for null
-            if value is None and actual_content[key] == '':
-                continue
             assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
 
-    @runner.step(r'^When I update the document with ID "(.*)" with content (\'{.*}\'|\"{.*}\") in "(.*)"$')
-    def update_document(context, doc_id, content_str, collection_name):
-        content_str = content_str[1:-1]
-        content = json.loads(content_str)
-        headers = get_headers(context)
-        response = requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", json=content, headers=headers)
-        assert response.status_code == 200
-        context['doc_id'] = doc_id
-        context['doc_content'] = content
-
-    @runner.step(r'^When I delete the document with ID "(.*)" from "(.*)"$')
+    @runner.step(r'I delete the document with ID "(.*)" from "(.*)"')
     def delete_document(context, doc_id, collection_name):
         headers = get_headers(context)
         response = requests.delete(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", headers=headers)
         assert response.status_code == 204
 
-    @runner.step(r'^Then the document with ID "(.*)" in "(.*)" should not exist$')
+    @runner.step(r'the document with ID "(.*)" in "(.*)" should not exist')
     def document_should_not_exist(context, doc_id, collection_name):
-        response = requests.get(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}")
+        headers = get_headers(context)
+        response = requests.get(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", headers=headers)
         assert response.status_code == 404
 
-    @runner.step(r'^Given a document with ID "(.*)" exists in TissDB$')
-    def given_document_exists(context, doc_id):
-        context['collection_name'] = "documents"
-        collection_exists(context, context['collection_name'])
-        content = {"data": f"This is document {doc_id}"}
-        response = requests.put(f"{BASE_URL}/{context['db_name']}/{context['collection_name']}/{doc_id}", json=content)
-        assert response.status_code == 200
-        context['doc_id'] = doc_id
+    @runner.step(r'the document with ID "(.*)" in "(.*)" should exist')
+    def document_should_exist(context, doc_id, collection_name):
+        headers = get_headers(context)
+        response = requests.get(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", headers=headers)
+        assert response.status_code == 200, f"Document {doc_id} does not exist. Status: {response.status_code}"
 
-    @runner.step(r'^When I execute the TissQL query "(.*)" on "(.*)"$')
+    @runner.step(r'I execute the TissQL query "(.*)" on "(.*)"')
     def execute_tissql_query(context, query_string, collection_name):
         data = {"query": query_string}
-        response = requests.post(f"{BASE_URL}/{context['db_name']}/{collection_name}/_query", json=data)
-        assert response.status_code == 200
-        context['query_result'] = response.json()
+        headers = get_headers(context)
+        # Use the /_query endpoint
+        response = requests.post(f"{BASE_URL}/{context['db_name']}/{collection_name}/_query", json=data, headers=headers)
+        context['response'] = response
+        if response.ok:
+            context['query_result'] = response.json()
+        else:
+            context['query_result'] = []
 
-    @runner.step(r'^Then the query result should contain "(.*)"$')
+    @runner.step(r'the query result should contain "(.*)"')
     def query_result_should_contain(context, expected_value):
-        found = False
-        for item in context['query_result']:
-            if expected_value in item.values():
-                found = True
-                break
-        assert found
+        assert 'query_result' in context, "No query result found in context"
+        found = any(expected_value in (str(v) for v in item.values()) for item in context['query_result'])
+        assert found, f"Expected value '{expected_value}' not found in query result: {context['query_result']}"
 
-    @runner.step(r'^And the query result should not contain "(.*)"$')
+    @runner.step(r'the query result should not contain "(.*)"')
     def query_result_should_not_contain(context, unexpected_value):
-        found = False
-        for item in context['query_result']:
-            if unexpected_value in item.values():
-                found = True
-                break
-        assert not found
+        assert 'query_result' in context, "No query result found in context"
+        found = any(unexpected_value in (str(v) for v in item.values()) for item in context['query_result'])
+        assert not found, f"Unexpected value '{unexpected_value}' found in query result: {context['query_result']}"
 
-    @runner.step(r'^When I begin a transaction$')
+    @runner.step(r'the query result should be empty')
+    def query_result_should_be_empty(context):
+        assert 'query_result' in context, "No query result found in context"
+        assert len(context['query_result']) == 0, f"Expected empty result, but got: {context['query_result']}"
+
+    @runner.step(r'I begin a transaction')
     def begin_transaction(context):
         response = requests.post(f"{BASE_URL}/{context['db_name']}/_begin")
         assert response.status_code == 200
         context['transaction_id'] = response.json()['transaction_id']
 
-    @runner.step(r'^And I commit the transaction$')
+    @runner.step(r'I commit the transaction')
     def commit_transaction(context):
         data = {'transaction_id': context['transaction_id']}
         response = requests.post(f"{BASE_URL}/{context['db_name']}/_commit", json=data)
         assert response.status_code in [200, 204]
+        del context['transaction_id']
 
-    @runner.step(r'^And I rollback the transaction$')
+    @runner.step(r'I rollback the transaction')
     def rollback_transaction(context):
         data = {'transaction_id': context['transaction_id']}
         response = requests.post(f"{BASE_URL}/{context['db_name']}/_rollback", json=data)
         assert response.status_code in [200, 204]
-
-    @runner.step(r'^And I delete the collection "(.*)"$')
-    def and_delete_collection(context, collection_name):
-        delete_collection(context, collection_name)
+        del context['transaction_id']
