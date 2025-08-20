@@ -44,6 +44,7 @@ def register_steps(runner):
     @runner.step(r'^When I delete the collection "(.*)"$')
     def delete_collection(context, collection_name):
         response = requests.delete(f"{BASE_URL}/{context['db_name']}/{collection_name}")
+        print(f"DELETE {collection_name} status code: {response.status_code}")
         assert response.status_code in [204, 404]
 
     @runner.step(r'^a TissDB collection named "(.*)" is available for TissLM$')

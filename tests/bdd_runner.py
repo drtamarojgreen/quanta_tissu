@@ -183,7 +183,10 @@ class BDDRunner:
         try:
             self.start_db()
 
-            feature_files = glob.glob(os.path.join(self.features_path, '*.feature'))
+            if os.path.isfile(self.features_path):
+                feature_files = [self.features_path]
+            else:
+                feature_files = glob.glob(os.path.join(self.features_path, '*.feature'))
             print(f"BDD Runner: Found feature files: {feature_files}")
             sys.stdout.flush()
 
@@ -269,9 +272,15 @@ class BDDRunner:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='BDD Test Runner')
+    parser.add_argument('--feature', type=str, help='Run a single feature file.')
     parser.add_argument('--summary', action='store_true', help='Generate a summary report.')
     args = parser.parse_args()
 
     features_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'features')
+    if args.feature:
+        # This is a bit of a hack. glob.glob will handle both files and directories.
+        # If a single feature is passed, it will be a list of one.
+        features_path = os.path.join(features_path, args.feature)
+
     runner = BDDRunner(features_path, summary=args.summary)
     runner.run()
