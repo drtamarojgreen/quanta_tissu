@@ -10,10 +10,10 @@ Feature: TissDB Core Database API
   Scenario: Create, retrieve, update, and delete a document
     Given a running TissDB instance
     And a collection named "documents_collection" exists
-    When I create a document with ID "doc1" and content {"name": "Test Document", "value": 123} in "documents_collection"
-    Then the document with ID "doc1" in "documents_collection" should have content {"name": "Test Document", "value": 123}
-    When I update the document with ID "doc1" with content {"name": "Updated Document", "value": 456} in "documents_collection"
-    Then the document with ID "doc1" in "documents_collection" should have content {"name": "Updated Document", "value": 456}
+    When I create a document with ID "doc1" and content '{"name": "Test Document", "value": 123}' in "documents_collection"
+    Then the document with ID "doc1" in "documents_collection" should have content '{"name": "Test Document", "value": 123}'
+    When I update the document with ID "doc1" with content '{"name": "Updated Document", "value": 456}' in "documents_collection"
+    Then the document with ID "doc1" in "documents_collection" should have content '{"name": "Updated Document", "value": 456}'
     When I delete the document with ID "doc1" from "documents_collection"
     Then the document with ID "doc1" in "documents_collection" should not exist
     And I delete the collection "documents_collection"
