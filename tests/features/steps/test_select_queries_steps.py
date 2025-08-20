@@ -11,7 +11,7 @@ def register_steps(runner):
     @runner.step(r'^When I execute the TissQL query "(.*)"$')
     def execute_tissql_query_from_string(context, query_string):
         # Extracts the collection name from the query, assuming "FROM [collection_name]"
-        match = re.search(r'FROM\s+(\w+)', query_string, re.IGNORECASE)
+        match = re.search(r'(?:FROM|UPDATE)\s+(\w+)', query_string, re.IGNORECASE)
         if not match:
             # Some queries like 'SELECT 1' don't have a FROM clause.
             # In this case, we can't determine a collection.
