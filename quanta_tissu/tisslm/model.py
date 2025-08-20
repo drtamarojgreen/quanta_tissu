@@ -214,7 +214,7 @@ class QuantaTissu:
                     if i < len(model_params):
                         param = model_params[i]
                         if param.value.shape == data[key].shape:
-                            param.value = data[key]
+                            param.value[:] = data[key]
                         else:
                             print(f"Warning: Shape mismatch for {param.name} (from {key}). Expected {param.value.shape}, got {data[key].shape}. Skipping.")
                     else:
