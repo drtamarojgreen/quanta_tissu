@@ -22,7 +22,7 @@ make -C tissdb
 Several tests related to the TissLM model and tokenizer are failing with errors like `TypeError: 'NoneType' object cannot be interpreted as an integer` and warnings about missing BPE tokenizer files. This indicates that the pre-trained model and tokenizer are not available.
 
 ### Fix
-The `quanta_tissu/tisslm/train_bpe.py` script can be used to train the tokenizer and generate the required files.
+The `quanta_tissu/tisslm/legacylm/train_bpe.py` script can be used to train the tokenizer and generate the required files.
 
 However, this script requires a corpus text file at `corpus/resiliency_research.txt`. This directory and file do not exist in the repository.
 
@@ -31,7 +31,7 @@ However, this script requires a corpus text file at `corpus/resiliency_research.
 2.  Add a text file named `resiliency_research.txt` inside the `corpus/` directory with some text data.
 3.  Run the training script:
     ```bash
-    python3 quanta_tissu/tisslm/train_bpe.py
+    python3 quanta_tissu/tisslm/legacylm/train_bpe.py
     ```
 
 ## 3. BDD Runner Bug: Missing Argument for Table Steps

@@ -46,7 +46,7 @@ The core logic is contained within the `quanta_tissu/tisslm/` directory:
 -   `model.py`: Defines the `QuantaTissu` class and its constituent layers.
 -   `layers.py`: Contains the implementation of individual layers like `MultiHeadAttention` and `FeedForward`.
 -   `config.py`: Centralizes all configurations, including model hyperparameters, vocabulary, and file paths.
--   `train.py`: Implements the main training loop.
+-   `legacylm/train.py`: Implements the main training loop.
 -   `optimizer.py`, `loss.py`: Contain the from-scratch implementations of the AdamW optimizer and Cross-Entropy Loss.
 -   `tokenizer.py`: A simple, vocabulary-based tokenizer.
 -   `data.py`: Handles dataset loading and batching.
@@ -57,7 +57,7 @@ All aspects of the model and training process are controlled by the `config.py` 
 
 ### 3.3. Training Pipeline
 
-The training process is executed by running the `train.py` script. The pipeline consists of the following steps:
+The training process is executed by running the `legacylm/train.py` script. The pipeline consists of the following steps:
 1.  **Data Loading**: The script loads a text corpus from a specified directory.
 2.  **Tokenization**: The raw text is tokenized using the simple, space-delimited tokenizer defined in `tokenizer.py`.
 3.  **Dataset Preparation**: The tokenized data is structured into input-target pairs (`x`, `y`) and managed by a `Dataset` class that handles batching.
