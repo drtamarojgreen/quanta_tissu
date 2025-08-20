@@ -44,26 +44,26 @@ def register_steps(runner):
     @runner.step(r'^When I delete the collection "(.*)"$')
     def delete_collection(context, collection_name):
         response = requests.delete(f"{BASE_URL}/{context['db_name']}/{collection_name}")
+        print(f"DELETE {collection_name} status code: {response.status_code}")
         assert response.status_code in [204, 404]
 
-    @runner.step(r'a TissDB collection named "(.*)" is available for TissLM')
+    @runner.step(r'^a TissDB collection named "(.*)" is available for TissLM$')
     def collection_is_available(context, collection_name):
         db_name = context.get('db_name', 'testdb')
         response = requests.put(f"{BASE_URL}/{db_name}/{collection_name}")
-        # This can be 200 (created) or 500/409 (if it exists).
-        # We just want to make sure it exists for the test.
-        assert response.status_code in [200, 500, 409]
+        assert response.status_code in [201, 200, 409]
 
-    @runner.step(r'a document with ID "(.*)" and content (.*) in "(.*)"')
+    @runner.step(r'^a document with ID "(.*)" and content (\'{.*}\'|\"{.*}\") in "(.*)"$')
     def create_document_with_content(context, doc_id, content, collection_name):
         db_name = context.get('db_name', 'testdb')
         url = f"{BASE_URL}/{db_name}/{collection_name}/{doc_id}"
+        # remove the outer quotes from the content string
+        content = content[1:-1]
         response = requests.put(url, json=json.loads(content))
-        response.raise_for_status()
+        assert response.status_code == 200
 
-    @runner.step(r'a simulated Sinew client creates a document with ID "(.*)" and content (.*) in "(.*)"')
+    @runner.step(r'^a simulated Sinew client creates a document with ID "(.*)" and content (.*) in "(.*)"$')
     def sinew_create_document(context, doc_id, content, collection_name):
-        # This is the same as the step above, just with a different sentence.
         create_document_with_content(context, doc_id, content, collection_name)
 
     @runner.step(r'^Then the collection "(.*)" should not exist$')
@@ -87,8 +87,9 @@ def get_headers(context):
 
 # ... (inside register_steps)
 
-    @runner.step(r'^When I create a document with ID "(.*)" and content (.*) in "(.*)"$')
+    @runner.step(r'^When I create a document with ID "(.*)" and content (\'{.*}\'|\"{.*}\") in "(.*)"$')
     def create_document_with_id(context, doc_id, content_str, collection_name):
+        content_str = content_str[1:-1]
         content = json.loads(content_str)
         headers = get_headers(context)
         response = requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", json=content, headers=headers)
@@ -96,12 +97,13 @@ def get_headers(context):
         context['doc_id'] = doc_id
         context['doc_content'] = content
 
-    @runner.step(r'^Then the document with ID "(.*)" in "(.*)" should have content (.*)$')
+    @runner.step(r'^Then the document with ID "(.*)" in "(.*)" should have content (\'{.*}\'|\"{.*}\")$')
     def document_should_have_content(context, doc_id, collection_name, expected_content_str):
         headers = get_headers(context)
         response = requests.get(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", headers=headers)
         assert response.status_code == 200
         actual_content = response.json()
+        expected_content_str = expected_content_str[1:-1]
         expected_content = json.loads(expected_content_str)
         for key, value in expected_content.items():
             assert key in actual_content
@@ -110,8 +112,9 @@ def get_headers(context):
                 continue
             assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
 
-    @runner.step(r'^When I update the document with ID "(.*)" with content (.*) in "(.*)"$')
+    @runner.step(r'^When I update the document with ID "(.*)" with content (\'{.*}\'|\"{.*}\") in "(.*)"$')
     def update_document(context, doc_id, content_str, collection_name):
+        content_str = content_str[1:-1]
         content = json.loads(content_str)
         headers = get_headers(context)
         response = requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", json=content, headers=headers)
@@ -185,15 +188,3 @@ def get_headers(context):
     @runner.step(r'^And I delete the collection "(.*)"$')
     def and_delete_collection(context, collection_name):
         delete_collection(context, collection_name)
-
-    @runner.step(r'^And I create a document with ID "(.*)" and content (.*) in "(.*)"$')
-    def and_create_document_with_id(context, doc_id, content_str, collection_name):
-        create_document_with_id(context, doc_id, content_str, collection_name)
-
-    @runner.step(r'^And the query result should contain "(.*)"$')
-    def and_query_result_should_contain(context, expected_value):
-        query_result_should_contain(context, expected_value)
-
-    @runner.step(r'^And the document with ID "(.*)" in "(.*)" should have content (.*)$')
-    def and_document_should_have_content(context, doc_id, collection_name, expected_content_str):
-        document_should_have_content(context, doc_id, collection_name, expected_content_str)

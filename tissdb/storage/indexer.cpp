@@ -19,11 +19,12 @@ std::string Indexer::get_index_name(const std::vector<std::string>& field_names)
     return ss.str();
 }
 
-void Indexer::create_index(const std::vector<std::string>& field_names) {
+void Indexer::create_index(const std::vector<std::string>& field_names, bool is_unique) {
     std::string index_name = get_index_name(field_names);
     if (indexes_.find(index_name) == indexes_.end()) {
         indexes_[index_name] = std::make_shared<BTree<std::string, std::string>>();
         index_fields_[index_name] = field_names;
+        index_uniqueness_[index_name] = is_unique;
     }
 }
 
@@ -72,6 +73,7 @@ void Indexer::update_indexes(const std::string& document_id, const Document& doc
 
         auto& btree = indexes_[index_name];
         auto existing_json_str_opt = btree->find(key);
+        bool is_unique = index_uniqueness_.count(index_name) && index_uniqueness_.at(index_name);
 
         Json::JsonArray doc_ids_array;
         if (existing_json_str_opt.has_value()) {
@@ -88,10 +90,20 @@ void Indexer::update_indexes(const std::string& document_id, const Document& doc
             }
         }
 
-        if (!already_exists) {
-            doc_ids_array.push_back(Json::JsonValue(document_id));
-            btree->insert(key, Json::JsonValue(doc_ids_array).serialize());
+        if (already_exists) {
+            // Document is already in the index with the same key. Nothing to do.
+            continue;
         }
+
+        // If we are here, it's a new document for this key.
+        if (is_unique && !doc_ids_array.empty()) {
+            // If the index is unique and there's already a *different* document ID for this key, throw.
+            throw std::runtime_error("Uniqueness constraint violated for index '" + index_name + "' with key '" + key + "'");
+        }
+
+        // Add the new document ID to the list and insert/update the index.
+        doc_ids_array.push_back(Json::JsonValue(document_id));
+        btree->insert(key, Json::JsonValue(doc_ids_array).serialize());
     }
 }
 
@@ -223,13 +235,24 @@ void Indexer::save_indexes(const std::string& data_dir) {
 
     // Save the index metadata
     Json::JsonObject meta_obj;
+    Json::JsonObject fields_obj;
+    Json::JsonObject unique_obj;
+
     for (const auto& pair : index_fields_) {
         Json::JsonArray fields_array;
         for (const auto& field : pair.second) {
             fields_array.push_back(Json::JsonValue(field));
         }
-        meta_obj[pair.first] = Json::JsonValue(fields_array);
+        fields_obj[pair.first] = Json::JsonValue(fields_array);
     }
+
+    for (const auto& pair : index_uniqueness_) {
+        unique_obj[pair.first] = Json::JsonValue(pair.second);
+    }
+
+    meta_obj["fields"] = Json::JsonValue(fields_obj);
+    meta_obj["unique"] = Json::JsonValue(unique_obj);
+
     std::string meta_path = data_dir + "/indexes.meta";
     std::ofstream meta_ofs(meta_path);
     meta_ofs << Json::JsonValue(meta_obj).serialize();
@@ -267,12 +290,21 @@ void Indexer::load_indexes(const std::string& data_dir) {
         std::string meta_content((std::istreambuf_iterator<char>(meta_ifs)), std::istreambuf_iterator<char>());
         try {
             auto meta_json = Json::JsonValue::parse(meta_content).as_object();
-            for (const auto& pair : meta_json) {
-                std::vector<std::string> fields;
-                for (const auto& field_val : pair.second.as_array()) {
-                    fields.push_back(field_val.as_string());
+            if (meta_json.count("fields")) {
+                auto fields_obj = meta_json.at("fields").as_object();
+                for (const auto& pair : fields_obj) {
+                    std::vector<std::string> fields;
+                    for (const auto& field_val : pair.second.as_array()) {
+                        fields.push_back(field_val.as_string());
+                    }
+                    index_fields_[pair.first] = fields;
                 }
-                index_fields_[pair.first] = fields;
+            }
+            if (meta_json.count("unique")) {
+                auto unique_obj = meta_json.at("unique").as_object();
+                for (const auto& pair : unique_obj) {
+                    index_uniqueness_[pair.first] = pair.second.as_bool();
+                }
             }
         } catch (...) {
             // Handle parsing error if necessary, maybe log it

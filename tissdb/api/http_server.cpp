@@ -380,6 +380,18 @@ void HttpServer::Impl::handle_client(int client_socket) {
             doc.id = id;
             storage_engine.put("knowledge_feedback", id, doc, transaction_id);
             send_response(client_socket, "201 Created", "text/plain", "Feedback created with ID: " + id);
+        } else if (sub_path_parts[0] == "_query" && req.method == "POST") {
+            const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+            std::string query_string = parsed_body.as_object().at("query").as_string();
+            Query::Parser parser;
+            Query::AST ast = parser.parse(query_string);
+            Query::Executor executor(storage_engine);
+            Query::QueryResult result = executor.execute(ast);
+            Json::JsonArray result_array;
+            for (const auto& doc : result) {
+                result_array.push_back(Json::JsonValue(document_to_json(doc)));
+            }
+            send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
         } else if (sub_path_parts[0] == "_collections" && req.method == "GET") {
             Json::JsonArray collections_array;
             for (const auto& name : storage_engine.list_collections()) {
@@ -391,19 +403,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
             std::vector<std::string> doc_path_parts(sub_path_parts.begin() + 1, sub_path_parts.end());
 
             if (!doc_path_parts.empty() && req.method == "POST") {
-                if (doc_path_parts[0] == "_query") {
-                    const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
-                    std::string query_string = parsed_body.as_object().at("query").as_string();
-                    Query::Parser parser;
-                    Query::AST ast = parser.parse(query_string);
-                    Query::Executor executor(storage_engine);
-                    Query::QueryResult result = executor.execute(ast);
-                    Json::JsonArray result_array;
-                    for (const auto& doc : result) {
-                        result_array.push_back(Json::JsonValue(document_to_json(doc)));
-                    }
-                    send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
-                } else if (doc_path_parts[0] == "_index") {
+                if (doc_path_parts[0] == "_index") {
                     const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
                     std::vector<std::string> field_names;
                     if (parsed_body.as_object().count("field")) {
@@ -462,8 +462,13 @@ void HttpServer::Impl::handle_client(int client_socket) {
                     send_response(client_socket, "201 Created", "text/plain", "Collection '" + collection_name + "' created.");
                 }
             } else if (req.method == "DELETE" && doc_path_parts.empty()) {
-                storage_engine.delete_collection(collection_name);
-                send_response(client_socket, "204 No Content", "text/plain", "");
+                try {
+                    storage_engine.delete_collection(collection_name);
+                    send_response(client_socket, "204 No Content", "text/plain", "");
+                } catch (const std::runtime_error& e) {
+                    // This is likely "Collection not found"
+                    send_response(client_socket, "404 Not Found", "text/plain", e.what());
+                }
             } else {
                  send_response(client_socket, "404 Not Found", "text/plain", "Endpoint not found.");
             }
