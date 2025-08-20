@@ -64,12 +64,12 @@ def main():
 
     # --- Initialize Tokenizer ---
     # The Tokenizer class automatically loads the default tokenizer files.
-    # Make sure you have run train_bpe.py first.
+    # Make sure you have run legacylm/train_bpe.py first.
     try:
         tokenizer = Tokenizer()
     except FileNotFoundError as e:
         print(f"Error: Tokenizer files not found. {e}", file=sys.stderr)
-        print("Please run `python3 -m quanta_tissu.tisslm.train_bpe` to train and save the tokenizer.", file=sys.stderr)
+        print("Please run `python3 -m quanta_tissu.tisslm.legacylm.train_bpe` to train and save the tokenizer.", file=sys.stderr)
         sys.exit(1)
 
     # --- Initialize Model ---
