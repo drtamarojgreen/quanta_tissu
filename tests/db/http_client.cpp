@@ -39,7 +39,7 @@ int HttpClient::connect_to_server() {
     int sock = -1;
 #ifdef _WIN32
     sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == INVALID_SOCKET) {
+    if (sock == static_cast<int>(INVALID_SOCKET)) {
         throw std::runtime_error("Error creating socket: " + std::to_string(WSAGetLastError()));
     }
 #else

@@ -28,7 +28,7 @@ std::shared_ptr<const TableSchema> SchemaManager::getSchema(const std::string& t
     return nullptr;
 }
 
-bool SchemaManager::validateDocument(const std::string& table_name, const std::string& document_json) const {
+bool SchemaManager::validateDocument(const std::string& table_name, const std::string& /*document_json*/) const {
     std::cout << "SchemaManager: Validating document for table '" << table_name << "'. (Placeholder)" << std::endl;
     // This is a placeholder. Actual implementation would:
     // 1. Parse document_json into a structured representation.

@@ -9,6 +9,7 @@
 
 #include "../common/document.h"
 #include "../common/schema.h"
+#include "indexer.h"
 
 namespace TissDB {
 namespace Storage {
@@ -49,8 +50,13 @@ public:
     std::vector<Document> scan() const;
 
     void set_schema(const TissDB::Schema& schema);
-    void create_index(const std::vector<std::string>& field_names);
+    void create_index(const std::vector<std::string>& field_names, bool is_unique = false);
     void shutdown();
+
+    // Indexer Wrappers
+    bool has_index(const std::vector<std::string>& field_names) const;
+    std::vector<std::vector<std::string>> get_available_indexes() const;
+    std::vector<std::string> find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const;
 
 private:
     // We use a sorted map to store documents in memory. The key is the document ID.
@@ -61,6 +67,7 @@ private:
     std::map<std::string, std::shared_ptr<Document>> data;
     size_t estimated_size;
     TissDB::Schema schema_;
+    Indexer indexer_;
     LSMTree* parent_db_; // Pointer to the parent database
 };
 

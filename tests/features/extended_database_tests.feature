@@ -3,8 +3,8 @@ Feature: TissDB Extended Database Operations
   Scenario: Handle various data types in documents
     Given a running TissDB instance
     And a collection named "data_types_collection" exists
-    When I create a document with ID "doc_types" and content {"string": "hello", "integer": 123, "float": 45.67, "boolean": true, "null_value": null, "array": [1, "two", false], "nested_object": {"key": "value"}} in "data_types_collection"
-    Then the document with ID "doc_types" in "data_types_collection" should have content {"string": "hello", "integer": 123, "float": 45.67, "boolean": true, "null_value": null, "array": [1, "two", false], "nested_object": {"key": "value"}}
+    When I create a document with ID "doc_types" and content '{"string": "hello", "integer": 123, "float": 45.67, "boolean": true, "null_value": null, "array": [1, "two", false], "nested_object": {"key": "value"}}' in "data_types_collection"
+    Then the document with ID "doc_types" in "data_types_collection" should have content '{"string": "hello", "integer": 123, "float": 45.67, "boolean": true, "null_value": null, "array": [1, "two", false], "nested_object": {"key": "value"}}'
     And I delete the collection "data_types_collection"
 
   Scenario: Query with OR predicate
