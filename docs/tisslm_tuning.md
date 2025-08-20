@@ -13,7 +13,7 @@ This guide covers three main areas of tuning:
 
 Before training the TissLM model, you need a tokenizer that converts raw text into a sequence of token IDs. TissLM uses a Byte-Pair Encoding (BPE) tokenizer. The quality and size of the tokenizer's vocabulary can significantly impact the model's performance.
 
-The tokenizer is trained using the `quanta_tissu/tisslm/train_bpe.py` script.
+The tokenizer is trained using the `quanta_tissu/tisslm/legacylm/train_bpe.py` script.
 
 ### Key Parameters
 
@@ -29,14 +29,14 @@ You can control the tokenizer training process using the following command-line 
 
 ### How to Train a New Tokenizer
 
-To train a new tokenizer, run the `train_bpe.py` script from the project root directory with your desired parameters.
+To train a new tokenizer, run the `train_bpe.py` script (located in the `legacylm` directory) from the project root directory with your desired parameters.
 
 **Example:**
 
 Let's say you have a new corpus file named `my_corpus.txt` and you want to train a tokenizer with a vocabulary size of 2048.
 
 ```bash
-python quanta_tissu/tisslm/train_bpe.py \
+python quanta_tissu/tisslm/legacylm/train_bpe.py \
     --corpus_path /path/to/my_corpus.txt \
     --vocab_size 2048 \
     --save_prefix models/my_new_tokenizer

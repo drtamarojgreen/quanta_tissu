@@ -18,7 +18,7 @@ class Tokenizer:
         try:
             self.bpe_tokenizer.load(tokenizer_prefix)
         except FileNotFoundError:
-            print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using train_bpe.py.")
+            print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using legacylm/train_bpe.py.")
             # Fallback to a minimal tokenizer or raise an error, depending on desired behavior
             # For now, we'll proceed with an empty tokenizer, which will likely cause errors later.
             # A more robust solution would be to train a default one or exit.
