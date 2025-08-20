@@ -153,11 +153,11 @@ void BTree<Key, Value, Order>::erase_recursive(BTreeNode* node, const Key& key) 
         if (node->is_leaf) {
             return; // Key not found
         }
-        bool flag = (i == node->keys.size());
+        bool flag = (static_cast<size_t>(i) == node->keys.size());
         if (node->children[i]->keys.size() < Order) {
             fill(node, i);
         }
-        if (flag && i > node->keys.size()) {
+        if (flag && static_cast<size_t>(i) > node->keys.size()) {
             erase_recursive(node->children[i - 1].get(), key);
         } else {
             erase_recursive(node->children[i].get(), key);
@@ -214,10 +214,10 @@ template<typename Key, typename Value, int Order>
 void BTree<Key, Value, Order>::fill(BTreeNode* node, int index) {
     if (index != 0 && node->children[index - 1]->keys.size() >= Order) {
         borrow_from_prev(node, index);
-    } else if (index != node->keys.size() && node->children[index + 1]->keys.size() >= Order) {
+    } else if (static_cast<size_t>(index) != node->keys.size() && node->children[index + 1]->keys.size() >= Order) {
         borrow_from_next(node, index);
     } else {
-        if (index != node->keys.size()) {
+        if (static_cast<size_t>(index) != node->keys.size()) {
             merge(node, index);
         } else {
             merge(node, index - 1);
