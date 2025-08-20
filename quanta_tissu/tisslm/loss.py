@@ -51,8 +51,8 @@ class CrossEntropyLoss:
         # Subtract 1 from the scores of the correct classes
         d_logits[np.arange(batch_size)[:, None], np.arange(seq_len), targets] -= 1
 
-        # Normalize the gradient by the batch size
-        d_logits /= batch_size
+        # Normalize the gradient by the total number of elements (batch_size * seq_len)
+        d_logits /= (batch_size * seq_len)
 
         self.d_inputs = d_logits # Store d_inputs
 
