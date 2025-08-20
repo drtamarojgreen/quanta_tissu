@@ -38,10 +38,10 @@ public:
     virtual std::vector<Document> get_many(const std::string& collection_name, const std::vector<std::string>& keys);
     virtual bool del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid = -1, bool is_recovery = false);
     virtual std::vector<Document> scan(const std::string& collection_name);
-    virtual void create_index(const std::string& collection_name, const std::vector<std::string>& field_names);
+    virtual void create_index(const std::string& collection_name, const std::vector<std::string>& field_names, bool is_unique = false);
 
     virtual std::vector<std::string> find_by_index(const std::string& collection_name, const std::string& field_name, const std::string& value);
-    std::vector<std::string> find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::vector<std::string>& values);
+    virtual std::vector<std::string> find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::vector<std::string>& values);
 
     // Transaction management
     Transactions::TransactionID begin_transaction();

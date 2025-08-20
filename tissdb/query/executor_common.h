@@ -31,6 +31,8 @@ Literal evaluate_update_expression(const Expression& expr, const Document& doc);
 void process_aggregation(std::map<std::string, AggregateResult>& results_map, const std::string& result_key, const Document& doc, const AggregateFunction& agg_func);
 Document combine_documents(const Document& doc1, const Document& doc2);
 void extract_equality_conditions(const Expression& expr, std::map<std::string, std::string>& conditions);
+const Value* get_value_from_doc(const Document& doc, const std::string& key);
+std::string value_to_string(const Value& value);
 
 } // namespace Query
 } // namespace TissDB
