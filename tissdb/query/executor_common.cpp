@@ -19,7 +19,7 @@ std::string like_to_regex(std::string pattern) {
         } else if (c == '_') {
             regex_pattern += ".";
         } else if (c == '.' || c == '+' || c == '*' || c == '?' || c == '^' || c == '$' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' || c == '|') {
-            regex_pattern += "\\";
+            regex_pattern += R"(\)"; // Escape special regex characters
             regex_pattern += c;
         } else {
             regex_pattern += c;
@@ -84,7 +84,16 @@ bool evaluate_expression(const Expression& expr, const Document& doc) {
         }
 
         const Value& doc_value = *doc_value_ptr;
-        const Value& literal_value = *right_literal_ptr;
+        Value literal_value;
+        if (std::holds_alternative<Null>(*right_literal_ptr)) {
+            literal_value = std::nullptr_t{};
+        } else if (const auto* str_val = std::get_if<std::string>(right_literal_ptr)) {
+            literal_value = *str_val;
+        } else if (const auto* num_val = std::get_if<double>(right_literal_ptr)) {
+            literal_value = *num_val;
+        } else if (const auto* bool_val = std::get_if<bool>(right_literal_ptr)) {
+            literal_value = *bool_val;
+        }
         const std::string& op = binary_expr->op;
 
         // Try numeric comparison first
