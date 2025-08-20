@@ -68,37 +68,48 @@ class BDDRunner:
         return steps
 
     def _execute_step(self, context, step_line, table, feature_name, scenario_title):
-        step_found = False
         self.report_data['steps_run'] += 1
+
+        found_steps = []
         for pattern, func in self.steps:
             match = pattern.search(step_line)
             if match:
-                print(f"    Executing step: {step_line}")
+                found_steps.append((pattern.pattern, func, match))
+
+        if not found_steps:
+            if step_line.startswith(('Given', 'When', 'Then', 'And', 'But')):
+                print(f"    WARNING - No step definition found for line: {step_line}")
                 sys.stdout.flush()
-                try:
-                    args = list(match.groups())
-                    if table:
-                        args.append(table)
-                    func(context, *args)
-                    self.report_data['steps_passed'] += 1
-                except Exception as e:
-                    tb = traceback.format_exc()
-                    print(f"      ERROR executing step: {e}\n{tb}")
-                    sys.stdout.flush()
-                    self.report_data['steps_failed'] += 1
-                    self.report_data['step_failures'].append({
-                        'feature': feature_name,
-                        'scenario': scenario_title,
-                        'step': step_line,
-                        'traceback': tb
-                    })
-                    return False, True # Returns (success, found)
-                step_found = True
-                break
-        if not step_found and step_line.startswith(('Given', 'When', 'Then', 'And', 'But')):
-            print(f"    WARNING - No step definition found for line: {step_line}")
+            return True, False
+
+        # Sort by length of regex pattern to find the most specific match
+        found_steps.sort(key=lambda x: len(x[0]), reverse=True)
+
+        best_match = found_steps[0]
+        _, func, match = best_match
+
+        print(f"    Executing step: {step_line}")
+        sys.stdout.flush()
+
+        try:
+            args = list(match.groups())
+            if table:
+                args.append(table)
+            func(context, *args)
+            self.report_data['steps_passed'] += 1
+            return True, True
+        except Exception as e:
+            tb = traceback.format_exc()
+            print(f"      ERROR executing step: {e}\n{tb}")
             sys.stdout.flush()
-        return True, step_found
+            self.report_data['steps_failed'] += 1
+            self.report_data['step_failures'].append({
+                'feature': feature_name,
+                'scenario': scenario_title,
+                'step': step_line,
+                'traceback': tb
+            })
+            return False, True
 
     def is_server_running(self, host='127.0.0.1', port=8080):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

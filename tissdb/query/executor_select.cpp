@@ -167,6 +167,22 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
                     joined_docs.push_back(left_doc);
                 }
             }
+
+            if (join_clause.type == JoinType::RIGHT || join_clause.type == JoinType::FULL) {
+                std::vector<Document> right_docs = storage_engine.scan(join_clause.collection_name);
+                for (const auto& right_doc : right_docs) {
+                    bool right_doc_matched = false;
+                    for (const auto& left_doc : all_docs) {
+                        if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc))) {
+                            right_doc_matched = true;
+                            break;
+                        }
+                    }
+                    if (!right_doc_matched) {
+                        joined_docs.push_back(right_doc);
+                    }
+                }
+            }
         }
         all_docs = joined_docs;
     }
