@@ -2,8 +2,8 @@ import unittest
 import os
 import shutil
 import json
-from quanta_tissu.tisslm.execution_engine import ExecutionEngine, ToolRegistry, TissSecurityError, TissAssertionError
-from quanta_tissu.tisslm.tisslang_parser import TissLangParser
+from quanta_tissu.tisslm.core.execution_engine import ExecutionEngine, ToolRegistry, TissSecurityError, TissAssertionError
+from quanta_tissu.tisslm.integrations.tisslang_parser import TissLangParser
 
 class TestExecutionEngine(unittest.TestCase):
 

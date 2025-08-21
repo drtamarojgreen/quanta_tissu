@@ -1,8 +1,8 @@
 import numpy as np
-from quanta_tissu.tisslm.model import QuantaTissu
+from quanta_tissu.tisslm.core.model import QuantaTissu
 from quanta_tissu.tisslm.config import model_config
-from quanta_tissu.tisslm.tokenizer import Tokenizer
-from quanta_tissu.tisslm.knowledge_base import KnowledgeBase
+from quanta_tissu.tisslm.core.tokenizer import Tokenizer
+from quanta_tissu.tisslm.core.knowledge_base import KnowledgeBase
 
 def register_steps(runner):
     @runner.step(r'^(?:Given|And) a knowledge base with a model and tokenizer$')
