@@ -4,12 +4,9 @@ import json
 import argparse
 import numpy as np
 
-# Add the parent directory to the path to allow for relative imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-from tisslm.model import QuantaTissu
-from tisslm.tokenizer import Tokenizer
-from tisslm.config import model_config
+from ..core.model import QuantaTissu
+from ..core.tokenizer import Tokenizer
+from ..config import model_config
 
 # --- Constants ---
 MODELS_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'models')

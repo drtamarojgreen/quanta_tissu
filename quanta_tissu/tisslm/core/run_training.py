@@ -15,7 +15,7 @@ from .model import QuantaTissu
 from .loss import CrossEntropyLoss
 from .optimizer import AdamW
 from .data import Dataset, load_corpus
-from .config import model_config, training_config, system_config, tokenizer_config
+from ..config import model_config, training_config, system_config, tokenizer_config
 from .scheduler import CosineDecayWithWarmup
 from .utils import save_checkpoint, load_checkpoint
 

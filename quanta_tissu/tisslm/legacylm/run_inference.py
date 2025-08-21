@@ -1,8 +1,8 @@
 import numpy as np
 
-from .model import QuantaTissu
-from .tokenizer import detokenize
-from .config import model_config
+from ..core.model import QuantaTissu
+from ..core.tokenizer import detokenize
+from ..config import model_config
 
 def main():
     # --- Setup ---

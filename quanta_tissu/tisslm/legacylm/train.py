@@ -1,11 +1,11 @@
 import os
 import numpy as np
 
-from .config import tokenizer_config, training_config, model_config, system_config
-from .data import Dataset, load_corpus
-from .model import QuantaTissu
-from .loss import CrossEntropyLoss
-from .optimizer import AdamW
+from ..config import tokenizer_config, training_config, model_config, system_config
+from ..core.data import Dataset, load_corpus
+from ..core.model import QuantaTissu
+from ..core.loss import CrossEntropyLoss
+from ..core.optimizer import AdamW
 
 
 def train():
