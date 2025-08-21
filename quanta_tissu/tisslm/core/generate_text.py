@@ -11,7 +11,7 @@ import argparse
 
 from .model import QuantaTissu
 from .tokenizer import Tokenizer
-from .config import model_config
+from ..config import model_config
 
 def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float) -> str:
     """

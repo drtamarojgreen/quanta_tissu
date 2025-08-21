@@ -17,7 +17,7 @@ import requests
 TISSDB_PID_FILE = "tissdb.pid"
 TISSDB_EXECUTABLE = "tissdb/tissdb"
 TISSDB_URL = "http://localhost:8080"
-GENERATE_TEXT_SCRIPT = "quanta_tissu/tisslm/generate_text.py"
+GENERATE_TEXT_SCRIPT = "quanta_tissu/tisslm/core/generate_text.py"
 
 
 def run_unit_tests():

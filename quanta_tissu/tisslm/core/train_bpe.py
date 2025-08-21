@@ -10,7 +10,7 @@ import argparse
 import glob # Added import
 
 from .bpe_trainer import BPETokenizer # Corrected import
-from .config import system_config
+from ..config import system_config
 
 def main():
     """Main function to train and save the BPE tokenizer."""
