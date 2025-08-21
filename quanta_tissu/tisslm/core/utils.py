@@ -43,6 +43,8 @@ def save_checkpoint(model, optimizer, epoch, step, checkpoint_dir, keep_last=-1)
                 os.remove(old_checkpoint)
                 logging.info(f"Removed old checkpoint: {os.path.basename(old_checkpoint)}")
 
+    return filename
+
 def load_checkpoint(model, optimizer, file_path):
     """Loads model and optimizer state from a checkpoint file."""
     if not os.path.exists(file_path):
