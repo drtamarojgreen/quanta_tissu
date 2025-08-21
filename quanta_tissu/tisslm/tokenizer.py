@@ -1,5 +1,12 @@
-import numpy as np
+import sys
 import os
+
+# Add the project root to sys.path for module discovery
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..')) # Adjust '..' count based on file location relative to project root
+sys.path.insert(0, project_root)
+
+import numpy as np
 from .bpe_trainer import BPETokenizer
 from .config import system_config # Import system_config to get model_save_path
 
@@ -18,7 +25,7 @@ class Tokenizer:
         try:
             self.bpe_tokenizer.load(tokenizer_prefix)
         except FileNotFoundError:
-            print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using legacylm/train_bpe.py.")
+            print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using tisslm/train_bpe.py.")
             # Fallback to a minimal tokenizer or raise an error, depending on desired behavior
             # For now, we'll proceed with an empty tokenizer, which will likely cause errors later.
             # A more robust solution would be to train a default one or exit.

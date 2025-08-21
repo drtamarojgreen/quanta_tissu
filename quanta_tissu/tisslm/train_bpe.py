@@ -1,8 +1,15 @@
-import os
-import argparse
 import sys
+import os
 
-from .bpe_trainer import BPETokenizer
+# Add the project root to sys.path for module discovery
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..')) # Adjust '..' count based on file location relative to project root
+sys.path.insert(0, project_root)
+
+import argparse
+import glob # Added import
+
+from .bpe_trainer import BPETokenizer # Corrected import
 from .config import system_config
 
 def main():
@@ -13,8 +20,8 @@ def main():
     parser.add_argument(
         "--corpus_path",
         type=str,
-        default=os.path.join(system_config["_project_root"], "corpus", "resiliency_research.txt"),
-        help="Path to the training corpus text file."
+        default=os.path.join(system_config["_project_root"], "corpus"), # Changed default to directory
+        help="Path to the training corpus directory (or a single text file)." # Updated help message
     )
     parser.add_argument(
         "--vocab_size",
@@ -37,18 +44,40 @@ def main():
     args = parser.parse_args()
 
     print(f"Loading corpus from: {args.corpus_path}")
-    try:
-        with open(args.corpus_path, "r", encoding="utf-8") as f:
-            text = f.read()
-    except FileNotFoundError:
-        print(f"Error: Corpus file not found at {args.corpus_path}")
+    full_text = ""
+    if os.path.isdir(args.corpus_path):
+        # Read all .txt files from the directory
+        txt_files = glob.glob(os.path.join(args.corpus_path, "*.txt"))
+        if not txt_files:
+            print(f"Error: No .txt files found in the corpus directory: {args.corpus_path}")
+            return
+        for file_path in txt_files:
+            try:
+                with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                    full_text += f.read() + "\n" # Add newline to separate content from different files
+            except Exception as e:
+                print(f"Warning: Could not read file {file_path}: {e}. Skipping.")
+    elif os.path.isfile(args.corpus_path):
+        # Read a single file
+        try:
+            with open(args.corpus_path, "r", encoding="utf-8", errors="replace") as f:
+                full_text = f.read()
+        except FileNotFoundError:
+            print(f"Error: Corpus file not found at {args.corpus_path}")
+            return
+    else:
+        print(f"Error: Corpus path is neither a file nor a directory: {args.corpus_path}")
+        return
+
+    if not full_text.strip():
+        print("Error: Corpus is empty after loading.")
         return
     
     print(f"Corpus loaded. Training tokenizer with vocab size: {args.vocab_size}")
     
     # Initialize and train the tokenizer
     tokenizer = BPETokenizer()
-    tokenizer.train(text, args.vocab_size, verbose=args.verbose)
+    tokenizer.train(full_text, args.vocab_size, verbose=args.verbose)
     
     print(f"\nTraining complete. Saving tokenizer to files with prefix: {args.save_prefix}")
     

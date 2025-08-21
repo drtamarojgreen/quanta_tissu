@@ -1,9 +1,16 @@
+import sys
+import os
+
+# Add the project root to sys.path for module discovery
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..')) # Adjust '..' count based on file location relative to project root
+sys.path.insert(0, project_root)
+
 import argparse
 import numpy as np
 import logging
-import os
 
-from tokenizers import Tokenizer as HFTokenizer
+from .tokenizer import Tokenizer # Changed from tokenizers import Tokenizer as HFTokenizer
 from .model import QuantaTissu
 from .loss import CrossEntropyLoss
 from .optimizer import AdamW
@@ -27,7 +34,7 @@ def main():
     parser.add_argument("--max_grad_norm", type=float, default=1.0, help="Maximum value for gradient clipping.")
     parser.add_argument("--checkpoint_dir", type=str, default=os.path.join(system_config["_project_root"], "checkpoints"), help="Directory to save checkpoints.")
     parser.add_argument("--resume_from", type=str, default=None, help="Path to a checkpoint to resume training from.")
-    parser.add_argument("--tokenizer_path", type=str, default=os.path.join(system_config["_project_root"], "tokenizers", "bpe-tokenizer.json"), help="Path to the trained tokenizer file.")
+    # Removed --tokenizer_path argument
     parser.add_argument("--save_every", type=int, default=100, help="Save a checkpoint every N steps.")
     parser.add_argument("--keep_checkpoints", type=int, default=-1, help="Number of recent checkpoints to keep. Use -1 to keep all.")
 
@@ -37,9 +44,9 @@ def main():
 
     # 1. Components Initialization
     try:
-        tokenizer = HFTokenizer.from_file(args.tokenizer_path)
+        tokenizer = Tokenizer() # Use our custom Tokenizer
     except Exception as e:
-        logging.error(f"Could not load tokenizer from {args.tokenizer_path}. Please train it first. Error: {e}")
+        logging.error(f"Could not initialize tokenizer. Error: {e}") # Updated error message
         return
 
     model_config["vocab_size"] = tokenizer.get_vocab_size()
