@@ -1,90 +1,132 @@
-import subprocess
 import os
 import sys
+import numpy as np
+import glob
 
-# Define paths relative to the script's location
+# --- System Path Setup ---
+# Ensure the project root is in sys.path for module imports
 script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..')) # Go up from pipelines/quanta_tissu/quanta_tissu/tisslm to quanta_tissu/
+project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
-tisslm_module_prefix = "quanta_tissu.tisslm.core"
-models_dir = os.path.join(project_root, "models")
-corpus_dir = os.path.join(project_root, "corpus")
-output_file = os.path.join(script_dir, "test_output.txt")
+# --- Core Imports ---
+from quanta_tissu.tisslm.core.bpe_trainer import BPETokenizer
+from quanta_tissu.tisslm.core.tokenizer import Tokenizer
+from quanta_tissu.tisslm.core.model import QuantaTissu
+from quanta_tissu.tisslm.core.loss import CrossEntropyLoss
+from quanta_tissu.tisslm.core.optimizer import AdamW
+from quanta_tissu.tisslm.core.data import Dataset, load_corpus
+from quanta_tissu.tisslm.core.utils import save_checkpoint
+from quanta_tissu.tisslm.core.generate_text import generate_text as generate_text_from_model
+from quanta_tissu.tisslm.config import model_config, training_config, system_config, tokenizer_config
 
-tokenizer_prefix = os.path.join(models_dir, "trained_tokenizer")
-checkpoint_dir = os.path.join(models_dir, "checkpoints")
-checkpoint_path = os.path.join(checkpoint_dir, "checkpoint_test_001.npz")
+def main():
+    """
+    Runs the full pipeline: train tokenizer, create checkpoint, and generate text.
+    """
+    print("--- Starting Model Initial Test ---")
 
-# Ensure checkpoints directory exists
-os.makedirs(checkpoint_dir, exist_ok=True)
+    # --- Configuration ---
+    models_dir = os.path.join(system_config["_project_root"], "models")
+    corpus_dir = os.path.join(system_config["_project_root"], "corpus")
+    checkpoint_dir = os.path.join(models_dir, "checkpoints")
+    tokenizer_prefix = system_config["bpe_tokenizer_prefix"] # Use default prefix
 
-# Clear previous output file
-if os.path.exists(output_file):
-    os.remove(output_file)
+    # Ensure directories exist
+    os.makedirs(models_dir, exist_ok=True)
+    os.makedirs(checkpoint_dir, exist_ok=True)
 
-def run_command(cmd, log_message, error_message):
-    with open(output_file, "a") as f:
-        f.write(f"{log_message}\n")
-        print(log_message) # Also print to console for immediate feedback
+    try:
+        # --- Step 1: Train BPE Tokenizer ---
+        print("\n[Step 1/3] Training BPE Tokenizer...")
+
+        # Load corpus text
+        full_text = ""
+        txt_files = glob.glob(os.path.join(corpus_dir, "*.txt"))
+        if not txt_files:
+            raise FileNotFoundError(f"No .txt files found in corpus directory: {corpus_dir}")
+        for file_path in txt_files:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                full_text += f.read() + "\n"
+
+        if not full_text.strip():
+            raise ValueError("Corpus is empty.")
+
+        # Train and save the BPE tokenizer
+        bpe_tokenizer = BPETokenizer()
+        bpe_tokenizer.train(full_text, vocab_size=1024, verbose=False)
+        bpe_tokenizer.save(tokenizer_prefix)
+        print(f"Tokenizer trained and saved to prefix: {tokenizer_prefix}")
+
+        # --- Step 2: Create Model Checkpoint ---
+        print("\n[Step 2/3] Creating Model Checkpoint...")
+
+        # Initialize the main tokenizer which loads from the saved files
+        tokenizer = Tokenizer()
         
-        # Debugging: Print the command being executed
-        print(f"DEBUG: Executing command: {' '.join(cmd)}")
-        f.write(f"DEBUG: Executing command: {' '.join(cmd)}\n")
+        # Initialize model components
+        model_config["vocab_size"] = tokenizer.get_vocab_size()
+        model = QuantaTissu(model_config)
+        loss_fn = CrossEntropyLoss()
+        optimizer = AdamW(model.parameters(), lr=training_config["learning_rate"], weight_decay=training_config["weight_decay"])
 
-        try:
-            # Use subprocess.run to execute the command
-            # capture_output=True captures stdout and stderr
-            # text=True decodes stdout/stderr as text
-            # cwd=project_root ensures Python finds the 'quanta_tissu' package
-            # Added shell=True for Windows compatibility with paths
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=project_root, shell=True)
-            f.write(result.stdout)
-            f.write(result.stderr)
-            f.write(f"{error_message.replace('failed', 'completed')}\n") # Log completion message
-            print(error_message.replace('failed', 'completed'))
-        except subprocess.CalledProcessError as e:
-            f.write(e.stdout)
-            f.write(e.stderr)
-            f.write(f"{error_message}: {e}\n")
-            print(f"{error_message}: {e}")
-            sys.exit(1) # Exit if a command fails
-        except Exception as e:
-            f.write(f"An unexpected error occurred: {e}\n")
-            print(f"An unexpected error occurred: {e}")
-            sys.exit(1)
+        # Load data
+        token_ids = load_corpus(corpus_dir, tokenizer)
+        dataset = Dataset(token_ids, batch_size=4, seq_len=tokenizer_config["max_len"]) # Use smaller batch for test
 
-# Loop 3 times
-for i in range(1, 4):
-    log_header = f"\n--- Starting Run {i}/3 ---"
-    run_command([], log_header, "") # Just log the header
+        # Training loop for a single step
+        print("Training for a single step...")
+        x_batch, y_batch = next(iter(dataset)) # Get one batch
 
-    # 1. Train BPE tokens
-    log_msg = f"[Run {i}] Invoking BPE Tokenizer Training..."
-    err_msg = f"[Run {i}] BPE Training failed."
-    # Construct command as a single string for shell=True
-    cmd_str = f"{sys.executable} -u -m {tisslm_module_prefix}.train_bpe --corpus_path \"{corpus_dir}\" --save_prefix \"{tokenizer_prefix}\"".replace('\\', '/') # Replace backslashes with forward slashes for shell
-    run_command(cmd_str, log_msg, err_msg)
+        # Forward, backward, and optimization
+        logits = model.forward(x_batch)
+        loss = loss_fn.forward(logits, y_batch)
+        d_logits = loss_fn.backward()
+        model.backward(d_logits)
+        optimizer.step()
+        optimizer.zero_grad()
 
-    # 2. Create a checkpoint named checkpoint_test_001
-    log_msg = f"[Run {i}] Invoking Model Training..."
-    err_msg = f"[Run {i}] Model Training failed."
-    # Ensure the checkpoint is clean for each run
-    if os.path.exists(checkpoint_path):
-        os.remove(checkpoint_path)
-    # Construct command as a single string for shell=True
-    cmd_str = f"{sys.executable} -u -m {tisslm_module_prefix}.run_training --corpus_path \"{corpus_dir}\" --checkpoint_dir \"{checkpoint_dir}\" --epochs 1 --save_every 1".replace('\\', '/') # Replace backslashes with forward slashes for shell
-    run_command(cmd_str, log_msg, err_msg)
+        print(f"Single training step completed. Loss: {loss:.4f}")
 
-    # 3. Use generate_text script to test a prompt
-    prompt = "Do you know this is a test?"
-    log_msg = f"[Run {i}] Invoking Text Generation..."
-    err_msg = f"[Run {i}] Text Generation failed."
-    # Construct command as a single string for shell=True
-    cmd_str = f"{sys.executable} -u -m {tisslm_module_prefix}.generate_text --prompt \"{prompt}\" --checkpoint_path \"{checkpoint_path}\" --length 50".replace('\\', '/') # Replace backslashes with forward slashes for shell
-    run_command(cmd_str, log_msg, err_msg)
+        # Save checkpoint
+        checkpoint_path = save_checkpoint(model, optimizer, epoch=0, step=1, checkpoint_dir=checkpoint_dir)
+        print(f"Checkpoint saved at: {checkpoint_path}")
 
-    log_footer = f"--- Finished Run {i}/3 ---"
-    run_command([], log_footer, "") # Just log the footer
+        # --- Step 3: Generate Text ---
+        print("\n[Step 3/3] Generating Text from Checkpoint...")
 
-final_message = "\nAll runs complete. Check test_output.txt for details."
-run_command([], final_message, "") # Just log the final message
+        # Re-initialize a clean model to load weights into
+        generation_model = QuantaTissu(model_config)
+        generation_model.load_weights(checkpoint_path)
+        print(f"Model weights loaded from: {checkpoint_path}")
+
+        # Generate text
+        prompt = "This is a test of the model's ability to generate text."
+        print(f"Prompt: '{prompt}'")
+
+        generated_text = generate_text_from_model(
+            model=generation_model,
+            tokenizer=tokenizer,
+            prompt=prompt,
+            length=50,
+            method="nucleus",
+            temperature=0.8,
+            top_k=20,
+            top_p=0.9
+        )
+
+        print("\n--- Generated Text ---")
+        print(generated_text)
+        print("----------------------")
+
+        print("\n--- Model initial test completed successfully! ---")
+
+    except Exception as e:
+        import traceback
+        print(f"\n--- An error occurred during the test: {e} ---", file=sys.stderr)
+        traceback.print_exc()
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
