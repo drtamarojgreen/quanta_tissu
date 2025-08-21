@@ -17,8 +17,8 @@ def load_corpus(corpus_path: str, tokenizer):
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 full_text += f.read() + "\n" # Add newline to separate content from different files
 
-    encoding = tokenizer.encode(full_text)
-    return encoding # Changed from encoding.ids
+    encoding = tokenizer.tokenize(full_text)
+    return encoding
 
 class Dataset:
     def __init__(self, token_ids, batch_size, seq_len):
