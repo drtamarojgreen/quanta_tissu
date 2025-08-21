@@ -41,21 +41,23 @@ def main():
         # --- Step 1: Train BPE Tokenizer ---
         print("\n[Step 1/3] Training BPE Tokenizer...")
 
-        # Load corpus text
+        # Load corpus text (optimized to use only the first file)
+        print(" -> Loading corpus from first .txt file found...")
         full_text = ""
         txt_files = glob.glob(os.path.join(corpus_dir, "*.txt"))
         if not txt_files:
             raise FileNotFoundError(f"No .txt files found in corpus directory: {corpus_dir}")
-        for file_path in txt_files:
-            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-                full_text += f.read() + "\n"
+
+        with open(txt_files[0], "r", encoding="utf-8", errors="replace") as f:
+            full_text = f.read()
+        print(f" -> Corpus loaded from: {txt_files[0]}")
 
         if not full_text.strip():
             raise ValueError("Corpus is empty.")
 
         # Train and save the BPE tokenizer
         bpe_tokenizer = BPETokenizer()
-        bpe_tokenizer.train(full_text, vocab_size=1024, verbose=False)
+        bpe_tokenizer.train(full_text, vocab_size=256, verbose=False) # Reduced vocab_size for speed
         bpe_tokenizer.save(tokenizer_prefix)
         print(f"Tokenizer trained and saved to prefix: {tokenizer_prefix}")
 
@@ -63,23 +65,27 @@ def main():
         print("\n[Step 2/3] Creating Model Checkpoint...")
 
         # Initialize the main tokenizer which loads from the saved files
+        print(" -> Initializing tokenizer from saved files...")
         tokenizer = Tokenizer()
         
         # Initialize model components
+        print(" -> Initializing model, loss function, and optimizer...")
         model_config["vocab_size"] = tokenizer.get_vocab_size()
         model = QuantaTissu(model_config)
         loss_fn = CrossEntropyLoss()
         optimizer = AdamW(model.parameters(), lr=training_config["learning_rate"], weight_decay=training_config["weight_decay"])
 
         # Load data
+        print(" -> Loading and tokenizing corpus for training...")
         token_ids = load_corpus(corpus_dir, tokenizer)
         dataset = Dataset(token_ids, batch_size=4, seq_len=tokenizer_config["max_len"]) # Use smaller batch for test
 
         # Training loop for a single step
-        print("Training for a single step...")
+        print(" -> Preparing dataset for training...")
         x_batch, y_batch = next(iter(dataset)) # Get one batch
 
         # Forward, backward, and optimization
+        print(" -> Running a single forward/backward pass...")
         logits = model.forward(x_batch)
         loss = loss_fn.forward(logits, y_batch)
         d_logits = loss_fn.backward()
@@ -97,7 +103,9 @@ def main():
         print("\n[Step 3/3] Generating Text from Checkpoint...")
 
         # Re-initialize a clean model to load weights into
+        print(" -> Initializing new model for generation...")
         generation_model = QuantaTissu(model_config)
+        print(" -> Loading weights from checkpoint...")
         generation_model.load_weights(checkpoint_path)
         print(f"Model weights loaded from: {checkpoint_path}")
 
