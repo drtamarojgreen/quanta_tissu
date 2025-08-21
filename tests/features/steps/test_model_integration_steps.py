@@ -1,6 +1,6 @@
 import numpy as np
-from quanta_tissu.tisslm.model import QuantaTissu
-from quanta_tissu.tisslm.tokenizer import tokenize, detokenize
+from quanta_tissu.tisslm.core.model import QuantaTissu
+from quanta_tissu.tisslm.core.tokenizer import tokenize, detokenize
 from quanta_tissu.tisslm.config import model_config
 
 def register_steps(runner):
