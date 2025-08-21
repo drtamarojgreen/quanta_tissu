@@ -9,10 +9,10 @@ import subprocess
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import json
-from quanta_tissu.tisslm.model import QuantaTissu
-from quanta_tissu.tisslm.tokenizer import tokenize, detokenize
+from quanta_tissu.tisslm.core.model import QuantaTissu
+from quanta_tissu.tisslm.core.tokenizer import tokenize, detokenize
 from quanta_tissu.tisslm.config import model_config
-from quanta_tissu.tisslm.tisslang_parser import TissLangParser, TissLangParserError
+from quanta_tissu.tisslm.integrations.tisslang_parser import TissLangParser, TissLangParserError
 
 # --- BDD Test Runner ---
 
