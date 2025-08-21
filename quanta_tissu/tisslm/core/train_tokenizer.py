@@ -3,7 +3,7 @@ import glob
 import logging
 import os
 from tokenizers import ByteLevelBPETokenizer
-from quanta_tissu.tisslm.config import system_config
+from ..config import system_config
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

@@ -8,7 +8,7 @@ sys.path.insert(0, project_root)
 
 import numpy as np
 from .bpe_trainer import BPETokenizer
-from .config import system_config # Import system_config to get model_save_path
+from ..config import system_config # Import system_config to get model_save_path
 
 class Tokenizer:
     """

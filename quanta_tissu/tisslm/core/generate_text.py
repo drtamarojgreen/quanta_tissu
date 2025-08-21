@@ -11,7 +11,7 @@ import argparse
 
 from .model import QuantaTissu
 from .tokenizer import Tokenizer
-from .config import model_config
+from ..config import model_config
 
 def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float) -> str:
     """
@@ -88,7 +88,7 @@ def main():
     # --- Load Checkpoint ---
     if not os.path.exists(args.checkpoint_path):
          print(f"Error: Checkpoint file not found at '{args.checkpoint_path}'", file=sys.stderr)
-         print("Please run `python3 -m quanta_tissu.tisslm.run_training` to train and save a model checkpoint.", file=sys.stderr)
+         print("Please run `python3 -m quanta_tissu.tisslm.core.run_training` to train and save a model checkpoint.", file=sys.stderr)
          sys.exit(1)
     model.load_weights(args.checkpoint_path)
 

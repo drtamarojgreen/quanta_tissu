@@ -1,8 +1,8 @@
 import numpy as np
 
-from .model import QuantaTissu
-from .tokenizer import Tokenizer
-from .config import model_config
+from ..core.model import QuantaTissu
+from ..core.tokenizer import Tokenizer
+from ..config import model_config
 
 def main():
     """

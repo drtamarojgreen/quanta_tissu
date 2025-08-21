@@ -8,9 +8,9 @@ import sys
 import os
 sys.path.append(os.getcwd())
 
-from quanta_tissu.tisslm.tisslang_parser import TissLangParser, TissLangParserError
-from quanta_tissu.tisslm.execution_engine import ExecutionEngine, ToolRegistry
-from quanta_tissu.tisslm.tools import run_command, write_file, read_file, assert_condition, TissCommandError
+from ..integrations.tisslang_parser import TissLangParser, TissLangParserError
+from .execution_engine import ExecutionEngine, ToolRegistry
+from .tools import run_command, write_file, read_file, assert_condition, TissCommandError
 
 def main():
     """
