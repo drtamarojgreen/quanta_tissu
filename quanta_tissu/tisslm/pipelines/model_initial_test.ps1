@@ -7,9 +7,9 @@ $pipelinesDir = Join-Path $projectRoot "quanta_tissu\pipelines"
 $modelsDir = Join-Path $projectRoot "models"
 $corpusDir = Join-Path $projectRoot "corpus"
 
-$trainBpeModule = "quanta_tissu.tisslm.train_bpe"
-$runTrainingModule = "quanta_tissu.tisslm.run_training"
-$generateTextModule = "quanta_tissu.tisslm.generate_text"
+$trainBpeModule = "quanta_tissu.tisslm.core.train_bpe"
+$runTrainingModule = "quanta_tissu.tisslm.core.run_training"
+$generateTextModule = "quanta_tissu.tisslm.core.generate_text"
 
 $outputFile = Join-Path $pipelinesDir "test_output.txt"
 $tokenizerPrefix = Join-Path $modelsDir "trained_tokenizer"

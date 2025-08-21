@@ -2,14 +2,14 @@
 
 This document provides a set of example commands for training and tuning the TissLM model from the project root directory.
 
-The main training script is `quanta_tissu/tisslm/run_training.py`.
+The main training script is `quanta_tissu/tisslm/core/run_training.py`.
 
 ## Basic Training
 
 This command starts a new training run. It uses the text files in the `corpus/` directory as training data and saves model checkpoints to the `checkpoints/` directory.
 
 ```bash
-python3 quanta_tissu/tisslm/run_training.py \
+python3 -m quanta_tissu.tisslm.core.run_training \
     --corpus_path corpus/ \
     --checkpoint_dir checkpoints/ \
     --save_every 200
@@ -24,7 +24,7 @@ python3 quanta_tissu/tisslm/run_training.py \
 This command resumes a previous training run from a specific checkpoint. This is useful if your training was interrupted or if you want to continue training a model.
 
 ```bash
-python3 quanta_tissu/tisslm/run_training.py \
+python3 -m quanta_tissu.tisslm.core.run_training \
     --corpus_path corpus/ \
     --checkpoint_dir checkpoints/ \
     --resume_from checkpoints/checkpoint_step_200.npz
@@ -37,7 +37,7 @@ python3 quanta_tissu/tisslm/run_training.py \
 This command shows how to tune various hyperparameters. In this example, we are also saving the final models to a `models/` directory, as it can be useful to distinguish final models from periodic checkpoints.
 
 ```bash
-python3 quanta_tissu/tisslm/run_training.py \
+python3 -m quanta_tissu.tisslm.core.run_training \
     --corpus_path corpus/ \
     --checkpoint_dir models/ \
     --epochs 10 \

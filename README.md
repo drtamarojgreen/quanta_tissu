@@ -168,7 +168,7 @@ This will train a new tokenizer and save it to `models/tokenizer.json`, and save
 
 To run inference with a trained model:
 ```bash
-python quanta_tissu/tisslm/legacylm/run_inference.py --prompt "Your prompt here"
+python -m quanta_tissu.tisslm.legacylm.run_inference --prompt "Your prompt here"
 ```
 
 ## How it Works

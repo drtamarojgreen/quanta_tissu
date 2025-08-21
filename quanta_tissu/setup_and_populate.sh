@@ -35,7 +35,7 @@ for i in {1..5}
 do
   echo "Generating document $i..."
   # Call the python script to generate 8 tokens starting with "hello"
-  GENERATED_TEXT=$(python3 quanta_tissu/scripts/generate_text.py --prompt hello --length 8)
+  GENERATED_TEXT=$(python3 quanta_tissu/tisslm/core/generate_text.py --prompt hello --length 8)
 
   # Escape the text for JSON
   JSON_PAYLOAD=$(printf '{"content": "%s"}' "$GENERATED_TEXT")
