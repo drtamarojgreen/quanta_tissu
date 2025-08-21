@@ -145,7 +145,7 @@ void GraphLogic::runGenerationWorkflow() {
     renderCanvas();
 
     // Construct the command to execute the Python script
-    std::string script_path = "../tisslm/generate_graph_from_prompt.py";
+    std::string script_path = "../pipelines/generate_graph_from_prompt.py";
     std::string escaped_prompt = prompt;
     size_t pos = 0;
     while ((pos = escaped_prompt.find('"', pos)) != std::string::npos) {

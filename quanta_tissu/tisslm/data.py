@@ -8,7 +8,7 @@ def load_corpus(corpus_path: str, tokenizer):
 
     Args:
         corpus_path (str): The directory containing .txt files.
-        tokenizer: A loaded Hugging Face tokenizer instance.
+        tokenizer: A loaded tokenizer instance (our custom one).
     """
     full_text = ""
     for filename in os.listdir(corpus_path):
@@ -18,7 +18,7 @@ def load_corpus(corpus_path: str, tokenizer):
                 full_text += f.read() + "\n" # Add newline to separate content from different files
 
     encoding = tokenizer.encode(full_text)
-    return encoding.ids
+    return encoding # Changed from encoding.ids
 
 class Dataset:
     def __init__(self, token_ids, batch_size, seq_len):

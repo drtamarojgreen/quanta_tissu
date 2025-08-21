@@ -1,7 +1,13 @@
-import numpy as np
-import argparse
 import sys
 import os
+
+# Add the project root to sys.path for module discovery
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..')) # Adjust '..' count based on file location relative to project root
+sys.path.insert(0, project_root)
+
+import numpy as np
+import argparse
 
 from .model import QuantaTissu
 from .tokenizer import Tokenizer
@@ -64,12 +70,12 @@ def main():
 
     # --- Initialize Tokenizer ---
     # The Tokenizer class automatically loads the default tokenizer files.
-    # Make sure you have run legacylm/train_bpe.py first.
+    # Make sure you have run tisslm/train_bpe.py first.
     try:
         tokenizer = Tokenizer()
     except FileNotFoundError as e:
         print(f"Error: Tokenizer files not found. {e}", file=sys.stderr)
-        print("Please run `python3 -m quanta_tissu.tisslm.legacylm.train_bpe` to train and save the tokenizer.", file=sys.stderr)
+        print("Please run `python3 -m quanta_tissu.tisslm.train_bpe` to train and save the tokenizer.", file=sys.stderr) # Updated path
         sys.exit(1)
 
     # --- Initialize Model ---
