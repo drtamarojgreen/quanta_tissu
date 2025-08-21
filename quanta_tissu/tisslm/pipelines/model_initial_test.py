@@ -6,7 +6,7 @@ import sys
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..')) # Go up from pipelines/quanta_tissu/quanta_tissu/tisslm to quanta_tissu/
 
-tisslm_module_prefix = "quanta_tissu.tisslm"
+tisslm_module_prefix = "quanta_tissu.tisslm.core"
 models_dir = os.path.join(project_root, "models")
 corpus_dir = os.path.join(project_root, "corpus")
 output_file = os.path.join(script_dir, "test_output.txt")
