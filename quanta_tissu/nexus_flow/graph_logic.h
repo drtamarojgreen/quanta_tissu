@@ -8,6 +8,21 @@
 const int SCREEN_WIDTH = 80;
 const int SCREEN_HEIGHT = 25;
 
+// --- 3D Math Utilities ---
+// Moved here so they can be shared with test files.
+struct Point3D {
+    double x, y, z;
+};
+
+struct Point2D {
+    int x, y;
+};
+// --- End 3D Math Utilities ---
+
+// Forward declarations for math functions so they can be tested.
+Point3D rotateY(const Point3D& p, double angle);
+Point2D project(const Point3D& p);
+
 /**
  * @struct Node
  * @brief Represents a single node in the graph.
@@ -82,6 +97,9 @@ private:
 
     // User input
     void waitForSpacebar();
+
+    // Graph initialization
+    void initializeGraphs();
 };
 
 #endif // GRAPH_LOGIC_H

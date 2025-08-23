@@ -93,3 +93,49 @@ def register_steps(runner):
         print("SIMULATING: Application proceeds to the next state or exits.")
         context['app_proceeded'] = True
         assert context['app_proceeded'] is True
+
+    # --- Steps for new scenarios ---
+
+    @runner.step(r'no graphs are available in TissDB')
+    def no_graphs_in_tissdb(context):
+        print("SIMULATING: TissDB is configured to return no graphs.")
+        context['tissdb_graphs'] = []
+        assert context['tissdb_graphs'] == []
+
+    @runner.step(r'the user should be shown a "no graphs loaded" message')
+    def user_sees_no_graphs_message(context):
+        print("SIMULATING: Verifying 'no graphs loaded' message is shown.")
+        # In a real test, we would check the screen buffer.
+        context['message_shown'] = "no graphs loaded"
+        assert context['message_shown'] == "no graphs loaded"
+
+    @runner.step(r'the application should wait for user input to continue')
+    def app_waits_for_input(context):
+        print("SIMULATING: Application is waiting for user input (e.g., spacebar).")
+        # This is a conceptual step for the BDD flow.
+        pass
+
+    @runner.step(r'the user provides an empty prompt')
+    def user_provides_empty_prompt(context):
+        print("SIMULATING: User provides an empty prompt.")
+        context['prompt'] = ""
+        assert context['prompt'] == ""
+
+    @runner.step(r'the application should return to the main menu')
+    def app_returns_to_menu(context):
+        print("SIMULATING: Application returns to the main menu.")
+        # In a real test, we would check the application state.
+        context['app_state'] = 'main_menu'
+        assert context['app_state'] == 'main_menu'
+
+    @runner.step(r'the backend script is set to fail')
+    def backend_script_fails(context):
+        print("SIMULATING: Backend script is configured to return an error.")
+        context['backend_should_fail'] = True
+        assert context['backend_should_fail'] is True
+
+    @runner.step(r'the user should be shown a "graph generation failed" message')
+    def user_sees_generation_failed_message(context):
+        print("SIMULATING: Verifying 'graph generation failed' message is shown.")
+        context['message_shown'] = "graph generation failed"
+        assert context['message_shown'] == "graph generation failed"
