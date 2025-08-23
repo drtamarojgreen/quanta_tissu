@@ -195,11 +195,16 @@ class BDDRunner:
                                               test_more_database_steps, test_extended_database_steps, test_parser_steps,
                                               test_model_integration_steps, test_integration_steps, test_update_delete_steps,
                                               test_select_queries_steps, test_common_steps)
+            # Import the new nexus_flow steps
+            from tests.nexus_flow import test_nexus_flow_bdd
+
             for module in [test_kv_cache_steps, test_tokenizer_steps, test_predict_steps,
                            test_generate_steps, test_knowledge_base_steps, test_database_steps,
                            test_more_database_steps, test_extended_database_steps, test_parser_steps,
                            test_model_integration_steps, test_integration_steps, test_update_delete_steps,
-                           test_select_queries_steps, test_common_steps]:
+                           test_select_queries_steps, test_common_steps,
+                           # Add the new nexus_flow module to the list
+                           test_nexus_flow_bdd]:
                 module.register_steps(self)
             print("BDD Runner: All steps registered.")
             sys.stdout.flush()
@@ -278,9 +283,12 @@ if __name__ == '__main__':
 
     features_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'features')
     if args.feature:
-        # This is a bit of a hack. glob.glob will handle both files and directories.
-        # If a single feature is passed, it will be a list of one.
-        features_path = os.path.join(features_path, args.feature)
+        # If the provided path is a file that exists, use it directly.
+        # Otherwise, assume it's a file within the default features directory.
+        if os.path.isfile(args.feature):
+            features_path = args.feature
+        else:
+            features_path = os.path.join(features_path, args.feature)
 
     runner = BDDRunner(features_path, summary=args.summary)
     runner.run()

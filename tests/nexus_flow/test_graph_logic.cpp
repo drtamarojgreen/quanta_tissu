@@ -54,15 +54,8 @@ TEST_CASE(NexusFlow_Graph_MultipleNodesAndEdges) {
 
 // --- Tests for 3D Math Utilities ---
 
-// To test the math utilities from graph_logic.cpp, we must provide
-// definitions and forward declarations for the linker.
-struct Point3D { double x, y, z; };
-struct Point2D { int x, y; };
-
-// These functions are defined in graph_logic.cpp. We declare them here
-// so the linker can find them.
-extern Point3D rotateY(const Point3D& p, double angle);
-extern Point2D project(const Point3D& p);
+// The necessary structs (Point3D, Point2D) and function declarations
+// (rotateY, project) are now included via graph_logic.h.
 
 // Helper to compare floating point numbers with a tolerance.
 void ASSERT_POINT_EQ(const Point3D& expected, const Point3D& actual, double tolerance = 1e-6) {
