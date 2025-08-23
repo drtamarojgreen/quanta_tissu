@@ -1,0 +1,12 @@
+--- Running Nexus Flow Test Suite ---
+Running test: NexusFlow_Graph_InitialState... PASSED
+Running test: NexusFlow_Graph_AddNode... PASSED
+Running test: NexusFlow_Graph_AddEdge... PASSED
+Running test: NexusFlow_Graph_MultipleNodesAndEdges... PASSED
+Running test: NexusFlow_Math_RotateY... PASSED
+Running test: NexusFlow_Math_Project... PASSED
+
+--- Test Summary ---
+Passed: 6
+Failed: 0
+--- Nexus Flow Test Suite Finished ---
