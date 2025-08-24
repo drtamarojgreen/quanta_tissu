@@ -1,3 +1,5 @@
+![QuantaTissu Logo](docs/images/tissdb_logo1.jpg)
+
 # QuantaTissu
 
 QuantaTissu is a minimal transformer-based language model inference engine built **from scratch** in Python using only NumPy. It implements basic tokenization, embeddings, positional encoding, multi-head self-attention, feed-forward layers, and output projection.
