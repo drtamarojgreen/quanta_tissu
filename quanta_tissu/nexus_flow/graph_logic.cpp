@@ -10,8 +10,19 @@
 #include <cstdlib>   // For rand, srand
 #include <ctime>     // For time
 #include <algorithm> // For std::sort
+
+#ifdef _WIN32
 #include <windows.h> // For Windows-specific console functions
 #include <conio.h>   // For _getch()
+// On Windows, _popen is the function name. This maps the standard name to the MS-specific one.
+#define popen _popen
+#define pclose _pclose
+#else
+#include <unistd.h> // For usleep
+#include <termios.h> // For terminal I/O
+#include <cstdio> // For popen, pclose
+#endif
+
 
 #include "json/json.h"
 
@@ -20,13 +31,7 @@ using Json = NexusFlow::Json::JsonValue;
 
 // --- 3D Math Utilities ---
 
-struct Point3D {
-    double x, y, z;
-};
-
-struct Point2D {
-    int x, y;
-};
+// Structs are now in graph_logic.h
 
 const double PERSPECTIVE_FOV = 128.0; // Field of view for projection. Larger values mean less distortion.
 
@@ -58,6 +63,66 @@ Point2D project(const Point3D& p) {
 
 // --- End 3D Math Utilities ---
 
+// --- Cross-Platform Utilities ---
+
+void CrossPlatformSleep(int milliseconds) {
+#ifdef _WIN32
+    Sleep(milliseconds);
+#else
+    usleep(milliseconds * 1000); // usleep takes microseconds
+#endif
+}
+
+// --- End Cross-Platform Utilities ---
+
+// --- POSIX-specific terminal functions for raw input ---
+#ifndef _WIN32
+// Keep track of original terminal settings
+struct termios old_termios_settings;
+
+// Put terminal in raw mode
+void enableRawMode() {
+    tcgetattr(STDIN_FILENO, &old_termios_settings);
+    struct termios new_termios_settings = old_termios_settings;
+    // ICANON disables canonical mode (line buffering)
+    // ECHO disables echoing input characters
+    new_termios_settings.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &new_termios_settings);
+}
+
+// Restore terminal to original settings
+void disableRawMode() {
+    tcsetattr(STDIN_FILENO, TCSANOW, &old_termios_settings);
+}
+
+// Cross-platform function to check for a key press
+int CrossPlatformKbhit() {
+#ifdef _WIN32
+    return _kbhit();
+#else
+    // Use select() to check if there is data to be read on stdin
+    struct timeval tv = { 0L, 0L };
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(0, &fds);
+    return select(1, &fds, NULL, NULL, &tv);
+#endif
+}
+
+// Cross-platform function to get a single character
+int CrossPlatformGetch() {
+#ifdef _WIN32
+    return _getch();
+#else
+    // In raw mode, getchar() will read a single byte.
+    return getchar();
+#endif
+}
+
+#endif
+// --- End POSIX-specific terminal functions ---
+
+
 /**
  * @brief Constructor for GraphLogic class.
  * Initializes the canvas.
@@ -73,6 +138,12 @@ GraphLogic::GraphLogic() {
  * Displays a menu and allows the user to choose a workflow.
  */
 void GraphLogic::run() {
+#ifndef _WIN32
+    // On POSIX, we enable raw mode for the menu loop to get instant key presses.
+    enableRawMode();
+    // A simple RAII guard to ensure termios settings are restored upon exiting the scope.
+    struct TermiosRestorer { ~TermiosRestorer() { disableRawMode(); } } restorer;
+#endif
     while (true) {
         clearCanvas();
         canvas[4] = "  Nexus Flow";
@@ -83,12 +154,23 @@ void GraphLogic::run() {
         canvas[12] = "  Enter your choice: ";
         renderCanvas();
 
-        char choice = _getch();
+        char choice = CrossPlatformGetch();
 
-        if (choice == '1') {
-            runTissDBWorkflow();
-        } else if (choice == '2') {
-            runGenerationWorkflow();
+        if (choice == '1' || choice == '2') {
+            // On POSIX, we need to disable raw mode before running workflows
+            // that might expect normal terminal behavior (e.g., reading a prompt).
+#ifndef _WIN32
+            disableRawMode();
+#endif
+            if (choice == '1') {
+                runTissDBWorkflow();
+            } else { // choice == '2'
+                runGenerationWorkflow();
+            }
+            // Re-enable raw mode for the menu loop after the workflow is done.
+#ifndef _WIN32
+            enableRawMode();
+#endif
         } else if (choice == '3') {
             break; // Exit loop
         }
@@ -119,14 +201,14 @@ void GraphLogic::runTissDBWorkflow() {
 std::string executeCommand(const std::string& command) {
     std::array<char, 128> buffer;
     std::string result;
-    FILE* pipe = _popen(command.c_str(), "r");
+    FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
         throw std::runtime_error("popen() failed!");
     }
     while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
         result += buffer.data();
     }
-    _pclose(pipe);
+    pclose(pipe);
     return result;
 }
 
@@ -160,10 +242,10 @@ void GraphLogic::runGenerationWorkflow() {
         Json parsed_json = Json::parse(json_output);
 
         // Check for an error message from the Python script
-        if (parsed_json.type() == Json::Type::OBJECT && parsed_json.as_object().count("error")) {
+        if (parsed_json.is_object() && parsed_json.as_object().count("error")) {
             clearCanvas();
             canvas[5] = "  An error occurred during graph generation:";
-            std::string error_details = parsed_json["message"].as_string();
+            std::string error_details = parsed_json.as_object().at("message").as_string();
             canvas[7] = "  " + error_details.substr(0, SCREEN_WIDTH - 4);
             renderCanvas();
             waitForSpacebar();
@@ -172,11 +254,12 @@ void GraphLogic::runGenerationWorkflow() {
 
         // Populate the graph object from the parsed JSON
         Graph g;
-        const Json& nodes_json = parsed_json["nodes"];
-        for (const auto& node_json : nodes_json.as_array()) {
+        const NexusFlow::Json::JsonArray& nodes_json = parsed_json.as_object().at("nodes").as_array();
+        for (const auto& node_json : nodes_json) {
             Node n;
-            n.id = node_json["id"].as_integer();
-            n.label = node_json["label"].as_string();
+            const NexusFlow::Json::JsonObject& node_obj = node_json.as_object();
+            n.id = static_cast<int>(node_obj.at("id").as_number());
+            n.label = node_obj.at("label").as_string();
             // Assign random positions for visualization
             n.x = (rand() % (SCREEN_WIDTH - 15)) + 5;
             n.y = (rand() % (SCREEN_HEIGHT - 5)) + 2;
@@ -185,11 +268,12 @@ void GraphLogic::runGenerationWorkflow() {
             g.nodes.push_back(n);
         }
 
-        const Json& edges_json = parsed_json["edges"];
-        for (const auto& edge_json : edges_json.as_array()) {
+        const NexusFlow::Json::JsonArray& edges_json = parsed_json.as_object().at("edges").as_array();
+        for (const auto& edge_json : edges_json) {
             Edge e;
-            e.node1_id = edge_json["from"].as_integer();
-            e.node2_id = edge_json["to"].as_integer();
+            const NexusFlow::Json::JsonObject& edge_obj = edge_json.as_object();
+            e.node1_id = static_cast<int>(edge_obj.at("from").as_number());
+            e.node2_id = static_cast<int>(edge_obj.at("to").as_number());
             g.edges.push_back(e);
         }
 
@@ -215,6 +299,7 @@ std::string GraphLogic::getUserPrompt() {
     canvas[5] = "  Enter a prompt to generate a graph (e.g., 'a simple solar system'):";
     renderCanvas();
 
+#ifdef _WIN32
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_CURSOR_INFO cursorInfo;
 
@@ -226,13 +311,24 @@ std::string GraphLogic::getUserPrompt() {
     // Move cursor to input position
     COORD coord = {2, 7}; // Column 2, Row 7
     SetConsoleCursorPosition(hConsole, coord);
+#else
+    // Show cursor and move to position using ANSI escape codes
+    printf("\033[?25h"); // Show cursor
+    printf("\033[8;3H"); // Move to Row 8, Column 3 (1-based index)
+    fflush(stdout);
+#endif
 
     std::string prompt;
     std::getline(std::cin, prompt);
 
+#ifdef _WIN32
     // Hide cursor again
     cursorInfo.bVisible = FALSE;
     SetConsoleCursorInfo(hConsole, &cursorInfo);
+#else
+    printf("\033[?25l"); // Hide cursor
+    fflush(stdout);
+#endif
 
     return prompt;
 }
@@ -264,10 +360,10 @@ void GraphLogic::initializeGraphs() {
     // Graph 1: 4 Nodes
     Graph g1;
     g1.nodes = {
-        {1, 10, 5, 5, cbt_labels[0]},
-        {2, 30, 15, 3, cbt_labels[1]},
-        {3, 50, 8, 5, cbt_labels[2]},
-        {4, 25, 2, 1, cbt_labels[3]}
+        {1, 10, 5, 0, 5, cbt_labels[0]},
+        {2, 30, 15, 0, 3, cbt_labels[1]},
+        {3, 50, 8, 0, 5, cbt_labels[2]},
+        {4, 25, 2, 0, 1, cbt_labels[3]}
     };
     g1.edges = {{1, 2}, {1, 3}, {2, 3}, {2, 4}};
     graphs.push_back(g1);
@@ -275,55 +371,65 @@ void GraphLogic::initializeGraphs() {
     // Graph 2: 8 Nodes (demonstrates occlusion)
     Graph g2;
     g2.nodes = {
-        {1, 5, 3, 5, cbt_labels[4]},
-        {2, 20, 10, 3, cbt_labels[5]},
-        {3, 18, 9, 1, cbt_labels[6]}, // Occluded by node 2
-        {4, 40, 5, 5, cbt_labels[7]},
-        {5, 60, 18, 3, cbt_labels[8]},
-        {6, 70, 2, 1, cbt_labels[9]},
-        {7, 35, 20, 3, cbt_labels[10]},
-        {8, 5, 20, 5, cbt_labels[11]}
+        {1, 5, 3, 0, 5, cbt_labels[4]},
+        {2, 20, 10, 0, 3, cbt_labels[5]},
+        {3, 18, 9, 0, 1, cbt_labels[6]}, // Occluded by node 2
+        {4, 40, 5, 0, 5, cbt_labels[7]},
+        {5, 60, 18, 0, 3, cbt_labels[8]},
+        {6, 70, 2, 0, 1, cbt_labels[9]},
+        {7, 35, 20, 0, 3, cbt_labels[10]},
+        {8, 5, 20, 0, 5, cbt_labels[11]}
     };
     g2.edges = {{1, 2}, {1, 8}, {2, 4}, {3, 4}, {4, 5}, {5, 7}, {6, 7}, {7, 8}};
     graphs.push_back(g2);
 
-            // Extract nodes
-            const Json& nodes_json = graph_doc["nodes"];
-            for (const auto& node_json : nodes_json.as_array()) {
-                Node n;
-                n.id = node_json["id"].as_integer();
-                n.x = node_json["x"].as_integer();
-                n.y = node_json["y"].as_integer();
+    /*
+        // This block of code appears to be a corrupted remnant of a TissDB integration.
+        // It is syntactically incorrect and references undeclared variables (graph_doc, i).
+        // Commenting it out to allow compilation.
+
+        // Extract nodes
+        const Json& nodes_json = graph_doc["nodes"];
+        for (const auto& node_json : nodes_json.as_array()) {
+            Node n;
+            n.id = node_json["id"].as_integer();
+            n.x = node_json["x"].as_integer();
+            n.y = node_json["y"].as_integer();
             n.z = (rand() % 20) - 10; // Assign random Z for 3D effect
-                n.size = node_json["size"].as_integer();
-                n.label = node_json["label"].as_string();
-                g.nodes.push_back(n);
-            }
-
-            // Extract edges
-            const Json& edges_json = graph_doc["edges"];
-            for (const auto& edge_json : edges_json.as_array()) {
-                Edge e;
-                e.node1_id = edge_json["from"].as_integer();
-                e.node2_id = edge_json["to"].as_integer();
-                g.edges.push_back(e);
-            }
-
-            graphs.push_back(g);
-        } catch (const std::exception& e) {
-            std::cerr << "Error parsing JSON for graph " << i << ": " << e.what() << std::endl;
+            n.size = node_json["size"].as_integer();
+            n.label = node_json["label"].as_string();
+            g.nodes.push_back(n);
         }
-    }
 
+        // Extract edges
+        const Json& edges_json = graph_doc["edges"];
+        for (const auto& edge_json : edges_json.as_array()) {
+            Edge e;
+            e.node1_id = edge_json["from"].as_integer();
+            e.node2_id = edge_json["to"].as_integer();
+            g.edges.push_back(e);
+        }
+
+        graphs.push_back(g);
+    } catch (const std::exception& e) {
+        std::cerr << "Error parsing JSON for graph " << i << ": " << e.what() << std::endl;
+    }
+    */
 }
 
 /**
  * @brief Clears the canvas by filling it with space characters.
  */
 void GraphLogic::clearCanvas() {
+#ifdef _WIN32
     for (int i = 0; i < SCREEN_HEIGHT; ++i) {
         canvas[i] = std::string(SCREEN_WIDTH, ' ');
     }
+#else
+    // For POSIX, we can just clear the screen with an ANSI code,
+    // which is more efficient than creating new strings.
+    printf("\033[2J\033[H");
+#endif
 }
 
 /**
@@ -333,12 +439,18 @@ void GraphLogic::clearCanvas() {
  * to prevent flickering during redraw.
  */
 void GraphLogic::renderCanvas() {
+#ifdef _WIN32
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     COORD coord = {0, 0};
     SetConsoleCursorPosition(hConsole, coord);
+#else
+    printf("\033[H"); // Move cursor to top-left
+#endif
     for (int i = 0; i < SCREEN_HEIGHT; ++i) {
         std::cout << canvas[i] << std::endl;
     }
+    // Flush is important for non-Windows terminals
+    std::cout << std::flush;
 }
 
 // A struct to hold the projected 2D coordinates and depth of a node
@@ -406,7 +518,13 @@ void GraphLogic::drawGraph(const Graph& graph, double angle) {
  */
 void GraphLogic::animateGraph(const Graph& graph) {
     double angle = 0.0;
-    while (!_kbhit()) { // Loop until a key is pressed
+#ifndef _WIN32
+    // On POSIX, we need raw mode to detect single key presses without waiting for enter.
+    enableRawMode();
+    // A simple RAII guard to ensure termios settings are restored upon exiting the scope.
+    struct TermiosRestorer { ~TermiosRestorer() { disableRawMode(); } } restorer;
+#endif
+    while (!CrossPlatformKbhit()) { // Loop until a key is pressed
         clearCanvas();
         drawGraph(graph, angle);
 
@@ -424,9 +542,9 @@ void GraphLogic::animateGraph(const Graph& graph) {
             angle -= 6.28318;
         }
 
-        Sleep(30); // ~33 FPS
+        CrossPlatformSleep(30); // ~33 FPS
     }
-    _getch(); // Consume the key press to exit
+    CrossPlatformGetch(); // Consume the key press to exit
 }
 
 /**
@@ -527,9 +645,15 @@ void GraphLogic::drawLabel(int x, int y, int nodeSize, const std::string& text) 
  */
 void GraphLogic::waitForSpacebar() {
     std::cout << "\nPress spacebar to continue..." << std::flush;
+#ifndef _WIN32
+    // On POSIX, we need raw mode to detect single key presses without waiting for enter.
+    enableRawMode();
+    // A simple RAII guard to ensure termios settings are restored upon exiting the scope.
+    struct TermiosRestorer { ~TermiosRestorer() { disableRawMode(); } } restorer;
+#endif
     while (true) {
-        if (_kbhit()) {
-            int ch = _getch();
+        if (CrossPlatformKbhit()) {
+            int ch = CrossPlatformGetch();
             if (ch == ' ') {
                 break;
             }
