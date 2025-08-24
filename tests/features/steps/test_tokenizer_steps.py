@@ -1,4 +1,4 @@
-from quanta_tissu.tisslm.tokenizer import Tokenizer
+from quanta_tissu.tisslm.core.tokenizer import Tokenizer
 
 def register_steps(runner):
     @runner.step(r'^Given a tokenizer$')

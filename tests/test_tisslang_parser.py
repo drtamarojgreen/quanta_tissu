@@ -5,7 +5,7 @@ import os
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from quanta_tissu.tisslm.tisslang_parser import TissLangParser, TissLangParserError
+from quanta_tissu.tisslm.integrations.tisslang_parser import TissLangParser, TissLangParserError
 
 class TestTissLangParser(unittest.TestCase):
 
