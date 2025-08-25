@@ -1,5 +1,5 @@
 import json
-from quanta_tissu.tisslm.tisslang_parser import TissLangParser, TissLangParserError
+from quanta_tissu.tisslm.parser.tisslang_parser import TissLangParser, TissLangParserError
 
 def register_steps(runner):
     @runner.step(r'Given a TissLang script:\s*"""\s*([\s\S]*?)"""')

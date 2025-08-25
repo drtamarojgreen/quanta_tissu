@@ -8,7 +8,7 @@ import sys
 import os
 sys.path.append(os.getcwd())
 
-from ..integrations.tisslang_parser import TissLangParser, TissLangParserError
+from .tisslang_parser import TissLangParser, TissLangParserError
 from ..core.execution_engine import ExecutionEngine, ToolRegistry
 from ..core.tools import run_command, write_file, read_file, assert_condition, TissCommandError
 
