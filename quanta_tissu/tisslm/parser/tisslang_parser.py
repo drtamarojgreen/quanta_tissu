@@ -78,11 +78,20 @@ class TissLangParser:
 
     def _parse_line(self, line: str):
         """Processes a single line of the script based on the current state."""
-        if _PATTERNS['COMMENT'].match(line) or _PATTERNS['EMPTY'].match(line):
+        if _PATTERNS['EMPTY'].match(line):
             return
 
         if self._state == "IN_WRITE":
             self._handle_write_block(line)
+            return
+
+        comment_match = _PATTERNS['COMMENT'].match(line)
+        if comment_match:
+            # Comments are added to the AST for better representation,
+            # unless we are inside a STEP/SETUP block, in which case they
+            # are added to the block's command list.
+            target_list = self._current_block if self._state == "IN_STEP" else self.ast
+            target_list.append({'type': 'COMMENT', 'text': line.strip()})
             return
 
         if self._state == "IDLE":
@@ -123,6 +132,11 @@ class TissLangParser:
         run_match = _PATTERNS['RUN'].match(line)
         if run_match:
             self._current_block.append({'type': 'RUN', 'command': run_match.group(2)})
+            return
+
+        log_match = _PATTERNS['LOG'].match(line)
+        if log_match:
+            self._current_block.append({'type': 'LOG', 'message': log_match.group(2)})
             return
 
         assert_match = _PATTERNS['ASSERT'].match(line)
