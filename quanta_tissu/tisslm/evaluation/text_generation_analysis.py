@@ -4,9 +4,9 @@ from typing import List, Dict, Any
 # Assuming these imports will be available from the main project context
 # from quanta_tissu.tisslm.core.model import QuantaTissu
 # from quanta_tissu.tisslm.core.tokenizer import Tokenizer
-# from quanta_tissu.tisslm.core.generate_text import generate_text
+from quanta_tissu.tisslm.core.generate_text import generate_text
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 def analyze_generated_text(model, tokenizer, prompt: str, num_samples: int = 3, **generation_kwargs):
     """
@@ -27,7 +27,7 @@ def analyze_generated_text(model, tokenizer, prompt: str, num_samples: int = 3, 
         try:
             # The actual generate_text function would be imported from core.generate_text
             # For now, we'll assume it exists and works as expected.
-            generated_text = generate_text(model=model, tokenizer=tokenizer, prompt=prompt, **generation_kwargs)
+            generated_text = generate_text(model=model, tokenizer=tokenizer, prompt=prompt, length=generation_kwargs.get('length', 50), method=generation_kwargs.get('method', 'greedy'), temperature=generation_kwargs.get('temperature', 1.0), top_k=generation_kwargs.get('top_k'), top_p=generation_kwargs.get('top_p'), repetition_penalty=generation_kwargs.get('repetition_penalty', 1.0))
             generated_texts.append(generated_text)
             logging.info(f"Sample {i+1}: {generated_text}")
         except Exception as e:
@@ -46,7 +46,7 @@ def analyze_generated_text(model, tokenizer, prompt: str, num_samples: int = 3, 
 
     return generated_texts
 
-def compare_generation_strategies(model, tokenizer, prompt: str, length: int = 50):
+def compare_generation_strategies(model, tokenizer, prompt: str, length: int = 50, repetition_penalty: float = 1.0):
     """
     Compares text generation using different decoding strategies.
     """
@@ -64,7 +64,7 @@ def compare_generation_strategies(model, tokenizer, prompt: str, length: int = 5
     for name, kwargs in strategies.items():
         logging.info(f"Generating with strategy: {name}")
         try:
-            generated_text = generate_text(model=model, tokenizer=tokenizer, prompt=prompt, length=length, **kwargs)
+            generated_text = generate_text(model=model, tokenizer=tokenizer, prompt=prompt, length=length, method=kwargs.get('method', 'greedy'), temperature=kwargs.get('temperature', 1.0), top_k=kwargs.get('top_k'), top_p=kwargs.get('top_p'), repetition_penalty=repetition_penalty)
             results[name] = generated_text
             logging.info(f"  {name}: {generated_text}")
         except Exception as e:

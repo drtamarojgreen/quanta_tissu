@@ -1,12 +1,13 @@
 import logging
 from collections import Counter
 from typing import List, Dict, Any
+import numpy as np
 
 # Assuming these imports will be available from the main project context
 # from quanta_tissu.tisslm.core.tokenizer import Tokenizer
-# from quanta_tissu.tisslm.core.data import load_corpus
+from quanta_tissu.tisslm.core.data import load_corpus
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 def analyze_corpus_statistics(corpus_path: str, tokenizer):
     """
@@ -59,7 +60,7 @@ def analyze_dataset_batch(dataset_batch: List[List[int]], tokenizer):
     # Decode a few samples from the batch
     for i, sample_ids in enumerate(dataset_batch[:min(3, len(dataset_batch))]):
         try:
-            decoded_text = tokenizer.decode(sample_ids)
+            decoded_text = tokenizer.detokenize(sample_ids)
             logging.info(f"Sample {i+1} (decoded): {decoded_text[:100]}...") # Limit output length
         except Exception as e:
             logging.error(f"Error decoding sample {i+1}: {e}")

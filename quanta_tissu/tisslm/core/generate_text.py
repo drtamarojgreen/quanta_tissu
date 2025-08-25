@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 
 # Add the project root to sys.path for module discovery
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -13,17 +14,24 @@ from .model import QuantaTissu
 from .tokenizer import Tokenizer
 from ..config import model_config
 
+logger = logging.getLogger(__name__)
+
 def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float) -> str:
     """
     Generates text of a specified length, starting with a prompt.
     """
+    logger.debug(f"Starting text generation with prompt: '{prompt}', length: {length}, method: {method}, temp: {temperature}, top_k: {top_k}, top_p: {top_p}")
+
     # Tokenize the initial prompt
+    logger.debug(f"Tokenizing prompt: '{prompt}'")
     prompt_token_ids = tokenizer.tokenize(prompt)
     if not prompt_token_ids.any(): # Check if the array is not empty
-        print("Warning: Prompt is empty or contains only unknown tokens.", file=sys.stderr)
+        logger.warning("Prompt is empty or contains only unknown tokens.")
         return ""
+    logger.debug(f"Prompt token IDs: {prompt_token_ids.tolist()}")
 
     # Use the new efficient generate method
+    logger.debug("Calling model.generate() for token generation.")
     generated_ids = model.generate(
         prompt_token_ids,
         n_new_tokens=length,
@@ -32,15 +40,22 @@ def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length:
         top_k=top_k,
         top_p=top_p
     )
+    logger.debug(f"Generated token IDs from model: {generated_ids}")
 
     # Detokenize the generated IDs and append to the original prompt.
+    logger.debug("Detokenizing generated IDs.")
     generated_text = tokenizer.detokenize(np.array(generated_ids))
-    return prompt + generated_text
+    logger.debug(f"Detokenized text: '{generated_text}'")
+
+    final_text = prompt + generated_text
+    logger.debug(f"Final generated text: '{final_text}'")
+    return final_text
 
 def main():
     """
     Main function to parse arguments and run the text generation.
     """
+    logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format='%(asctime)s - %(levelname)s - %(message)s')
     parser = argparse.ArgumentParser(description="Generate text using the QuantaTissu model.")
     parser.add_argument(
         "--length",

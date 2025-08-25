@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-import matplotlib.pyplot as plt
+
 from typing import List, Dict, Any
 
 # Assuming these imports will be available from the main project context
@@ -8,47 +8,9 @@ from typing import List, Dict, Any
 # from quanta_tissu.tisslm.core.optimizer import AdamW
 # from quanta_tissu.tisslm.core.data import Dataset
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def plot_training_metrics(losses: List[float], lrs: List[float], grad_norms: List[float], save_path: str = None):
-    """
-    Plots training loss, learning rate, and gradient norm over steps.
 
-    Args:
-        losses: List of loss values per step.
-        lrs: List of learning rates per step.
-        grad_norms: List of gradient norms per step.
-        save_path: Optional path to save the plot. If None, displays the plot.
-    """
-    steps = range(len(losses))
 
-    fig, axs = plt.subplots(3, 1, figsize=(10, 12))
-
-    axs[0].plot(steps, losses)
-    axs[0].set_title('Training Loss over Steps')
-    axs[0].set_xlabel('Steps')
-    axs[0].set_ylabel('Loss')
-    axs[0].grid(True)
-
-    axs[1].plot(steps, lrs)
-    axs[1].set_title('Learning Rate over Steps')
-    axs[1].set_xlabel('Steps')
-    axs[1].set_ylabel('Learning Rate')
-    axs[1].grid(True)
-
-    axs[2].plot(steps, grad_norms)
-    axs[2].set_title('Gradient Norm over Steps')
-    axs[2].set_xlabel('Steps')
-    axs[2].set_ylabel('Gradient Norm')
-    axs[2].grid(True)
-
-    plt.tight_layout()
-    if save_path:
-        plt.savefig(save_path)
-        logging.info(f"Training metrics plot saved to {save_path}")
-    else:
-        plt.show()
-        logging.info("Training metrics plot displayed.")
 
 def inspect_model_parameters(model):
     """

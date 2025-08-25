@@ -4,7 +4,7 @@ from typing import Dict, Any
 # Assuming these imports will be available from the main project context
 # from quanta_tissu.tisslm.config import model_config, training_config, system_config, tokenizer_config
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 def validate_model_config(config: Dict[str, Any]):
     """
