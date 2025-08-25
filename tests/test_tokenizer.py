@@ -43,3 +43,11 @@ def test_detokenize_empty_sequence():
     expected_text = ""
     text = detokenize(token_ids)
     assert_equal(text, expected_text, msg="test_detokenize_empty_sequence")
+
+def test_tokenize_mixed_case():
+    """Tests tokenization of a sentence with mixed case."""
+    text = "Hello World ."
+    # Assuming the tokenizer is case-sensitive and 'Hello' and 'World' are not in vocab
+    expected_ids = np.array([vocab["<unk>"], vocab["<unk>"], vocab["."]])
+    token_ids = tokenize(text)
+    assert_allclose(token_ids, expected_ids, msg="test_tokenize_mixed_case")

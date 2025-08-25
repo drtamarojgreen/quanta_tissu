@@ -1,5 +1,5 @@
-from matcher import _PATTERNS
-from tisslang_parser import TissLangParserError
+from .matcher import _PATTERNS
+from .errors import TissLangParserError
 
 def handle_step_command(line: str, ast: list, current_block: list, state: str, line_number: int) -> tuple[bool, str, list]:
     """
