@@ -9,8 +9,8 @@ import os
 sys.path.append(os.getcwd())
 
 from ..integrations.tisslang_parser import TissLangParser, TissLangParserError
-from .execution_engine import ExecutionEngine, ToolRegistry
-from .tools import run_command, write_file, read_file, assert_condition, TissCommandError
+from ..core.execution_engine import ExecutionEngine, ToolRegistry
+from ..core.tools import run_command, write_file, read_file, assert_condition, TissCommandError
 
 def main():
     """
