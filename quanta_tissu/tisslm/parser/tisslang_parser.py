@@ -1,14 +1,9 @@
 import json
 from typing import List, Dict, Any, Optional
-from matcher import _PATTERNS
-from setup import handle_setup_command
-from step import handle_step_command
-
-class TissLangParserError(Exception):
-    """Custom exception for parsing errors in TissLang."""
-    def __init__(self, message, line_number):
-        super().__init__(f"Error on line {line_number}: {message}")
-        self.line_number = line_number
+from .matcher import _PATTERNS
+from .setup import handle_setup_command
+from .step import handle_step_command
+from .errors import TissLangParserError
 
 class TissLangParser:
     """
