@@ -1,0 +1,9 @@
+#TISS! Language=Python
+
+TASK "Demonstrate error handling and assertions"
+
+STEP "Run a command that is expected to fail" {
+    RUN "ls non_existent_file.txt"
+    ASSERT LAST_RUN.EXIT_CODE != 0
+    ASSERT LAST_RUN.STDERR CONTAINS "No such file or directory"
+}
