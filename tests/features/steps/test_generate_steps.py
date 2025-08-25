@@ -23,6 +23,19 @@ def register_steps(runner):
         )
         context['generated_ids'] = generated_ids
 
+    @runner.step(r'^When I generate (\d+) new tokens with the prompt "(.*)" using the "(.*)" method and temperature (.*)$')
+    def generate_tokens_with_temperature(context, n_new_tokens, prompt, method, temperature):
+        n_new_tokens = int(n_new_tokens)
+        temperature = float(temperature)
+        prompt_tokens = context['tokenizer'].tokenize(prompt)
+        generated_ids = context['model'].generate(
+            prompt_tokens,
+            n_new_tokens=n_new_tokens,
+            method=method,
+            temperature=temperature
+        )
+        context['generated_ids'] = generated_ids
+
     @runner.step(r'^Then the generated tokens should be a list of (\d+) integers$')
     def check_generated_tokens(context, n_new_tokens):
         n_new_tokens = int(n_new_tokens)
