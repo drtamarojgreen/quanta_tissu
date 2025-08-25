@@ -70,3 +70,20 @@ def load_checkpoint(model, optimizer, file_path):
 
     logging.info(f"Loaded checkpoint from {file_path}. Resuming from epoch {epoch}, step {step}.")
     return epoch, step
+
+def calculate_perplexity(model, val_dataset, loss_fn):
+    total_loss = 0
+    total_tokens = 0
+    
+    # Temporarily set model to evaluation mode if it has one (e.g., for dropout/batchnorm)
+    # Assuming no specific eval mode for this simple model, so skipping for now.
+
+    for x_batch, y_batch in val_dataset:
+        logits = model.forward(x_batch)
+        loss = loss_fn.forward(logits, y_batch)
+        total_loss += loss * y_batch.size # Accumulate loss weighted by number of tokens in batch
+        total_tokens += y_batch.size # Accumulate total number of tokens
+
+    avg_loss = total_loss / total_tokens
+    perplexity = np.exp(avg_loss)
+    return perplex

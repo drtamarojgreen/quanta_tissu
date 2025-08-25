@@ -16,12 +16,14 @@ class Tokenizer:
     Handles conversion between text and token IDs.
     """
     
-    def __init__(self):
+    def __init__(self, tokenizer_path=None):
         self.bpe_tokenizer = BPETokenizer()
-        # Construct the path to the trained tokenizer files
-        tokenizer_prefix = os.path.join(os.path.dirname(system_config["model_save_path"]), "trained_tokenizer")
-        if not os.path.exists(os.path.dirname(tokenizer_prefix)):
-            os.makedirs(os.path.dirname(tokenizer_prefix))
+        if tokenizer_path:
+            tokenizer_prefix = tokenizer_path
+        else:
+            # Construct the path to the trained tokenizer files
+            tokenizer_prefix = os.path.join(os.path.dirname(system_config["model_save_path"]), "trained_tokenizer")
+        
         try:
             self.bpe_tokenizer.load(tokenizer_prefix)
         except FileNotFoundError:
@@ -93,6 +95,7 @@ def _get_global_tokenizer():
     if _global_tokenizer_instance is None:
         _global_tokenizer_instance = Tokenizer()
     return _global_tokenizer_instance
+
 
 def tokenize(text):
     """Legacy function for backward compatibility, uses the BPE tokenizer."""
