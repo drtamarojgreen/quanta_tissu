@@ -1,0 +1,22 @@
+#TISS! Language=Python
+
+TASK "Demonstrate READ and ASSERT on file content"
+
+STEP "Create a file with specific content" {
+    WRITE "config.txt" <<CONFIG
+# Configuration File
+VERSION=1.2.3
+ENVIRONMENT=production
+CONFIG
+}
+
+STEP "Read the file and assert its content" {
+    READ "config.txt" AS file_content
+    ASSERT file_content CONTAINS "VERSION=1.2.3"
+    ASSERT file_content NOT CONTAINS "ENVIRONMENT=development"
+}
+
+STEP "Cleanup the file" {
+    RUN "rm config.txt"
+    ASSERT LAST_RUN.EXIT_CODE == 0
+}
