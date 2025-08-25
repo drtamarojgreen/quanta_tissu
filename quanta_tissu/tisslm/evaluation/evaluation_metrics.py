@@ -6,7 +6,7 @@ import logging
 # from quanta_tissu.tisslm.core.loss import CrossEntropyLoss
 # from quanta_tissu.tisslm.core.data import Dataset
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 def calculate_perplexity(model, dataset, loss_fn):
     """

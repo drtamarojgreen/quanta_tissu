@@ -1,9 +1,12 @@
 import numpy as np
 import os
+import logging
 from .layers import MultiHeadAttention, FeedForward, LayerNorm, softmax
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
 from .parameter import Parameter
+
+logger = logging.getLogger(__name__)
 
 class TransformerBlock:
     def __init__(self, d_model, num_heads, d_ff, name=""):
@@ -82,16 +85,16 @@ class PositionalEncoding:
 class QuantaTissu:
     def __init__(self, config, db_host='127.0.0.1', db_port=8080, use_db=False):
         self.config = config
-        d_model = config["d_model"]
+        d_model = config["n_embd"]
         vocab_size = config["vocab_size"]
-        num_heads = config["num_heads"]
+        n_head = config["n_head"]
         d_ff = config["d_ff"]
-        n_layers = config["n_layers"]
+        n_layer = config["n_layer"]
 
         self.d_model = d_model
         self.embeddings = Parameter(np.random.randn(vocab_size, d_model) / np.sqrt(d_model), name="embeddings")
         self.pos_encoding = PositionalEncoding(d_model)
-        self.transformer_blocks = [TransformerBlock(d_model, num_heads, d_ff, name=f"transformer_blocks.{i}") for i in range(n_layers)]
+        self.transformer_blocks = [TransformerBlock(d_model, n_head, d_ff, name=f"transformer_blocks.{i}") for i in range(n_layer)]
         self.output_proj = Parameter(np.random.randn(d_model, vocab_size) / np.sqrt(d_model), name="output_proj")
 
         if use_db:
@@ -107,6 +110,7 @@ class QuantaTissu:
         return mask
 
     def forward(self, token_ids, kv_cache=None, start_pos=0):
+        logger.debug(f"Model forward pass: token_ids shape {token_ids.shape}, start_pos {start_pos}")
         # token_ids: (batch_size, seq_len)
         batch_size, seq_len = token_ids.shape
 
@@ -121,21 +125,26 @@ class QuantaTissu:
             if mask is not None:
                 # Add batch and head dimensions for broadcasting
                 mask = mask[np.newaxis, np.newaxis, :, :]
+            logger.debug(f"Causal mask created with shape: {mask.shape}")
 
         self.cache['token_ids'] = token_ids
 
         x = self.embeddings.value[token_ids]
-        self.cache['x_embedded'] = x
+        logger.debug(f"After embeddings: x shape {x.shape}")
 
         x = self.pos_encoding(x, start_pos=start_pos)
+        logger.debug(f"After positional encoding: x shape {x.shape}")
         self.cache['x_pos_encoded'] = x
 
         for i, block in enumerate(self.transformer_blocks):
             layer_cache = kv_cache[i] if kv_cache is not None else None
+            logger.debug(f"Processing TransformerBlock {i}")
             x = block(x, mask=mask, kv_cache=layer_cache)
+            logger.debug(f"After TransformerBlock {i}: x shape {x.shape}")
             self.cache[f'block_{i}_out'] = x
 
         logits = x @ self.output_proj.value
+        logger.debug(f"Final logits shape: {logits.shape}")
         self.cache['final_x'] = x
         return logits
 
@@ -235,16 +244,32 @@ class QuantaTissu:
         except Exception as e:
             print(f"Error loading model weights from {path}: {e}. Using random initialization.")
 
-    def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None):
+    return int(next_token)
+
+    def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None, past_tokens=None, repetition_penalty=1.0):
+        logger.debug(f"_predict_from_logits: method={method}, temp={temperature}, top_k={top_k}, top_p={top_p}, logits shape={logits.shape}")
         # Ensure logits are a 1D array for consistent processing
         if logits.ndim > 1:
             logits = np.squeeze(logits)
 
+        # Apply repetition penalty
+        if past_tokens is not None and repetition_penalty != 1.0:
+            logger.debug(f"Applying repetition penalty for past_tokens: {len(past_tokens)} tokens, penalty={repetition_penalty}")
+            for token_id in past_tokens:
+                # A common approach: if logit is positive, make it smaller; if negative, make it larger (less negative)
+                # This effectively reduces the probability of repeating tokens.
+                if logits[token_id] < 0:
+                    logits[token_id] *= repetition_penalty
+                else:
+                    logits[token_id] /= repetition_penalty
+
         if method == "greedy":
             next_token = np.argmax(logits)
+            logger.debug(f"Greedy sampling: next_token={next_token}")
             return int(next_token)
 
         probs = softmax(logits, temperature=temperature)
+        logger.debug(f"Probabilities after softmax (first 5): {probs[:5]}")
 
         # Ensure probs is also 1D, in case softmax re-adds a dimension
         if probs.ndim > 1:
@@ -254,52 +279,82 @@ class QuantaTissu:
             if top_k is None:
                 raise ValueError("top_k must be specified for top_k sampling")
             top_k_indices = np.argsort(probs)[-top_k:]
+            logger.debug(f"Top-K sampling: top_k_indices={top_k_indices.tolist()}")
             top_k_probs = np.zeros_like(probs)
             top_k_probs[top_k_indices] = probs[top_k_indices]
             top_k_probs /= np.sum(top_k_probs)
             next_token = np.random.choice(len(probs), p=top_k_probs)
+            logger.debug(f"Top-K sampling: next_token={next_token}")
         elif method == "nucleus":
             if top_p is None:
                 raise ValueError("top_p must be specified for nucleus sampling")
+            
+            # Sort probabilities in descending order
             sorted_indices = np.argsort(probs)[::-1]
             sorted_probs = probs[sorted_indices]
+            
+            # Calculate cumulative probabilities
             cumulative_probs = np.cumsum(sorted_probs)
-            indices_to_remove = cumulative_probs > top_p
-            indices_to_remove[1:] = indices_to_remove[:-1]
-            indices_to_remove[0] = False
-            indices_to_remove_orig = sorted_indices[indices_to_remove]
-            nucleus_probs = np.copy(probs)
-            nucleus_probs[indices_to_remove_orig] = 0
-            nucleus_probs /= np.sum(nucleus_probs)
+            
+            # Find the index where the cumulative probability exceeds top_p
+            # Add a small epsilon to top_p to handle floating point inaccuracies
+            cutoff_idx = np.where(cumulative_probs >= top_p - 1e-8)[0][0]
+            
+            # Create a mask for tokens to keep (up to and including cutoff_idx)
+            # All tokens after cutoff_idx should have their probabilities set to 0
+            tokens_to_keep_indices = sorted_indices[:cutoff_idx + 1]
+            logger.debug(f"Nucleus sampling: cutoff_idx={cutoff_idx}, tokens_to_keep_indices={tokens_to_keep_indices.tolist()}")
+            
+            nucleus_probs = np.zeros_like(probs)
+            nucleus_probs[tokens_to_keep_indices] = probs[tokens_to_keep_indices]
+            
+            # Normalize the remaining probabilities
+            if np.sum(nucleus_probs) > 0: # Avoid division by zero if all probs are zeroed out
+                nucleus_probs /= np.sum(nucleus_probs)
+            else:
+                # Fallback: if all probabilities are zeroed, revert to uniform sampling or greedy
+                # For now, we'll raise an error or fallback to greedy if this happens
+                # A more robust solution might be to ensure at least one token remains.
+                raise ValueError("Nucleus sampling resulted in all probabilities being zeroed out.")
+
             next_token = np.random.choice(len(probs), p=nucleus_probs)
+            logger.debug(f"Nucleus sampling: next_token={next_token}")
         elif method == "random" or method == "sampling":
              next_token = np.random.choice(len(probs), p=probs.flatten())
+             logger.debug(f"Random sampling: next_token={next_token}")
         else:
             raise ValueError(f"Unknown sampling method: {method}")
 
         return int(next_token)
 
-    def generate(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, use_cache=True):
+    def generate(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, use_cache=True, repetition_penalty=1.0):
+
+    def generate(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, use_cache=True, repetition_penalty=1.0):
+        logger.debug(f"Starting generation: prompt_tokens_len={len(prompt_tokens)}, n_new_tokens={n_new_tokens}, method={method}, temp={temperature}, top_k={top_k}, top_p={top_p}, use_cache={use_cache}")
         if not use_cache:
             # Generate without cache by calling predict in a loop
             generated_ids = []
             current_tokens = list(prompt_tokens)
             for _ in range(n_new_tokens):
                 token_ids_np = np.array(current_tokens)
-                next_token_id = self.predict(token_ids_np, method=method, temperature=temperature, top_k=top_k, top_p=top_p)
+                next_token_id = self.predict(token_ids_np, method=method, temperature=temperature, top_k=top_k, top_p=top_p, repetition_penalty=repetition_penalty)
                 generated_ids.append(next_token_id)
                 current_tokens.append(next_token_id)
+            logger.debug(f"Generated IDs (without cache): {generated_ids}")
             return generated_ids
 
         # 1. Initialize cache for each layer
         kv_cache = [{} for _ in self.transformer_blocks]
+        logger.debug("KV cache initialized.")
 
         # 2. Process prompt tokens and populate the cache
         prompt_token_ids = np.array(prompt_tokens)[np.newaxis, :]
+        logger.debug(f"Processing prompt tokens: {prompt_token_ids.tolist()}")
         prompt_logits = self.forward(prompt_token_ids, kv_cache=kv_cache, start_pos=0)
         
         # 3. Predict the first token from the prompt's output
-        next_token_id = self._predict_from_logits(prompt_logits[:, -1, :], method, temperature, top_k, top_p)
+        next_token_id = self._predict_from_logits(prompt_logits[:, -1, :], method, temperature, top_k, top_p, past_tokens=prompt_tokens, repetition_penalty=repetition_penalty)
+        logger.debug(f"First generated token ID (from prompt): {next_token_id}")
         
         generated_ids = [next_token_id]
         
@@ -307,11 +362,16 @@ class QuantaTissu:
         for i in range(n_new_tokens - 1):
             current_token_id = np.array([[next_token_id]])
             start_pos = len(prompt_tokens) + i
+            logger.debug(f"Generating token {i+1}/{n_new_tokens-1}: current_token_id={current_token_id.tolist()}, start_pos={start_pos}")
             
             logits = self.forward(current_token_id, kv_cache=kv_cache, start_pos=start_pos)
-            next_token_id = self._predict_from_logits(logits[:, -1, :], method, temperature, top_k, top_p)
+            # Pass all previously generated tokens (prompt + generated so far)
+            all_past_tokens = list(prompt_tokens) + generated_ids
+            next_token_id = self._predict_from_logits(logits[:, -1, :], method, temperature, top_k, top_p, past_tokens=all_past_tokens, repetition_penalty=repetition_penalty)
             generated_ids.append(next_token_id)
+            logger.debug(f"Generated token ID: {next_token_id}, current generated_ids: {generated_ids}")
             
+        logger.debug(f"Final generated IDs: {generated_ids}")
         return generated_ids
 
     def predict(self, token_ids, method="greedy", temperature=1.0, top_k=None, top_p=None):

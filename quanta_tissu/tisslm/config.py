@@ -40,11 +40,12 @@ prompt_config = {
 
 # --- Model Configuration ---
 model_config = {
-   "d_model": 128,      # The dimensionality of the model's embeddings and hidden states.
-    "n_layers": 4,       # The number of Transformer blocks.
-    "num_heads": 8,      # The number of attention heads in the Multi-Head Attention layers.
+   "n_embd": 128,      # The dimensionality of the model's embeddings and hidden states.
+    "n_layer": 4,       # The number of Transformer blocks.
+    "n_head": 8,      # The number of attention heads in the Multi-Head Attention layers.
     "d_ff": 512,         # The dimensionality of the inner layer of the Feed-Forward Networks (4 * d_model).
     "vocab_size": 512,  # Will be set dynamically in run_training.py
+    "block_size": tokenizer_config["max_len"], # Max sequence length for the model's internal processing.
     "layer_norm_eps": 1e-6, # Epsilon for Layer Normalization to prevent division by zero.
     # Max length for positional encodings, tied to tokenizer's max length.
     "positional_encoding_max_len": tokenizer_config["max_len"],
