@@ -1,7 +1,8 @@
-
 import json
 from typing import List, Dict, Any, Optional
 from matcher import _PATTERNS
+from setup import handle_setup_command
+from step import handle_step_command
 
 class TissLangParserError(Exception):
     """Custom exception for parsing errors in TissLang."""
@@ -77,7 +78,7 @@ class TissLangParser:
 
     def _parse_line(self, line: str):
         """Processes a single line of the script based on the current state."""
-        if self._PATTERNS['COMMENT'].match(line) or self._PATTERNS['EMPTY'].match(line):
+        if _PATTERNS['COMMENT'].match(line) or _PATTERNS['EMPTY'].match(line):
             return
 
         if self._state == "IN_WRITE":
@@ -93,53 +94,48 @@ class TissLangParser:
 
     def _handle_idle_state(self, line: str):
         """Handles parsing when in the top-level 'IDLE' state."""
-        task_match = self._PATTERNS['TASK'].match(line)
+        task_match = _PATTERNS['TASK'].match(line)
         if task_match:
             self.ast.append({'type': 'TASK', 'description': task_match.group(1)})
             return
 
-        step_match = self._PATTERNS['STEP'].match(line)
-        if step_match:
-            step_node = {'type': 'STEP', 'description': step_match.group(1), 'commands': []}
-            self.ast.append(step_node)
-            self._current_block = step_node['commands']
-            self._state = "IN_STEP"
+        handled, new_state, new_current_block = handle_step_command(line, self.ast, self._current_block, self._state, self._line_number)
+        if handled:
+            self._state = new_state
+            self._current_block = new_current_block
             return
 
-        setup_match = self._PATTERNS['SETUP'].match(line)
-        if setup_match:
-            setup_node = {'type': 'SETUP', 'commands': []}
-            self.ast.append(setup_node)
-            self._current_block = setup_node['commands']
-            # We can reuse the IN_STEP state as the allowed commands are identical
-            self._state = "IN_STEP"
+        handled, new_state, new_current_block = handle_setup_command(line, self.ast, self._current_block, self._state, self._line_number)
+        if handled:
+            self._state = new_state
+            self._current_block = new_current_block
             return
 
         raise TissLangParserError(f"Unexpected command. Expected TASK, STEP, or SETUP.", self._line_number)
 
     def _handle_in_step_state(self, line: str):
         """Handles parsing when inside a 'STEP' or 'SETUP' block."""
-        if self._PATTERNS['BLOCK_END'].match(line):
+        if _PATTERNS['BLOCK_END'].match(line):
             self._state = "IDLE"
             self._current_block = None
             return
 
-        run_match = self._PATTERNS['RUN'].match(line)
+        run_match = _PATTERNS['RUN'].match(line)
         if run_match:
             self._current_block.append({'type': 'RUN', 'command': run_match.group(2)})
             return
 
-        assert_match = self._PATTERNS['ASSERT'].match(line)
+        assert_match = _PATTERNS['ASSERT'].match(line)
         if assert_match:
             self._current_block.append({'type': 'ASSERT', 'condition': assert_match.group(1)})
             return
 
-        read_match = self._PATTERNS['READ'].match(line)
+        read_match = _PATTERNS['READ'].match(line)
         if read_match:
             self._current_block.append({'type': 'READ', 'path': read_match.group(1), 'variable': read_match.group(2)})
             return
 
-        write_match = self._PATTERNS['WRITE'].match(line)
+        write_match = _PATTERNS['WRITE'].match(line)
         if write_match:
             self._heredoc_delimiter = write_match.group(2)
             write_node = {'type': 'WRITE', 'path': write_match.group(1), 'language': self._heredoc_delimiter, 'content': ''}
@@ -165,43 +161,3 @@ class TissLangParser:
             self._state = "IN_STEP"
         else:
             self._heredoc_content.append(line + '\n')
-
-
-if __name__ == '__main__':
-    # Example usage: Parse the script from the TissLang plan.
-    example_script = """
-#TISS! Language=Python
-
-TASK "Create and test a simple Python hello world script"
-
-STEP "Create the main application file" {
-
-    WRITE "main.py" <<PYTHON
-import sys
-
-def main():
-    print(f"Hello, {sys.argv[1]}!")
-
-
-if __name__ == "__main__":
-    main()
-PYTHON
-}
-
-
-STEP "Run the script and verify its output" {
-    RUN "python main.py TissLang"
-    ASSERT LAST_RUN.EXIT_CODE == 0
-    ASSERT LAST_RUN.STDOUT CONTAINS "Hello, TissLang!"
-    READ "main.py" AS main_code
-}
-"""
-
-    print("---"Parsing TissLang Script"---")
-    parser = TissLangParser()
-    try:
-        parsed_ast = parser.parse(example_script)
-        print("---"Parse Successful. AST:"---")
-        print(json.dumps(parsed_ast, indent=2))
-    except TissLangParserError as e:
-        print(f"Parsing failed: {e}")
