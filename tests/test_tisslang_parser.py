@@ -131,5 +131,109 @@ class TestTissLangParser(unittest.TestCase):
         self.assertEqual(ast, expected_ast)
 
 
+    def test_parse_simple_if(self):
+        parser = TissLangParser()
+        script = '''
+        STEP "Test IF" {
+            IF "VAR == 1"
+                RUN "echo 'true'"
+            ENDIF
+        }
+        '''
+        expected_ast = [{
+            'type': 'STEP',
+            'description': 'Test IF',
+            'commands': [{
+                'type': 'IF',
+                'condition': 'VAR == 1',
+                'true_branch': [{'type': 'RUN', 'command': "echo 'true'"}],
+                'false_branch': []
+            }]
+        }]
+        ast = parser.parse(script)
+        self.assertEqual(ast, expected_ast)
+
+    def test_parse_if_else(self):
+        parser = TissLangParser()
+        script = '''
+        STEP "Test IF/ELSE" {
+            IF "VAR == 1"
+                RUN "echo 'true'"
+            ELSE
+                RUN "echo 'false'"
+            ENDIF
+        }
+        '''
+        expected_ast = [{
+            'type': 'STEP',
+            'description': 'Test IF/ELSE',
+            'commands': [{
+                'type': 'IF',
+                'condition': 'VAR == 1',
+                'true_branch': [{'type': 'RUN', 'command': "echo 'true'"}],
+                'false_branch': [{'type': 'RUN', 'command': "echo 'false'"}]
+            }]
+        }]
+        ast = parser.parse(script)
+        self.assertEqual(ast, expected_ast)
+
+    def test_parse_nested_if(self):
+        parser = TissLangParser()
+        script = '''
+        STEP "Test Nested IF" {
+            IF "VAR > 10"
+                IF "VAR < 20"
+                    RUN "echo 'in range'"
+                ENDIF
+            ENDIF
+        }
+        '''
+        expected_ast = [{
+            'type': 'STEP',
+            'description': 'Test Nested IF',
+            'commands': [{
+                'type': 'IF',
+                'condition': 'VAR > 10',
+                'true_branch': [{
+                    'type': 'IF',
+                    'condition': 'VAR < 20',
+                    'true_branch': [{'type': 'RUN', 'command': "echo 'in range'"}],
+                    'false_branch': []
+                }],
+                'false_branch': []
+            }]
+        }]
+        ast = parser.parse(script)
+        self.assertEqual(ast, expected_ast)
+
+    def test_error_else_without_if(self):
+        parser = TissLangParser()
+        script = '''
+        STEP "Error" {
+            ELSE
+        }
+        '''
+        with self.assertRaisesRegex(TissLangParserError, "ELSE found without a preceding IF."):
+            parser.parse(script)
+
+    def test_error_endif_without_if(self):
+        parser = TissLangParser()
+        script = '''
+        STEP "Error" {
+            ENDIF
+        }
+        '''
+        with self.assertRaisesRegex(TissLangParserError, "ENDIF found without a preceding IF."):
+            parser.parse(script)
+
+    def test_error_unclosed_if(self):
+        parser = TissLangParser()
+        script = '''
+        STEP "Unclosed IF" {
+            IF "VAR == 1"
+        '''
+        with self.assertRaisesRegex(TissLangParserError, "Unexpected end of script. Current state is 'IN_IF'. A block may be unclosed."):
+            parser.parse(script)
+
 if __name__ == '__main__':
     unittest.main()

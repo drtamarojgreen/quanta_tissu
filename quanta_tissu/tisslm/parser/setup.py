@@ -1,19 +1,19 @@
-from matcher import _PATTERNS
-from tisslang_parser import TissLangParserError
+from .matcher import _PATTERNS
 
-def handle_setup_command(line: str, ast: list, current_block: list, state: str, line_number: int) -> tuple[bool, str, list]:
+def handle_setup_command(line: str, ast: list, state_stack: list, block_stack: list, line_number: int) -> bool:
     """
-    Handles parsing of a SETUP command.
+    Handles parsing of a SETUP command, modifying stacks directly.
 
     Returns:
-        A tuple: (was_handled, new_state, new_current_block)
+        A boolean indicating if the command was handled.
     """
     setup_match = _PATTERNS['SETUP'].match(line)
     if setup_match:
         setup_node = {'type': 'SETUP', 'commands': []}
+        # A SETUP block is always at the top level
         ast.append(setup_node)
-        current_block = setup_node['commands']
-        # We can reuse the IN_STEP state as the allowed commands are identical
-        state = "IN_STEP"
-        return True, state, current_block
-    return False, state, current_block
+
+        state_stack.append("IN_STEP")
+        block_stack.append(setup_node['commands'])
+        return True
+    return False
