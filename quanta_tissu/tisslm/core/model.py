@@ -4,6 +4,7 @@ from .layers import MultiHeadAttention, FeedForward, LayerNorm, softmax
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
 from .parameter import Parameter
+from .validators import validate_output
 
 class TransformerBlock:
     def __init__(self, d_model, num_heads, d_ff, name=""):
@@ -289,6 +290,10 @@ class QuantaTissu:
                 next_token_id = self.predict(token_ids_np, method=method, temperature=temperature, top_k=top_k, top_p=top_p)
                 generated_ids.append(next_token_id)
                 current_tokens.append(next_token_id)
+
+            if not validate_output(generated_ids):
+                return None
+
             return generated_ids
 
         # 1. Initialize cache for each layer
@@ -312,6 +317,11 @@ class QuantaTissu:
             next_token_id = self._predict_from_logits(logits[:, -1, :], method, temperature, top_k, top_p)
             generated_ids.append(next_token_id)
             
+        # 5. Validate the generated output
+        if not validate_output(generated_ids):
+            # If validation fails, return None to indicate a problem.
+            return None
+
         return generated_ids
 
     def predict(self, token_ids, method="greedy", temperature=1.0, top_k=None, top_p=None):
