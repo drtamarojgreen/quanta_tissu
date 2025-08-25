@@ -109,5 +109,12 @@ PYTHON
         # Verify final state
         self.assertIn("This is the app", state.last_run_result['stdout'])
 
+    def test_initial_state(self):
+        """Test the initial state of a new ExecutionEngine."""
+        self.assertIsNotNone(self.engine.state)
+        self.assertFalse(self.engine.state.is_halted)
+        self.assertEqual(self.engine.state.variables, {})
+        self.assertIsNone(self.engine.state.last_run_result)
+
 if __name__ == "__main__":
     unittest.main()
