@@ -12,7 +12,7 @@ import json
 from quanta_tissu.tisslm.core.model import QuantaTissu
 from quanta_tissu.tisslm.core.tokenizer import tokenize, detokenize
 from quanta_tissu.tisslm.config import model_config
-from quanta_tissu.tisslm.integrations.tisslang_parser import TissLangParser, TissLangParserError
+from quanta_tissu.tisslm.parser.tisslang_parser import TissLangParser, TissLangParserError
 
 # --- BDD Test Runner ---
 
