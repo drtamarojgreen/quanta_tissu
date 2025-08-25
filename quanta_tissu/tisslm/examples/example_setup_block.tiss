@@ -1,0 +1,20 @@
+#TISS! Language=Python
+
+TASK "Demonstrate the SETUP block"
+
+SETUP {
+    WRITE "data.tmp" <<DATA
+This is some temporary data.
+Used for setting up the test environment.
+DATA
+}
+
+STEP "Verify the setup file was created" {
+    RUN "ls"
+    ASSERT LAST_RUN.STDOUT CONTAINS "data.tmp"
+}
+
+STEP "Cleanup the temporary file" {
+    RUN "rm data.tmp"
+    ASSERT LAST_RUN.EXIT_CODE == 0
+}
