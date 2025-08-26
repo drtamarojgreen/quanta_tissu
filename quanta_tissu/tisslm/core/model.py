@@ -7,7 +7,9 @@ from .layers import MultiHeadAttention, FeedForward, LayerNorm, softmax
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
 from .parameter import Parameter
+from .model_error_handler import ModelError, ModelInitializationError, InferenceError
 from .model_error_handler import TissModelError, InputValidationError, ConfigurationError, InferenceError, ModelProcessingError, TissAssertionError, handle_model_errors
+from .system_error_handler import SystemError, handle_errors, ConfigurationError, DatabaseConnectionError, FileIOError
 from .system_error_handler import TissSystemError, DatabaseConnectionError, handle_errors
 
 logger = logging.getLogger(__name__)
@@ -102,6 +104,7 @@ class PositionalEncoding:
         return x_out
 
 class QuantaTissu:
+    @handle_errors
     def __init__(self, config, db_host='127.0.0.1', db_port=8080, use_db=False):
         self.config = config
         d_model = config["n_embd"]
@@ -235,6 +238,7 @@ class QuantaTissu:
             params.extend(block.parameters())
         return params
 
+    @handle_errors
     def load_weights(self, path):
         if not os.path.exists(path):
             logger.warning(f"Model weights file not found at {path}. Using random initialization.")
@@ -285,9 +289,13 @@ class QuantaTissu:
                         logger.warning(f"Parameter {param.name} not found in weights file. Using random initialization.")
 
             logger.info(f"Successfully loaded model weights from {path}")
+        except (IOError, FileNotFoundError) as e:
+            # Re-raise file-related errors as a system error
+            raise TissSystemError(f"Failed to read model weights file from {path}: {e}") from e
         except Exception as e:
-            logger.error(f"Error loading model weights from {path}: {e}", exc_info=True)
-            raise TissSystemError(f"Failed to load model weights from '{path}'.") from e
+            # Wrap other potential errors (e.g., parsing, key errors) in a model processing error
+            logger.error(f"Error processing model weights from {path}: {e}", exc_info=True)
+            raise ModelProcessingError(f"Failed to process model weights from {path}: {e}") from e
 
     @handle_errors
     def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None, past_tokens=None, repetition_penalty=1.0):
@@ -325,6 +333,7 @@ class QuantaTissu:
         if method == "top_k":
             if top_k is None:
                 raise ConfigurationError("top_k must be specified for top_k sampling")
+                
             top_k_indices = np.argsort(probs)[-top_k:]
             logger.debug(f"Top-K sampling: top_k_indices={top_k_indices.tolist()}")
             logger.debug(f"Top-K sampling: top_k_indices shape: {top_k_indices.shape}, top_k_probs shape: {np.zeros_like(probs).shape}") # np.zeros_like(probs) is used to get the shape of top_k_probs before assignment
@@ -461,6 +470,6 @@ class QuantaTissu:
         token_ids = tokenize(augmented_prompt)
         if len(token_ids) == 0:
             logger.warning("Prompt resulted in empty token sequence. Cannot generate.")
-            return None
+            raise InputValidationError("Prompt resulted in empty token sequence after tokenization. Cannot generate.")
         
         generated_token_ids = self.generate(token_ids, n_new_tokens, method=generation_method, **kwargs)
