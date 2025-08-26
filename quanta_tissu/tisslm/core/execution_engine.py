@@ -170,11 +170,9 @@ class ExecutionEngine:
         except TissModelError as e:
             log_entry['status'] = 'FAILURE'
             log_entry['error'] = str(e)
-            # state.is_halted remains False for model errors
-        except KeyError as e: # Tool not found
-            log_entry['status'] = 'FAILURE'
-            log_entry['error'] = f"Configuration Error: No tool registered for command type: {command_type}"
-            state.is_halted = True # This is a configuration error, should halt
+            # For configuration errors, which are a type of model error, we should halt.
+            if isinstance(e, ConfigurationError):
+                state.is_halted = True
         finally:
             end_time = time.monotonic()
             log_entry['duration_ms'] = (end_time - start_time) * 1000
