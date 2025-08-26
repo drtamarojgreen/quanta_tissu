@@ -14,11 +14,11 @@ class DatabaseConnectionError(TissSystemError):
     """Custom exception for errors related to database connection."""
     pass
 
-class FileIOError(SystemError):
+class FileIOError(TissSystemError):
     """Custom exception for file I/O errors."""
     pass
 
-class ConfigurationError(SystemError):
+class ConfigurationError(TissSystemError):
     """Custom exception for configuration-related errors."""
     
 class TissCommandError(TissSystemError):
