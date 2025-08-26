@@ -7,8 +7,8 @@ from .layers import MultiHeadAttention, FeedForward, LayerNorm, softmax
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
 from .parameter import Parameter
-from .model_error_handler import ModelError
-from .system_error_handler import SystemError, handle_errors
+from .model_error_handler import ModelError, ModelInitializationError, InferenceError
+from .system_error_handler import SystemError, handle_errors, ConfigurationError, DatabaseConnectionError, FileIOError
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +102,7 @@ class PositionalEncoding:
         return x_out
 
 class QuantaTissu:
+    @handle_errors
     def __init__(self, config, db_host='127.0.0.1', db_port=8080, use_db=False):
         self.config = config
         d_model = config["n_embd"]
@@ -124,7 +125,7 @@ class QuantaTissu:
                 print(f"Initializing KnowledgeBase with TissDB connection to {db_host}:{db_port}")
                 self.knowledge_base = KnowledgeBase(self.embeddings.value, tokenize, db_host=db_host, db_port=db_port)
             except Exception as e:
-                raise SystemError(f"Failed to connect to database: {e}") from e
+                raise ModelInitializationError(f"Failed to connect to database: {e}") from e
         else:
             self.knowledge_base = None
         self.cache = {}
@@ -235,6 +236,7 @@ class QuantaTissu:
             params.extend(block.parameters())
         return params
 
+    @handle_errors
     def load_weights(self, path):
         if not os.path.exists(path):
             print(f"Warning: Model weights file not found at {path}. Using random initialization.")
@@ -286,7 +288,7 @@ class QuantaTissu:
 
             print(f"Successfully loaded model weights from {path}")
         except Exception as e:
-            print(f"Error loading model weights from {path}: {e}. Using random initialization.")
+            raise ModelInitializationError(f"Error loading model weights from {path}: {e}. Using random initialization.") from e
 
     @handle_errors
     def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None, past_tokens=None, repetition_penalty=1.0):
@@ -323,7 +325,7 @@ class QuantaTissu:
         
         if method == "top_k":
             if top_k is None:
-                raise ValueError("top_k must be specified for top_k sampling")
+                raise InferenceError("top_k must be specified for top_k sampling")
             top_k_indices = np.argsort(probs)[-top_k:]
             logger.debug(f"Top-K sampling: top_k_indices={top_k_indices.tolist()}")
             logger.debug(f"Top-K sampling: top_k_indices shape: {top_k_indices.shape}, top_k_probs shape: {np.zeros_like(probs).shape}") # np.zeros_like(probs) is used to get the shape of top_k_probs before assignment
@@ -334,7 +336,7 @@ class QuantaTissu:
             logger.debug(f"Top-K sampling: next_token={next_token}")
         elif method == "nucleus":
             if top_p is None:
-                raise ValueError("top_p must be specified for nucleus sampling")
+                raise InferenceError("top_p must be specified for nucleus sampling")
             
             # Sort probabilities in descending order
             sorted_indices = np.argsort(probs)[::-1]
@@ -371,7 +373,7 @@ class QuantaTissu:
                 # Fallback: if all probabilities are zeroed, revert to uniform sampling or greedy
                 # For now, we'll raise an error or fallback to greedy if this happens
                 # A more robust solution might be to ensure at least one token remains.
-                raise ValueError("Nucleus sampling resulted in all probabilities being zeroed out.")
+                raise InferenceError("Nucleus sampling resulted in all probabilities being zeroed out.")
 
             next_token = np.random.choice(len(probs), p=nucleus_probs)
             logger.debug(f"Nucleus sampling: next_token={next_token}")
@@ -379,7 +381,7 @@ class QuantaTissu:
              next_token = np.random.choice(len(probs), p=probs.flatten())
              logger.debug(f"Random sampling: next_token={next_token}")
         else:
-            raise ValueError(f"Unknown sampling method: {method}")
+            raise InferenceError(f"Unknown sampling method: {method}")
 
         return int(next_token)
 
