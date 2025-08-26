@@ -3,7 +3,7 @@ import json
 import requests
 import logging
 from datetime import datetime
-from .model_error_handler import ModelError
+from .model_error_handler import TissModelError, InputValidationError, ModelProcessingError, ConfigurationError
 from .system_error_handler import DatabaseConnectionError, handle_errors
 
 logger = logging.getLogger(__name__)
@@ -106,14 +106,14 @@ class KnowledgeBase:
             except requests.exceptions.RequestException as e:
                 raise DatabaseConnectionError(f"Failed to retrieve from KB: {e}") from e
             except (json.JSONDecodeError, KeyError) as e:
-                raise ModelError(f"Failed to parse response from KB: {e}") from e
+                raise ModelProcessingError(f"Failed to parse response from KB: {e}") from e
         
         elif backward_pass_data:
             if 'receptor_field' not in backward_pass_data:
-                raise ModelError("backward_pass_data must contain 'receptor_field'.")
+                raise InputValidationError("backward_pass_data must contain 'receptor_field'.")
             receptor_field = backward_pass_data['receptor_field']
             if 'documents' not in receptor_field or 'embeddings' not in receptor_field:
-                 raise ModelError("receptor_field must contain 'documents' and 'embeddings'.")
+                 raise InputValidationError("receptor_field must contain 'documents' and 'embeddings'.")
             documents = receptor_field['documents']
             doc_embeddings = receptor_field['embeddings']
 
@@ -132,13 +132,13 @@ class KnowledgeBase:
             similarities = self._genetic_similarity(query_embedding, doc_embeddings, ga_params)
         elif method == 'bayes':
             if 'hessian_matrix' not in backward_pass_data:
-                raise ModelError("backward_pass_data must contain 'hessian_matrix' for bayes method.")
+                raise InputValidationError("backward_pass_data must contain 'hessian_matrix' for bayes method.")
             hessian_matrix = backward_pass_data['hessian_matrix']
             if bayes_params is None:
                 bayes_params = self._get_default_bayes_params()
             similarities = self._bayesian_similarity(query_embedding, doc_embeddings, hessian_matrix, bayes_params)
         else:
-            raise ModelError(f"Unknown retrieval method: {method}")
+            raise ConfigurationError(f"Unknown retrieval method: {method}")
 
         if k >= len(similarities):
             top_k_indices = np.argsort(similarities)[::-1]
