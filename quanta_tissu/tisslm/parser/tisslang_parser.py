@@ -152,6 +152,16 @@ class TissLangParser:
             self._state = "IN_WRITE"
             return
 
+        prompt_agent_match = _PATTERNS['PROMPT_AGENT'].match(line)
+        if prompt_agent_match:
+            prompt = prompt_agent_match.group(1)
+            variable = prompt_agent_match.group(2)
+            node = {'type': 'PROMPT_AGENT', 'prompt': prompt}
+            if variable:
+                node['variable'] = variable
+            self._current_block.append(node)
+            return
+
         raise TissLangParserError(f"Unexpected command inside STEP/SETUP block.", self._line_number)
 
     def _handle_write_block(self, line: str):
