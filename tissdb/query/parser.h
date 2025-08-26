@@ -47,6 +47,7 @@ private:
     std::optional<JoinClause> parse_join_clause(); // Added for JOIN: JOIN collection ON condition
     std::optional<UnionClause> parse_union_clause(); // Added for UNION: SELECT ... UNION [ALL] SELECT ...
     std::optional<DrilldownClause> parse_drilldown_clause(); // Added for WITH DRILLDOWN
+    AggregateFunction parse_aggregate_function();
 
     Expression parse_expression(int precedence = 0);
     Expression parse_primary_expression();

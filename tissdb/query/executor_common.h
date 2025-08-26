@@ -15,7 +15,8 @@ namespace Query {
 
 struct AggregateResult {
     double sum = 0;
-    int64_t count = 0;
+    int64_t count = 0; // For COUNT aggregate
+    int64_t avg_count = 0; // For AVG aggregate, only counts numeric values
     double sum_sq = 0;
     std::optional<double> min;
     std::optional<double> max;
