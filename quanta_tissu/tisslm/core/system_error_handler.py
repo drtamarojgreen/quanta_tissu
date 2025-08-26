@@ -1,7 +1,7 @@
 import functools
 import logging
 import traceback
-from .model_error_handler import ModelError
+from .model_error_handler import TissModelError
 from ..parser.errors import TissError
 
 logger = logging.getLogger(__name__)
@@ -30,12 +30,12 @@ class TissSecurityError(TissCommandError):
     pass
 
 def handle_errors(func):
-    """A decorator to handle exceptions and classify them as ModelError or TissSystemError."""
+    """A decorator to handle exceptions and classify them as TissModelError or TissSystemError."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except (ModelError, ValueError, TypeError) as e:
+        except (TissModelError, ValueError, TypeError) as e:
             # Re-raise model-related or validation errors directly
             logger.error(f"Model or validation error in {func.__name__}: {e}")
             raise

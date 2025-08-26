@@ -265,7 +265,7 @@ class QuantaTissu:
                 num_model_params_in_ckpt = len(sorted_keys)
 
                 if num_model_params_in_ckpt != len(model_params):
-                    print(f"Warning: Mismatch in parameter count. Checkpoint has {num_model_params_in_ckpt} model params, but model requires {len(model_params)}.")
+                    logger.warning(f"Mismatch in parameter count. Checkpoint has {num_model_params_in_ckpt} model params, but model requires {len(model_params)}.")
 
                 for i, key in enumerate(sorted_keys):
                     if i < len(model_params):
@@ -273,22 +273,22 @@ class QuantaTissu:
                         if param.value.shape == data[key].shape:
                             param.value[:] = data[key]
                         else:
-                            print(f"Warning: Shape mismatch for {param.name} (from {key}). Expected {param.value.shape}, got {data[key].shape}. Skipping.")
+                            logger.warning(f"Shape mismatch for {param.name} (from {key}). Expected {param.value.shape}, got {data[key].shape}. Skipping.")
                     else:
                         break  # No more model params to load into
             else:
                 # Load by hierarchical name
-                print("Loading by hierarchical parameter name.")
+                logger.info("Loading by hierarchical parameter name.")
                 for param in self.parameters():
                     if param.name in data:
                         if param.value.shape == data[param.name].shape:
                             param.value = data[param.name]
                         else:
-                            print(f"Warning: Shape mismatch for {param.name}. Expected {param.value.shape}, got {data[param.name].shape}. Skipping.")
+                            logger.warning(f"Shape mismatch for {param.name}. Expected {param.value.shape}, got {data[param.name].shape}. Skipping.")
                     else:
-                        print(f"Warning: Parameter {param.name} not found in weights file. Using random initialization.")
+                        logger.warning(f"Parameter {param.name} not found in weights file. Using random initialization.")
 
-            print(f"Successfully loaded model weights from {path}")
+            logger.info(f"Successfully loaded model weights from {path}")
         except (IOError, FileNotFoundError) as e:
             # Re-raise file-related errors as a system error
             raise TissSystemError(f"Failed to read model weights file from {path}: {e}") from e
@@ -332,7 +332,7 @@ class QuantaTissu:
         
         if method == "top_k":
             if top_k is None:
-                raise InferenceError("top_k must be specified for top_k sampling")
+                raise ConfigurationError("top_k must be specified for top_k sampling")
                 
             top_k_indices = np.argsort(probs)[-top_k:]
             logger.debug(f"Top-K sampling: top_k_indices={top_k_indices.tolist()}")
@@ -464,11 +464,12 @@ class QuantaTissu:
         if context_docs:
             context = " ".join(context_docs)
             augmented_prompt = f"context: {context} question: {prompt}"
-            print(f"INFO: Augmented prompt with context: '{augmented_prompt}'")
+            logger.info(f"Augmented prompt with context: '{augmented_prompt}'")
         else:
             augmented_prompt = prompt
         token_ids = tokenize(augmented_prompt)
         if len(token_ids) == 0:
+            logger.warning("Prompt resulted in empty token sequence. Cannot generate.")
             raise InputValidationError("Prompt resulted in empty token sequence after tokenization. Cannot generate.")
         
         generated_token_ids = self.generate(token_ids, n_new_tokens, method=generation_method, **kwargs)
