@@ -61,6 +61,7 @@ class MultiHeadAttention:
         assert d_model % num_heads == 0
         self.num_heads = num_heads
         self.d_k = d_model // self.num_heads
+        self.name = name # <--- ADDED THIS LINE
 
         self.Wq = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name=f"{name}.Wq")
         self.Wk = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name=f"{name}.Wk")

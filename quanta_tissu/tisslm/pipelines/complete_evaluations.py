@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+import numpy as np
 
 # Add the project root to sys.path for module discovery
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -17,6 +18,7 @@ from quanta_tissu.tisslm.core.data import Dataset, load_corpus
 from quanta_tissu.tisslm.core.utils import load_checkpoint
 from quanta_tissu.tisslm.core.generate_text import generate_text # For text_generation_analysis
 from quanta_tissu.tisslm.config import model_config, training_config, tokenizer_config, system_config # Import configs directly
+from quanta_tissu.tisslm.core.knowledge_base import KnowledgeBase
 
 # Import evaluation scripts
 from quanta_tissu.tisslm.evaluation.evaluation_metrics import calculate_perplexity
@@ -208,13 +210,43 @@ def main():
     else:
         logger.warning("Model or Tokenizer not initialized. Skipping text generation analysis.")
 
-    # 7. Model Parameter and Gradient Inspection (from Training Debugger)
-    # This section is now largely covered by the "Model Internal Inspection" (Section 4)
-    # which includes `inspect_model_parameters_detailed`. If there are specific
-    # gradient-related debugging aspects that require a training context (e.g.,
-    # checking gradients during a backward pass), they would need to be integrated
-    # into a training loop or a dedicated training-time debugger.
-    # For a standalone evaluation script, detailed parameter inspection is sufficient.
+    # 7. Knowledge Base Retrieval Analysis
+    if model and tokenizer:
+        log_subsection_header(logger, "Knowledge Base Retrieval Analysis")
+        try:
+            # Initialize KnowledgeBase
+            knowledge_base = KnowledgeBase(model.embeddings, tokenizer)
+
+            # Create some dummy documents and embeddings for testing
+            dummy_documents = [
+                "The sky is blue.",
+                "The sun is bright.",
+                "The moon is a natural satellite.",
+                "The earth is a planet.",
+                "The universe is vast."
+            ]
+            dummy_embeddings = [knowledge_base._embed_text(doc) for doc in dummy_documents]
+
+            # Define a list of test configurations for the retrieve function
+            retrieval_configs = [
+                {'method': 'cosine', 'use_db': True},
+                {'method': 'cosine', 'use_db': False, 'backward_pass_data': {'receptor_field': {'documents': dummy_documents, 'embeddings': dummy_embeddings}}},
+                {'method': 'cnn', 'use_db': False, 'backward_pass_data': {'receptor_field': {'documents': dummy_documents, 'embeddings': dummy_embeddings}}},
+                {'method': 'genetic', 'use_db': False, 'backward_pass_data': {'receptor_field': {'documents': dummy_documents, 'embeddings': dummy_embeddings}}},
+                {'method': 'bayes', 'use_db': False, 'backward_pass_data': {'receptor_field': {'documents': dummy_documents, 'embeddings': dummy_embeddings}, 'hessian_matrix': {'type': 'eigenvalues', 'eigenvalues': np.random.rand(model_config['n_embd']).tolist()}}},
+            ]
+
+            for config in retrieval_configs:
+                logger.info(f"--- Testing retrieval with config: {config} ---")
+                retrieved_docs = knowledge_base.retrieve(
+                    query_text=args.prompt,
+                    k=3,
+                    **config
+                )
+                logger.info(f"Retrieved documents: {retrieved_docs}")
+
+        except Exception as e:
+            logger.error(f"Error during knowledge base retrieval analysis: {e}. Analysis skipped.")
 
     log_section_header(logger, "Complete Model Evaluation Finished")
 
