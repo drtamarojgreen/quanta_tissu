@@ -17,38 +17,46 @@ class TransformerBlock:
         self.cache = {}
 
     def __call__(self, x, mask=None, kv_cache=None):
+        logger.debug(f"TransformerBlock {self.mha.name} input x shape: {x.shape}")
         # Store input for backward pass
         self.cache['x'] = x
 
         # Attention sub-layer
         attn_out = self.mha(x, mask=mask, kv_cache=kv_cache)
+        logger.debug(f"TransformerBlock {self.mha.name} attn_out shape: {attn_out.shape}")
         self.cache['attn_out'] = attn_out
 
         # Add & Norm
         x_plus_attn = x + attn_out
         self.cache['x_plus_attn'] = x_plus_attn
         x_norm1 = self.ln1(x_plus_attn)
+        logger.debug(f"TransformerBlock {self.mha.name} x_norm1 shape: {x_norm1.shape}")
         self.cache['x_norm1'] = x_norm1
 
         # FFN sub-layer
         ffn_out = self.ffn(x_norm1)
+        logger.debug(f"TransformerBlock {self.mha.name} ffn_out shape: {ffn_out.shape}")
         self.cache['ffn_out'] = ffn_out
 
         # Add & Norm
         x_plus_ffn = x_norm1 + ffn_out
         self.cache['x_plus_ffn'] = x_plus_ffn
         x_norm2 = self.ln2(x_plus_ffn)
+        logger.debug(f"TransformerBlock {self.mha.name} output x_norm2 shape: {x_norm2.shape}")
 
         return x_norm2
 
     def backward(self, d_out):
+        logger.debug(f"TransformerBlock {self.mha.name} backward d_out shape: {d_out.shape}")
         # Backprop through second Add & Norm
         dx_plus_ffn = self.ln2.backward(d_out)
+        logger.debug(f"TransformerBlock {self.mha.name} backward dx_plus_ffn shape: {dx_plus_ffn.shape}")
         dx_norm1 = dx_plus_ffn # from residual
         d_ffn_out = dx_plus_ffn # from main path
 
         # Backprop through FFN
         dx_norm1 += self.ffn.backward(d_ffn_out)
+        logger.debug(f"TransformerBlock {self.mha.name} backward dx_norm1 after FFN: {dx_norm1.shape}")
 
         # Backprop through first Add & Norm
         dx_plus_attn = self.ln1.backward(dx_norm1)
@@ -57,6 +65,7 @@ class TransformerBlock:
 
         # Backprop through MHA
         dx += self.mha.backward(d_attn_out)
+        logger.debug(f"TransformerBlock {self.mha.name} backward output dx shape: {dx.shape}")
 
         return dx
 
@@ -73,6 +82,7 @@ class PositionalEncoding:
         self.pe = pe
 
     def __call__(self, x, start_pos=0):
+        logger.debug(f"PositionalEncoding input x shape: {x.shape}, start_pos: {start_pos}")
         # Assumes x is (batch_size, seq_len, d_model)
         seq_len = x.shape[1]
         max_len = self.pe.shape[0]
@@ -80,7 +90,9 @@ class PositionalEncoding:
             raise ValueError(f"Cannot apply positional encoding: sequence of length {seq_len} at start position {start_pos} exceeds max length of {max_len}.")
         
         positions = np.arange(start_pos, start_pos + seq_len)
-        return x + self.pe[np.newaxis, positions, :]
+        x_out = x + self.pe[np.newaxis, positions, :]
+        logger.debug(f"PositionalEncoding output x shape: {x_out.shape}")
+        return x_out
 
 class QuantaTissu:
     def __init__(self, config, db_host='127.0.0.1', db_port=8080, use_db=False):
@@ -91,8 +103,11 @@ class QuantaTissu:
         d_ff = config["d_ff"]
         n_layer = config["n_layer"]
 
+        logger.debug(f"QuantaTissu __init__: d_model={d_model}, vocab_size={vocab_size}, n_head={n_head}, d_ff={d_ff}, n_layer={n_layer}")
+
         self.d_model = d_model
         self.embeddings = Parameter(np.random.randn(vocab_size, d_model) / np.sqrt(d_model), name="embeddings")
+        logger.debug(f"QuantaTissu embeddings shape: {self.embeddings.value.shape}")
         self.pos_encoding = PositionalEncoding(d_model)
         self.transformer_blocks = [TransformerBlock(d_model, n_head, d_ff, name=f"transformer_blocks.{i}") for i in range(n_layer)]
         self.output_proj = Parameter(np.random.randn(d_model, vocab_size) / np.sqrt(d_model), name="output_proj")
@@ -111,19 +126,12 @@ class QuantaTissu:
 
     def forward(self, token_ids, kv_cache=None, start_pos=0):
         logger.debug(f"Model forward pass: token_ids shape {token_ids.shape}, start_pos {start_pos}")
-        # token_ids: (batch_size, seq_len)
         batch_size, seq_len = token_ids.shape
 
-        # Only create a causal mask if we are not using a cache (i.e., for the initial prompt processing)
         mask = None
-        # A mask is needed for the first pass (prompt processing), even if a cache is provided.
-        # We can detect this because the cache will be empty.
-        is_prompt_processing = kv_cache is None or not kv_cache[0]
-
-        if is_prompt_processing:
+        if start_pos == 0: # Only create causal mask for the initial sequence
             mask = self._create_causal_mask(seq_len)
             if mask is not None:
-                # Add batch and head dimensions for broadcasting
                 mask = mask[np.newaxis, np.newaxis, :, :]
             logger.debug(f"Causal mask created with shape: {mask.shape}")
 
@@ -138,7 +146,7 @@ class QuantaTissu:
 
         for i, block in enumerate(self.transformer_blocks):
             layer_cache = kv_cache[i] if kv_cache is not None else None
-            logger.debug(f"Processing TransformerBlock {i}")
+            logger.debug(f"Processing TransformerBlock {i}. KV cache for block: {'present' if layer_cache else 'absent'}")
             x = block(x, mask=mask, kv_cache=layer_cache)
             logger.debug(f"After TransformerBlock {i}: x shape {x.shape}")
             self.cache[f'block_{i}_out'] = x
@@ -149,6 +157,7 @@ class QuantaTissu:
         return logits
 
     def backward(self, d_logits):
+        logger.debug(f"Model backward pass: d_logits shape {d_logits.shape}")
         # d_logits is (batch, seq, vocab_size)
         # final_x is (batch, seq, d_model)
         batch_size, seq_len, d_model = self.cache['final_x'].shape
@@ -160,10 +169,12 @@ class QuantaTissu:
         # Backprop through output projection
         self.output_proj.grad += final_x_reshaped.T @ d_logits_reshaped
         dx = d_logits @ self.output_proj.value.T # This one is ok, it broadcasts correctly
+        logger.debug(f"Model backward: dx after output_proj backward: {dx.shape}")
 
         # Backprop through transformer blocks
         for i in reversed(range(len(self.transformer_blocks))):
             dx = self.transformer_blocks[i].backward(dx)
+            logger.debug(f"Model backward: dx after TransformerBlock {i} backward: {dx.shape}")
             
         # Backprop through positional encoding (just passes gradient)
         dx_pos = dx
@@ -172,18 +183,40 @@ class QuantaTissu:
         # This is a bit tricky. We need to add gradients for each token.
         # Create a zero gradient array for the embeddings
         d_embeddings = np.zeros_like(self.embeddings.value)
+        logger.debug(f"Model backward: d_embeddings initial shape: {d_embeddings.shape}")
 
         # Get the original token_ids and embedded input
         token_ids = self.cache['token_ids']
+        logger.debug(f"Model backward: token_ids shape for embedding gradient: {token_ids.shape}")
 
         # Accumulate gradients
         # Using np.add.at for efficient indexed addition
         np.add.at(d_embeddings, token_ids, dx_pos)
+        logger.debug(f"Model backward: d_embeddings after accumulation: {d_embeddings.shape}")
 
         self.embeddings.grad += d_embeddings
 
-        # No gradient returned, as embeddings are the input layer
-        return
+        # --- Receptor Field and Hessian Matrix Calculation ---
+        # This is a placeholder for the actual calculation.
+        
+        # 1. Receptor Field (using embedding gradients as a proxy)
+        receptor_field = {
+            'type': 'token_gradients',
+            'gradients': self.embeddings.grad.tolist() # Convert to list for JSON serialization
+        }
+
+        # 2. Hessian Matrix (placeholder)
+        # In a real scenario, this would involve complex second-order derivative calculations.
+        # Here, we'll just create a dummy Hessian matrix of eigenvalues.
+        hessian_matrix = {
+            'type': 'eigenvalues',
+            'eigenvalues': np.random.rand(self.d_model).tolist() # Dummy eigenvalues
+        }
+
+        return {
+            'receptor_field': receptor_field,
+            'hessian_matrix': hessian_matrix
+        }
 
     def parameters(self):
         params = [self.embeddings, self.output_proj]
@@ -244,24 +277,22 @@ class QuantaTissu:
         except Exception as e:
             print(f"Error loading model weights from {path}: {e}. Using random initialization.")
 
-    return int(next_token)
-
     def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None, past_tokens=None, repetition_penalty=1.0):
         logger.debug(f"_predict_from_logits: method={method}, temp={temperature}, top_k={top_k}, top_p={top_p}, logits shape={logits.shape}")
         # Ensure logits are a 1D array for consistent processing
         if logits.ndim > 1:
             logits = np.squeeze(logits)
+            logger.debug(f"_predict_from_logits: logits after squeeze: {logits.shape}")
 
         # Apply repetition penalty
         if past_tokens is not None and repetition_penalty != 1.0:
             logger.debug(f"Applying repetition penalty for past_tokens: {len(past_tokens)} tokens, penalty={repetition_penalty}")
-            for token_id in past_tokens:
-                # A common approach: if logit is positive, make it smaller; if negative, make it larger (less negative)
-                # This effectively reduces the probability of repeating tokens.
-                if logits[token_id] < 0:
-                    logits[token_id] *= repetition_penalty
-                else:
+            for token_id in set(past_tokens): # Use set to avoid penalizing the same token multiple times
+                if logits[token_id] > 0:
                     logits[token_id] /= repetition_penalty
+                else:
+                    # For negative logits, multiplying by a penalty > 1 makes them more negative
+                    logits[token_id] *= repetition_penalty
 
         if method == "greedy":
             next_token = np.argmax(logits)
@@ -270,16 +301,20 @@ class QuantaTissu:
 
         probs = softmax(logits, temperature=temperature)
         logger.debug(f"Probabilities after softmax (first 5): {probs[:5]}")
+        logger.debug(f"Probabilities after softmax: {probs.shape}")
+
 
         # Ensure probs is also 1D, in case softmax re-adds a dimension
         if probs.ndim > 1:
             probs = np.squeeze(probs)
+            logger.debug(f"Probabilities after squeeze: {probs.shape}")
         
         if method == "top_k":
             if top_k is None:
                 raise ValueError("top_k must be specified for top_k sampling")
             top_k_indices = np.argsort(probs)[-top_k:]
             logger.debug(f"Top-K sampling: top_k_indices={top_k_indices.tolist()}")
+            logger.debug(f"Top-K sampling: top_k_indices shape: {top_k_indices.shape}, top_k_probs shape: {np.zeros_like(probs).shape}") # np.zeros_like(probs) is used to get the shape of top_k_probs before assignment
             top_k_probs = np.zeros_like(probs)
             top_k_probs[top_k_indices] = probs[top_k_indices]
             top_k_probs /= np.sum(top_k_probs)
@@ -295,10 +330,18 @@ class QuantaTissu:
             
             # Calculate cumulative probabilities
             cumulative_probs = np.cumsum(sorted_probs)
+            logger.debug(f"Nucleus sampling: sorted_indices shape: {sorted_indices.shape}, sorted_probs shape: {sorted_probs.shape}, cumulative_probs shape: {cumulative_probs.shape}")
             
             # Find the index where the cumulative probability exceeds top_p
             # Add a small epsilon to top_p to handle floating point inaccuracies
-            cutoff_idx = np.where(cumulative_probs >= top_p - 1e-8)[0][0]
+            cutoff_idx_where = np.where(cumulative_probs >= top_p - 1e-8)[0]
+            if len(cutoff_idx_where) == 0:
+                # This can happen if top_p is > 1.0 or due to float inaccuracies
+                # In this case, we take all tokens
+                cutoff_idx = len(sorted_indices) - 1
+                logger.warning(f"Nucleus sampling: top_p {top_p} is too high, no cutoff found. Taking all tokens.")
+            else:
+                cutoff_idx = cutoff_idx_where[0]
             
             # Create a mask for tokens to keep (up to and including cutoff_idx)
             # All tokens after cutoff_idx should have their probabilities set to 0
@@ -311,6 +354,7 @@ class QuantaTissu:
             # Normalize the remaining probabilities
             if np.sum(nucleus_probs) > 0: # Avoid division by zero if all probs are zeroed out
                 nucleus_probs /= np.sum(nucleus_probs)
+                logger.debug(f"Nucleus sampling: nucleus_probs shape: {nucleus_probs.shape}")
             else:
                 # Fallback: if all probabilities are zeroed, revert to uniform sampling or greedy
                 # For now, we'll raise an error or fallback to greedy if this happens
@@ -326,8 +370,6 @@ class QuantaTissu:
             raise ValueError(f"Unknown sampling method: {method}")
 
         return int(next_token)
-
-    def generate(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, use_cache=True, repetition_penalty=1.0):
 
     def generate(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, use_cache=True, repetition_penalty=1.0):
         logger.debug(f"Starting generation: prompt_tokens_len={len(prompt_tokens)}, n_new_tokens={n_new_tokens}, method={method}, temp={temperature}, top_k={top_k}, top_p={top_p}, use_cache={use_cache}")
@@ -349,8 +391,10 @@ class QuantaTissu:
 
         # 2. Process prompt tokens and populate the cache
         prompt_token_ids = np.array(prompt_tokens)[np.newaxis, :]
+        logger.debug(f"Generate: prompt_token_ids shape: {prompt_token_ids.shape}")
         logger.debug(f"Processing prompt tokens: {prompt_token_ids.tolist()}")
         prompt_logits = self.forward(prompt_token_ids, kv_cache=kv_cache, start_pos=0)
+        logger.debug(f"Generate: prompt_logits shape: {prompt_logits.shape}")
         
         # 3. Predict the first token from the prompt's output
         next_token_id = self._predict_from_logits(prompt_logits[:, -1, :], method, temperature, top_k, top_p, past_tokens=prompt_tokens, repetition_penalty=repetition_penalty)
@@ -362,11 +406,14 @@ class QuantaTissu:
         for i in range(n_new_tokens - 1):
             current_token_id = np.array([[next_token_id]])
             start_pos = len(prompt_tokens) + i
+            logger.debug(f"Generate loop: current_token_id shape: {current_token_id.shape}, start_pos: {start_pos}")
             logger.debug(f"Generating token {i+1}/{n_new_tokens-1}: current_token_id={current_token_id.tolist()}, start_pos={start_pos}")
             
             logits = self.forward(current_token_id, kv_cache=kv_cache, start_pos=start_pos)
+            logger.debug(f"Generate loop: logits shape from forward: {logits.shape}")
             # Pass all previously generated tokens (prompt + generated so far)
             all_past_tokens = list(prompt_tokens) + generated_ids
+            logger.debug(f"Generate loop: all_past_tokens length: {len(all_past_tokens)}")
             next_token_id = self._predict_from_logits(logits[:, -1, :], method, temperature, top_k, top_p, past_tokens=all_past_tokens, repetition_penalty=repetition_penalty)
             generated_ids.append(next_token_id)
             logger.debug(f"Generated token ID: {next_token_id}, current generated_ids: {generated_ids}")

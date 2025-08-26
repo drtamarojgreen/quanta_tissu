@@ -126,7 +126,14 @@ class BPETokenizer:
 
     def decode(self, ids):
         """Decodes a list of token IDs back into a string."""
-        tokens = [self.vocab.get(i, b'?') for i in ids]
+        tokens = []
+        for i in ids:
+            token = self.vocab.get(i)
+            if token is None:
+                print(f"Warning: Invalid token ID {i} found during decoding.")
+                tokens.append(b'?')
+            else:
+                tokens.append(token)
         text_bytes = b"".join(tokens)
         return text_bytes.decode("utf-8", errors="replace")
 

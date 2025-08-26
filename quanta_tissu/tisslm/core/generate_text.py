@@ -16,11 +16,11 @@ from ..config import model_config
 
 logger = logging.getLogger(__name__)
 
-def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float) -> str:
+def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float, repetition_penalty: float = 1.0) -> str:
     """
     Generates text of a specified length, starting with a prompt.
     """
-    logger.debug(f"Starting text generation with prompt: '{prompt}', length: {length}, method: {method}, temp: {temperature}, top_k: {top_k}, top_p: {top_p}")
+    logger.debug(f"Starting text generation with prompt: '{prompt}', length: {length}, method: {method}, temp: {temperature}, top_k: {top_k}, top_p: {top_p}, repetition_penalty: {repetition_penalty}")
 
     # Tokenize the initial prompt
     logger.debug(f"Tokenizing prompt: '{prompt}'")
@@ -38,7 +38,8 @@ def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length:
         method=method,
         temperature=temperature,
         top_k=top_k,
-        top_p=top_p
+        top_p=top_p,
+        repetition_penalty=repetition_penalty
     )
     logger.debug(f"Generated token IDs from model: {generated_ids}")
 
