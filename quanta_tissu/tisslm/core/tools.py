@@ -7,10 +7,10 @@ from typing import Dict, Any
 # For now, using 'Any' to avoid circular dependency issues until all files are in place.
 from .execution_engine import State
 
+from .system_error_handler import TissCommandError, TissAssertionError, TissSecurityError
 
-class TissCommandError(Exception):
-    """Custom exception for errors during TissLang command execution."""
-    pass
+
+
 
 def run_command(state: State, args: Dict[str, Any]):
     """

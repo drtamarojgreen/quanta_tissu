@@ -10,3 +10,7 @@ class TissLangParserError(Exception):
         if self.line_number != -1:
             return f"Error at line {self.line_number}: {super().__str__()}\n  > {self.line}"
         return super().__str__()
+
+class TissError(Exception):
+    """Base exception for all TissLM errors."""
+    pass
