@@ -261,7 +261,7 @@ class QuantaTissu:
                 num_model_params_in_ckpt = len(sorted_keys)
 
                 if num_model_params_in_ckpt != len(model_params):
-                    print(f"Warning: Mismatch in parameter count. Checkpoint has {num_model_params_in_ckpt} model params, but model requires {len(model_params)}.")
+                    logger.warning(f"Mismatch in parameter count. Checkpoint has {num_model_params_in_ckpt} model params, but model requires {len(model_params)}.")
 
                 for i, key in enumerate(sorted_keys):
                     if i < len(model_params):
@@ -269,24 +269,25 @@ class QuantaTissu:
                         if param.value.shape == data[key].shape:
                             param.value[:] = data[key]
                         else:
-                            print(f"Warning: Shape mismatch for {param.name} (from {key}). Expected {param.value.shape}, got {data[key].shape}. Skipping.")
+                            logger.warning(f"Shape mismatch for {param.name} (from {key}). Expected {param.value.shape}, got {data[key].shape}. Skipping.")
                     else:
                         break  # No more model params to load into
             else:
                 # Load by hierarchical name
-                print("Loading by hierarchical parameter name.")
+                logger.info("Loading by hierarchical parameter name.")
                 for param in self.parameters():
                     if param.name in data:
                         if param.value.shape == data[param.name].shape:
                             param.value = data[param.name]
                         else:
-                            print(f"Warning: Shape mismatch for {param.name}. Expected {param.value.shape}, got {data[param.name].shape}. Skipping.")
+                            logger.warning(f"Shape mismatch for {param.name}. Expected {param.value.shape}, got {data[param.name].shape}. Skipping.")
                     else:
-                        print(f"Warning: Parameter {param.name} not found in weights file. Using random initialization.")
+                        logger.warning(f"Parameter {param.name} not found in weights file. Using random initialization.")
 
-            print(f"Successfully loaded model weights from {path}")
+            logger.info(f"Successfully loaded model weights from {path}")
         except Exception as e:
-            print(f"Error loading model weights from {path}: {e}. Using random initialization.")
+            logger.error(f"Error loading model weights from {path}: {e}", exc_info=True)
+            raise TissSystemError(f"Failed to load model weights from '{path}'.") from e
 
     @handle_errors
     def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None, past_tokens=None, repetition_penalty=1.0):
@@ -323,7 +324,7 @@ class QuantaTissu:
         
         if method == "top_k":
             if top_k is None:
-                raise ValueError("top_k must be specified for top_k sampling")
+                raise ConfigurationError("top_k must be specified for top_k sampling")
             top_k_indices = np.argsort(probs)[-top_k:]
             logger.debug(f"Top-K sampling: top_k_indices={top_k_indices.tolist()}")
             logger.debug(f"Top-K sampling: top_k_indices shape: {top_k_indices.shape}, top_k_probs shape: {np.zeros_like(probs).shape}") # np.zeros_like(probs) is used to get the shape of top_k_probs before assignment
@@ -334,7 +335,7 @@ class QuantaTissu:
             logger.debug(f"Top-K sampling: next_token={next_token}")
         elif method == "nucleus":
             if top_p is None:
-                raise ValueError("top_p must be specified for nucleus sampling")
+                raise ConfigurationError("top_p must be specified for nucleus sampling")
             
             # Sort probabilities in descending order
             sorted_indices = np.argsort(probs)[::-1]
@@ -371,7 +372,7 @@ class QuantaTissu:
                 # Fallback: if all probabilities are zeroed, revert to uniform sampling or greedy
                 # For now, we'll raise an error or fallback to greedy if this happens
                 # A more robust solution might be to ensure at least one token remains.
-                raise ValueError("Nucleus sampling resulted in all probabilities being zeroed out.")
+                raise ModelProcessingError("Nucleus sampling resulted in all probabilities being zeroed out.")
 
             next_token = np.random.choice(len(probs), p=nucleus_probs)
             logger.debug(f"Nucleus sampling: next_token={next_token}")
@@ -379,7 +380,7 @@ class QuantaTissu:
              next_token = np.random.choice(len(probs), p=probs.flatten())
              logger.debug(f"Random sampling: next_token={next_token}")
         else:
-            raise ValueError(f"Unknown sampling method: {method}")
+            raise ConfigurationError(f"Unknown sampling method: {method}")
 
         return int(next_token)
 
@@ -454,12 +455,12 @@ class QuantaTissu:
         if context_docs:
             context = " ".join(context_docs)
             augmented_prompt = f"context: {context} question: {prompt}"
-            print(f"INFO: Augmented prompt with context: '{augmented_prompt}'")
+            logger.info(f"Augmented prompt with context: '{augmented_prompt}'")
         else:
             augmented_prompt = prompt
         token_ids = tokenize(augmented_prompt)
         if len(token_ids) == 0:
-            print("Warning: Prompt resulted in empty token sequence. Cannot generate.")
+            logger.warning("Prompt resulted in empty token sequence. Cannot generate.")
             return None
         
         generated_token_ids = self.generate(token_ids, n_new_tokens, method=generation_method, **kwargs)
