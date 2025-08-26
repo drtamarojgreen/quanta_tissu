@@ -46,6 +46,7 @@ class KnowledgeBase:
             logger.info("Database and collection setup complete.")
 
         except requests.exceptions.RequestException as e:
+            raise DatabaseConnectionError(f"Database setup failed: {e}") from e
             logger.warning(f"Database setup failed: {e}. KnowledgeBase will operate in disconnected mode.")
 
     def _embed_text(self, text):
@@ -106,7 +107,7 @@ class KnowledgeBase:
             except requests.exceptions.RequestException as e:
                 raise DatabaseConnectionError(f"Failed to retrieve from KB: {e}") from e
             except (json.JSONDecodeError, KeyError) as e:
-                raise ModelError(f"Failed to parse response from KB: {e}") from e
+                raise SystemError(f"Failed to parse response from KB: {e}") from e
         
         elif backward_pass_data:
             if 'receptor_field' not in backward_pass_data:

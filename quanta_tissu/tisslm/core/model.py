@@ -7,7 +7,9 @@ from .layers import MultiHeadAttention, FeedForward, LayerNorm, softmax
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
 from .parameter import Parameter
+from .model_error_handler import ModelError, ModelInitializationError, InferenceError
 from .model_error_handler import TissModelError, InputValidationError, ConfigurationError, InferenceError, ModelProcessingError, TissAssertionError, handle_model_errors
+from .system_error_handler import SystemError, handle_errors, ConfigurationError, DatabaseConnectionError, FileIOError
 from .system_error_handler import TissSystemError, DatabaseConnectionError, handle_errors
 
 logger = logging.getLogger(__name__)
@@ -102,6 +104,7 @@ class PositionalEncoding:
         return x_out
 
 class QuantaTissu:
+    @handle_errors
     def __init__(self, config, db_host='127.0.0.1', db_port=8080, use_db=False):
         self.config = config
         d_model = config["n_embd"]
@@ -235,6 +238,7 @@ class QuantaTissu:
             params.extend(block.parameters())
         return params
 
+    @handle_errors
     def load_weights(self, path):
         if not os.path.exists(path):
             logger.warning(f"Model weights file not found at {path}. Using random initialization.")
@@ -328,7 +332,8 @@ class QuantaTissu:
         
         if method == "top_k":
             if top_k is None:
-                raise ConfigurationError("top_k must be specified for top_k sampling")
+                raise InferenceError("top_k must be specified for top_k sampling")
+                
             top_k_indices = np.argsort(probs)[-top_k:]
             logger.debug(f"Top-K sampling: top_k_indices={top_k_indices.tolist()}")
             logger.debug(f"Top-K sampling: top_k_indices shape: {top_k_indices.shape}, top_k_probs shape: {np.zeros_like(probs).shape}") # np.zeros_like(probs) is used to get the shape of top_k_probs before assignment
