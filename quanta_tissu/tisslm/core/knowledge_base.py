@@ -2,6 +2,8 @@ import numpy as np
 import json
 import requests
 from datetime import datetime
+from .system_error_handler import DatabaseConnectionError, SystemError
+from .model_error_handler import ModelError
 
 class KnowledgeBase:
     """
@@ -50,8 +52,7 @@ class KnowledgeBase:
 
             print("Database and collection setup complete.")
         except requests.exceptions.RequestException as e:
-            print(f"Database setup failed: {e}")
-            raise
+            raise DatabaseConnectionError(f"Database setup failed: {e}") from e
 
     def _embed_text(self, text):
         """Generates an embedding for a text by averaging its token embeddings."""
@@ -84,7 +85,7 @@ class KnowledgeBase:
             response.raise_for_status()
             print(f"Added to KB: '{text}'")
         except requests.exceptions.RequestException as e:
-            print(f"Failed to add document to KB: {e}")
+            raise DatabaseConnectionError(f"Failed to add document to KB: {e}") from e
 
     def retrieve(self, query_text, k=1, use_db=False, method='cosine', cnn_model=None, ga_params=None, bayes_params=None, backward_pass_data=None):
         """
@@ -121,18 +122,16 @@ class KnowledgeBase:
                 documents = [doc['text'] for doc in all_docs_data]
 
             except requests.exceptions.RequestException as e:
-                print(f"Failed to retrieve from KB: {e}")
-                return []
+                raise DatabaseConnectionError(f"Failed to retrieve from KB: {e}") from e
             except (json.JSONDecodeError, KeyError) as e:
-                print(f"Failed to parse response from KB: {e}")
-                return []
+                raise SystemError(f"Failed to parse response from KB: {e}") from e
         
         elif backward_pass_data:
             if 'receptor_field' not in backward_pass_data:
-                raise ValueError("backward_pass_data must contain 'receptor_field'.")
+                raise ModelError("backward_pass_data must contain 'receptor_field'.")
             receptor_field = backward_pass_data['receptor_field']
             if 'documents' not in receptor_field or 'embeddings' not in receptor_field:
-                 raise ValueError("receptor_field must contain 'documents' and 'embeddings'.")
+                 raise ModelError("receptor_field must contain 'documents' and 'embeddings'.")
             documents = receptor_field['documents']
             doc_embeddings = receptor_field['embeddings']
 
@@ -155,14 +154,14 @@ class KnowledgeBase:
 
         elif method == 'bayes':
             if 'hessian_matrix' not in backward_pass_data:
-                raise ValueError("backward_pass_data must contain 'hessian_matrix' for bayes method.")
+                raise ModelError("backward_pass_data must contain 'hessian_matrix' for bayes method.")
             hessian_matrix = backward_pass_data['hessian_matrix']
             if bayes_params is None:
                 bayes_params = self._get_default_bayes_params()
             similarities = self._bayesian_similarity(query_embedding, doc_embeddings, hessian_matrix, bayes_params)
         
         else:
-            raise ValueError(f"Unknown retrieval method: {method}")
+            raise ModelError(f"Unknown retrieval method: {method}")
 
 
         if k >= len(similarities):
@@ -294,8 +293,7 @@ class KnowledgeBase:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Failed to get KB stats: {e}")
-            return {}
+            raise DatabaseConnectionError(f"Failed to get KB stats: {e}") from e
 
     def add_feedback(self, query, retrieved_docs, feedback_score, feedback_text):
         """
@@ -312,4 +310,4 @@ class KnowledgeBase:
             response = requests.post(f"{self.base_url}/{self.db_name}/_feedback", json=feedback_data)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print(f"Failed to add feedback to KB: {e}")
+            raise DatabaseConnectionError(f"Failed to add feedback to KB: {e}") from e
