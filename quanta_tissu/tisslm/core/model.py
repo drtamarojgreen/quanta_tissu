@@ -7,8 +7,8 @@ from .layers import MultiHeadAttention, FeedForward, LayerNorm, softmax
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
 from .parameter import Parameter
-from .model_error_handler import ModelError
-from .system_error_handler import SystemError, handle_errors
+from .model_error_handler import TissModelError, InputValidationError, ConfigurationError, InferenceError, ModelProcessingError, TissAssertionError, handle_model_errors
+from .system_error_handler import TissSystemError, DatabaseConnectionError, handle_errors
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class PositionalEncoding:
         seq_len = x.shape[1]
         max_len = self.pe.shape[0]
         if start_pos + seq_len > max_len:
-            raise ValueError(f"Cannot apply positional encoding: sequence of length {seq_len} at start position {start_pos} exceeds max length of {max_len}.")
+            raise InputValidationError(f"Cannot apply positional encoding: sequence of length {seq_len} at start position {start_pos} exceeds max length of {max_len}.")
         
         positions = np.arange(start_pos, start_pos + seq_len)
         x_out = x + self.pe[np.newaxis, positions, :]
@@ -121,10 +121,10 @@ class QuantaTissu:
 
         if use_db:
             try:
-                print(f"Initializing KnowledgeBase with TissDB connection to {db_host}:{db_port}")
+                logger.info(f"Initializing KnowledgeBase with TissDB connection to {db_host}:{db_port}")
                 self.knowledge_base = KnowledgeBase(self.embeddings.value, tokenize, db_host=db_host, db_port=db_port)
-            except Exception as e:
-                raise SystemError(f"Failed to connect to database: {e}") from e
+            except DatabaseConnectionError as e:
+                raise TissSystemError(f"Failed to connect to database: {e}") from e
         else:
             self.knowledge_base = None
         self.cache = {}
@@ -237,20 +237,20 @@ class QuantaTissu:
 
     def load_weights(self, path):
         if not os.path.exists(path):
-            print(f"Warning: Model weights file not found at {path}. Using random initialization.")
+            logger.warning(f"Model weights file not found at {path}. Using random initialization.")
             return
 
         try:
             data = np.load(path)
             keys = list(data.keys())
-            print(f"Loading weights from {path}. Found keys: {keys}")
+            logger.info(f"Loading weights from {path}. Found keys: {keys}")
 
             # A legacy checkpoint is one that contains 'param_' keys.
             # It might also contain optimizer states, so we check with any().
             is_legacy = any(k.startswith('param_') for k in keys)
 
             if keys and is_legacy:
-                print("Detected legacy checkpoint format. Loading by parameter order.")
+                logger.info("Detected legacy checkpoint format. Loading by parameter order.")
                 # Filter for model parameter keys only
                 param_keys = [k for k in keys if k.startswith('param_')]
                 # Sort keys numerically: param_0, param_1, ...

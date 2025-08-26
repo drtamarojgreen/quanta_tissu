@@ -5,6 +5,9 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Callable, Protocol
 
+from .system_error_handler import TissSystemError, TissCommandError, TissSecurityError
+from .model_error_handler import TissModelError, ConfigurationError, TissAssertionError
+
 # This file will contain the core components for the TissLang execution engine.
 # It will include the State, ToolRegistry, and ExecutionEngine classes.
 
@@ -64,25 +67,15 @@ class ToolRegistry:
             The callable tool implementation.
 
         Raises:
-            KeyError: If no tool is registered for the command type.
+            ConfigurationError: If no tool is registered for the command type.
         """
         tool = self._tools.get(command_type.upper())
         if tool is None:
-            raise KeyError(f"No tool registered for command type: {command_type}")
+            raise ConfigurationError(f"No tool registered for command type: {command_type}")
         return tool
 
 
-class TissCommandError(Exception):
-    """Raised when a TissLang command fails during execution."""
-    pass
 
-class TissAssertionError(TissCommandError):
-    """Raised when an ASSERT command fails."""
-    pass
-
-class TissSecurityError(TissCommandError):
-    """Raised when a command attempts a forbidden action."""
-    pass
 
 
 class ExecutionEngine:
@@ -170,10 +163,18 @@ class ExecutionEngine:
             args = {k: v for k, v in command.items() if k != 'type'}
             tool(state, args)
             log_entry['status'] = 'SUCCESS'
-        except (TissCommandError, KeyError) as e:
+        except TissSystemError as e:
             log_entry['status'] = 'FAILURE'
             log_entry['error'] = str(e)
-            state.is_halted = True
+            state.is_halted = True # Halt for system errors
+        except TissModelError as e:
+            log_entry['status'] = 'FAILURE'
+            log_entry['error'] = str(e)
+            # state.is_halted remains False for model errors
+        except KeyError as e: # Tool not found
+            log_entry['status'] = 'FAILURE'
+            log_entry['error'] = f"Configuration Error: No tool registered for command type: {command_type}"
+            state.is_halted = True # This is a configuration error, should halt
         finally:
             end_time = time.monotonic()
             log_entry['duration_ms'] = (end_time - start_time) * 1000
@@ -184,7 +185,7 @@ class ExecutionEngine:
     def run_command(self, state: State, args: Dict[str, Any]):
         command = args.get("command")
         if not command:
-            raise TissCommandError("RUN command requires a 'command' argument.")
+            raise TissModelError("RUN command requires a 'command' argument.") # Changed to TissModelError
         
         try:
             # Note: shell=True is a security risk. Proper sandboxing is required for production.
@@ -201,14 +202,18 @@ class ExecutionEngine:
                 "stderr": result.stderr,
                 "exit_code": result.returncode,
             }
-        except Exception as e:
-            raise TissCommandError(f"Failed to execute command '{command}': {e}")
+        except FileNotFoundError as e: # Specific system error
+            raise TissSystemError(f"Command not found: '{command}': {e}") from e
+        except subprocess.CalledProcessError as e: # Command returned non-zero exit code
+            raise TissModelError(f"Command '{command}' failed with exit code {e.returncode}: {e.stderr}") from e
+        except Exception as e: # Catch other unexpected system errors
+            raise TissSystemError(f"Failed to execute command '{command}': {e}") from e
 
     def write_file(self, state: State, args: Dict[str, Any]):
         path = args.get("path")
         content = args.get("content")
         if path is None or content is None:
-            raise TissCommandError("WRITE command requires 'path' and 'content' arguments.")
+            raise TissModelError("WRITE command requires 'path' and 'content' arguments.") # Changed to TissModelError
 
         secure_path = self._resolve_secure_path(path)
         
@@ -217,13 +222,13 @@ class ExecutionEngine:
             with open(secure_path, 'w', encoding='utf-8') as f:
                 f.write(content)
         except IOError as e:
-            raise TissCommandError(f"Failed to write to file '{path}': {e}")
+            raise TissSystemError(f"Failed to write to file '{path}': {e}") # Changed to TissSystemError
 
     def read_file(self, state: State, args: Dict[str, Any]):
         path = args.get("path")
         variable = args.get("variable")
         if not path or not variable:
-            raise TissCommandError("READ command requires 'path' and 'variable' arguments.")
+            raise TissModelError("READ command requires 'path' and 'variable' arguments.") # Changed to TissModelError
 
         secure_path = self._resolve_secure_path(path)
 
@@ -232,22 +237,24 @@ class ExecutionEngine:
                 content = f.read()
             state.variables[variable] = content
         except FileNotFoundError:
-            raise TissCommandError(f"File not found: '{path}'")
+            raise TissSystemError(f"File not found: '{path}'") # Changed to TissSystemError
         except IOError as e:
-            raise TissCommandError(f"Failed to read file '{path}': {e}")
+            raise TissSystemError(f"Failed to read file '{path}': {e}")
 
     def assert_condition(self, state: State, args: Dict[str, Any]):
         condition_str = args.get("condition", "").strip()
         if not condition_str:
-            raise TissCommandError("ASSERT command requires a 'condition' argument.")
+            raise TissModelError("ASSERT command requires a 'condition' argument.") # Changed to TissModelError
 
         if state.last_run_result is None:
             raise TissAssertionError("Cannot assert on LAST_RUN because no command has been run yet.")
 
         # Pattern for: [SUBJECT] [OPERATOR] [VALUE]
-        pattern_three_part = re.compile(r'^(LAST_RUN\.(?:STDOUT|STDERR|EXIT_CODE))\s+(==|!=|CONTAINS)\s+(.*)$', re.IGNORECASE)
+        pattern_three_part = re.compile(r'^(LAST_RUN\.(?:STDOUT|STDERR|EXIT_CODE))\s+(==|!=|CONTAINS)\s+(.*)
+, re.IGNORECASE)
         # Pattern for: [SUBJECT] [OPERATOR]
-        pattern_two_part = re.compile(r'^(LAST_RUN\.(?:STDOUT|STDERR))\s+(IS_EMPTY)$', re.IGNORECASE)
+        pattern_two_part = re.compile(r'^(LAST_RUN\.(?:STDOUT|STDERR))\s+(IS_EMPTY)
+, re.IGNORECASE)
 
         match_three = pattern_three_part.match(condition_str)
         match_two = pattern_two_part.match(condition_str)
