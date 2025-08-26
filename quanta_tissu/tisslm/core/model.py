@@ -17,7 +17,7 @@ from .model_error_handler import (
     TissAssertionError,
     handle_model_errors
 )
-from .system_error_handler import SystemError, handle_errors, ConfigurationError, DatabaseConnectionError, FileIOError
+from .system_error_handler import TissSystemError, handle_errors, ConfigurationError, DatabaseConnectionError, FileIOError
 from .system_error_handler import TissSystemError, DatabaseConnectionError, handle_errors
 
 logger = logging.getLogger(__name__)
