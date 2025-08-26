@@ -1,4 +1,3 @@
-
 (* TissQL EBNF Grammar for TissDB *)
 
 query     ::= select_statement | insert_statement | update_statement | delete_statement
@@ -11,11 +10,11 @@ update_statement ::= "UPDATE" table_name "SET" set_clause (where_clause)?
 
 delete_statement ::= "DELETE" "FROM" table_name (where_clause)?
 
-select_list ::= "*" | column_list | aggregate_function_list
+select_list ::= "*" | select_item ("," select_item)*
 
-aggregate_function_list ::= aggregate_function ("," aggregate_function)*
+select_item ::= column_name | aggregate_function
 
-aggregate_function ::= ("COUNT" | "AVG" | "SUM" | "MIN" | "MAX") "(" IDENTIFIER ")"
+aggregate_function ::= "COUNT" "(" ("*" | IDENTIFIER) ")" | ("AVG" | "SUM" | "MIN" | "MAX") "(" IDENTIFIER ")"
 
 column_list ::= column_name ("," column_name)*
 

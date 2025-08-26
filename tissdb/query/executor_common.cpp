@@ -182,52 +182,74 @@ Literal evaluate_update_expression(const Expression& expr, const Document& doc) 
 }
 
 void process_aggregation(std::map<std::string, AggregateResult>& results_map, const std::string& result_key, const Document& doc, const AggregateFunction& agg_func) {
-    if (agg_func.field_name == "*") {
-        if (agg_func.function_name == "COUNT") {
-            results_map[result_key].count++;
-        }
+    // Handle COUNT(*) separately. It counts every row passed to it.
+    if (agg_func.type == AggregateType::COUNT && !agg_func.field_name.has_value()) {
+        results_map[result_key].count++;
         return;
     }
 
+    // For any other aggregation, a field name is required.
+    if (!agg_func.field_name.has_value()) {
+        // This case should ideally be prevented by the parser.
+        return;
+    }
+    const std::string& field = agg_func.field_name.value();
+
+    // Find the element with the specified field name in the document.
     for (const auto& elem : doc.elements) {
-        if (elem.key == agg_func.field_name) {
+        if (elem.key == field) {
             auto& result = results_map[result_key];
 
-            // COUNT should increment for any non-null field
-            if (agg_func.function_name == "COUNT") {
+            // COUNT(field) increments for any non-null occurrence of the field.
+            if (agg_func.type == AggregateType::COUNT) {
                 result.count++;
             }
 
-            // Handle numeric aggregations
+            // Handle numeric aggregations.
             if (auto* num_val = std::get_if<Number>(&elem.value)) {
-                if (agg_func.function_name == "SUM" || agg_func.function_name == "AVG" || agg_func.function_name == "STDDEV") {
-                    result.sum += *num_val;
-                    result.sum_sq += (*num_val) * (*num_val);
-                }
-                if (agg_func.function_name == "MIN") {
-                    if (!result.min.has_value() || *num_val < result.min.value()) {
-                        result.min = *num_val;
-                    }
-                }
-                if (agg_func.function_name == "MAX") {
-                    if (!result.max.has_value() || *num_val > result.max.value()) {
-                        result.max = *num_val;
-                    }
+                switch (agg_func.type) {
+                    case AggregateType::SUM:
+                        result.sum += *num_val;
+                        break;
+                    case AggregateType::AVG:
+                        result.sum += *num_val;
+                        result.avg_count++; // Use dedicated counter for AVG
+                        break;
+                    case AggregateType::MIN:
+                        if (!result.min.has_value() || *num_val < result.min.value()) {
+                            result.min = *num_val;
+                        }
+                        break;
+                    case AggregateType::MAX:
+                        if (!result.max.has_value() || *num_val > result.max.value()) {
+                            result.max = *num_val;
+                        }
+                        break;
+                    default:
+                        // COUNT is handled above, other types don't apply to numbers here.
+                        break;
                 }
             }
-            // Handle string aggregations
+            // Handle string aggregations for MIN/MAX.
             else if (auto* str_val = std::get_if<std::string>(&elem.value)) {
-                if (agg_func.function_name == "MIN") {
-                    if (!result.min_str.has_value() || *str_val < result.min_str.value()) {
-                        result.min_str = *str_val;
-                    }
-                }
-                if (agg_func.function_name == "MAX") {
-                    if (!result.max_str.has_value() || *str_val > result.max_str.value()) {
-                        result.max_str = *str_val;
-                    }
+                switch (agg_func.type) {
+                    case AggregateType::MIN:
+                        if (!result.min_str.has_value() || *str_val < result.min_str.value()) {
+                            result.min_str = *str_val;
+                        }
+                        break;
+                    case AggregateType::MAX:
+                        if (!result.max_str.has_value() || *str_val > result.max_str.value()) {
+                            result.max_str = *str_val;
+                        }
+                        break;
+                    default:
+                        // Other aggregates do not apply to strings.
+                        break;
                 }
             }
+            // Once the field is found and processed, we can exit the loop for this document.
+            return;
         }
     }
 }
