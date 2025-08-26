@@ -76,6 +76,14 @@ TissDB is a lightweight, high-performance NoSQL database built from scratch in C
 *   **B-Tree Indexing:** TissDB supports B-Tree indexing for fast lookups.
 *   **RESTful API:** TissDB provides a RESTful API for interacting with the database.
 
+### Building TissDB (Windows)
+
+If you do not have `make` installed or prefer to compile manually on Windows, you can use the following `g++` command from the project root directory:
+
+```bash
+g++ -std=c++17 -Wall -Wextra -g -I. -I./tissdb -o tissdb.exe tissdb/main.cpp quanta_tissu/tissu_sinew.cpp quanta_tissu/schema_manager.cpp quanta_tissu/ddl_parser.cpp tissdb/api/http_server.cpp tissdb/common/binary_stream_buffer.cpp tissdb/common/checksum.cpp tissdb/common/document.cpp tissdb/common/serialization.cpp tissdb/common/schema_validator.cpp tissdb/json/json.cpp tissdb/query/executor.cpp tissdb/query/executor_common.cpp tissdb/query/executor_delete.cpp tissdb/query/executor_insert.cpp tissdb/query/executor_select.cpp tissdb/query/executor_update.cpp tissdb/query/join_algorithms.cpp tissdb/query/parser.cpp tissdb/storage/collection.cpp tissdb/storage/indexer.cpp tissdb/storage/lsm_tree.cpp tissdb/storage/database_manager.cpp tissdb/storage/memtable.cpp tissdb/storage/transaction_manager.cpp tissdb/storage/native_b_tree.cpp tissdb/storage/sstable.cpp tissdb/storage/wal.cpp tests/db/http_client.cpp -lws2_32 -latomic
+```
+
 More details can be found in `tissdb/README.md` and the documents in the `docs/` directory.
 
 ## Tissu Sinew: C++ Connector for TissDB
