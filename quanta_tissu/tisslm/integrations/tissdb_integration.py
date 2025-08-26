@@ -5,13 +5,13 @@ import os
 import http.server
 import socketserver
 import threading
+import requests
 
 # === CONFIG ===
 TISSDB_BIN = "./tissdb"       # path to compiled TissDB server
-LLM_BIN = "./llama"           # path to llama.cpp binary
-MODEL = "./models/7B/ggml-model-q4_0.bin"
 OUTPUT_DIR = "./llm_outputs"
 PORT = 8000
+LLAMACPP_URL = "http://127.0.0.1:8080/completion"
 
 # === NEXUS FLOW HOOK ===
 def nexus_flow_hook(event: str, payload: dict):
@@ -31,23 +31,39 @@ def start_tissdb():
     return proc
 
 
-# === STEP 2: TRAIN / RUN LLM ===
+# === STEP 2: GET COMPLETION FROM LLAMACPP SERVER ===
 def train_llm(prompt: str, session_name: str = "session"):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     output_file = os.path.join(OUTPUT_DIR, f"{session_name}.txt")
 
-    print(f"[llm] Running training with prompt: {prompt[:50]}...")
-    nexus_flow_hook("llm_training_started", {"session": session_name})
+    print(f"[llm] Getting completion for prompt: {prompt[:50]}...")
+    nexus_flow_hook("llm_completion_started", {"session": session_name})
 
-    # For simplicity: llama.cpp --prompt "..." > file
-    with open(output_file, "w", encoding="utf-8") as f:
-        subprocess.run([LLM_BIN,
-                        "-m", MODEL,
-                        "--prompt", prompt,
-                        "--n-predict", "256"], stdout=f)
+    try:
+        payload = {
+            "prompt": prompt,
+            "n_predict": 256,
+        }
+        response = requests.post(LLAMACPP_URL, json=payload)
+        response.raise_for_status()  # Raise an exception for bad status codes
 
-    nexus_flow_hook("llm_training_complete", {"session": session_name, "file": output_file})
-    print(f"[llm] Output saved at {output_file}")
+        # Assuming the response is JSON and the completion is in the 'content' key
+        completion = response.json().get("content", "")
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(completion)
+
+        nexus_flow_hook("llm_completion_complete", {"session": session_name, "file": output_file})
+        print(f"[llm] Output saved at {output_file}")
+
+    except requests.exceptions.RequestException as e:
+        error_message = f"Error connecting to LLM server: {e}"
+        print(f"[llm] {error_message}")
+        nexus_flow_hook("llm_completion_failed", {"session": session_name, "error": str(e)})
+        # Write error to file so the client can see it
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(error_message)
+
     return output_file
 
 
