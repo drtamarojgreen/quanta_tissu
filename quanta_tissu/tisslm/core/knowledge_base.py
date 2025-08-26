@@ -46,6 +46,7 @@ class KnowledgeBase:
             logger.info("Database and collection setup complete.")
 
         except requests.exceptions.RequestException as e:
+            raise DatabaseConnectionError(f"Database setup failed: {e}") from e
             logger.warning(f"Database setup failed: {e}. KnowledgeBase will operate in disconnected mode.")
 
     def _embed_text(self, text):
