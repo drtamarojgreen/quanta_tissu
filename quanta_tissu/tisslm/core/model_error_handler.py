@@ -49,6 +49,18 @@ class TissAssertionError(TissModelError):
     """Raised when an ASSERT command fails."""
     pass
 
+class ModelInitializationError(ModelError):
+    """Custom exception for errors during model initialization."""
+    pass
+
+class InferenceError(ModelError):
+    """Custom exception for errors during model inference."""
+    pass
+
+class TrainingError(ModelError):
+    """Custom exception for errors during model training."""
+    pass
+
 def handle_model_errors(func):
     """
     A decorator that wraps a function to catch and handle exceptions derived from TissModelError.
