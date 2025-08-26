@@ -7,8 +7,16 @@ from .layers import MultiHeadAttention, FeedForward, LayerNorm, softmax
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
 from .parameter import Parameter
-from .model_error_handler import ModelError, ModelInitializationError, InferenceError
-from .model_error_handler import TissModelError, InputValidationError, ConfigurationError, InferenceError, ModelProcessingError, TissAssertionError, handle_model_errors
+from .model_error_handler import (
+    TissModelError,
+    ModelInitializationError,
+    InferenceError,
+    InputValidationError,
+    ConfigurationError,
+    ModelProcessingError,
+    TissAssertionError,
+    handle_model_errors
+)
 from .system_error_handler import SystemError, handle_errors, ConfigurationError, DatabaseConnectionError, FileIOError
 from .system_error_handler import TissSystemError, DatabaseConnectionError, handle_errors
 
