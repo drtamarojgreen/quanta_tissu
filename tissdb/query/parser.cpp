@@ -169,19 +169,18 @@ std::vector<std::variant<std::string, AggregateFunction>> Parser::parse_select_l
     std::vector<std::variant<std::string, AggregateFunction>> fields;
     if (peek().type == Token::Type::OPERATOR && peek().value == "*") {
         consume();
+        // The executor will see a single "*" string and know to select all fields.
         fields.push_back("*");
         return fields;
     }
 
     do {
-        if (peek().type == Token::Type::KEYWORD && (peek().value == "COUNT" || peek().value == "AVG" || peek().value == "SUM" || peek().value == "MIN" || peek().value == "MAX" || peek().value == "STDDEV")) {
-            std::string func_name = consume().value;
-            expect(Token::Type::OPERATOR, "(");
-            std::string field_name = consume().value;
-            expect(Token::Type::OPERATOR, ")");
-            fields.push_back(AggregateFunction{func_name, field_name});
+        if (peek().type == Token::Type::KEYWORD && (peek().value == "COUNT" || peek().value == "AVG" || peek().value == "SUM" || peek().value == "MIN" || peek().value == "MAX")) {
+            fields.push_back(parse_aggregate_function());
         } else {
-            fields.push_back(consume().value);
+            // It's a regular column name
+            expect(Token::Type::IDENTIFIER);
+            fields.push_back(tokens[pos-1].value);
         }
 
         if (peek().type == Token::Type::OPERATOR && peek().value == ",") {
@@ -191,6 +190,37 @@ std::vector<std::variant<std::string, AggregateFunction>> Parser::parse_select_l
         }
     } while (true);
     return fields;
+}
+
+AggregateFunction Parser::parse_aggregate_function() {
+    auto func_token = consume();
+    std::string func_name = func_token.value;
+
+    AggregateType type;
+    if (func_name == "COUNT") type = AggregateType::COUNT;
+    else if (func_name == "AVG") type = AggregateType::AVG;
+    else if (func_name == "SUM") type = AggregateType::SUM;
+    else if (func_name == "MIN") type = AggregateType::MIN;
+    else if (func_name == "MAX") type = AggregateType::MAX;
+    else {
+        throw std::runtime_error("Unknown aggregate function: " + func_name);
+    }
+
+    expect(Token::Type::OPERATOR, "(");
+
+    if (peek().type == Token::Type::OPERATOR && peek().value == "*") {
+        consume(); // consume '*'
+        if (type != AggregateType::COUNT) {
+            throw std::runtime_error("'*' argument is only valid for COUNT");
+        }
+        expect(Token::Type::OPERATOR, ")");
+        return {type, std::nullopt};
+    } else {
+        expect(Token::Type::IDENTIFIER);
+        std::string field_name = tokens[pos-1].value;
+        expect(Token::Type::OPERATOR, ")");
+        return {type, field_name};
+    }
 }
 
 std::string Parser::parse_table_name() {

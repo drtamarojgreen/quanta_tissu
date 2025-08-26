@@ -39,10 +39,20 @@ struct LogicalExpression {
     Expression right;
 };
 
+// Represents the type of an aggregate function
+enum class AggregateType {
+    COUNT,
+    AVG,
+    SUM,
+    MIN,
+    MAX
+};
+
 // Represents an aggregate function call
 struct AggregateFunction {
-    std::string function_name;
-    std::string field_name;
+    AggregateType type;
+    // The field to aggregate on. nullopt represents '*' for COUNT(*).
+    std::optional<std::string> field_name;
 };
 
 // Forward declarations for recursive structures
