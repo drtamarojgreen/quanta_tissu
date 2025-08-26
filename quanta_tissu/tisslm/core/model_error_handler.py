@@ -49,15 +49,13 @@ class TissAssertionError(TissModelError):
     """Raised when an ASSERT command fails."""
     pass
 
-class ModelInitializationError(ModelError):
+
+class ModelInitializationError(TissModelError):
     """Custom exception for errors during model initialization."""
     pass
 
-class InferenceError(ModelError):
-    """Custom exception for errors during model inference."""
-    pass
 
-class TrainingError(ModelError):
+class TrainingError(TissModelError):
     """Custom exception for errors during model training."""
     pass
 
