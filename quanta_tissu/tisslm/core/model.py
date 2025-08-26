@@ -1,10 +1,14 @@
 import numpy as np
 import os
 import logging
+import traceback
+import functools
 from .layers import MultiHeadAttention, FeedForward, LayerNorm, softmax
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
 from .parameter import Parameter
+from .model_error_handler import ModelError
+from .system_error_handler import SystemError, handle_errors
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +20,7 @@ class TransformerBlock:
         self.ln2 = LayerNorm(d_model, name=f"{name}.ln2")
         self.cache = {}
 
+    @handle_errors
     def __call__(self, x, mask=None, kv_cache=None):
         logger.debug(f"TransformerBlock {self.mha.name} input x shape: {x.shape}")
         # Store input for backward pass
@@ -46,6 +51,7 @@ class TransformerBlock:
 
         return x_norm2
 
+    @handle_errors
     def backward(self, d_out):
         logger.debug(f"TransformerBlock {self.mha.name} backward d_out shape: {d_out.shape}")
         # Backprop through second Add & Norm
@@ -81,6 +87,7 @@ class PositionalEncoding:
         pe[:, 1::2] = np.cos(position * div_term)
         self.pe = pe
 
+    @handle_errors
     def __call__(self, x, start_pos=0):
         logger.debug(f"PositionalEncoding input x shape: {x.shape}, start_pos: {start_pos}")
         # Assumes x is (batch_size, seq_len, d_model)
@@ -113,9 +120,11 @@ class QuantaTissu:
         self.output_proj = Parameter(np.random.randn(d_model, vocab_size) / np.sqrt(d_model), name="output_proj")
 
         if use_db:
-            # KnowledgeBase is now initialized with database connection parameters.
-            print(f"Initializing KnowledgeBase with TissDB connection to {db_host}:{db_port}")
-            self.knowledge_base = KnowledgeBase(self.embeddings.value, tokenize, db_host=db_host, db_port=db_port)
+            try:
+                print(f"Initializing KnowledgeBase with TissDB connection to {db_host}:{db_port}")
+                self.knowledge_base = KnowledgeBase(self.embeddings.value, tokenize, db_host=db_host, db_port=db_port)
+            except Exception as e:
+                raise SystemError(f"Failed to connect to database: {e}") from e
         else:
             self.knowledge_base = None
         self.cache = {}
@@ -124,6 +133,7 @@ class QuantaTissu:
         mask = np.triu(np.ones((seq_len, seq_len)), k=1) * -1e9
         return mask
 
+    @handle_errors
     def forward(self, token_ids, kv_cache=None, start_pos=0):
         logger.debug(f"Model forward pass: token_ids shape {token_ids.shape}, start_pos {start_pos}")
         batch_size, seq_len = token_ids.shape
@@ -156,6 +166,7 @@ class QuantaTissu:
         self.cache['final_x'] = x
         return logits
 
+    @handle_errors
     def backward(self, d_logits):
         logger.debug(f"Model backward pass: d_logits shape {d_logits.shape}")
         # d_logits is (batch, seq, vocab_size)
@@ -277,6 +288,7 @@ class QuantaTissu:
         except Exception as e:
             print(f"Error loading model weights from {path}: {e}. Using random initialization.")
 
+    @handle_errors
     def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None, past_tokens=None, repetition_penalty=1.0):
         logger.debug(f"_predict_from_logits: method={method}, temp={temperature}, top_k={top_k}, top_p={top_p}, logits shape={logits.shape}")
         # Ensure logits are a 1D array for consistent processing
@@ -371,6 +383,7 @@ class QuantaTissu:
 
         return int(next_token)
 
+    @handle_errors
     def generate(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, use_cache=True, repetition_penalty=1.0):
         logger.debug(f"Starting generation: prompt_tokens_len={len(prompt_tokens)}, n_new_tokens={n_new_tokens}, method={method}, temp={temperature}, top_k={top_k}, top_p={top_p}, use_cache={use_cache}")
         if not use_cache:
@@ -421,6 +434,7 @@ class QuantaTissu:
         logger.debug(f"Final generated IDs: {generated_ids}")
         return generated_ids
 
+    @handle_errors
     def predict(self, token_ids, method="greedy", temperature=1.0, top_k=None, top_p=None):
         """
         DEPRECATED: This method is inefficient for generation as it re-processes the entire sequence for each token.
@@ -434,6 +448,7 @@ class QuantaTissu:
         last_logit = logits[0, -1, :]
         return self._predict_from_logits(last_logit, method, temperature, top_k, top_p)
 
+    @handle_errors
     def generate_with_kb(self, prompt, n_new_tokens, generation_method="greedy", k=1, **kwargs):
         context_docs = self.knowledge_base.retrieve(prompt, k=k)
         if context_docs:
