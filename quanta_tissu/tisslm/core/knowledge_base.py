@@ -50,11 +50,23 @@ class KnowledgeBase:
             logger.warning(f"Database setup failed: {e}. KnowledgeBase will operate in disconnected mode.")
 
     def _embed_text(self, text):
-        token_ids = self.tokenizer.tokenize(text)
-        if token_ids.size == 0:
-            return np.zeros(self.model_embeddings.shape[1])
-        embeddings = self.model_embeddings.value[token_ids]
-        return np.mean(embeddings, axis=0)
+        try:
+            token_ids = self.tokenizer.tokenize(text)
+            if not isinstance(token_ids, np.ndarray):
+                # Ensure token_ids is a numpy array for consistent processing
+                token_ids = np.array(token_ids)
+            if token_ids.size == 0:
+                logger.warning("Input text for embedding is empty or tokenized to empty.")
+                return np.zeros(self.model_embeddings.shape[1])
+
+            embeddings = self.model_embeddings.value[token_ids]
+            return np.mean(embeddings, axis=0)
+        except IndexError as e:
+            logger.error(f"Token ID out of bounds for model embeddings: {e}", exc_info=True)
+            raise ModelProcessingError(f"Error embedding text: Invalid token ID found.") from e
+        except Exception as e:
+            logger.error(f"An unexpected error occurred during text embedding: {e}", exc_info=True)
+            raise ModelProcessingError(f"An unexpected error occurred during text embedding: {e}") from e
 
     @handle_errors
     def add_document(self, text, metadata=None):
@@ -121,33 +133,41 @@ class KnowledgeBase:
         else:
             return []
 
-        if method == 'cosine':
-            similarities = self._cosine_similarity(query_embedding, doc_embeddings)
-        elif method == 'cnn':
-            if cnn_model is None:
-                cnn_model = self._get_default_cnn_model()
-            similarities = self._cnn_similarity(query_embedding, doc_embeddings, cnn_model)
-        elif method == 'genetic':
-            if ga_params is None:
-                ga_params = self._get_default_ga_params()
-            similarities = self._genetic_similarity(query_embedding, doc_embeddings, ga_params)
-        elif method == 'bayes':
-            if 'hessian_matrix' not in backward_pass_data:
-                raise InputValidationError("backward_pass_data must contain 'hessian_matrix' for bayes method.")
-            hessian_matrix = backward_pass_data['hessian_matrix']
-            if bayes_params is None:
-                bayes_params = self._get_default_bayes_params()
-            similarities = self._bayesian_similarity(query_embedding, doc_embeddings, hessian_matrix, bayes_params)
-        else:
-            raise ConfigurationError(f"Unknown retrieval method: {method}")
+        try:
+            if method == 'cosine':
+                similarities = self._cosine_similarity(query_embedding, doc_embeddings)
+            elif method == 'cnn':
+                if cnn_model is None:
+                    cnn_model = self._get_default_cnn_model()
+                similarities = self._cnn_similarity(query_embedding, doc_embeddings, cnn_model)
+            elif method == 'genetic':
+                if ga_params is None:
+                    ga_params = self._get_default_ga_params()
+                similarities = self._genetic_similarity(query_embedding, doc_embeddings, ga_params)
+            elif method == 'bayes':
+                if 'hessian_matrix' not in backward_pass_data:
+                    raise InputValidationError("backward_pass_data must contain 'hessian_matrix' for bayes method.")
+                hessian_matrix = backward_pass_data['hessian_matrix']
+                if bayes_params is None:
+                    bayes_params = self._get_default_bayes_params()
+                similarities = self._bayesian_similarity(query_embedding, doc_embeddings, hessian_matrix, bayes_params)
+            else:
+                raise ConfigurationError(f"Unknown retrieval method: {method}")
 
-        if k >= len(similarities):
-            top_k_indices = np.argsort(similarities)[::-1]
-        else:
-            top_k_indices = np.argpartition(similarities, -k)[-k:]
-            top_k_indices = top_k_indices[np.argsort(similarities[top_k_indices])[::-1]]
-        
-        return [documents[i] for i in top_k_indices]
+            if not isinstance(similarities, np.ndarray):
+                similarities = np.array(similarities)
+
+            if k >= len(similarities):
+                top_k_indices = np.argsort(similarities)[::-1]
+            else:
+                top_k_indices = np.argpartition(similarities, -k)[-k:]
+                top_k_indices = top_k_indices[np.argsort(similarities[top_k_indices])[::-1]]
+
+            return [documents[i] for i in top_k_indices]
+        except (ValueError, IndexError, TypeError) as e:
+            # Catch common numpy/data-related errors during similarity calculation
+            logger.error(f"Error during similarity calculation or indexing in retrieve: {e}", exc_info=True)
+            raise ModelProcessingError(f"Failed to calculate similarities or rank documents: {e}") from e
 
     def _cosine_similarity(self, query_embedding, doc_embeddings):
         query_norm = np.linalg.norm(query_embedding)

@@ -468,16 +468,22 @@ class QuantaTissu:
 
     @handle_errors
     def generate_with_kb(self, prompt, n_new_tokens, generation_method="greedy", k=1, **kwargs):
-        context_docs = self.knowledge_base.retrieve(prompt, k=k)
-        if context_docs:
-            context = " ".join(context_docs)
-            augmented_prompt = f"context: {context} question: {prompt}"
-            logger.info(f"Augmented prompt with context: '{augmented_prompt}'")
-        else:
-            augmented_prompt = prompt
+        augmented_prompt = prompt
+        try:
+            if self.knowledge_base:
+                context_docs = self.knowledge_base.retrieve(prompt, k=k)
+                if context_docs:
+                    context = " ".join(context_docs)
+                    augmented_prompt = f"context: {context} question: {prompt}"
+                    logger.info(f"Augmented prompt with context: '{augmented_prompt}'")
+            else:
+                logger.warning("KnowledgeBase not initialized. Proceeding without context.")
+        except TissError as e:
+            logger.warning(f"Failed to retrieve from KnowledgeBase: {e}. Proceeding without context.")
+
         token_ids = tokenize(augmented_prompt)
-        if len(token_ids) == 0:
+        if not token_ids:
             logger.warning("Prompt resulted in empty token sequence. Cannot generate.")
             raise InputValidationError("Prompt resulted in empty token sequence after tokenization. Cannot generate.")
         
-        generated_token_ids = self.generate(token_ids, n_new_tokens, method=generation_method, **kwargs)
+        return self.generate(token_ids, n_new_tokens, method=generation_method, **kwargs)
