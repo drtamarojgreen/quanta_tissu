@@ -1,128 +1,98 @@
-import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
+import sys
 import re
+import os
 
-class TissLangIDE:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("TissLang IDE")
-        self.root.geometry("800x600")
+# ANSI escape codes for colors
+COLORS = {
+    "default": "\033[0m",
+    "keyword": "\033[93m",  # Yellow
+    "string": "\033[92m",   # Green
+    "comment": "\033[90m",  # Grey
+    "directive": "\033[95m", # Magenta
+    "heredoc": "\033[32m",   # Green (same as string)
+}
 
-        self.text_widget = tk.Text(self.root, wrap="word", undo=True, font=("Courier New", 10))
-        self.text_widget.pack(expand=True, fill="both")
+# Regex patterns for syntax highlighting
+PATTERNS = {
+    'keyword': r'\b(TASK|STEP|WRITE|RUN|ASSERT|READ|PROMPT_AGENT|SET_BUDGET|REQUEST_REVIEW|PARALLEL|CHOOSE|ESTIMATE_COST|AS|INTO)\b',
+    'string': r'"[^"]*"',
+    'comment': r'#.*$',
+    'directive': r'@[a-zA-Z_]+',
+}
 
-        self.create_menu()
-        self.create_tags()
-        self.bind_events()
+def highlight(text):
+    """
+    Applies syntax highlighting to a line of TissLang code.
+    This version is simplified and processes tokens sequentially.
+    A more robust version would build a token list and sort by position.
+    """
+    # Create a list of all found tokens with their spans and types
+    tokens = []
+    for token_type, pattern in PATTERNS.items():
+        for match in re.finditer(pattern, text):
+            tokens.append((match.start(), match.end(), token_type))
 
-        self.filepath = None
+    # Sort tokens by their starting position
+    tokens.sort()
 
-    def create_tags(self):
-        self.text_widget.tag_configure("keyword", foreground="#CC7A00")
-        self.text_widget.tag_configure("string", foreground="#008000")
-        self.text_widget.tag_configure("comment", foreground="#808080")
-        self.text_widget.tag_configure("heredoc", foreground="#008000", font=("Courier New", 10, "italic"))
-        self.text_widget.tag_configure("directive", foreground="#9B59B6")
+    last_index = 0
+    highlighted_line = ""
+    for start, end, token_type in tokens:
+        # Add the text between the last token and this one
+        highlighted_line += text[last_index:start]
+        # Add the highlighted token
+        highlighted_line += f"{COLORS[token_type]}{text[start:end]}{COLORS['default']}"
+        last_index = end
 
-    def bind_events(self):
-        self.text_widget.bind("<<Modified>>", self.on_text_change)
+    # Add any remaining text after the last token
+    highlighted_line += text[last_index:]
+    return highlighted_line
 
-    def on_text_change(self, event=None):
-        self.highlight_syntax()
-        self.text_widget.edit_modified(False)
+def main():
+    """
+    Main function for the TissLang CLI tool.
+    Reads a .tiss file and prints it with syntax highlighting.
+    """
+    if len(sys.argv) != 2:
+        print("Usage: python ide.py <path/to/file.tiss>")
+        sys.exit(1)
 
-    def highlight_syntax(self):
-        self.text_widget.mark_set("range_start", "1.0")
+    filepath = sys.argv[1]
+    if not os.path.exists(filepath):
+        print(f"Error: File not found at '{filepath}'")
+        sys.exit(1)
 
-        # Define TissLang patterns
-        patterns = {
-            'keyword': r'\b(TASK|STEP|WRITE|RUN|ASSERT|READ|PROMPT_AGENT|SET_BUDGET|REQUEST_REVIEW|PARALLEL|CHOOSE|ESTIMATE_COST|AS|INTO)\b',
-            'string': r'"[^"]*"',
-            'comment': r'#.*$',
-            'directive': r'@[a-zA-Z_]+',
-            'heredoc_start': r'<<(\w+)',
-        }
+    if not filepath.endswith(".tiss"):
+        print("Warning: File does not have a .tiss extension.")
 
-        # Remove all tags first
-        for tag in self.text_widget.tag_names():
-            if tag != "sel": # Don't remove selection tag
-                self.text_widget.tag_remove(tag, "1.0", "end")
+    print(f"--- Displaying: {filepath} ---\n")
 
-        content = self.text_widget.get("1.0", "end-1c")
-
-        # Apply keyword, string, and comment tags
-        for token_type, pattern in patterns.items():
-            for match in re.finditer(pattern, content):
-                start, end = match.span()
-                self.text_widget.tag_add(token_type, f"1.0+{start}c", f"1.0+{end}c")
-
-        # Special handling for heredoc content
-        in_heredoc = False
-        heredoc_delimiter = None
-        for i, line in enumerate(content.splitlines()):
-            if in_heredoc:
-                if line.strip() == heredoc_delimiter:
-                    in_heredoc = False
-                    heredoc_delimiter = None
-                else:
-                    self.text_widget.tag_add("heredoc", f"{i+1}.0", f"{i+1}.end")
-            else:
-                match = re.search(r'<<(\w+)', line)
-                if match:
-                    in_heredoc = True
-                    heredoc_delimiter = match.group(1)
-
-    def create_menu(self):
-        menu_bar = tk.Menu(self.root)
-        self.root.config(menu=menu_bar)
-
-        file_menu = tk.Menu(menu_bar, tearoff=0)
-        menu_bar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="Open", command=self.open_file)
-        file_menu.add_command(label="Save", command=self.save_file)
-        file_menu.add_command(label="Save As...", command=self.save_file_as)
-        file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.exit_editor)
-
-    def open_file(self):
-        filepath = filedialog.askopenfilename(
-            filetypes=[("TissLang Files", "*.tiss"), ("All Files", "*.*")]
-        )
-        if not filepath:
-            return
-        self.text_widget.delete(1.0, tk.END)
+    try:
         with open(filepath, "r", encoding="utf-8") as f:
-            self.text_widget.insert(tk.END, f.read())
-        self.filepath = filepath
-        self.root.title(f"TissLang IDE - {self.filepath}")
-        self.on_text_change()
+            in_heredoc = False
+            heredoc_delimiter = None
+            for line in f:
+                stripped_line = line.strip()
+                if in_heredoc:
+                    # Print heredoc content in green
+                    sys.stdout.write(f"{COLORS['heredoc']}{line}{COLORS['default']}")
+                    if stripped_line == heredoc_delimiter:
+                        in_heredoc = False
+                        heredoc_delimiter = None
+                else:
+                    # Check for start of a heredoc block
+                    heredoc_match = re.search(r'<<(\w+)', stripped_line)
+                    if heredoc_match:
+                        in_heredoc = True
+                        heredoc_delimiter = heredoc_match.group(1)
 
-    def save_file(self):
-        if self.filepath:
-            try:
-                with open(self.filepath, "w", encoding="utf-8") as f:
-                    f.write(self.text_widget.get(1.0, tk.END))
-                self.root.title(f"TissLang IDE - {self.filepath}")
-            except Exception as e:
-                messagebox.showerror("Save Error", f"Could not save file:\n{e}")
-        else:
-            self.save_file_as()
+                    # Apply highlighting to the line
+                    highlighted_line = highlight(line)
+                    sys.stdout.write(highlighted_line)
 
-    def save_file_as(self):
-        filepath = filedialog.asksaveasfilename(
-            defaultextension=".tiss",
-            filetypes=[("TissLang Files", "*.tiss"), ("All Files", "*.*")],
-        )
-        if not filepath:
-            return
-        self.filepath = filepath
-        self.save_file()
-
-    def exit_editor(self):
-        if messagebox.askokcancel("Quit", "Do you really want to quit?"):
-            self.root.destroy()
+    except Exception as e:
+        print(f"\nAn error occurred while reading the file: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    ide = TissLangIDE(root)
-    root.mainloop()
+    main()
