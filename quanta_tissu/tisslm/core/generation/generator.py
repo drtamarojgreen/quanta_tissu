@@ -27,7 +27,6 @@ class Generator:
         This version assumes the model manages the KV cache internally and its
         forward method returns only logits.
         """
-        print(f"DEBUG: Generator.sample - n_new_tokens: {n_new_tokens}")
         generated_tokens = []
         current_tokens = [int(t) for t in prompt_tokens]
 
