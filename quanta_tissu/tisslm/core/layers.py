@@ -218,7 +218,7 @@ class FeedForward:
         b2 = cache['b2']
 
         # 1. Gradient for W2 and b2
-        self.W2.grad += h.transpose(0, 2, 1) @ d_out
+        self.W2.grad += np.einsum('bsf,bsd->fd', h, d_out)
         self.b2.grad += np.sum(d_out, axis=(0, 1))
 
         # 2. Gradient for h
