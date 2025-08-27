@@ -63,7 +63,6 @@ class Generator:
             # Prepare the input for the next iteration. It's just the new token.
             # The model will use its internal KV cache because start_pos > 0.
             next_token_array = np.array([[next_token]])
-            print(f"DEBUG: Generator.sample - Calling model.forward for new token with start_pos={len(current_tokens) - 1}")
             logits, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
 
         return generated_tokens
