@@ -28,6 +28,8 @@ class QuantaTissu:
 
         # Instantiate the generator
         self.generator = Generator(self.model)
+        logger.debug(f"Type of self.generator: {type(self.generator)}")
+        logger.debug(f"Does self.generator have 'generate' method? {'generate' in dir(self.generator)}")
 
         self.knowledge_base = None
         if use_db:
@@ -99,6 +101,20 @@ class QuantaTissu:
         except Exception as e:
             logger.error(f"Error processing model weights from {path}: {e}", exc_info=True)
             raise ModelProcessingError(f"Failed to process model weights from {path}: {e}") from e
+
+    def forward(self, token_ids, kv_cache=None, start_pos=0):
+        """
+        Performs a forward pass through the underlying model.
+        Delegates to the internal model instance.
+        """
+        return self.model.forward(token_ids, kv_cache, start_pos)
+
+    @property
+    def embeddings(self):
+        """
+        Returns the embeddings layer of the underlying model.
+        """
+        return self.model.embeddings
 
     def generate(self, prompt_tokens, n_new_tokens, **kwargs):
         """

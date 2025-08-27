@@ -28,7 +28,7 @@ def calculate_perplexity(model, dataset, loss_fn):
     #     model.eval()
 
     for x_batch, y_batch in dataset:
-        logits = model.forward(x_batch)
+        logits, _ = model.forward(x_batch)
         loss = loss_fn.forward(logits, y_batch)
         total_loss += loss
         num_batches += 1

@@ -60,6 +60,7 @@ class Tokenizer:
     def detokenize(self, token_ids: np.ndarray) -> str:
         """
         Convert an array of token IDs back to text using the BPE tokenizer.
+        Handles space re-insertion based on common BPE practices.
         
         Args:
             token_ids: NumPy array of token IDs
@@ -70,7 +71,22 @@ class Tokenizer:
         if not isinstance(token_ids, np.ndarray):
             token_ids = np.array(token_ids)
             
-        return self.bpe_tokenizer.decode(token_ids.tolist())
+        # Decode tokens to a list of strings
+        decoded_tokens = [self.bpe_tokenizer.decode([token_id]) for token_id in token_ids.tolist()]
+        
+        # Join tokens, handling spaces. This is a heuristic and might need adjustment.
+        text = "".join(decoded_tokens)
+        
+        # Common BPE libraries might use ' ' (U+2581) for spaces, or just a leading space.
+        # If the tokenizer was trained to include leading spaces, then simply joining
+        # and then stripping initial space might be enough.
+        text = text.replace(' ', ' ') # Replace common BPE space character with actual space
+        
+        # Remove any leading space that might result from the first token
+        if text.startswith(' '):
+            text = text[1:]
+            
+        return text
     
     def get_vocab_size(self) -> int:
         """Return the size of the vocabulary of the BPE tokenizer."""

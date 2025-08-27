@@ -28,8 +28,13 @@ class TissDBClient:
         try:
             # Ensure database exists
             response = requests.put(self.db_url)
-            if response.status_code not in [200, 201, 409]: # OK, Created, Conflict (already exists)
-                response.raise_for_status()
+            # Accept 200 (OK), 201 (Created), 409 (Conflict), or 500 if it's due to "already exists"
+            if response.status_code not in [200, 201, 409]:
+                # Check if 500 is due to "already exists"
+                if response.status_code == 500 and "already exists" in response.text:
+                    logger.warning(f"TissDB returned 500 for database creation, but it seems to be due to 'already exists'. Proceeding.")
+                else:
+                    response.raise_for_status()
 
             # Ensure collections exist
             for collection_name in collections:
@@ -39,6 +44,12 @@ class TissDBClient:
 
             logger.info(f"TissDB connection successful to {self.db_url}")
             return True
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 500:
+                logger.warning(f"TissDB setup failed with 500 Internal Server Error: {e}. This might indicate an issue with the TissDB server itself. Client will be in a disconnected state.")
+            else:
+                logger.warning(f"TissDB setup failed: {e}. Client will be in a disconnected state.")
+            raise DatabaseConnectionError(f"Database setup failed: {e}") from e
         except requests.exceptions.RequestException as e:
             logger.warning(f"TissDB setup failed: {e}. Client will be in a disconnected state.")
             raise DatabaseConnectionError(f"Database setup failed: {e}") from e
@@ -56,17 +67,17 @@ class TissDBClient:
 
     def get_all_documents(self, collection: str):
         """
-        Retrieves all documents from a collection using a simple SELECT query.
-        NOTE: This is inefficient and not scalable. A real implementation would
-        use the database's own vector search capabilities.
+        Retrieves all documents from a collection.
+        NOTE: The current TissDB HTTP API does not support a direct "get all documents"
+        or generic query endpoint. This method will log a warning and return an empty list.
+        A proper implementation would require extending the TissDB C++ backend
+        to expose such functionality (e.g., a scan endpoint or a query language processor).
         """
-        try:
-            query = {"query": f"SELECT id, text, embedding FROM {collection}"}
-            response = requests.post(f"{self.db_url}/{collection}/_query", json=query)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            raise DatabaseConnectionError(f"Failed to retrieve documents from {collection}: {e}") from e
+        logger.warning(f"TissDB HTTP API does not support 'get_all_documents' for collection '{collection}'. Returning empty list.")
+        # To implement this, TissDB C++ backend needs to expose an endpoint
+        # that can scan a collection and return all documents or their IDs.
+        # For now, we return an empty list to prevent a 404 error.
+        return []
 
     def get_stats(self):
         """
