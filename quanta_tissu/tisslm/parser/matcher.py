@@ -10,6 +10,7 @@ _PATTERNS = {
     'WRITE': re.compile(r'^\s*WRITE\s+\"([^\"]+)\"\s+<<(\w+)\s*$'),
     'ASSERT': re.compile(r'^\s*ASSERT\s+(.+?)\s*$'),
     'READ': re.compile(r'^\s*READ\s+\"([^\"]+)\"\s+AS\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*$'),
+    'PROMPT_AGENT': re.compile(r'^\s*PROMPT_AGENT\s+\"([^\"]+)\"(?:\s+INTO\s+([a-zA-Z_][a-zA-Z0-9_]*))?\s*$'),
     'COMMENT': re.compile(r'^\s*#.*$'),
     'EMPTY': re.compile(r'^\s*$'),
 }
