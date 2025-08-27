@@ -129,5 +129,94 @@ class TestModelExtended(unittest.TestCase):
         self.assertEqual(generated_tokens, expected_tokens, "Generated tokens should stop at eos_id.")
         self.assertLess(len(generated_tokens), n_new_tokens, "Generation should have stopped before n_new_tokens.")
 
+    def test_generate_topp(self):
+        """Test the model's sample method with nucleus sampling (top-p)."""
+        prompt_tokens = [5, 15, 25]
+        n_new_tokens = 1
+        vocab_size = self.config['vocab_size']
+        top_p = 0.9
+
+        # Create logits where one token (index 42) has a very high probability (e.g., > 0.9)
+        # and other tokens have low probabilities.
+        # With top_p = 0.9, only the token with the highest probability should be in the nucleus.
+        mock_logits = np.zeros((1, 1, vocab_size))
+        mock_logits[0, 0, 42] = 10.0  # High logit for token 42, giving it a high probability after softmax
+        mock_logits[0, 0, 55] = 1.0   # Lower logit for another token
+
+        # Mock the forward pass for the prompt and for the new token generation
+        self.model.model.forward = MagicMock(side_effect=[
+            (np.zeros((1, len(prompt_tokens), vocab_size)), None), # Processing prompt
+            (mock_logits, None) # Generating the new token
+        ])
+
+        # Since the nucleus contains only one token, the sampling is deterministic.
+        generated_tokens = self.model.sample(prompt_tokens, n_new_tokens, method="topp", top_p=top_p)
+
+        expected_token = [42]
+        self.assertEqual(generated_tokens, expected_token, "Generated token with top-p sampling is incorrect.")
+
+    def test_generate_with_empty_prompt(self):
+        """Tests how the model handles an empty prompt."""
+        prompt_tokens = []
+        n_new_tokens = 5
+
+        # Depending on the implementation, this could raise an error or return an empty list.
+        # Based on the code, it's likely to raise an IndexError when accessing logits.
+        # A robust implementation might handle this, but we test the current behavior.
+        with self.assertRaises(IndexError):
+            self.model.sample(prompt_tokens, n_new_tokens)
+
+    def test_generate_with_temperature(self):
+        """Test that temperature scaling is correctly applied to logits."""
+        prompt_tokens = [1, 2]
+        n_new_tokens = 1
+        vocab_size = self.config['vocab_size']
+        temperature = 0.5
+
+        # Logits that will be scaled by temperature.
+        # Let's use simple values to make the calculation clear.
+        mock_logits = np.zeros((1, 1, vocab_size))
+        mock_logits[0, 0, 10] = 2.0
+        mock_logits[0, 0, 20] = 1.0
+
+        # Mock the model's forward pass
+        self.model.model.forward = MagicMock(side_effect=[
+            (np.zeros((1, len(prompt_tokens), vocab_size)), None), # Prompt processing
+            (mock_logits, None) # Generation
+        ])
+
+        # The core of this test is to verify that the probabilities passed to the sampling function
+        # are correctly scaled by temperature.
+        # We patch np.random.choice, which is used by the generator for sampling.
+        with unittest.mock.patch('numpy.random.choice') as mock_choice:
+            # We don't care about the actual token generated, just the probabilities used.
+            mock_choice.return_value = 10 # Return a predictable token
+
+            self.model.sample(prompt_tokens, n_new_tokens, method="sampling", temperature=temperature)
+
+            # Assert that np.random.choice was called
+            self.assertTrue(mock_choice.called)
+
+            # Get the arguments passed to np.random.choice
+            args, kwargs = mock_choice.call_args
+
+            # The probabilities are passed as the 'p' keyword argument
+            passed_probs = kwargs['p']
+
+            # Calculate the expected probabilities
+            # scaled_logits = original_logits / temperature
+            scaled_logits = np.array([2.0, 1.0]) / temperature # [4.0, 2.0]
+
+            # Manually calculate softmax
+            exp_scaled_logits = np.exp(scaled_logits - np.max(scaled_logits))
+            expected_probs_subset = exp_scaled_logits / np.sum(exp_scaled_logits) # [0.880797, 0.119203]
+
+            # We only care about the probabilities of the tokens we set logits for.
+            # The rest should be close to zero.
+            self.assertAlmostEqual(passed_probs[10], expected_probs_subset[0], places=5)
+            self.assertAlmostEqual(passed_probs[20], expected_probs_subset[1], places=5)
+            self.assertAlmostEqual(np.sum(passed_probs), 1.0, places=5)
+
+
 if __name__ == '__main__':
     unittest.main()
