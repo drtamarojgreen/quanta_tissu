@@ -8,6 +8,15 @@ def softmax(x, axis=-1, temperature=1.0):
     e_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return e_x / e_x.sum(axis=axis, keepdims=True)
 
+def d_softmax(d_out, softmax_out, axis=-1):
+    # Jacobian of softmax: diag(s) - s*s.T
+    # For batch processing, this needs to be applied carefully.
+    # A more numerically stable way for d_out * softmax_out is:
+    return softmax_out * (d_out - np.sum(d_out * softmax_out, axis=axis, keepdims=True))
+
+def d_relu(x, d_out):
+    return d_out * (x > 0)
+
 class LayerNorm:
     """
     Applies Layer Normalization.
@@ -27,6 +36,37 @@ class LayerNorm:
         cache = {'x': x, 'x_norm': x_norm, 'mean': mean, 'var': var, 'gamma': self.gamma, 'beta': self.beta, 'eps': self.eps}
         return out, cache
 
+    def backward(self, d_out, cache):
+        x = cache['x']
+        x_norm = cache['x_norm']
+        mean = cache['mean']
+        var = cache['var']
+        gamma = cache['gamma']
+        eps = cache['eps']
+
+        N = x.shape[-1] # Number of features
+
+        # Gradients for beta and gamma
+        self.beta.grad += np.sum(d_out, axis=(0, 1))
+        self.gamma.grad += np.sum(d_out * x_norm, axis=(0, 1))
+
+        # Gradient for x_norm
+        dx_norm = d_out * gamma.value
+
+        # Gradient for variance
+        dvar = np.sum(dx_norm * (x - mean) * -0.5 * np.power(var + eps, -1.5), axis=-1, keepdims=True)
+
+        # Gradient for mean
+        dmean = np.sum(dx_norm * -1 / np.sqrt(var + eps), axis=-1, keepdims=True)
+        dmean += dvar * np.mean(-2 * (x - mean), axis=-1, keepdims=True)
+
+        # Gradient for x
+        dx = dx_norm / np.sqrt(var + eps)
+        dx += dvar * 2 * (x - mean) / N
+        dx += dmean / N
+
+        return dx
+
     def parameters(self):
         return [self.gamma, self.beta]
 
@@ -39,6 +79,20 @@ def scaled_dot_product_attention(Q, K, V, mask=None):
     weights = softmax(scores, axis=-1)
     output = weights @ V
     return output, weights
+
+def backward_scaled_dot_product_attention(d_out, Q, K, V, scores, weights, mask=None):
+    d_V = weights.transpose(0, 1, 3, 2) @ d_out
+    d_weights = d_out @ V.transpose(0, 1, 3, 2)
+    d_weights = d_softmax(d_weights, weights, axis=-1)
+
+    d_scores = d_weights
+    if mask is not None:
+        d_scores[mask == -1e9] = 0 # Masked values don't contribute to gradient
+
+    d_Q = d_scores @ K / np.sqrt(Q.shape[-1])
+    d_K = d_scores.transpose(0, 1, 3, 2) @ Q / np.sqrt(Q.shape[-1])
+
+    return d_Q, d_K, d_V
 
 class MultiHeadAttention:
     """
@@ -87,9 +141,50 @@ class MultiHeadAttention:
             'x': x, 'Qh': Qh, 'Kh': Kh_new, 'Vh': Vh_new,
             'attention_weights': attention_weights, 'combined': combined,
             'Wq': self.Wq, 'Wk': self.Wk, 'Wv': self.Wv, 'Wo': self.Wo,
-            'layer_instance': self  # To access split_heads/combine_heads
+            'layer_instance': self, # To access split_heads/combine_heads
+            'K_full': Kh, 'V_full': Vh, 'scores': Qh @ Kh.transpose(0, 1, 3, 2) / np.sqrt(Qh.shape[-1]) # Store full K, V for backward
         }
         return output, cache
+
+    def backward(self, d_out, cache):
+        x = cache['x']
+        Qh = cache['Qh']
+        Kh_full = cache['K_full'] # Use full K from cache
+        Vh_full = cache['V_full'] # Use full V from cache
+        attention_weights = cache['attention_weights']
+        combined = cache['combined']
+        Wq = cache['Wq']
+        Wk = cache['Wk']
+        Wv = cache['Wv']
+        Wo = cache['Wo']
+        scores = cache['scores']
+        
+        # 1. Gradient for Wo
+        self.Wo.grad += combined.transpose(0, 1, 3, 2) @ d_out.transpose(0, 2, 1)
+        self.Wo.grad = self.Wo.grad.transpose(0, 2, 1)
+
+        # 2. Gradient for combined (output of combine_heads)
+        d_combined = d_out @ Wo.value.T
+
+        # 3. Gradient for attended (input to combine_heads)
+        d_attended = self.split_heads(d_combined) # This is not correct, need to inverse combine_heads
+        # Correct inverse of combine_heads:
+        d_attended = d_combined.reshape(d_combined.shape[0], d_combined.shape[1], self.num_heads, self.d_k).transpose(0, 2, 1, 3)
+
+        # 4. Gradients for Q, K, V from scaled_dot_product_attention
+        d_Qh, d_Kh, d_Vh = backward_scaled_dot_product_attention(d_attended, Qh, Kh_full, Vh_full, scores, attention_weights)
+
+        # 5. Gradients for Wq, Wk, Wv
+        self.Wq.grad += x.transpose(0, 2, 1) @ self.combine_heads(d_Qh)
+        self.Wk.grad += x.transpose(0, 2, 1) @ self.combine_heads(d_Kh)
+        self.Wv.grad += x.transpose(0, 2, 1) @ self.combine_heads(d_Vh)
+
+        # 6. Gradient for x (input to MHA)
+        dx = (self.combine_heads(d_Qh) @ Wq.value.T +
+              self.combine_heads(d_Kh) @ Wk.value.T +
+              self.combine_heads(d_Vh) @ Wv.value.T)
+
+        return dx
 
     def parameters(self):
         return [self.Wq, self.Wk, self.Wv, self.Wo]
@@ -112,6 +207,34 @@ class FeedForward:
 
         cache = {'x': x, 'z': z, 'h': h, 'W1': self.W1, 'b1': self.b1, 'W2': self.W2, 'b2': self.b2}
         return y, cache
+
+    def backward(self, d_out, cache):
+        x = cache['x']
+        z = cache['z']
+        h = cache['h']
+        W1 = cache['W1']
+        b1 = cache['b1']
+        W2 = cache['W2']
+        b2 = cache['b2']
+
+        # 1. Gradient for W2 and b2
+        self.W2.grad += h.transpose(0, 2, 1) @ d_out
+        self.b2.grad += np.sum(d_out, axis=(0, 1))
+
+        # 2. Gradient for h
+        dh = d_out @ W2.value.T
+
+        # 3. Gradient for z (through ReLU)
+        dz = d_relu(z, dh)
+
+        # 4. Gradient for W1 and b1
+        self.W1.grad += x.transpose(0, 2, 1) @ dz
+        self.b1.grad += np.sum(dz, axis=(0, 1))
+
+        # 5. Gradient for x (input to FFN)
+        dx = dz @ W1.value.T
+
+        return dx
 
     def parameters(self):
         return [self.W1, self.b1, self.W2, self.b2]

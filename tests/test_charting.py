@@ -79,3 +79,10 @@ def test_plot_candlestick_with_volume():
     # Check for volume labels
     assert "2000" in chart or "1000" in chart, "Volume labels should be present"
     print("OK: plot_candlestick_chart (with volume)")
+
+if __name__ == "__main__":
+    test_calculate_trend_line_simple()
+    test_plot_candlestick_chart_basic()
+    test_plot_candlestick_with_trend_line()
+    test_plot_candlestick_with_volume()
+    print("All charting tests passed!")
