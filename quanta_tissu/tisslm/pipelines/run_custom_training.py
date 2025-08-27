@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def main():
     parser = argparse.ArgumentParser(description="Train the QuantaTissu model with custom tokenizer and text generation.")
-    parser.add_argument("--tokenizer_path", type=str, default="tokenizer/trained_tokenizer", help="Path prefix for the tokenizer files, relative to project root.")
+    parser.add_argument("--tokenizer_path", type=str, default="models/trained_tokenizer", help="Path prefix for the tokenizer files, relative to project root.")
     parser.add_argument("--corpus_path", type=str, default=os.path.join(project_root, "corpus"), help="Path to the training corpus directory.")
     parser.add_argument("--epochs", type=int, default=training_config["num_epochs"], help="Number of training epochs.")
     parser.add_argument("--batch_size", type=int, default=training_config["batch_size"], help="Batch size for training.")
@@ -96,9 +96,9 @@ def main():
             logits, _ = model.forward(x_batch)
             loss = loss_fn.forward(logits, y_batch)
             d_logits = loss_fn.backward()
-            # The backward pass, like the core components, is on the nested model object.
-            # We call backward on model.model to propagate the gradients.
-            model.model.backward(d_logits)
+            # The backward pass should be called on the top-level model object,
+            # which will orchestrate backpropagation through all its components.
+            model.backward(d_logits)
 
             params = model.parameters()
             grads = [p.grad for p in params if p.grad is not None]
