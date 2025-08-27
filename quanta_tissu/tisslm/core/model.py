@@ -134,4 +134,4 @@ class QuantaTissu:
         Returns:
             list[int]: The list of newly generated token IDs.
         """
-        return self.generator.generate(prompt_tokens, n_new_tokens, **kwargs)
+        return self.generator.sample(prompt_tokens, n_new_tokens, **kwargs)
