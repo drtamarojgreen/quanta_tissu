@@ -160,8 +160,7 @@ class MultiHeadAttention:
         scores = cache['scores']
         
         # 1. Gradient for Wo
-        self.Wo.grad += combined.transpose(0, 1, 3, 2) @ d_out.transpose(0, 2, 1)
-        self.Wo.grad = self.Wo.grad.transpose(0, 2, 1)
+        self.Wo.grad += np.einsum('bsi,bsj->ij', combined, d_out)
 
         # 2. Gradient for combined (output of combine_heads)
         d_combined = d_out @ Wo.value.T
@@ -175,9 +174,9 @@ class MultiHeadAttention:
         d_Qh, d_Kh, d_Vh = backward_scaled_dot_product_attention(d_attended, Qh, Kh_full, Vh_full, scores, attention_weights)
 
         # 5. Gradients for Wq, Wk, Wv
-        self.Wq.grad += x.transpose(0, 2, 1) @ self.combine_heads(d_Qh)
-        self.Wk.grad += x.transpose(0, 2, 1) @ self.combine_heads(d_Kh)
-        self.Wv.grad += x.transpose(0, 2, 1) @ self.combine_heads(d_Vh)
+        self.Wq.grad += np.einsum('bsi,bsj->ij', x, self.combine_heads(d_Qh))
+        self.Wk.grad += np.einsum('bsi,bsj->ij', x, self.combine_heads(d_Kh))
+        self.Wv.grad += np.einsum('bsi,bsj->ij', x, self.combine_heads(d_Vh))
 
         # 6. Gradient for x (input to MHA)
         dx = (self.combine_heads(d_Qh) @ Wq.value.T +
@@ -228,7 +227,7 @@ class FeedForward:
         dz = d_relu(z, dh)
 
         # 4. Gradient for W1 and b1
-        self.W1.grad += x.transpose(0, 2, 1) @ dz
+        self.W1.grad += np.einsum('bsd,bsf->df', x, dz)
         self.b1.grad += np.sum(dz, axis=(0, 1))
 
         # 5. Gradient for x (input to FFN)
