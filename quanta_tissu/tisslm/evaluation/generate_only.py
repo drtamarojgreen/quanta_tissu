@@ -27,6 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def main():
+    sys.stdout.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser(description="Generate text using the QuantaTissu model without full evaluation.")
     
     # Default parameters from config files or sensible hardcoded values
