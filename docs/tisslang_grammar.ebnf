@@ -127,7 +127,7 @@ PYTHON
     }
 
     STEP "Run unit tests" {
-        RUN "pytest ./tests/test_utils.py"
+        RUN "python3 ./tests/run_tests.py"
     }
 
     STEP "Verify test success" {

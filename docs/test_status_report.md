@@ -10,7 +10,7 @@ The Python tests were executed, and the results are as follows:
 
 | Metric   | Count | Notes                                                               |
 | :------- | :---- | :------------------------------------------------------------------ |
-| **Total**  | 53    | Total number of tests discovered by `pytest`.                       |
+| **Total**  | 53    | Total number of tests discovered by the test runner.                |
 | **Passed** | 46    | Tests that ran successfully.                                        |
 | **Failed** | 1     | `TestTissLangParser.test_parse_write` in `test_tisslang_parser.py`. |
 | **Skipped**| 6     | All skipped tests are for the `ExecutionEngine`, which is not yet implemented. |
