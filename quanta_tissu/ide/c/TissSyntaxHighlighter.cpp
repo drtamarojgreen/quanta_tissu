@@ -1,63 +1,54 @@
 #include "TissSyntaxHighlighter.h"
-#include <iostream>
 
-TissSyntaxHighlighter::TissSyntaxHighlighter() : MockSyntaxHighlighter() {
-    std::cout << "TissSyntaxHighlighter: Constructor called." << std::endl;
-    initializeRules();
-}
-
-TissSyntaxHighlighter::~TissSyntaxHighlighter() {
-    std::cout << "TissSyntaxHighlighter: Destructor called." << std::endl;
-}
-
-void TissSyntaxHighlighter::initializeRules() {
-    std::cout << "TissSyntaxHighlighter: Initializing syntax rules." << std::endl;
+TissSyntaxHighlighter::TissSyntaxHighlighter(QTextDocument *parent)
+    : QSyntaxHighlighter(parent)
+{
     HighlightingRule rule;
 
-    // Rule for TissLang keywords.
-    // The pattern uses word boundaries (\\b) to avoid matching parts of words.
-    rule.pattern = std::regex("\\b(TASK|STEP|SETUP|READ|WRITE|RUN|ASSERT|AS|CONTAINS|IS_EMPTY|EXIT_CODE|LAST_RUN|STDOUT|STDERR|FILE|EXISTS|IF|ELSE|DEFINE_TASK|TRY|CATCH|PAUSE|REQUEST_REVIEW|CHOOSE|OPTION|ESTIMATE_COST|SET_BUDGET|PROMPT_AGENT|INTO)\\b");
-    rule.format_name = "keyword";
-    highlighting_rules.push_back(rule);
+    // Keyword format
+    keyword_format.setForeground(Qt::darkBlue);
+    keyword_format.setFontWeight(QFont::Bold);
+    const QString keyword_patterns[] = {
+        QStringLiteral("\\b(TASK|STEP|SETUP|READ|WRITE|RUN|ASSERT|AS|CONTAINS|IS_EMPTY|EXIT_CODE|LAST_RUN|STDOUT|STDERR|FILE|EXISTS|IF|ELSE|DEFINE_TASK|TRY|CATCH|PAUSE|REQUEST_REVIEW|CHOOSE|OPTION|ESTIMATE_COST|SET_BUDGET|PROMPT_AGENT|INTO)\\b")
+    };
+    for (const QString &pattern : keyword_patterns) {
+        rule.pattern = QRegularExpression(pattern);
+        rule.format = keyword_format;
+        highlighting_rules.append(rule);
+    }
 
-    // Rule for single-line comments (from '#' to the end of the line).
-    rule.pattern = std::regex("#[^\n]*");
-    rule.format_name = "comment";
-    highlighting_rules.push_back(rule);
+    // Comment format
+    comment_format.setForeground(Qt::darkGreen);
+    rule.pattern = QRegularExpression(QStringLiteral("#[^\n]*"));
+    rule.format = comment_format;
+    highlighting_rules.append(rule);
 
-    // Rule for strings enclosed in double quotes.
-    rule.pattern = std::regex("\"[^\"]*\"");
-    rule.format_name = "string";
-    highlighting_rules.push_back(rule);
+    // String format
+    string_format.setForeground(Qt::darkRed);
+    rule.pattern = QRegularExpression(QStringLiteral("\"[^\"]*\""));
+    rule.format = string_format;
+    highlighting_rules.append(rule);
 
-    // Rule for the special #TISS! pragma
-    rule.pattern = std::regex("^#TISS!.*");
-    rule.format_name = "pragma";
-    highlighting_rules.push_back(rule);
+    // Pragma format
+    pragma_format.setForeground(Qt::darkMagenta);
+    rule.pattern = QRegularExpression(QStringLiteral("^#TISS!.*"));
+    rule.format = pragma_format;
+    highlighting_rules.append(rule);
 
-    // Rule for heredoc-style blocks (e.g., <<PYTHON ... PYTHON)
-    // This is a simplified rule; a real implementation would need state across blocks.
-    rule.pattern = std::regex("<<[A-Z_]+");
-    rule.format_name = "heredoc_marker";
-    highlighting_rules.push_back(rule);
+    // Heredoc format
+    heredoc_format.setForeground(Qt::darkCyan);
+    rule.pattern = QRegularExpression(QStringLiteral("<<[A-Z_]+"));
+    rule.format = heredoc_format;
+    highlighting_rules.append(rule);
 }
 
-void TissSyntaxHighlighter::highlightBlock(const std::string& text) {
-    // This function would be called by the GUI framework for each line/block of text.
-    // It iterates through the rules and applies formatting to matching text.
-    std::cout << "TissSyntaxHighlighter: Highlighting block: \"" << text << "\"" << std::endl;
-
-    for (const auto& rule : highlighting_rules) {
-        auto words_begin = std::sregex_iterator(text.begin(), text.end(), rule.pattern);
-        auto words_end = std::sregex_iterator();
-
-        for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-            std::smatch match = *i;
-            std::string match_str = match.str();
-            // In a real app, we would apply a format (e.g., color, bold) to the
-            // matched range in the document.
-            std::cout << "  - Found match for format '" << rule.format_name
-                      << "': " << match_str << " at position " << match.position() << std::endl;
+void TissSyntaxHighlighter::highlightBlock(const QString &text)
+{
+    for (const HighlightingRule &rule : highlighting_rules) {
+        QRegularExpressionMatchIterator match_iterator = rule.pattern.globalMatch(text);
+        while (match_iterator.hasNext()) {
+            QRegularExpressionMatch match = match_iterator.next();
+            setFormat(match.capturedStart(), match.capturedLength(), rule.format);
         }
     }
 }
