@@ -9,7 +9,7 @@
 #include <atomic>
 
 // --- Configuration ---
-const int DEFAULT_PORT = 8080;
+const int DEFAULT_PORT = 9876; // Changed to avoid conflict with common dev servers like llama.cpp
 
 // Global flag for signal handling
 std::atomic<bool> shutdown_requested(false);
