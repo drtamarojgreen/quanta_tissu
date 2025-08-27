@@ -34,7 +34,7 @@ class Generator:
         # The returned logits are for the *next* token prediction after the prompt.
         # The input shape is (batch_size, seq_len), so we add a batch dimension.
         prompt_array = np.array([current_tokens])
-        logits = self.model.forward(prompt_array, start_pos=0)
+        logits, _ = self.model.forward(prompt_array, start_pos=0)
 
         for _ in range(n_new_tokens):
             # We only need the logits for the very last token to predict the next one.
@@ -62,7 +62,7 @@ class Generator:
             # Prepare the input for the next iteration. It's just the new token.
             # The model will use its internal KV cache because start_pos > 0.
             next_token_array = np.array([[next_token]])
-            logits = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
+            logits, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
 
         return generated_tokens
 
