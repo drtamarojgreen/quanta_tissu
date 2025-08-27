@@ -20,7 +20,13 @@ class TestBPETokenizer(unittest.TestCase):
 
     def tearDown(self):
         if os.path.exists(self.test_dir):
-            shutil.rmtree(self.test_dir)
+            # Manually remove directory and its contents
+            for root, dirs, files in os.walk(self.test_dir, topdown=False):
+                for name in files:
+                    os.remove(os.path.join(root, name))
+                for name in dirs:
+                    os.rmdir(os.path.join(root, name))
+            os.rmdir(self.test_dir)
 
     def test_get_pairs(self):
         ids = [1, 2, 3, 1, 2]
