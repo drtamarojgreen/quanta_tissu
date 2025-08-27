@@ -7,7 +7,7 @@ import numpy as np
 
 # Add the project root to sys.path for module discovery
 script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
+project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..')) # Adjust '..' count based on file location relative to project root
 sys.path.insert(0, project_root)
 
 # Import core model components
@@ -214,8 +214,14 @@ def main():
     if model and tokenizer:
         log_subsection_header(logger, "Knowledge Base Retrieval Analysis")
         try:
-            # Initialize KnowledgeBase
-            knowledge_base = KnowledgeBase(model.embeddings, tokenizer)
+            # Initialize Embedder and TissDBClient for KnowledgeBase
+            from quanta_tissu.tisslm.core.embedding.embedder import Embedder
+            from quanta_tissu.tisslm.core.db.client import TissDBClient
+
+            embedder_instance = Embedder(tokenizer, model.embeddings.value) # Pass tokenizer and model.embeddings.value to Embedder
+            db_client_instance = TissDBClient() # Default host/port
+
+            knowledge_base = KnowledgeBase(embedder_instance, db_client_instance)
 
             # Create some dummy documents and embeddings for testing
             dummy_documents = [
@@ -225,11 +231,12 @@ def main():
                 "The earth is a planet.",
                 "The universe is vast."
             ]
-            dummy_embeddings = [knowledge_base._embed_text(doc) for doc in dummy_documents]
+            # Use the embedder_instance to embed dummy documents
+            dummy_embeddings = [embedder_instance.embed(doc) for doc in dummy_documents]
 
             # Define a list of test configurations for the retrieve function
             retrieval_configs = [
-                {'method': 'cosine', 'use_db': True},
+                {'method': 'cosine', 'use_db': False},
                 {'method': 'cosine', 'use_db': False, 'backward_pass_data': {'receptor_field': {'documents': dummy_documents, 'embeddings': dummy_embeddings}}},
                 {'method': 'cnn', 'use_db': False, 'backward_pass_data': {'receptor_field': {'documents': dummy_documents, 'embeddings': dummy_embeddings}}},
                 {'method': 'genetic', 'use_db': False, 'backward_pass_data': {'receptor_field': {'documents': dummy_documents, 'embeddings': dummy_embeddings}}},

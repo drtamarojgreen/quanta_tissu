@@ -28,7 +28,7 @@ class Embedder:
         """
         try:
             token_ids = self.tokenizer.tokenize(text)
-            if not token_ids:
+            if token_ids.size == 0:
                 logger.warning("Input text for embedding is empty or tokenized to empty.")
                 return np.zeros(self.embedding_dim)
 
