@@ -59,8 +59,10 @@ def inspect_model_forward_pass(model, tokenizer, input_text: str, block_size: in
     logger.info("\nStep 2.5: Positional Encoding")
     try:
         # Apply positional encoding
-        # Assuming PositionalEncoding is called like model.pos_encoding(x, start_pos)
-        x_pos_encoded = model.pos_encoding(embeddings, start_pos=0) # Assuming start_pos=0 for initial input
+        # The diagnostic 'dir(model)' output revealed a nested 'model' attribute.
+        # This suggests the main components are inside 'model.model'.
+        # We will access the positional encoding and subsequent layers through this nested object.
+        x_pos_encoded = model.model.pos_encoding(embeddings, start_pos=0)
         logger.info(f"Positional Encoded shape: {x_pos_encoded.shape}")
         logger.info(f"Positional Encoded (first 5 tokens, first 5 dimensions):\n{x_pos_encoded[0, :5, :5]}")
         current_output = x_pos_encoded
@@ -71,11 +73,14 @@ def inspect_model_forward_pass(model, tokenizer, input_text: str, block_size: in
     # 3. Transformer Block Inspection
     logger.info("\nStep 3: Transformer Blocks")
     # Iterate through each transformer block and log its output
-    for i, block in enumerate(model.transformer_blocks):
+    # Accessing transformer_blocks through the nested model object
+    for i, block in enumerate(model.model.transformer_blocks):
         try:
             # Pass the current_output through the block
-            # Assuming TransformerBlock can take mask=None and kv_cache=None for inspection
-            block_output = block(current_output, mask=None, kv_cache=None)
+            # The block returns a tuple (output_tensor, kv_cache). For this inspection,
+            # we only need the output tensor, which is the first element of the tuple.
+            result_tuple = block(current_output, mask=None, kv_cache=None)
+            block_output = result_tuple[0]
             logger.info(f"  Block {i+1} Output Shape: {block_output.shape}")
             logger.info(f"  Block {i+1} Output (first 5 tokens, first 5 dimensions):\n{block_output[0, :5, :5]}")
             current_output = block_output # Update current_output for the next block
@@ -87,7 +92,8 @@ def inspect_model_forward_pass(model, tokenizer, input_text: str, block_size: in
     logger.info("\nStep 4: Output Projection Layer")
     try:
         # Apply the final output projection
-        logits = current_output @ model.output_proj.value
+        # Accessing output_proj through the nested model object
+        logits = current_output @ model.model.output_proj.value
         logger.info(f"Logits shape: {logits.shape}")
         logger.info(f"Logits (first 5 tokens, first 5 vocab dims):\n{logits[0, :5, :5]}")
     except Exception as e:

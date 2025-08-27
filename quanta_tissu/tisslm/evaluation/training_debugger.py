@@ -20,7 +20,10 @@ def inspect_model_parameters(model):
         model: The language model.
     """
     logging.info("\n--- Inspecting Model Parameters ---")
-    for name, param in model.parameters().items(): # Assuming model.parameters() returns a dict of named params
+    # model.parameters() returns a list of Parameter objects. We iterate through this list.
+    for param_obj in model.parameters():
+        name = param_obj.name
+        param = param_obj.value
         logging.info(f"Parameter: {name}")
         logging.info(f"  Shape: {param.shape}")
         logging.info(f"  Mean: {np.mean(param)}")
@@ -44,20 +47,23 @@ def check_gradients(model):
         model: The language model.
     """
     logging.info("\n--- Checking Gradients ---")
-    for name, param in model.parameters().items():
-        if param.grad is not None:
+    # model.parameters() returns a list of Parameter objects. We iterate through this list.
+    for param_obj in model.parameters():
+        name = param_obj.name
+        grad = param_obj.grad
+        if grad is not None:
             logging.info(f"Gradient for {name}:")
-            logging.info(f"  Shape: {param.grad.shape}")
-            logging.info(f"  Mean: {np.mean(param.grad)}")
-            logging.info(f"  Std Dev: {np.std(param.grad)}")
-            logging.info(f"  Min: {np.min(param.grad)}")
-            logging.info(f"  Max: {np.max(param.grad)}")
-            logging.info(f"  NaNs: {np.sum(np.isnan(param.grad))}")
-            logging.info(f"  Infs: {np.sum(np.isinf(param.grad))}")
+            logging.info(f"  Shape: {grad.shape}")
+            logging.info(f"  Mean: {np.mean(grad)}")
+            logging.info(f"  Std Dev: {np.std(grad)}")
+            logging.info(f"  Min: {np.min(grad)}")
+            logging.info(f"  Max: {np.max(grad)}")
+            logging.info(f"  NaNs: {np.sum(np.isnan(grad))}")
+            logging.info(f"  Infs: {np.sum(np.isinf(grad))}")
 
-            if np.mean(np.abs(param.grad)) < 1e-8:
+            if np.mean(np.abs(grad)) < 1e-8:
                 logging.warning(f"  WARNING: Gradient for {name} is very small (vanishing gradient?).")
-            elif np.mean(np.abs(param.grad)) > 1e+3:
+            elif np.mean(np.abs(grad)) > 1e+3:
                 logging.warning(f"  WARNING: Gradient for {name} is very large (exploding gradient?).")
         else:
             logging.info(f"Gradient for {name}: None (not computed or zeroed)")

@@ -18,7 +18,7 @@ from quanta_tissu.tisslm.core.data import Dataset, load_corpus
 from quanta_tissu.tisslm.config import model_config, training_config, system_config, tokenizer_config
 from quanta_tissu.tisslm.core.scheduler import CosineDecayWithWarmup
 from quanta_tissu.tisslm.core.utils import save_checkpoint, load_checkpoint
-from quanta_tissu.tisslm.core.utils import save_checkpoint, load_checkpoint, calculate_perplexity
+from quanta_tissu.tisslm.evaluation.training_debugger import inspect_model_parameters, check_gradients
 from quanta_tissu.tisslm.core.generate_text import generate_text
 
 # Setup logging
@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def main():
     parser = argparse.ArgumentParser(description="Train the QuantaTissu model with custom tokenizer and text generation.")
-    parser.add_argument("--tokenizer_path", type=str, required=True, help="Path to the tokenizer directory.")
+    parser.add_argument("--tokenizer_path", type=str, default="tokenizer/trained_tokenizer", help="Path prefix for the tokenizer files, relative to project root.")
     parser.add_argument("--corpus_path", type=str, default=os.path.join(project_root, "corpus"), help="Path to the training corpus directory.")
     parser.add_argument("--epochs", type=int, default=training_config["num_epochs"], help="Number of training epochs.")
     parser.add_argument("--batch_size", type=int, default=training_config["batch_size"], help="Batch size for training.")
@@ -46,9 +46,10 @@ def main():
 
     # 1. Components Initialization
     try:
-        tokenizer = Tokenizer(tokenizer_path=args.tokenizer_path)
+        tokenizer_full_path = os.path.normpath(os.path.join(project_root, args.tokenizer_path))
+        tokenizer = Tokenizer(tokenizer_path=tokenizer_full_path)
     except Exception as e:
-        logging.error(f"Could not initialize tokenizer. Error: {e}")
+        logging.error(f"Could not initialize tokenizer from path '{tokenizer_full_path}'. Error: {e}")
         return
 
     model_config["vocab_size"] = tokenizer.get_vocab_size()
@@ -89,10 +90,15 @@ def main():
     for epoch in range(start_epoch, args.epochs):
         logging.info(f"\n--- Epoch {epoch+1}/{args.epochs} ---")
         for x_batch, y_batch in dataset:
-            logits = model.forward(x_batch)
+            # The model.forward() returns a tuple (logits, kv_cache).
+            # For training, we only need the logits for the loss calculation.
+            # We unpack the tuple and discard the kv_cache.
+            logits, _ = model.forward(x_batch)
             loss = loss_fn.forward(logits, y_batch)
             d_logits = loss_fn.backward()
-            model.backward(d_logits)
+            # The backward pass, like the core components, is on the nested model object.
+            # We call backward on model.model to propagate the gradients.
+            model.model.backward(d_logits)
 
             params = model.parameters()
             grads = [p.grad for p in params if p.grad is not None]
@@ -125,9 +131,13 @@ def main():
                 )
                 logging.info(f"Generated text: {generated_text}")
 
-                # Calculate and log perplexity
-                perplexity = calculate_perplexity(model, val_dataset, loss_fn)
-                logging.info(f"Validation Perplexity: {perplexity:.4f}")
+                # --- Live Training Diagnostics ---
+                # Inspect parameters and gradients to catch issues like parameter collapse or
+                # vanishing/exploding gradients as they happen.
+                logging.info("--- Running Live Diagnostics ---")
+                inspect_model_parameters(model)
+                check_gradients(model)
+                logging.info("--- Live Diagnostics Complete ---")
 
             step += 1
 

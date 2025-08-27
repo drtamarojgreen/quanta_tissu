@@ -12,7 +12,10 @@ sys.path.insert(0, project_root)
 from quanta_tissu.tisslm.core.tokenizer import Tokenizer
 from quanta_tissu.tisslm.core.model import QuantaTissu
 from quanta_tissu.tisslm.core.generate_text import generate_text
-from quanta_tissu.tisslm.config import model_config, training_config, tokenizer_config # Import all necessary configs
+from quanta_tissu.tisslm.evaluation.training_debugger import inspect_model_parameters
+from quanta_tissu.tisslm.evaluation.model_inspector import inspect_model_forward_pass
+from quanta_tissu.tisslm.evaluation.config_validator import validate_all_configs
+from quanta_tissu.tisslm.config import model_config, training_config, tokenizer_config, system_config # Import all necessary configs
 
 # Setup basic logging for this script
 logging.basicConfig(
@@ -32,7 +35,7 @@ def main():
     
     # Paths should have sensible defaults if possible, or be clearly documented
     # For now, making them optional with a warning if not found.
-    parser.add_argument("--tokenizer_path", type=str, default="tokenizer/trained_tokenizer", help="Path to the tokenizer directory.")
+    parser.add_argument("--tokenizer_path", type=str, default="tokenizer/trained_tokenizer", help="Path prefix for the tokenizer files.")
     parser.add_argument("--checkpoint_path", type=str, default="checkpoints/checkpoint_step_248860.npz", help="Path to the model checkpoint (.npz file).")
     
     parser.add_argument("--method", type=str, default="nucleus", help="Generation method: greedy, top_k, nucleus, random.")
@@ -43,6 +46,16 @@ def main():
 
     args = parser.parse_args()
 
+    logger.info("--- Starting Methodical Evaluation ---")
+
+    # Step 1: Validate all configurations to establish a baseline.
+    logger.info("Step 1: Validating configurations...")
+    if not validate_all_configs(model_config, training_config, tokenizer_config, system_config):
+        logger.error("Configuration validation failed. Please check your config files in 'quanta_tissu/tisslm/config'. Exiting.")
+        sys.exit(1)
+    logger.info("Configurations are valid.")
+
+    logger.info("\nStep 2: Initializing Components...")
     logger.info("Initializing Tokenizer...")
     tokenizer_full_path = os.path.normpath(os.path.join(project_root, args.tokenizer_path))
     try:
@@ -63,6 +76,17 @@ def main():
         sys.exit(1)
     model.load_weights(checkpoint_full_path)
     logger.info("Model loaded successfully.")
+
+    # The following inspection steps will now be run to analyze the model's state.
+    # Add a diagnostic step to trace the forward pass and see where activations might be failing.
+    # This helps correlate the "dead parameters" with their effect on data flow.
+    logger.info("\n--- Inspecting model forward pass ---")
+    inspect_model_forward_pass(model, tokenizer, args.prompt, model_config["block_size"])
+
+    # Add a diagnostic step to inspect the loaded parameters for potential issues.
+    # Corrupted weights from a legacy load will often have strange statistics.
+    logger.info("--- Inspecting loaded model parameters ---")
+    inspect_model_parameters(model)
 
     logger.info(f"Generating text with prompt: '{args.prompt}'")
     generated_text = generate_text(
