@@ -52,10 +52,39 @@ TEST_CASE(ExecutorUsesSingleIndex) {
 
     std::cout << "\nTesting single index usage..." << std::endl;
     Query::AST ast = parser.parse("SELECT * FROM products WHERE brand = 'TechGear'");
-    Query::QueryResult result = fixture.executor->execute(ast);
+    Query::QueryResult result = fixture.executor->execute(ast, {});
 
     ASSERT_EQ(1, result.size());
     ASSERT_EQ("3", result[0].id);
+}
+
+TEST_CASE(ExecutorWithParameters) {
+    ExecutorTestFixture fixture;
+    Query::Parser parser;
+
+    std::cout << "\nTesting query with parameters..." << std::endl;
+    Query::AST ast = parser.parse("SELECT * FROM products WHERE brand = ? AND price > ?");
+    std::vector<Query::Literal> params = {"AudioPhonic", 100.0};
+    Query::QueryResult result = fixture.executor->execute(ast, params);
+
+    ASSERT_EQ(2, result.size());
+    // Sort results by ID to have a deterministic order for checking
+    std::sort(result.begin(), result.end(), [](const Document& a, const Document& b){
+        return a.id < b.id;
+    });
+    ASSERT_EQ("1", result[0].id);
+    ASSERT_EQ("2", result[1].id);
+}
+
+TEST_CASE(ExecutorParameterCountMismatch) {
+    ExecutorTestFixture fixture;
+    Query::Parser parser;
+
+    std::cout << "\nTesting parameter count mismatch..." << std::endl;
+    Query::AST ast = parser.parse("SELECT * FROM products WHERE brand = ? AND price > ?");
+    std::vector<Query::Literal> params = {"AudioPhonic"}; // Only one parameter
+
+    ASSERT_THROW(fixture.executor->execute(ast, params), std::runtime_error);
 }
 
 TEST_CASE(ExecutorUsesCompoundIndex) {
@@ -64,7 +93,7 @@ TEST_CASE(ExecutorUsesCompoundIndex) {
 
     std::cout << "\nTesting compound index usage..." << std::endl;
     Query::AST ast = parser.parse("SELECT * FROM products WHERE brand = 'AudioPhonic' AND type = 'headphones'");
-    Query::QueryResult result = fixture.executor->execute(ast);
+    Query::QueryResult result = fixture.executor->execute(ast, {});
 
     ASSERT_EQ(1, result.size());
     ASSERT_EQ("1", result[0].id);
@@ -78,7 +107,7 @@ TEST_CASE(ExecutorFallsBackToSingleIndex) {
     // The compound index is (brand, type), but the query is on (brand, price).
     // It should use the single-field index on 'brand'.
     Query::AST ast = parser.parse("SELECT * FROM products WHERE brand = 'AudioPhonic' AND price = 500");
-    Query::QueryResult result = fixture.executor->execute(ast);
+    Query::QueryResult result = fixture.executor->execute(ast, {});
 
     // The index on 'brand' will return docs 1 and 2. The filter will then remove doc 1.
     ASSERT_EQ(1, result.size());
@@ -92,7 +121,7 @@ TEST_CASE(ExecutorPerformsFullScan) {
     std::cout << "\nTesting full scan..." << std::endl;
     // No index on 'price'
     Query::AST ast = parser.parse("SELECT * FROM products WHERE price = 150");
-    Query::QueryResult result = fixture.executor->execute(ast);
+    Query::QueryResult result = fixture.executor->execute(ast, {});
 
     ASSERT_EQ(1, result.size());
     ASSERT_EQ("3", result[0].id);

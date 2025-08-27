@@ -59,208 +59,193 @@ std::optional<std::string> get_as_string(const Value& val) {
     return std::nullopt; // Incompatible types for string comparison
 }
 
+// --- Expression Resolution ---
+
+Value resolve_expression_to_value(const Expression& expr, const Document& doc, const std::vector<Literal>& params) {
+    if (const auto* ident_ptr = std::get_if<Identifier>(&expr)) {
+        const Value* val = get_value_from_doc(doc, ident_ptr->name);
+        return val ? *val : Value{std::nullptr_t{}};
+    }
+    if (const auto* lit_ptr = std::get_if<Literal>(&expr)) {
+        if (const auto* str_val = std::get_if<std::string>(lit_ptr)) return *str_val;
+        if (const auto* num_val = std::get_if<double>(lit_ptr)) return *num_val;
+        if (const auto* bool_val = std::get_if<bool>(lit_ptr)) return *bool_val;
+        if (std::holds_alternative<Null>(*lit_ptr)) return std::nullptr_t{};
+    }
+    if (const auto* param_ptr = std::get_if<ParameterExpression>(&expr)) {
+        if (param_ptr->index >= params.size()) {
+            throw std::runtime_error("Parameter index out of bounds.");
+        }
+        const auto& param_lit = params[param_ptr->index];
+        if (const auto* str_val = std::get_if<std::string>(&param_lit)) return *str_val;
+        if (const auto* num_val = std::get_if<double>(&param_lit)) return *num_val;
+        if (const auto* bool_val = std::get_if<bool>(&param_lit)) return *bool_val;
+        if (std::holds_alternative<Null>(param_lit)) return std::nullptr_t{};
+    }
+    if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
+        const auto& binary_expr = *binary_expr_ptr;
+        Value left_val = resolve_expression_to_value(binary_expr.left, doc, params);
+        Value right_val = resolve_expression_to_value(binary_expr.right, doc, params);
+
+        auto left_num_opt = get_as_numeric(left_val);
+        auto right_num_opt = get_as_numeric(right_val);
+
+        if (left_num_opt && right_num_opt) {
+            if (binary_expr.op == "+") return *left_num_opt + *right_num_opt;
+            if (binary_expr.op == "-") return *left_num_opt - *right_num_opt;
+            if (binary_expr.op == "*") return *left_num_opt * *right_num_opt;
+            if (binary_expr.op == "/") {
+                if (*right_num_opt == 0) throw std::runtime_error("Division by zero");
+                return *left_num_opt / *right_num_opt;
+            }
+        }
+        throw std::runtime_error("Unsupported arithmetic operation or type mismatch.");
+    }
+    throw std::runtime_error("Unsupported expression type for value resolution.");
+}
+
 
 // Evaluate an expression against a document
-bool evaluate_expression(const Expression& expr, const Document& doc) {
+bool evaluate_expression(const Expression& expr, const Document& doc, const std::vector<Literal>& params) {
     if (const auto* logical_expr_ptr = std::get_if<std::shared_ptr<LogicalExpression>>(&expr)) {
         const auto& logical_expr = *logical_expr_ptr;
         if (logical_expr->op == "AND") {
-            return evaluate_expression(logical_expr->left, doc) && evaluate_expression(logical_expr->right, doc);
+            return evaluate_expression(logical_expr->left, doc, params) && evaluate_expression(logical_expr->right, doc, params);
         } else if (logical_expr->op == "OR") {
-            return evaluate_expression(logical_expr->left, doc) || evaluate_expression(logical_expr->right, doc);
+            return evaluate_expression(logical_expr->left, doc, params) || evaluate_expression(logical_expr->right, doc, params);
         }
     } else if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
         const auto& binary_expr = *binary_expr_ptr;
-        const auto* left_ident = std::get_if<Identifier>(&binary_expr->left);
-        const auto* right_literal_ptr = std::get_if<Literal>(&binary_expr->right);
 
-        if (!left_ident || !right_literal_ptr) {
-            return false; // Invalid expression structure
-        }
+        Value left_value = resolve_expression_to_value(binary_expr->left, doc, params);
+        Value right_value = resolve_expression_to_value(binary_expr->right, doc, params);
 
-        const auto* doc_value_ptr = get_value_from_doc(doc, left_ident->name);
-        if (!doc_value_ptr) {
-            return false; // Field does not exist in document
-        }
-
-        const Value& doc_value = *doc_value_ptr;
-        Value literal_value;
-        if (std::holds_alternative<Null>(*right_literal_ptr)) {
-            literal_value = std::nullptr_t{};
-        } else if (const auto* str_val = std::get_if<std::string>(right_literal_ptr)) {
-            literal_value = *str_val;
-        } else if (const auto* num_val = std::get_if<double>(right_literal_ptr)) {
-            literal_value = *num_val;
-        } else if (const auto* bool_val = std::get_if<bool>(right_literal_ptr)) {
-            literal_value = *bool_val;
-        }
         const std::string& op = binary_expr->op;
 
-        // Try numeric comparison first
-        auto doc_num_opt = get_as_numeric(doc_value);
-        auto lit_num_opt = get_as_numeric(literal_value);
+        auto left_num_opt = get_as_numeric(left_value);
+        auto right_num_opt = get_as_numeric(right_value);
 
-        if (doc_num_opt && lit_num_opt) {
-            double doc_num = *doc_num_opt;
-            double lit_num = *lit_num_opt;
-            if (op == "=") return doc_num == lit_num;
-            if (op == "!=") return doc_num != lit_num;
-            if (op == ">") return doc_num > lit_num;
-            if (op == "<") return doc_num < lit_num;
-            if (op == ">=") return doc_num >= lit_num;
-            if (op == "<=") return doc_num <= lit_num;
+        if (left_num_opt && right_num_opt) {
+            double left_num = *left_num_opt;
+            double right_num = *right_num_opt;
+            if (op == "=") return left_num == right_num;
+            if (op == "!=") return left_num != right_num;
+            if (op == ">") return left_num > right_num;
+            if (op == "<") return left_num < right_num;
+            if (op == ">=") return left_num >= right_num;
+            if (op == "<=") return left_num <= right_num;
         }
 
-        // Fallback to string comparison
-        auto doc_str_opt = get_as_string(doc_value);
-        auto lit_str_opt = get_as_string(literal_value);
+        auto left_str_opt = get_as_string(left_value);
+        auto right_str_opt = get_as_string(right_value);
 
-        if (doc_str_opt && lit_str_opt) {
-            const std::string& doc_str = *doc_str_opt;
-            const std::string& lit_str = *lit_str_opt;
-            if (op == "=") return doc_str == lit_str;
-            if (op == "!=") return doc_str != lit_str;
-            if (op == ">") return doc_str > lit_str;
-            if (op == "<") return doc_str < lit_str;
-            if (op == ">=") return doc_str >= lit_str;
-            if (op == "<=") return doc_str <= lit_str;
+        if (left_str_opt && right_str_opt) {
+            const std::string& left_str = *left_str_opt;
+            const std::string& right_str = *right_str_opt;
+            if (op == "=") return left_str == right_str;
+            if (op == "!=") return left_str != right_str;
+            if (op == ">") return left_str > right_str;
+            if (op == "<") return left_str < right_str;
+            if (op == ">=") return left_str >= right_str;
+            if (op == "<=") return left_str <= right_str;
             if (op == "LIKE") {
                 try {
-                    std::regex re(like_to_regex(lit_str));
-                    return std::regex_match(doc_str, re);
+                    std::regex re(like_to_regex(right_str));
+                    return std::regex_match(left_str, re);
                 } catch (const std::regex_error& e) {
-                    // Invalid LIKE pattern
                     return false;
                 }
             }
         }
     }
-    // If no comparison could be made, or if it's not a recognized expression type
     return false;
 }
 
-// --- New function to evaluate expressions in an UPDATE SET clause ---
-Literal evaluate_update_expression(const Expression& expr, const Document& doc) {
-    if (const auto* lit_ptr = std::get_if<Literal>(&expr)) {
-        return *lit_ptr;
+Literal evaluate_update_expression(const Expression& expr, const Document& doc, const std::vector<Literal>& params) {
+    Value resolved_value = resolve_expression_to_value(expr, doc, params);
+    if (const auto* str_val = std::get_if<std::string>(&resolved_value)) {
+        return *str_val;
     }
-
-    if (const auto* ident_ptr = std::get_if<Identifier>(&expr)) {
-        for (const auto& elem : doc.elements) {
-            if (elem.key == ident_ptr->name) {
-                if (const auto* str_val = std::get_if<std::string>(&elem.value)) {
-                    return *str_val;
-                } else if (const auto* num_val = std::get_if<double>(&elem.value)) {
-                    return *num_val;
-                }
-            }
-        }
-        throw std::runtime_error("Field not found in document: " + ident_ptr->name);
+    if (const auto* num_val = std::get_if<double>(&resolved_value)) {
+        return *num_val;
     }
-
-    if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
-        const auto& binary_expr = *binary_expr_ptr;
-        Literal left_val = evaluate_update_expression(binary_expr->left, doc);
-        Literal right_val = evaluate_update_expression(binary_expr->right, doc);
-
-        if (const auto* left_num = std::get_if<double>(&left_val)) {
-            if (const auto* right_num = std::get_if<double>(&right_val)) {
-                if (binary_expr->op == "+") return *left_num + *right_num;
-                if (binary_expr->op == "-") return *left_num - *right_num;
-                if (binary_expr->op == "*") return *left_num * *right_num;
-                if (binary_expr->op == "/") {
-                    if (*right_num == 0) throw std::runtime_error("Division by zero");
-                    return *left_num / *right_num;
-                }
-            }
-        }
-        // Add more type combinations if needed (e.g., string concatenation)
-        throw std::runtime_error("Unsupported operator or type combination in SET clause");
+    if (const auto* bool_val = std::get_if<bool>(&resolved_value)) {
+        return *bool_val;
     }
-
-    throw std::runtime_error("Unsupported expression type in SET clause");
+    if (std::holds_alternative<std::nullptr_t>(resolved_value)) {
+        return Null{};
+    }
+    throw std::runtime_error("Could not convert resolved value to Literal for update.");
 }
 
 void process_aggregation(std::map<std::string, AggregateResult>& results_map, const std::string& result_key, const Document& doc, const AggregateFunction& agg_func) {
-    // Handle COUNT(*) separately. It counts every row passed to it.
+    // This function does not currently need parameter support, so its signature remains unchanged.
     if (agg_func.type == AggregateType::COUNT && !agg_func.field_name.has_value()) {
         results_map[result_key].count++;
         return;
     }
 
-    // For any other aggregation, a field name is required.
     if (!agg_func.field_name.has_value()) {
-        // This case should ideally be prevented by the parser.
         return;
     }
     const std::string& field = agg_func.field_name.value();
 
-    // Find the element with the specified field name in the document.
-    for (const auto& elem : doc.elements) {
-        if (elem.key == field) {
-            auto& result = results_map[result_key];
+    const Value* value_ptr = get_value_from_doc(doc, field);
+    if (!value_ptr) return;
 
-            // COUNT(field) increments for any non-null occurrence of the field.
-            if (agg_func.type == AggregateType::COUNT) {
-                result.count++;
-            }
+    auto& result = results_map[result_key];
+    if (agg_func.type == AggregateType::COUNT) {
+        result.count++;
+    }
 
-            // Handle numeric aggregations.
-            if (auto* num_val = std::get_if<Number>(&elem.value)) {
-                switch (agg_func.type) {
-                    case AggregateType::SUM:
-                        result.sum += *num_val;
-                        break;
-                    case AggregateType::AVG:
-                        result.sum += *num_val;
-                        result.avg_count++; // Use dedicated counter for AVG
-                        break;
-                    case AggregateType::MIN:
-                        if (!result.min.has_value() || *num_val < result.min.value()) {
-                            result.min = *num_val;
-                        }
-                        break;
-                    case AggregateType::MAX:
-                        if (!result.max.has_value() || *num_val > result.max.value()) {
-                            result.max = *num_val;
-                        }
-                        break;
-                    default:
-                        // COUNT is handled above, other types don't apply to numbers here.
-                        break;
+    if (auto num_val_opt = get_as_numeric(*value_ptr)) {
+        double num_val = *num_val_opt;
+        switch (agg_func.type) {
+            case AggregateType::SUM:
+                result.sum += num_val;
+                break;
+            case AggregateType::AVG:
+                result.sum += num_val;
+                result.avg_count++;
+                break;
+            case AggregateType::MIN:
+                if (!result.min.has_value() || num_val < result.min.value()) {
+                    result.min = num_val;
                 }
-            }
-            // Handle string aggregations for MIN/MAX.
-            else if (auto* str_val = std::get_if<std::string>(&elem.value)) {
-                switch (agg_func.type) {
-                    case AggregateType::MIN:
-                        if (!result.min_str.has_value() || *str_val < result.min_str.value()) {
-                            result.min_str = *str_val;
-                        }
-                        break;
-                    case AggregateType::MAX:
-                        if (!result.max_str.has_value() || *str_val > result.max_str.value()) {
-                            result.max_str = *str_val;
-                        }
-                        break;
-                    default:
-                        // Other aggregates do not apply to strings.
-                        break;
+                break;
+            case AggregateType::MAX:
+                if (!result.max.has_value() || num_val > result.max.value()) {
+                    result.max = num_val;
                 }
-            }
-            // Once the field is found and processed, we can exit the loop for this document.
-            return;
+                break;
+            default:
+                break;
+        }
+    }
+    else if (auto str_val_opt = get_as_string(*value_ptr)) {
+        const std::string& str_val = *str_val_opt;
+        switch (agg_func.type) {
+            case AggregateType::MIN:
+                if (!result.min_str.has_value() || str_val < result.min_str.value()) {
+                    result.min_str = str_val;
+                }
+                break;
+            case AggregateType::MAX:
+                if (!result.max_str.has_value() || str_val > result.max_str.value()) {
+                    result.max_str = str_val;
+                }
+                break;
+            default:
+                break;
         }
     }
 }
 
+
 Document combine_documents(const Document& doc1, const Document& doc2) {
     Document combined_doc;
     combined_doc.id = doc1.id + "_" + doc2.id;
-
-    for (const auto& elem : doc1.elements) {
-        combined_doc.elements.push_back(elem);
-    }
+    combined_doc.elements = doc1.elements;
     for (const auto& elem : doc2.elements) {
         bool found = false;
         for (const auto& existing_elem : combined_doc.elements) {
@@ -277,6 +262,8 @@ Document combine_documents(const Document& doc1, const Document& doc2) {
 }
 
 void extract_equality_conditions(const Expression& expr, std::map<std::string, std::string>& conditions) {
+    // This function is used for potential query optimization and does not support parameters.
+    // It only extracts simple `field = 'literal'` conditions.
     if (const auto* logical_expr_ptr = std::get_if<std::shared_ptr<LogicalExpression>>(&expr)) {
         const auto& logical_expr = *logical_expr_ptr;
         if (logical_expr->op == "AND") {
@@ -314,6 +301,8 @@ std::string value_to_string(const Value& value) {
         ss << *num_val;
     } else if (const auto* bool_val = std::get_if<bool>(&value)) {
         ss << (*bool_val ? "true" : "false");
+    } else if (std::holds_alternative<std::nullptr_t>(value)) {
+        ss << "null";
     }
     return ss.str();
 }

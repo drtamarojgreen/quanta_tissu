@@ -91,14 +91,13 @@ def main():
         logging.info(f"\n--- Epoch {epoch+1}/{args.epochs} ---")
         for x_batch, y_batch in dataset:
             # The model.forward() returns a tuple (logits, kv_cache).
-            # For training, we only need the logits for the loss calculation.
-            # We unpack the tuple and discard the kv_cache.
-            logits, _ = model.forward(x_batch)
+            # The cache is required for the backward pass.
+            logits, cache = model.forward(x_batch)
             loss = loss_fn.forward(logits, y_batch)
             d_logits = loss_fn.backward()
-            # The backward pass should be called on the top-level model object,
-            # which will orchestrate backpropagation through all its components.
-            model.backward(d_logits)
+            # The backward pass requires the cache from the forward pass
+            # to efficiently compute gradients.
+            model.backward(d_logits, cache)
 
             params = model.parameters()
             grads = [p.grad for p in params if p.grad is not None]

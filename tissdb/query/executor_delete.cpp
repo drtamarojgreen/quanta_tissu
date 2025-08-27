@@ -4,14 +4,14 @@
 namespace TissDB {
 namespace Query {
 
-QueryResult execute_delete_statement(Storage::LSMTree& storage_engine, DeleteStatement delete_stmt) {
+QueryResult execute_delete_statement(Storage::LSMTree& storage_engine, const DeleteStatement& delete_stmt, const std::vector<Literal>& params) {
     auto all_docs = storage_engine.scan(delete_stmt.collection_name);
     int deleted_count = 0;
 
     for (const auto& doc : all_docs) {
         bool should_delete = false;
         if (delete_stmt.where_clause) {
-            if (evaluate_expression(*delete_stmt.where_clause, doc)) {
+            if (evaluate_expression(*delete_stmt.where_clause, doc, params)) {
                 should_delete = true;
             }
         } else {
