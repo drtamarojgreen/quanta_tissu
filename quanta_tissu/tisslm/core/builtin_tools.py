@@ -7,7 +7,8 @@ from typing import Dict, Any
 # For now, using 'Any' to avoid circular dependency issues until all files are in place.
 from .execution_engine import State
 
-from .system_error_handler import TissCommandError, TissAssertionError, TissSecurityError
+from .system_error_handler import TissCommandError, TissSecurityError
+from .model_error_handler import TissAssertionError
 
 
 
@@ -114,6 +115,7 @@ def read_file(state: State, args: Dict[str, Any]):
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
         state.variables[variable_name] = content
+        state.last_run_result = {"file_content": content}
         print(f"Successfully read file '{path}' into variable '{variable_name}'.")
     except FileNotFoundError:
         state.is_halted = True
@@ -138,6 +140,10 @@ def _resolve_value(path: str, state: State):
     if path == "LAST_RUN.STDERR":
         if state.last_run_result:
             return state.last_run_result.get("stderr")
+        return None
+    if path == "LAST_RUN.FILE_CONTENT":
+        if state.last_run_result:
+            return state.last_run_result.get("file_content")
         return None
     # Can be extended to support `variables.my_var` in the future
     raise TissCommandError(f"Cannot resolve value for '{path}'.")
