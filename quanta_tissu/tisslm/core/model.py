@@ -3,7 +3,7 @@ import os
 import logging
 
 from .architecture.llm import Model
-from .generation.generator import Generator
+from .generation import Generator
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
 from .parameter import Parameter
