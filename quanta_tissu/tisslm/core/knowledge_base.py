@@ -5,7 +5,7 @@ from datetime import datetime
 
 from .db.client import TissDBClient
 from .embedding.embedder import Embedder
-from .retrieval.strategy import RetrievalStrategy
+from .retrieval.strategy import RetrievalStrategy, CosineSimilarityStrategy
 from .model_error_handler import ModelProcessingError, InputValidationError
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ class KnowledgeBase:
         self.db_client.add_document('knowledge', doc)
         logger.info(f"Added document to knowledge base.")
 
-    def retrieve(self, query_text: str, strategy: RetrievalStrategy, k: int = 1, **kwargs) -> list:
+    def retrieve(self, query_text: str, strategy: RetrievalStrategy = CosineSimilarityStrategy(), k: int = 1, **kwargs) -> list:
         """
         Retrieves the top-k most relevant documents for a query using a given strategy.
         """
