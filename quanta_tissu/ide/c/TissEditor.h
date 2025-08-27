@@ -1,46 +1,29 @@
 #ifndef TISSEDITOR_H
 #define TISSEDITOR_H
 
-#include <iostream>
-#include <string>
-#include <vector>
+#include <QPlainTextEdit>
+#include <QWidget>
 
-// This is a mock base class for a generic text edit widget.
-// In a real GUI framework, TissEditor would inherit from something like
-// QPlainTextEdit (Qt) or wxStyledTextCtrl (wxWidgets).
-class MockTextEditWidget {
+class TissEditor : public QPlainTextEdit
+{
+    Q_OBJECT
+
 public:
-    MockTextEditWidget() {
-        std::cout << "MockTextEditWidget: Constructor." << std::endl;
-    }
-    virtual ~MockTextEditWidget() {}
+    TissEditor(QWidget *parent = nullptr);
 
-    void setPlainText(const std::string& text) {
-        this->text_content = text;
-        std::cout << "MockTextEditWidget: Content set." << std::endl;
-    }
-
-    std::string toPlainText() const {
-        return text_content;
-    }
+    void lineNumberAreaPaintEvent(QPaintEvent *event);
+    int lineNumberAreaWidth();
 
 protected:
-    std::string text_content;
-};
+    void resizeEvent(QResizeEvent *event) override;
 
-
-// TissEditor is a specialized text editor for TissLang files.
-// It could include features like line numbering, code folding, etc.
-class TissEditor : public MockTextEditWidget {
-public:
-    TissEditor();
-    ~TissEditor();
-
-    void setLineNumberAreaWidth(int width);
+private slots:
+    void updateLineNumberAreaWidth(int newBlockCount);
+    void highlightCurrentLine();
+    void updateLineNumberArea(const QRect &rect, int dy);
 
 private:
-    // In a real editor, this would be a separate widget for displaying line numbers.
-    // void* lineNumberArea;
+    QWidget *line_number_area;
 };
 
 #endif // TISSEDITOR_H
