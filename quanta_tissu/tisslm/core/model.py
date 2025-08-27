@@ -3,14 +3,12 @@ import os
 import logging
 
 from .architecture.llm import Model
-from .generation import Generator
+from .generation.generator import Generator
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
 from .parameter import Parameter
 from .model_error_handler import TissModelError, ModelProcessingError
 from .system_error_handler import TissSystemError, DatabaseConnectionError
-from .embedding.embedder import Embedder
-from .db.client import TissDBClient
 
 logger = logging.getLogger(__name__)
 
@@ -30,21 +28,18 @@ class QuantaTissu:
 
         # Instantiate the generator
         self.generator = Generator(self.model)
-        logger.debug(f"Type of self.generator: {type(self.generator)}")
-        logger.debug(f"Does self.generator have 'generate' method? {'generate' in dir(self.generator)}")
+        import sys
+        print(f"DEBUG (direct print): Type of self.generator: {type(self.generator)}", file=sys.stderr)
+        print(f"DEBUG (direct print): Does self.generator have 'generate' method? {'generate' in dir(self.generator)}", file=sys.stderr)
 
         self.knowledge_base = None
         if use_db:
             try:
                 logger.info(f"Initializing KnowledgeBase with TissDB connection to {db_host}:{db_port}")
-                embedder = Embedder(self.model.embeddings.value, tokenize)
-                db_client = TissDBClient(db_host=db_host, db_port=db_port)
-                self.knowledge_base = KnowledgeBase(embedder, db_client)
-                if not self.knowledge_base.connected:
-                    logger.warning("Failed to connect to TissDB. KnowledgeBase will operate in disconnected mode.")
-            except Exception as e:
-                logger.error(f"Fatal error during KnowledgeBase initialization: {e}", exc_info=True)
-                self.knowledge_base = None # Ensure KB is None on failure
+                # Note: KnowledgeBase might need refactoring if it depends on model embeddings directly
+                self.knowledge_base = KnowledgeBase(self.model.embeddings.value, tokenize, db_host=db_host, db_port=db_port)
+            except DatabaseConnectionError as e:
+                raise TissSystemError(f"Failed to connect to database: {e}") from e
 
     def parameters(self):
         """
