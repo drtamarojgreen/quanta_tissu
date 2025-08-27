@@ -26,7 +26,7 @@ This document outlines the continuous integration and deployment (CI/CD) pipelin
 ### CI Pipeline
 
 1.  **Linting**: The Python code is linted using `flake8` and formatted with `black`.
-2.  **Unit Tests**: The Python unit tests are run using `pytest`.
+2.  **Unit Tests**: The Python unit tests are run using the custom test runner script (`tests/run_tests.py`).
 3.  **BDD Tests**: The Behavior-Driven Development (BDD) tests are executed using `behave`.
 4.  **Dependency Scan**: The `requirements.txt` file is scanned for known vulnerabilities.
 
