@@ -24,29 +24,25 @@ class Generator:
     def sample(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, repetition_penalty=1.0, eos_id=None):
         """
         Generates a sequence of tokens based on a prompt.
+        This version assumes the model manages the KV cache internally and its
+        forward method returns only logits.
         """
         generated_tokens = []
-        # Ensure prompt_tokens is a list of Python integers/floats, not numpy types
         current_tokens = [int(t) for t in prompt_tokens]
-        kv_cache = None
 
-        # The model's forward pass is stateful and uses a KV cache.
-        # We process the prompt tokens first to populate the cache.
-        if len(current_tokens) > 1:
-            # Pass all but the last token to pre-fill the cache
-            _, kv_cache = self.model.forward(np.array(current_tokens[:-1]), kv_cache=None, start_pos=0)
-
-        # The generation loop starts from the last token of the prompt
-        token_to_process = np.array([current_tokens[-1]])
-        start_pos = len(current_tokens) - 1
+        # First, process the entire prompt to populate the model's internal KV cache.
+        # The returned logits are for the *next* token prediction after the prompt.
+        # The input shape is (batch_size, seq_len), so we add a batch dimension.
+        prompt_array = np.array([current_tokens])
+        logits = self.model.forward(prompt_array, start_pos=0)
 
         for _ in range(n_new_tokens):
-            # Get the logits from the model for the current token
-            logits, kv_cache = self.model.forward(token_to_process, kv_cache=kv_cache, start_pos=start_pos)
+            # We only need the logits for the very last token to predict the next one.
+            last_logit = logits[:, -1, :]
 
-            # Get the next token by sampling from the logits
+            # Select the next token based on the specified generation strategy.
             next_token = self._predict_from_logits(
-                logits,
+                last_logit,
                 method=method,
                 temperature=temperature,
                 top_k=top_k,
@@ -55,15 +51,18 @@ class Generator:
                 repetition_penalty=repetition_penalty
             )
 
-            # Stop if EOS token is generated
+            # If an end-of-sequence token is generated, stop.
             if eos_id is not None and next_token == eos_id:
                 break
 
-            # Append the new token and prepare for the next iteration
+            # Add the new token to our sequences.
             generated_tokens.append(next_token)
-            current_tokens.append(next_token) # Add to past_tokens for repetition penalty
-            token_to_process = np.array([next_token])
-            start_pos += 1
+            current_tokens.append(next_token)
+
+            # Prepare the input for the next iteration. It's just the new token.
+            # The model will use its internal KV cache because start_pos > 0.
+            next_token_array = np.array([[next_token]])
+            logits = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
 
         return generated_tokens
 
