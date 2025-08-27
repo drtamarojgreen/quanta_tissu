@@ -21,7 +21,7 @@ class Generator:
         """
         self.model = model
 
-    def sample(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, repetition_penalty=1.0, eos_id=None):
+    def sample(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, repetition_penalty=1.0, eos_id=None, bias_token_id=None, bias_strength=0.0):
         """
         Generates a sequence of tokens based on a prompt.
         This version assumes the model manages the KV cache internally and its
@@ -48,7 +48,9 @@ class Generator:
                 top_k=top_k,
                 top_p=top_p,
                 past_tokens=current_tokens,
-                repetition_penalty=repetition_penalty
+                repetition_penalty=repetition_penalty,
+                bias_token_id=bias_token_id,
+                bias_strength=bias_strength
             )
 
             # If an end-of-sequence token is generated, stop.
@@ -66,7 +68,7 @@ class Generator:
 
         return generated_tokens
 
-    def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None, past_tokens=None, repetition_penalty=1.0):
+    def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None, past_tokens=None, repetition_penalty=1.0, bias_token_id=None, bias_strength=0.0):
         """
         Selects the next token from logits based on the chosen sampling method.
         Injects telemetry and orchestration hooks.
@@ -94,7 +96,7 @@ class Generator:
         # --- Orchestration Hook: Apply external policies to probabilities ---
         # This method can be extended to modify 'probs' based on external rules,
         # constraints, or feedback from other agents.
-        orchestrated_probs = self._apply_orchestration_policy(probs, method, temperature, top_k, top_p, past_tokens, repetition_penalty)
+        orchestrated_probs = self._apply_orchestration_policy(probs, method, temperature, top_k, top_p, past_tokens, repetition_penalty, bias_token_id, bias_strength)
         if not np.array_equal(probs, orchestrated_probs):
             logger.debug(f"Orchestration: Probabilities modified by policy. New probs (first 10): {orchestrated_probs[:10].tolist()}")
         probs = orchestrated_probs # Use the potentially modified probabilities
@@ -155,12 +157,20 @@ class Generator:
         
         return next_token
 
-    def _apply_orchestration_policy(self, probs, method, temperature, top_k, top_p, past_tokens, repetition_penalty):
+    def _apply_orchestration_policy(self, probs, method, temperature, top_k, top_p, past_tokens, repetition_penalty, bias_token_id, bias_strength):
         """
-        Placeholder for applying external orchestration policies to token probabilities.
-        This method can be extended to implement custom logic for influencing token selection.
-        For now, it simply returns the probabilities unchanged.
+        Applies external orchestration policies to token probabilities.
+        This implementation applies a bias to a specific token ID.
         """
-        # Example: You could modify 'probs' here based on some external state or rules.
-        # e.g., penalize certain tokens, boost others, or enforce specific sequences.
+        if bias_token_id is not None and bias_strength != 0.0:
+            # Ensure bias_token_id is within the valid range of probabilities
+            if 0 <= bias_token_id < len(probs):
+                # Apply bias: increase probability for the biased token
+                # A simple additive bias, ensure it doesn't exceed 1.0
+                probs[bias_token_id] = min(probs[bias_token_id] + bias_strength, 1.0)
+                # Re-normalize probabilities after biasing
+                probs /= np.sum(probs)
+                logger.debug(f"Orchestration: Applied bias to token {bias_token_id} with strength {bias_strength}. New prob: {probs[bias_token_id]:.4f}")
+            else:
+                logger.warning(f"Orchestration: bias_token_id {bias_token_id} is out of valid range [0, {len(probs)-1}]. Bias not applied.")
         return probs
