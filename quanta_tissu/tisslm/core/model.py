@@ -9,6 +9,8 @@ from .tokenizer import tokenize
 from .parameter import Parameter
 from .model_error_handler import TissModelError, ModelProcessingError
 from .system_error_handler import TissSystemError, DatabaseConnectionError
+from .embedding.embedder import Embedder
+from .db.client import TissDBClient
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +35,14 @@ class QuantaTissu:
         if use_db:
             try:
                 logger.info(f"Initializing KnowledgeBase with TissDB connection to {db_host}:{db_port}")
-                # Note: KnowledgeBase might need refactoring if it depends on model embeddings directly
-                self.knowledge_base = KnowledgeBase(self.model.embeddings.value, tokenize, db_host=db_host, db_port=db_port)
-            except DatabaseConnectionError as e:
-                raise TissSystemError(f"Failed to connect to database: {e}") from e
+                embedder = Embedder(self.model.embeddings.value, tokenize)
+                db_client = TissDBClient(db_host=db_host, db_port=db_port)
+                self.knowledge_base = KnowledgeBase(embedder, db_client)
+                if not self.knowledge_base.connected:
+                    logger.warning("Failed to connect to TissDB. KnowledgeBase will operate in disconnected mode.")
+            except Exception as e:
+                logger.error(f"Fatal error during KnowledgeBase initialization: {e}", exc_info=True)
+                self.knowledge_base = None # Ensure KB is None on failure
 
     def parameters(self):
         """
