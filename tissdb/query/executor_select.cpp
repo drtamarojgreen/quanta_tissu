@@ -55,12 +55,12 @@ std::string get_aggregate_result_key(const AggregateFunction& agg_func) {
     return key;
 }
 
-QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const SelectStatement& select_stmt) {
+QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const SelectStatement& select_stmt, const std::vector<Literal>& params) {
     // --- UNION Operation ---
     if (select_stmt.union_clause) {
         // Recursively execute the left and right select statements
-        auto left_result = execute_select_statement(storage_engine, *select_stmt.union_clause->left_select);
-        auto right_result = execute_select_statement(storage_engine, *select_stmt.union_clause->right_select);
+        auto left_result = execute_select_statement(storage_engine, *select_stmt.union_clause->left_select, params);
+        auto right_result = execute_select_statement(storage_engine, *select_stmt.union_clause->right_select, params);
 
         // Combine the results
         std::vector<Document> combined_docs = left_result;
@@ -177,7 +177,7 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
                 }
 
                 for (const auto& right_doc : right_docs_to_join) {
-                    if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc))) {
+                    if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc), params)) {
                         joined_docs.push_back(combine_documents(left_doc, right_doc));
                         left_doc_matched = true;
                     }
@@ -211,7 +211,7 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
     std::vector<Document> filtered_docs;
     if (select_stmt.where_clause) {
         for (const auto& doc : all_docs) {
-            if (evaluate_expression(*select_stmt.where_clause, doc)) {
+            if (evaluate_expression(*select_stmt.where_clause, doc, params)) {
                 filtered_docs.push_back(doc);
             }
         }
