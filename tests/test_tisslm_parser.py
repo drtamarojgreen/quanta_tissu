@@ -14,9 +14,9 @@ class TestTissLangParser(unittest.TestCase):
         Tests parsing a simple, valid TissLang script with one STEP and one RUN command.
         """
         script = """
-        STEP "A simple step"
-          RUN echo "Hello"
-        END
+        STEP "A simple step" {
+          RUN "echo \"Hello\""
+        }
         """
         parser = TissLangParser()
         ast = parser.parse(script)

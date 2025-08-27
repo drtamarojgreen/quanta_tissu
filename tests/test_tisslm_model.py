@@ -19,9 +19,9 @@ class TestQuantaTissuModel(unittest.TestCase):
         # I will create a mock config that is sufficient for initialization.
         config = {
             'vocab_size': 100,
-            'd_model': 64,
-            'n_layers': 2,
-            'n_heads': 2,
+            'n_embd': 64,
+            'n_layer': 2,
+            'n_head': 2,
             'd_ff': 128,
             'max_seq_len': 256,
             'dropout': 0.1
