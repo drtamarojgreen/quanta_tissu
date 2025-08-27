@@ -92,6 +92,18 @@ class ExecutionEngine:
         try:
             tool = self.tool_registry.get_tool(command_type)
             args = {k: v for k, v in command.items() if k != 'type'}
+
+            # --- Variable Substitution ---
+            import re
+            for key, value in args.items():
+                if isinstance(value, str):
+                    matches = re.findall(r"\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}", value)
+                    for var_name in matches:
+                        if var_name in state.variables:
+                            value = value.replace(f"{{{{{var_name}}}}}", state.variables[var_name])
+                    args[key] = value
+            # --- End Variable Substitution ---
+
             # The tool's execute method is called
             tool.execute(state, args)
             log_entry['status'] = 'SUCCESS'
