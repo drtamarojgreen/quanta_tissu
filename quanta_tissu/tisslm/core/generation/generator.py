@@ -21,6 +21,52 @@ class Generator:
         """
         self.model = model
 
+    def sample(self, prompt_tokens, n_new_tokens, method="greedy", temperature=1.0, top_k=None, top_p=None, repetition_penalty=1.0, eos_id=None):
+        """
+        Generates a sequence of tokens based on a prompt.
+        """
+        generated_tokens = []
+        # Ensure prompt_tokens is a list of Python integers/floats, not numpy types
+        current_tokens = [int(t) for t in prompt_tokens]
+        kv_cache = None
+
+        # The model's forward pass is stateful and uses a KV cache.
+        # We process the prompt tokens first to populate the cache.
+        if len(current_tokens) > 1:
+            # Pass all but the last token to pre-fill the cache
+            _, kv_cache = self.model.forward(np.array(current_tokens[:-1]), kv_cache=None, start_pos=0)
+
+        # The generation loop starts from the last token of the prompt
+        token_to_process = np.array([current_tokens[-1]])
+        start_pos = len(current_tokens) - 1
+
+        for _ in range(n_new_tokens):
+            # Get the logits from the model for the current token
+            logits, kv_cache = self.model.forward(token_to_process, kv_cache=kv_cache, start_pos=start_pos)
+
+            # Get the next token by sampling from the logits
+            next_token = self._predict_from_logits(
+                logits,
+                method=method,
+                temperature=temperature,
+                top_k=top_k,
+                top_p=top_p,
+                past_tokens=current_tokens,
+                repetition_penalty=repetition_penalty
+            )
+
+            # Stop if EOS token is generated
+            if eos_id is not None and next_token == eos_id:
+                break
+
+            # Append the new token and prepare for the next iteration
+            generated_tokens.append(next_token)
+            current_tokens.append(next_token) # Add to past_tokens for repetition penalty
+            token_to_process = np.array([next_token])
+            start_pos += 1
+
+        return generated_tokens
+
     def _predict_from_logits(self, logits, method="greedy", temperature=1.0, top_k=None, top_p=None, past_tokens=None, repetition_penalty=1.0):
         """
         Selects the next token from logits based on the chosen sampling method.
