@@ -59,7 +59,7 @@ Status Key: `[Not Started]` `[In Progress]` `[Done]`
 
 -   **[Done] Comprehensive Unit Tests**: Implement the unit tests outlined in `docs/test.md` to cover edge cases and verify mathematical correctness.
 -   **[Done] Integration Tests**: Add tests that verify the end-to-end workflow, from tokenizing a prompt to detokenizing the final output.
--   **[Done] BDD Test Implementation**: Implement the BDD scenarios from `docs/test.md` using a framework like `pytest-bdd`.
+-   **[Done] BDD Test Implementation**: Implement the BDD scenarios from `docs/test.md` using a BDD framework.
 
 ## 6. Deployment and Interoperability
 
