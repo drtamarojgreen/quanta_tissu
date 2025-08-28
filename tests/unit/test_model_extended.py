@@ -2,12 +2,14 @@ import sys
 import os
 import unittest
 import numpy as np
+from numpy.testing import assert_allclose
 from unittest.mock import MagicMock
 
 # Add project root to path to allow importing quanta_tissu
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from quanta_tissu.tisslm.core.model import QuantaTissu
+from quanta_tissu.tisslm.core.layers import softmax
 
 class TestModelExtended(unittest.TestCase):
 
@@ -149,8 +151,24 @@ class TestModelExtended(unittest.TestCase):
             (mock_logits, None) # Generating the new token
         ])
 
-        # Since the nucleus contains only one token, the sampling is deterministic.
-        generated_tokens = self.model.sample(prompt_tokens, n_new_tokens, method="topp", top_p=top_p)
+        # Mock the model's forward pass to return our crafted logits at the last position
+        mock_logits_for_prompt = np.zeros((1, len(prompt_tokens), vocab_size))
+        mock_logits_for_prompt[0, -1, 42] = 10.0
+        mock_logits_for_prompt[0, -1, 55] = 1.0
+        self.model.model.forward = MagicMock(return_value=(mock_logits_for_prompt, None))
+
+        # Even with a nucleus of one, the implementation uses np.random.choice, so we mock it.
+        with unittest.mock.patch('numpy.random.choice', return_value=42) as mock_choice:
+            generated_tokens = self.model.sample(prompt_tokens, n_new_tokens, method="nucleus", top_p=top_p)
+
+            # Verify that the probabilities passed to choice were correct
+            self.assertTrue(mock_choice.called)
+            args, kwargs = mock_choice.call_args
+            passed_probs = kwargs['p']
+            # The nucleus should contain only token 42
+            self.assertAlmostEqual(passed_probs[42], 1.0)
+            self.assertAlmostEqual(np.sum(passed_probs), 1.0)
+
 
         expected_token = [42]
         self.assertEqual(generated_tokens, expected_token, "Generated token with top-p sampling is incorrect.")
