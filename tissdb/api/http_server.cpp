@@ -47,15 +47,7 @@ Json::JsonObject document_to_json(const Document& doc) {
     Json::JsonObject obj;
     obj["_id"] = Json::JsonValue(doc.id);
     for (const auto& elem : doc.elements) {
-        if (const auto* str_val = std::get_if<std::string>(&elem.value)) {
-            obj[elem.key] = Json::JsonValue(*str_val);
-        } else if (const auto* num_val = std::get_if<double>(&elem.value)) {
-            obj[elem.key] = Json::JsonValue(*num_val);
-        } else if (const auto* bool_val = std::get_if<bool>(&elem.value)) {
-            obj[elem.key] = Json::JsonValue(*bool_val);
-        } else if (std::get_if<std::nullptr_t>(&elem.value)) {
-            obj[elem.key] = Json::JsonValue(nullptr);
-        }
+        obj[elem.key] = value_to_json(elem.value);
     }
     return obj;
 }
@@ -104,18 +96,13 @@ Value json_to_value(const Json::JsonValue& json_val); // Forward declaration
 Document json_to_document(const Json::JsonObject& obj) {
     Document doc;
     for (const auto& pair : obj) {
-        if (pair.first == "_id") continue;
+        if (pair.first == "_id") {
+            doc.id = pair.second.as_string();
+            continue;
+        }
         Element elem;
         elem.key = pair.first;
-        if (pair.second.is_string()) {
-            elem.value = pair.second.as_string();
-        } else if (pair.second.is_number()) {
-            elem.value = pair.second.as_number();
-        } else if (pair.second.is_bool()) {
-            elem.value = pair.second.as_bool();
-        } else if (pair.second.is_null()) {
-            elem.value = nullptr;
-        }
+        elem.value = json_to_value(pair.second);
         doc.elements.push_back(std::move(elem));
     }
     return doc;

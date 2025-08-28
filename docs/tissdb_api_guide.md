@@ -95,10 +95,14 @@ TissDB uses TissQL, a SQL-like language, for querying. Queries are executed via 
 
 *   **Execute TissQL Query**
     *   `POST /<collection_name>/_query`
-    *   Runs a TissQL query against the collection.
-    *   **Request Body**: A JSON object containing the query string.
+    *   Runs a TissQL query against the collection. For security, it is highly recommended to use parameterized queries to prevent SQL injection attacks.
+    *   **Request Body**: A JSON object containing the query string and an optional array of parameters.
+        *To use parameters, insert a `?` placeholder in the query string for each value. The `params` array must then contain the values in the same order.*
         ```json
-        { "query": "SELECT id, post_text FROM posts WHERE author_id = 'user123'" }
+        {
+          "query": "SELECT id, post_text FROM posts WHERE view_count > ? AND author_id = ?",
+          "params": [1000, "user123"]
+        }
         ```
     *   **Response**: `200 OK` with a JSON array of matching documents.
 

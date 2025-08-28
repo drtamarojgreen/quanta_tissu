@@ -7,7 +7,7 @@
 namespace TissDB {
 namespace Query {
 
-QueryResult execute_delete_statement(Storage::LSMTree& storage_engine, DeleteStatement delete_stmt);
+QueryResult execute_delete_statement(Storage::LSMTree& storage_engine, const DeleteStatement& delete_stmt, const std::vector<Literal>& params);
 
 } // namespace Query
 } // namespace TissDB
