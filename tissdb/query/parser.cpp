@@ -48,6 +48,8 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             new_tokens.push_back(Token{Token::Type::OPERATOR, query_string.substr(start, i - start + 1)});
         } else if (query_string[i] == ',' || query_string[i] == '(' || query_string[i] == ')') {
             new_tokens.push_back(Token{Token::Type::OPERATOR, std::string(1, query_string[i])});
+        } else if (query_string[i] == '?') {
+            new_tokens.push_back(Token{Token::Type::PARAM_PLACEHOLDER, "?"});
         }
     }
     new_tokens.push_back(Token{Token::Type::EOI, ""});
@@ -63,6 +65,7 @@ AST Parser::parse(const std::string& query_string) {
     LOG_INFO("Parsing query: " + query_string);
     tokens = tokenize(query_string);
     pos = 0;
+    param_index = 0;
 
     if (peek().type == Token::Type::KEYWORD) {
         if (peek().value == "SELECT") {
@@ -437,6 +440,8 @@ Expression Parser::parse_primary_expression() {
         return Literal{false};
     } else if (token.type == Token::Type::KEYWORD && token.value == "NULL") {
         return Literal{Null{}};
+    } else if (token.type == Token::Type::PARAM_PLACEHOLDER) {
+        return ParameterExpression{param_index++};
     }
     LOG_ERROR("Parse error: Unexpected token in expression: " + token.value);
     throw std::runtime_error("Unexpected token in expression");

@@ -127,3 +127,35 @@ TEST_CASE(ParserSelectWithParentheses) {
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::Literal>(stock_expr->right));
     ASSERT_EQ(1.0, std::get<double>(std::get<TissDB::Query::Literal>(stock_expr->right)));
 }
+
+TEST_CASE(ParserSelectWithParameters) {
+    TissDB::Query::Parser parser;
+    TissDB::Query::AST ast = parser.parse("SELECT * FROM products WHERE category = ? AND price < ?");
+    ASSERT_TRUE(std::holds_alternative<TissDB::Query::SelectStatement>(ast));
+    auto& select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
+    ASSERT_TRUE(select_stmt.where_clause.has_value());
+
+    auto& expr = select_stmt.where_clause.value();
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::LogicalExpression>>(expr));
+    auto& logical_expr = std::get<std::shared_ptr<TissDB::Query::LogicalExpression>>(expr);
+    ASSERT_EQ("AND", logical_expr->op);
+
+    // Check left side: category = ?
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical_expr->left));
+    auto& left_expr = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical_expr->left);
+    ASSERT_TRUE(std::holds_alternative<TissDB::Query::Identifier>(left_expr->left));
+    ASSERT_EQ("category", std::get<TissDB::Query::Identifier>(left_expr->left).name);
+    ASSERT_EQ("=", left_expr->op);
+    ASSERT_TRUE(std::holds_alternative<TissDB::Query::ParameterExpression>(left_expr->right));
+    ASSERT_EQ(0, std::get<TissDB::Query::ParameterExpression>(left_expr->right).index);
+
+
+    // Check right side: price < ?
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical_expr->right));
+    auto& right_expr = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical_expr->right);
+    ASSERT_TRUE(std::holds_alternative<TissDB::Query::Identifier>(right_expr->left));
+    ASSERT_EQ("price", std::get<TissDB::Query::Identifier>(right_expr->left).name);
+    ASSERT_EQ("<", right_expr->op);
+    ASSERT_TRUE(std::holds_alternative<TissDB::Query::ParameterExpression>(right_expr->right));
+    ASSERT_EQ(1, std::get<TissDB::Query::ParameterExpression>(right_expr->right).index);
+}

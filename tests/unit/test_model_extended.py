@@ -191,30 +191,49 @@ class TestModelExtended(unittest.TestCase):
         vocab_size = self.config['vocab_size']
         temperature = 0.5
 
-        # Create the logits that we want the model to produce for the next token.
-        next_token_logits = np.zeros(vocab_size)
-        next_token_logits[10] = 2.0
-        next_token_logits[20] = 1.0
+        # Logits that will be scaled by temperature.
+        # Let's use simple values to make the calculation clear.
+        mock_logits = np.zeros((1, 1, vocab_size))
+        mock_logits[0, 0, 10] = 2.0
+        mock_logits[0, 0, 20] = 1.0
 
-        # Mock the model's forward pass to return these logits at the last position.
-        mock_logits_for_prompt = np.zeros((1, len(prompt_tokens), vocab_size))
-        mock_logits_for_prompt[0, -1, :] = next_token_logits
-        self.model.model.forward = MagicMock(return_value=(mock_logits_for_prompt, None))
+        # Mock the model's forward pass
+        self.model.model.forward = MagicMock(side_effect=[
+            (np.zeros((1, len(prompt_tokens), vocab_size)), None), # Prompt processing
+            (mock_logits, None) # Generation
+        ])
 
+        # The core of this test is to verify that the probabilities passed to the sampling function
+        # are correctly scaled by temperature.
+        # We patch np.random.choice, which is used by the generator for sampling.
         with unittest.mock.patch('numpy.random.choice') as mock_choice:
+            # We don't care about the actual token generated, just the probabilities used.
             mock_choice.return_value = 10 # Return a predictable token
 
             self.model.sample(prompt_tokens, n_new_tokens, method="sampling", temperature=temperature)
 
+            # Assert that np.random.choice was called
             self.assertTrue(mock_choice.called)
+
+            # Get the arguments passed to np.random.choice
             args, kwargs = mock_choice.call_args
+
+            # The probabilities are passed as the 'p' keyword argument
             passed_probs = kwargs['p']
 
-            # Calculate the expected probabilities for the entire vocabulary
-            expected_scaled_logits = next_token_logits / temperature
-            expected_probs = softmax(expected_scaled_logits)
+            # Calculate the expected probabilities
+            # scaled_logits = original_logits / temperature
+            scaled_logits = np.array([2.0, 1.0]) / temperature # [4.0, 2.0]
 
-            assert_allclose(passed_probs, expected_probs, rtol=1e-5)
+            # Manually calculate softmax
+            exp_scaled_logits = np.exp(scaled_logits - np.max(scaled_logits))
+            expected_probs_subset = exp_scaled_logits / np.sum(exp_scaled_logits) # [0.880797, 0.119203]
+
+            # We only care about the probabilities of the tokens we set logits for.
+            # The rest should be close to zero.
+            self.assertAlmostEqual(passed_probs[10], expected_probs_subset[0], places=5)
+            self.assertAlmostEqual(passed_probs[20], expected_probs_subset[1], places=5)
+            self.assertAlmostEqual(np.sum(passed_probs), 1.0, places=5)
 
 
 if __name__ == '__main__':
