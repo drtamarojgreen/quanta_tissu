@@ -1,23 +1,22 @@
 import sys
 import os
 import unittest
+from unittest.mock import patch, MagicMock
+import numpy as np
 
 # Add project root to path to allow importing quanta_tissu
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# This structure assumes the test is run from the project root or 'tests' directory
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, project_root)
 
-from quanta_tissu.tisslm.core.model import QuantaTissu
+from quanta_tissu.tisslm.core.model import QuantaTissu, TissSystemError
+from quanta_tissu.tisslm.core.system_error_handler import DatabaseConnectionError
 
 class TestQuantaTissuModel(unittest.TestCase):
 
-    def test_model_initialization(self):
-        """
-        Tests that the QuantaTissu model can be initialized without errors.
-        """
-        # A minimal config dictionary required by the model and its components.
-        # The actual values may not matter for a simple initialization test,
-        # but the keys might. Based on the code, a nested structure is likely.
-        # I will create a mock config that is sufficient for initialization.
-        config = {
+    def setUp(self):
+        """Set up a standard configuration for the model before each test."""
+        self.config = {
             'vocab_size': 100,
             'n_embd': 64,
             'n_layer': 2,
@@ -26,14 +25,98 @@ class TestQuantaTissuModel(unittest.TestCase):
             'max_seq_len': 256,
             'dropout': 0.1
         }
+        self.model = QuantaTissu(self.config)
 
-        try:
-            model = QuantaTissu(config)
-            self.assertIsNotNone(model, "Model should not be None after initialization.")
-            self.assertIsNotNone(model.model, "Core model architecture should be initialized.")
-            self.assertIsNotNone(model.generator, "Generator should be initialized.")
-        except Exception as e:
-            self.fail(f"QuantaTissu model initialization failed with an exception: {e}")
+    def test_model_initialization(self):
+        """
+        Tests that the QuantaTissu model can be initialized without errors.
+        """
+        self.assertIsNotNone(self.model, "Model should not be None after initialization.")
+        self.assertIsNotNone(self.model.model, "Core model architecture should be initialized.")
+        self.assertIsNotNone(self.model.generator, "Generator should be initialized.")
+
+    @patch('os.path.exists')
+    @patch('numpy.load')
+    def test_load_weights_success(self, mock_np_load, mock_path_exists):
+        """Tests successful weight loading from a standard checkpoint."""
+        mock_path_exists.return_value = True
+
+        # Create mock weights that match the model's parameter names and shapes
+        mock_weights = {p.name: np.random.rand(*p.value.shape).astype(np.float32) for p in self.model.parameters()}
+        mock_np_load.return_value = mock_weights
+
+        self.model.load_weights('dummy_path.npz')
+
+        # Verify that numpy.load was called with the correct path
+        mock_np_load.assert_called_once_with('dummy_path.npz', allow_pickle=True)
+
+        # Check if the model's parameters have been updated
+        for param in self.model.parameters():
+            self.assertTrue(np.array_equal(param.value, mock_weights[param.name]))
+
+    @patch('os.path.exists')
+    def test_load_weights_file_not_found(self, mock_path_exists):
+        """Tests that loading weights from a non-existent file is handled gracefully."""
+        mock_path_exists.return_value = False
+
+        # This should not raise an error, but log a warning
+        self.model.load_weights('non_existent_path.npz')
+        mock_path_exists.assert_called_once_with('non_existent_path.npz')
+
+    @patch('os.path.exists')
+    @patch('numpy.load')
+    def test_load_weights_shape_mismatch(self, mock_np_load, mock_path_exists):
+        """Tests that shape mismatches during weight loading are handled gracefully."""
+        mock_path_exists.return_value = True
+
+        # Create mock weights with a shape mismatch for one parameter
+        mock_weights = {p.name: np.random.rand(*p.value.shape).astype(np.float32) for p in self.model.parameters()}
+
+        # Introduce a shape mismatch
+        param_to_mismatch = self.model.parameters()[0]
+        mismatched_shape = list(param_to_mismatch.value.shape)
+        mismatched_shape[0] += 1 # Make it different
+        mock_weights[param_to_mismatch.name] = np.random.rand(*mismatched_shape).astype(np.float32)
+
+        mock_np_load.return_value = mock_weights
+
+        # This should not raise an error but should log a warning
+        self.model.load_weights('dummy_path.npz')
+
+        # The mismatched parameter should not be updated
+        self.assertFalse(np.array_equal(self.model.parameters()[0].value, mock_weights[param_to_mismatch.name]))
+
+    def test_forward_pass(self):
+        """Tests the forward pass with a sample input."""
+        batch_size = 2
+        seq_len = 10
+        token_ids = np.random.randint(0, self.config['vocab_size'], size=(batch_size, seq_len))
+
+        logits, _ = self.model.forward(token_ids)
+
+        expected_shape = (batch_size, seq_len, self.config['vocab_size'])
+        self.assertEqual(logits.shape, expected_shape, "Output shape of the forward pass is incorrect.")
+
+    def test_sample_generation(self):
+        """Tests the text generation (sample) method."""
+        prompt_tokens = [1, 2, 3]
+        n_new_tokens = 5
+
+        generated_tokens = self.model.sample(prompt_tokens, n_new_tokens)
+
+        self.assertEqual(len(generated_tokens), n_new_tokens, "Number of generated tokens is incorrect.")
+
+    @patch('quanta_tissu.tisslm.core.model.KnowledgeBase')
+    def test_db_integration_success(self, MockKnowledgeBase):
+        """Tests that the KnowledgeBase is initialized when use_db is True."""
+        QuantaTissu(self.config, use_db=True)
+        MockKnowledgeBase.assert_called_once()
+
+    @patch('quanta_tissu.tisslm.core.model.KnowledgeBase', side_effect=DatabaseConnectionError("Connection failed"))
+    def test_db_integration_failure(self, MockKnowledgeBase):
+        """Tests that a TissSystemError is raised if the DB connection fails."""
+        with self.assertRaises(TissSystemError):
+            QuantaTissu(self.config, use_db=True)
 
 if __name__ == '__main__':
     unittest.main()
