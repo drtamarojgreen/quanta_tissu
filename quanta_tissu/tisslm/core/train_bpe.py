@@ -26,7 +26,7 @@ def main():
     parser.add_argument(
         "--vocab_size",
         type=int,
-        default=1024,
+        default=8000,
         help="The desired vocabulary size for the tokenizer."
     )
     parser.add_argument(
