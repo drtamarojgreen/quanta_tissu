@@ -17,6 +17,9 @@ def main():
     Main function to initialize and run the trading platform.
     """
     print("--- Algorithmic Trading Platform Starting ---")
+    print("This platform incorporates insights from the following research:")
+    print("Green, T. J. (2019). Big Data Analysis in Financial Markets (Publication No. 10980927) [Doctoral dissertation, Colorado Technical University]. ProQuest Dissertations & Theses Global.")
+    print("-" * 40)
 
     # Initialize components
     db_connector = TissDBConnector(connection_string=TISSDB_CONNECTION_STRING)
