@@ -37,67 +37,98 @@ class CosineSimilarityStrategy(RetrievalStrategy):
 
 class CNNSimilarityStrategy(RetrievalStrategy):
     """
-    A placeholder for a CNN-based similarity model.
-    Uses random weights as the original implementation did.
+    A simplified CNN-based similarity model.
+    Filters are derived from simple mathematical patterns to perform feature extraction.
     """
-    def get_default_cnn_model_params(self):
-        return {"layers": 5, "filters": 128, "activation": "relu"}
+    def __init__(self, embedding_dim=3):
+        # Define filters based on simple mathematical patterns
+        # These filters are designed to extract basic features like sums, differences, etc.
+        # The number of filters is fixed to 3 for this simplified example.
+        self.filters = np.array([
+            [1.0, 1.0, 1.0],  # Sum filter
+            [1.0, -1.0, 0.0], # Difference filter (dim1 - dim2)
+            [0.0, 1.0, -1.0]  # Difference filter (dim2 - dim3)
+        ])
+        
+        # Ensure filters match the embedding dimension
+        if self.filters.shape[1] != embedding_dim:
+            raise ValueError(f"Filter dimension mismatch. Expected {embedding_dim}, got {self.filters.shape[1]}")
+
+        # Dense weights are now calculated based on the number of filters
+        num_filters = self.filters.shape[0]
+        self.dense_weights = np.full(num_filters, 1.0 / num_filters) # Equal contribution from each filter
 
     def calculate_similarity(self, query_embedding, doc_embeddings, **kwargs):
-        model_params = kwargs.get('cnn_model_params', self.get_default_cnn_model_params())
         doc_embeddings_np = np.array(doc_embeddings)
-        n_docs, embedding_dim = doc_embeddings_np.shape
+        
+        # Apply convolution (dot product with filters)
+        convolved_docs = np.dot(doc_embeddings_np, self.filters.T)
 
-        # Placeholder for a real CNN model
-        filters = np.random.rand(model_params['filters'], embedding_dim)
-        dense_weights = np.random.rand(model_params['filters'])
+        # Apply activation (ReLU)
+        activated_docs = np.maximum(0, convolved_docs)
 
-        similarities = []
-        for doc_embedding in doc_embeddings_np:
-            convolved = np.dot(doc_embedding, filters.T)
-            activated = np.maximum(0, convolved)  # ReLU
-            pooled = np.max(activated)
-            similarity = np.dot(pooled, dense_weights)
-            similarities.append(similarity)
-        return np.array(similarities)
+        # Apply pooling (max pooling across features)
+        pooled_docs = np.max(activated_docs, axis=1)
+
+        # Apply dense layer
+        similarities = np.dot(pooled_docs, self.dense_weights)
+        
+        return similarities
 
 class GeneticSimilarityStrategy(RetrievalStrategy):
     """
-    A placeholder for a genetic algorithm-based similarity search.
+    A simplified genetic algorithm-based similarity search.
     """
     def get_default_ga_params(self):
-        return {"population_size": 100, "generations": 50, "mutation_rate": 0.01}
+        return {"population_size": 100, "generations": 50, "mutation_rate": 0.01, "crossover_rate": 0.7}
 
     def calculate_similarity(self, query_embedding, doc_embeddings, **kwargs):
+        np.random.seed(42) # For deterministic testing
         ga_params = kwargs.get('ga_params', self.get_default_ga_params())
         doc_embeddings_np = np.array(doc_embeddings)
 
         population_size = ga_params['population_size']
         generations = ga_params['generations']
         mutation_rate = ga_params['mutation_rate']
+        crossover_rate = ga_params['crossover_rate']
 
         # Initialize population with random indices
         population = np.random.randint(0, len(doc_embeddings_np), size=(population_size, 1))
 
-        for _ in range(generations):
+        for gen in range(generations):
             # Calculate fitness of the current population
             pop_embeddings = doc_embeddings_np[population.flatten()]
             fitness = CosineSimilarityStrategy().calculate_similarity(query_embedding, pop_embeddings)
 
-            # Selection (tournament)
-            new_population = []
+            # Selection (tournament selection)
+            selected_indices = []
             for _ in range(population_size):
-                i, j = np.random.randint(0, population_size, 2)
-                if fitness[i] > fitness[j]:
-                    new_population.append(population[i])
+                idx1, idx2 = np.random.randint(0, population_size, 2)
+                if fitness[idx1] > fitness[idx2]:
+                    selected_indices.append(idx1)
                 else:
-                    new_population.append(population[j])
-            population = np.array(new_population)
+                    selected_indices.append(idx2)
+            selected_population = population[selected_indices]
+
+            # Crossover
+            next_population = []
+            for i in range(0, population_size, 2):
+                parent1 = selected_population[i]
+                parent2 = selected_population[i+1] if i+1 < population_size else selected_population[0] # Handle odd population size
+
+                if np.random.rand() < crossover_rate:
+                    # Simple one-point crossover (for single-gene individuals, this is just picking one parent)
+                    child1 = parent1 if np.random.rand() < 0.5 else parent2
+                    child2 = parent2 if np.random.rand() < 0.5 else parent1
+                else:
+                    child1, child2 = parent1, parent2
+                next_population.extend([child1, child2])
+            population = np.array(next_population[:population_size]) # Trim if odd population size
 
             # Mutation
             for i in range(population_size):
                 if np.random.rand() < mutation_rate:
-                    population[i] = np.random.randint(0, len(doc_embeddings_np))
+                    population[i] = np.random.randint(0, len(doc_embeddings_np)) # Mutate to a random document index
 
         # Calculate final similarities based on the evolved population
         final_pop_embeddings = doc_embeddings_np[population.flatten()]
@@ -111,16 +142,37 @@ class GeneticSimilarityStrategy(RetrievalStrategy):
 
 class BayesianSimilarityStrategy(RetrievalStrategy):
     """
-    A placeholder for a Bayesian-based similarity approach.
+    A simplified Bayesian-based similarity approach.
+    This implementation uses the Hessian eigenvalues to model uncertainty
+    and samples a noisy query from a simplified posterior distribution.
     """
     def calculate_similarity(self, query_embedding, doc_embeddings, **kwargs):
+        # For deterministic testing
+        np.random.seed(42)
+
         hessian_matrix = kwargs.get('hessian_matrix')
         if hessian_matrix is None:
             raise ValueError("BayesianSimilarityStrategy requires a 'hessian_matrix' in kwargs.")
 
         eigenvalues = np.array(hessian_matrix.get('eigenvalues', [1.0]))
-        uncertainty = 1.0 / (eigenvalues + 1e-6)
-        noise = np.random.normal(0, np.mean(uncertainty), size=query_embedding.shape)
-        noisy_query = query_embedding + noise
+        
+        # Simplified Bayesian update:
+        # Assume query_embedding is the prior mean.
+        # Use eigenvalues to define a simplified precision (inverse variance) for the likelihood.
+        # A larger eigenvalue means less uncertainty in that dimension.
+        
+        # Ensure eigenvalues match query_embedding dimension, or use a default if not provided
+        if len(eigenvalues) != len(query_embedding):
+            # If eigenvalues don't match, use a scalar uncertainty for all dimensions
+            mean_uncertainty = 1.0 / (np.mean(eigenvalues) + 1e-6) if len(eigenvalues) > 0 else 1.0
+            posterior_variance = np.full(query_embedding.shape, mean_uncertainty)
+        else:
+            posterior_variance = 1.0 / (eigenvalues + 1e-6) # Simplified: inverse of eigenvalues as variance
+
+        # Sample a noisy query from a Gaussian centered at the original query_embedding
+        # with variance derived from the Hessian eigenvalues.
+        # This simulates drawing from a posterior distribution where the Hessian informs uncertainty.
+        noisy_query = np.random.normal(query_embedding, np.sqrt(posterior_variance), size=query_embedding.shape)
 
         return CosineSimilarityStrategy().calculate_similarity(noisy_query, doc_embeddings)
+

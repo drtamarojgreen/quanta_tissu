@@ -16,7 +16,7 @@ from ..config import model_config
 
 logger = logging.getLogger(__name__)
 
-def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float, repetition_penalty: float = 1.0) -> str:
+def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float, repetition_penalty: float = 1.0, bias_token_id=None, bias_strength=0.0) -> str:
     """
     Generates text of a specified length, starting with a prompt.
     """

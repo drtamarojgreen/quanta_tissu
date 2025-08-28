@@ -12,11 +12,12 @@ import subprocess
 import sys
 import time
 import requests
+from urllib.parse import urlparse
 
 # Constants
 TISSDB_PID_FILE = "tissdb.pid"
 TISSDB_EXECUTABLE = "tissdb/tissdb"
-TISSDB_URL = "http://localhost:8080"
+TISSDB_URL = os.environ.get("TISSDB_URL", "http://localhost:9876") # Updated to match the new default TissDB port
 GENERATE_TEXT_SCRIPT = "quanta_tissu/tisslm/core/generate_text.py"
 
 
@@ -45,9 +46,13 @@ def start_tissdb():
         print(f"Error: TissDB executable at '{TISSDB_EXECUTABLE}' is not executable.")
         sys.exit(1)
 
-    print(f"Starting TissDB server from '{TISSDB_EXECUTABLE}'...")
+    # Extract port from the URL to ensure consistency
+    parsed_url = urlparse(TISSDB_URL)
+    port = parsed_url.port if parsed_url.port else 9876 # Fallback to default
+
+    print(f"Starting TissDB server from '{TISSDB_EXECUTABLE}' on port {port}...")
     # Start the server as a background process
-    process = subprocess.Popen([f"./{TISSDB_EXECUTABLE}"], cwd="tissdb/")
+    process = subprocess.Popen([f"./{TISSDB_EXECUTABLE}", str(port)], cwd="tissdb/")
 
     # Save the PID to a file
     with open(TISSDB_PID_FILE, "w") as f:
