@@ -31,47 +31,20 @@ def discover_and_run_tests():
         return False
 
     print("=" * 70)
-    print("Discovering and Running Unit Tests...\n") # Added newline for better formatting
+    print("Discovering and Running All Tests (Unit & Behavior)...\n")
     print("=" * 70)
 
     loader = unittest.TestLoader()
-    all_tests_suite = unittest.TestSuite()
-
-    # List of all unit test files in tests/unit, as clarified by the user
-    model_test_files = [
-        'test_bpe_trainer.py',
-        'test_execution_engine.py',
-        'test_layers.py',
-        'test_model_error_handler.py',
-        'test_model_extended.py',
-        'test_retrieval_strategies.py',
-        'test_tisslang_parser.py',
-        'test_tisslm_generation.py',
-        'test_tisslm_model.py',
-        'test_tokenizer.py',
-        'test_train_bpe.py',
-        'test_validators.py',
-    ]
-
-    for test_file in model_test_files:
-        file_path = os.path.join(unit_tests_dir, test_file)
-        if os.path.exists(file_path):
-            # Load module from file path
-            spec = importlib.util.spec_from_file_location(test_file[:-3], file_path)
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[test_file[:-3]] = module
-            spec.loader.exec_module(module)
-            
-            # Add tests from the loaded module to the suite
-            all_tests_suite.addTests(loader.loadTestsFromModule(module))
-        else:
-            print(f"Warning: Test file not found: {file_path}") # Changed from "Model test file"
+    # Discover all tests in the 'tests' directory and its subdirectories.
+    # This is more robust than maintaining a hardcoded list of files and will
+    # include both unit and behavior tests.
+    all_tests_suite = loader.discover(base_dir, pattern='test_*.py')
 
     # Run tests
     runner = unittest.TextTestRunner(verbosity=2)
     results = runner.run(all_tests_suite)
 
-    print("\n" + "=" * 70) # Added newline for better formatting
+    print("\n" + "=" * 70)
     if results.wasSuccessful():
         print("All tests passed successfully!")
     else:

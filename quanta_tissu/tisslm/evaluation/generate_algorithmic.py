@@ -39,13 +39,13 @@ def main():
     parser.add_argument("--tokenizer_path", type=str, default="tokenizer/trained_tokenizer", help="Path prefix for the tokenizer files.")
     parser.add_argument("--checkpoint_path", type=str, default="checkpoints/checkpoint_step_248860.npz", help="Path to the model checkpoint (.npz file).")
     
-    parser.add_argument("--method", type=str, default="nucleus", help="Generation method: greedy, top_k, nucleus, random.")
     parser.add_argument("--temperature", type=float, default=0.8, help="Controls randomness. Higher is more random.")
     parser.add_argument("--top_k", type=int, default=20, help="K for top-k sampling.")
     parser.add_argument("--top_p", type=float, default=0.9, help="P for nucleus sampling.")
     parser.add_argument("--repetition_penalty", type=float, default=1.2, help="Penalty for repeating tokens.")
     parser.add_argument("--bias_token_id", type=int, default=None, help="Optional: Token ID to bias during generation.")
     parser.add_argument("--bias_strength", type=float, default=0.0, help="Optional: Strength of the bias to apply to bias_token_id.")
+    parser.add_argument("--verbose", action="store_true", help="Set to true for verbose output.")
 
     args = parser.parse_args()
 
@@ -68,7 +68,7 @@ def main():
         logger.error("Please ensure the tokenizer is trained and available at the specified path.")
         sys.exit(1)
 
-    logger.info("Initializing Model...")
+    logger.info("Initializing Model...\n")
     model_config["vocab_size"] = tokenizer.get_vocab_size()
     model = QuantaTissu(model_config)
 
@@ -82,7 +82,7 @@ def main():
 
     # The following inspection steps will now be run to analyze the model's state.
     # Add a diagnostic step to trace the forward pass and see where activations might be failing.
-    # This helps correlate the "dead parameters" with their effect on data flow.
+    # This helps correlate the "dead parameters" with their effect on data flow.\n"
     logger.info("\n--- Inspecting model forward pass ---")
     inspect_model_forward_pass(model, tokenizer, args.prompt, model_config["block_size"])
 
@@ -91,24 +91,24 @@ def main():
     logger.info("--- Inspecting loaded model parameters ---")
     inspect_model_parameters(model)
 
-    logger.info(f"Generating text with prompt: '{args.prompt}'")
-    generated_text = generate_text(
-        model=model,
-        tokenizer=tokenizer,
-        prompt=args.prompt,
-        length=args.length,
-        method=args.method,
-        temperature=args.temperature,
-        top_k=args.top_k,
-        top_p=args.top_p,
-        bias_token_id=args.bias_token_id,
-        bias_strength=args.bias_strength
-    )
-    logger.info("\n--- Generated Text ---")
-    # Use the logger to print the generated text. This ensures it uses the configured
-    # UTF-8 encoding and avoids the UnicodeEncodeError when redirecting output to a file.
-    logger.info(generated_text)
-    logger.info("----------------------")
+    generation_methods = ["greedy", "top_k", "nucleus", "random"]
+    for method in generation_methods:
+        logger.info(f"\n--- Generating text with prompt: '{args.prompt}' using method: {method} ---")
+        generated_text = generate_text(
+            model=model,
+            tokenizer=tokenizer,
+            prompt=args.prompt,
+            length=args.length,
+            method=method,  # Use the current method from the loop
+            temperature=args.temperature,
+            top_k=args.top_k,
+            top_p=args.top_p,
+            bias_token_id=args.bias_token_id,
+            bias_strength=args.bias_strength
+        )
+        logger.info(f"--- Generated Text ({method}) ---")
+        logger.info(generated_text)
+        logger.info("----------------------")
 
 if __name__ == "__main__":
     main()
