@@ -8,7 +8,7 @@ import unittest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from quanta_tissu.tisslm.core.tokenizer import tokenize, detokenize
-from tests.test_utils import assert_equal, assert_allclose
+from ..test_utils import assert_equal, assert_allclose
 
 class TestTokenizer(unittest.TestCase):
 

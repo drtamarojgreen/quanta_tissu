@@ -12,7 +12,7 @@ from quanta_tissu.tisslm.core.layers import (
     MultiHeadAttention,
     FeedForward,
 )
-from tests.test_utils import assert_allclose, assert_equal, assert_raises
+from ..test_utils import assert_allclose, assert_equal, assert_raises
 
 # Set a seed for reproducibility of random inputs
 np.random.seed(42)
