@@ -1,3 +1,7 @@
+> [!NOTE]
+> This document provides a detailed, long-term development plan for TissLang.
+> For a summary of the features that are **currently implemented**, please see the **[Project Overview](overview.md)**.
+
 # TissLang Development Plan
 
 This document outlines the development plan for **TissLang**, a high-level, declarative language designed for instructing the QuantaTissu agent.

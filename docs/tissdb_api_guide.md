@@ -1,6 +1,6 @@
 # TissDB API Guide
 
-This document provides a comprehensive guide to the TissDB APIs.
+This document provides a comprehensive guide to the TissDB APIs. For a formal definition of all endpoints and schemas, please refer to the **[OpenAPI Specification](api_spec.yml)**.
 
 TissDB exposes two primary sets of HTTP RESTful APIs:
 
@@ -113,7 +113,7 @@ TissDB supports basic ACID transactions.
 *   **Begin Transaction**
     *   `POST /_begin`
     *   Starts a new transaction. The server manages the transaction context for the client connection.
-    *   **Response**: `200 OK` with a message containing the transaction ID.
+    *   **Response**: `200 OK`
 
 *   **Commit Transaction**
     *   `POST /_commit`
@@ -129,7 +129,7 @@ TissDB supports basic ACID transactions.
 
 ## Business Intelligence (BI) Service API
 
-The BI Service API is a high-level API for managing reports and alerts.
+The BI Service API is a high-level API for managing reports and alerts. For detailed information on the request and response schemas, please refer to the **[OpenAPI Specification](api_spec.yml)**.
 
 **Base URL**: `http://tissdb.internal:8080/`
 
@@ -137,85 +137,18 @@ The BI Service API is a high-level API for managing reports and alerts.
 
 Reports are configurations for TissQL queries that run on a schedule and deliver results through various channels.
 
-*   **List all Reports**
-    *   `GET /_bi/reports`
-    *   **Response**: `200 OK` with a JSON array of report configurations.
-
-*   **Create a new Report**
-    *   `POST /_bi/reports`
-    *   **Request Body**: A JSON object defining the report. See the `ReportInput` schema below.
-    *   **Response**: `201 Created`
-
-*   **Get a specific Report**
-    *   `GET /_bi/reports/{reportId}`
-    *   **Response**: `200 OK` with the report configuration.
-
-*   **Update a Report**
-    *   `PUT /_bi/reports/{reportId}`
-    *   **Request Body**: A JSON object with the updated report fields.
-    *   **Response**: `200 OK`
-
-*   **Delete a Report**
-    *   `DELETE /_bi/reports/{reportId}`
-    *   **Response**: `204 No Content`
+*   **List all Reports**: `GET /_bi/reports`
+*   **Create a new Report**: `POST /_bi/reports`
+*   **Get a specific Report**: `GET /_bi/reports/{reportId}`
+*   **Update a Report**: `PUT /_bi/reports/{reportId}`
+*   **Delete a Report**: `DELETE /_bi/reports/{reportId}`
 
 ### Alerts
 
 Alerts are configurations that run a TissQL query periodically, check for a condition, and trigger a notification if the condition is met.
 
-*   **List all Alerts**
-    *   `GET /_bi/alerts`
-    *   **Response**: `200 OK` with a JSON array of alert configurations.
-
-*   **Create a new Alert**
-    *   `POST /_bi/alerts`
-    *   **Request Body**: A JSON object defining the alert. See the `AlertInput` schema below.
-    *   **Response**: `201 Created`
-
-*   **Get a specific Alert**
-    *   `GET /_bi/alerts/{alertId}`
-    *   **Response**: `200 OK` with the alert configuration.
-
-*   **Update an Alert**
-    *   `PUT /_bi/alerts/{alertId}`
-    *   **Request Body**: A JSON object with the updated alert fields.
-    *   **Response**: `200 OK`
-
-*   **Delete an Alert**
-    *   `DELETE /_bi/alerts/{alertId}`
-    *   **Response**: `204 No Content`
-
-### BI Data Schemas
-
-*   **ReportInput**
-    ```json
-    {
-      "name": "string",
-      "tissql_query": "string",
-      "schedule": "string (cron format)",
-      "format": "string (csv, json, or pdf)",
-      "channels": [ { "$ref": "#/components/schemas/Channel" } ]
-    }
-    ```
-
-*   **AlertInput**
-    ```json
-    {
-      "name": "string",
-      "tissql_query": "string",
-      "frequency_minutes": "integer",
-      "condition": {
-        "operator": "string (>_ <, ==, !=, contains, is_empty)",
-        "value": "string"
-      },
-      "channels": [ { "$ref": "#/components/schemas/Channel" } ]
-    }
-    ```
-
-*   **Channel**
-    ```json
-    {
-      "type": "string (email, slack, or webhook)",
-      "target": "string (e.g., email address or webhook URL)"
-    }
-    ```
+*   **List all Alerts**: `GET /_bi/alerts`
+*   **Create a new Alert**: `POST /_bi/alerts`
+*   **Get a specific Alert**: `GET /_bi/alerts/{alertId}`
+*   **Update an Alert**: `PUT /_bi/alerts/{alertId}`
+*   **Delete an Alert**: `DELETE /_bi/alerts/{alertId}`
