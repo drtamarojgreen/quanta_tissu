@@ -174,54 +174,6 @@ This is a core design principle and applies to both layers.
     *   Task 3.4: Develop official client libraries for Python and JavaScript.
     *   Task 3.5: Implement encryption at rest.
 
-## 8. Phase 1: MVP - Detailed Breakdown
-
-This section provides a more granular breakdown of the tasks required to deliver the Minimum Viable Product (MVP).
-
-### Objective
-Deliver a functional, single-node TissDB instance capable of basic document CRUD operations, simple TissQL queries, and single-field indexing. The focus is on core functionality and stability.
-
----
-
-### Task 1.2: Core Append-Only Storage Layer
-*   **Sub-tasks**:
-    1.  Design the on-disk format for segment files, including document entries and a file header.
-    2.  Implement a Write-Ahead Log (WAL) for durability. Writes will first go to the WAL, then to an in-memory table (`memtable`).
-    3.  Implement the `memtable` flush mechanism, which writes the sorted contents of the `memtable` to a new, immutable segment file on disk.
-*   **Acceptance Criteria**:
-    *   The server can be shut down unexpectedly during a write operation and recover its state from the WAL upon restart.
-    *   Data written to the database is correctly persisted in segment files.
-
-### Task 1.3: Basic REST API for Document CRUD
-*   **Sub-tasks**:
-    1.  Implement a lightweight C++ HTTP server.
-    2.  Implement the `POST /<collection>` endpoint to create new documents.
-    3.  Implement the `GET /<collection>/<id>` endpoint to retrieve a document by its ID (requiring a full scan initially).
-    4.  Implement `PUT /<collection>/<id>` (full update) and `DELETE /<collection>/<id>` (tombstone write).
-*   **Acceptance Criteria**:
-    *   All CRUD endpoints can be successfully tested using a tool like `curl` or Postman.
-    *   Appropriate HTTP status codes (200, 201, 404, etc.) are returned.
-
-### Task 1.4: TissQL Parser for Basic SELECT
-*   **Sub-tasks**:
-    1.  Define a formal grammar (e.g., in EBNF) for a subset of TissQL: `SELECT <fields> FROM <collection> WHERE <field> = <value>`.
-    2.  Implement a parser from the grammar.
-    3.  The parser must produce a simple Abstract Syntax Tree (AST) representing the query.
-    4.  Implement a basic query executor that walks the AST and performs a full collection scan, filtering documents based on the `WHERE` clause.
-*   **Acceptance Criteria**:
-    *   The `POST /<collection>/_query` endpoint correctly parses and executes valid `SELECT` queries.
-    *   Malformed queries result in a `400 Bad Request` error with a descriptive message.
-
-### Task 1.5: Single-Field B-Tree Indexing
-*   **Sub-tasks**:
-    1.  Implement or integrate a persistent B-Tree library.
-    2.  Create an API endpoint `POST /<collection>/_index` to trigger the creation of an index on a specific field.
-    3.  Modify the write path to automatically update the relevant index whenever a document is created, updated, or deleted.
-    4.  Update the query planner to detect when a `WHERE` clause can use an index, and direct the executor to use the index instead of a full scan.
-*   **Acceptance Criteria**:
-    *   Creating an index on a field is successful.
-    *   A `SELECT` query using an indexed field in the `WHERE` clause shows a significant performance improvement over a query on a non-indexed field.
-
 ## 9. Phase 2: V1.1 - Detailed Breakdown
 
 This section provides a more granular breakdown of the tasks required to deliver Version 1.1.
