@@ -60,14 +60,10 @@ class TestRetrievalStrategies(unittest.TestCase):
         # Filters: np.array([[1.0, 1.0, 1.0], [1.0, -1.0, 0.0], [0.0, 1.0, -1.0]])
         # Dense weights are now calculated based on the number of filters
 
-        expected_similarities = []
-        for doc_embedding in self.doc_embeddings:
-            convolved = np.dot(doc_embedding, strategy.filters.T)
-            activated = np.maximum(0, convolved)  # ReLU
-            pooled = np.max(activated, axis=1) # Max pooling across features
-            similarity = np.dot(pooled, strategy.dense_weights)
-            expected_similarities.append(similarity)
-        expected_similarities = np.array(expected_similarities)
+        doc_embeddings_np = np.array(self.doc_embeddings)
+        convolved = np.dot(doc_embeddings_np, strategy.filters.T)
+        activated = np.maximum(0, convolved)
+        expected_similarities = np.dot(activated, strategy.dense_weights)
 
         similarities = strategy.calculate_similarity(self.query_embedding, self.doc_embeddings)
         self.assertEqual(similarities.shape, (len(self.doc_embeddings),))
