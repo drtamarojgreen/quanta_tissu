@@ -15,7 +15,9 @@ enum class DataType : uint8_t {
     BOOLEAN,
     DATETIME,
     BINARY_DATA,
-    ELEMENT_LIST
+    ELEMENT_LIST,
+    ARRAY,
+    OBJECT
 };
 
 // Forward declarations for recursive serialization/deserialization.
@@ -51,6 +53,37 @@ void serialize_value(BinaryStreamBuffer& bsb, const Value& value) {
             for(const auto& elem : arg) {
                 serialize_element(bsb, elem);
             }
+        } else if constexpr (std::is_same_v<T, std::shared_ptr<Array>>) {
+            bsb.write(DataType::ARRAY);
+            if (arg) {
+                bsb.write(true); // Mark as not null
+                bsb.write(arg->values.size());
+                for (const auto& val : arg->values) {
+                    serialize_value(bsb, val);
+                }
+            } else {
+                bsb.write(false); // Mark as null
+            }
+        } else if constexpr (std::is_same_v<T, std::shared_ptr<Object>>) {
+            bsb.write(DataType::OBJECT);
+            if (arg) {
+                bsb.write(true); // Mark as not null
+                bsb.write(arg->values.size());
+                for (const auto& pair : arg->values) {
+                    bsb.write_string(pair.first);
+                    serialize_value(bsb, pair.second);
+                }
+            } else {
+                bsb.write(false); // Mark as null
+            }
+        } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
+            // This case should ideally be handled by the default Json::JsonValue(nullptr) in value_to_json
+            // but including it for completeness in serialization.
+            // For now, we'll just write a null type if it somehow gets here.
+            // This might need a dedicated DataType::NULL_TYPE if we want to distinguish it.
+            // For now, we'll just skip writing anything for nullptr_t if it's part of a larger variant.
+            // Or, we could throw an error if we expect all Value types to be explicitly handled.
+            // For now, let's assume it won't reach here for nullptr_t if it's part of a larger variant.
         }
     }, value);
 }
@@ -95,6 +128,34 @@ Value deserialize_value(BinaryStreamBuffer& bsb) {
                 elements.push_back(deserialize_element(bsb));
             }
             return elements;
+        }
+        case DataType::ARRAY: {
+            bool is_not_null;
+            bsb.read(is_not_null);
+            if (!is_not_null) return std::shared_ptr<Array>(nullptr);
+
+            size_t count;
+            bsb.read(count);
+            auto arr = std::make_shared<Array>();
+            arr->values.reserve(count);
+            for (size_t i = 0; i < count; ++i) {
+                arr->values.push_back(deserialize_value(bsb));
+            }
+            return arr;
+        }
+        case DataType::OBJECT: {
+            bool is_not_null;
+            bsb.read(is_not_null);
+            if (!is_not_null) return std::shared_ptr<Object>(nullptr);
+
+            size_t count;
+            bsb.read(count);
+            auto obj = std::make_shared<Object>();
+            for (size_t i = 0; i < count; ++i) {
+                std::string key = bsb.read_string();
+                obj->values[key] = deserialize_value(bsb);
+            }
+            return obj;
         }
         default:
             throw std::runtime_error("Unknown data type in stream during deserialization.");

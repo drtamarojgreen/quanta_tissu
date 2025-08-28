@@ -193,7 +193,7 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
                 for (const auto& right_doc : right_docs) {
                     bool right_doc_matched = false;
                     for (const auto& left_doc : all_docs) {
-                        if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc))) {
+                        if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc), params)) {
                             right_doc_matched = true;
                             break;
                         }
