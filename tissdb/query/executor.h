@@ -21,7 +21,7 @@ public:
     explicit Executor(Storage::LSMTree& storage);
 
     // Executes a query represented by an AST.
-    QueryResult execute(const AST& ast);
+    QueryResult execute(const AST& ast, const std::vector<Literal>& params);
 
 private:
     // A reference to the underlying storage engine.

@@ -31,7 +31,7 @@ def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length:
     logger.debug(f"Prompt token IDs: {prompt_token_ids.tolist()}")
 
     # Use the new efficient generate method
-    logger.debug("Calling model.sample() for token generation.")
+    logger.debug("Calling model.generate() for token generation.")
     generated_ids = model.sample(
         prompt_token_ids,
         n_new_tokens=length,
