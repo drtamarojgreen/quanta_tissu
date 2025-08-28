@@ -22,8 +22,14 @@ struct Identifier {
     std::string name;
 };
 
+// Represents a parameter placeholder '?' in a query.
+struct ParameterExpression {
+    // The zero-based index of the parameter in the parameter list.
+    size_t index;
+};
+
 // The Expression variant represents any kind of expression in the WHERE clause
-using Expression = std::variant<Identifier, Literal, std::shared_ptr<BinaryExpression>, std::shared_ptr<LogicalExpression>>;
+using Expression = std::variant<Identifier, Literal, ParameterExpression, std::shared_ptr<BinaryExpression>, std::shared_ptr<LogicalExpression>>;
 
 // Represents a binary expression (e.g., field = 'value', price > 100)
 struct BinaryExpression {

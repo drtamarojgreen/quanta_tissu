@@ -29,7 +29,7 @@ def register_steps(runner):
             requests.put(f"{BASE_URL}/{db_name}/{collection_name}")
 
         # The query endpoint is on the database, not the collection
-        response = requests.post(f"{BASE_URL}/{db_name}/_query", json=data)
+        response = requests.post(f"{BASE_URL}/{db_name}/{collection_name}/_query", json=data)
 
         assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
         context['query_result'] = response.json()
