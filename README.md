@@ -1,230 +1,115 @@
 ![QuantaTissu Logo](docs/images/tissdb_logo1.jpg)
 
-# QuantaTissu
+# The QuantaTissu Ecosystem
 
-QuantaTissu is a minimal transformer-based language model inference engine built **from scratch** in Python using only NumPy. It implements basic tokenization, embeddings, positional encoding, multi-head self-attention, feed-forward layers, and output projection.
+Welcome to the QuantaTissu Ecosystem, a multi-faceted platform for next-generation AI and data management. This project integrates a from-scratch language model, a high-performance database, agentic tooling, and advanced analytics into a single, cohesive environment. It is designed for developers, researchers, and pioneers interested in building and experimenting with cutting-edge, resource-conscious AI systems.
 
-This project serves two purposes:
-1.  As an educational tool to understand the inner workings of a transformer model.
-2.  As the foundational first step towards building a sophisticated, agentic coding assistant.
+## Core Components
 
-## Project Vision: An Agentic Coding Assistant
+The ecosystem is comprised of several key components, each designed to be powerful on its own and even more capable when used together.
 
-The long-term vision for QuantaTissu is to evolve it from a foundational language model into an autonomous agent that can interact with a development environment to write, debug, and test code. This involves enhancing the core model and then building agentic capabilities on top of it.
+---
 
-The roadmap is divided into two main phases:
-1.  **Foundational Model Enhancement**: Scaling up the model, implementing a full-scale training pipeline with backpropagation, and establishing rigorous evaluation benchmarks.
-2.  **Agentic Capabilities Development**: Integrating tools for file system operations and shell command execution, implementing a planning and reasoning engine, and creating a feedback loop for self-correction.
+### 1. QuantaTissu: The Agentic Language Model
 
-More details can be found in `docs/agent_strategies.md`.
+**QuantaTissu** is a sophisticated, transformer-based language model built from scratch in Python with NumPy. Originally an educational tool, it has evolved into a capable Retrieval-Augmented Generation (RAG) system designed for agentic tasks.
 
-## TissLang: The Agentic Language
+**Key Features:**
+*   **Complete Transformer Architecture:** Implements all core components, including embeddings, positional encoding, multi-head self-attention, and feed-forward networks.
+*   **Retrieval-Augmented Generation (RAG):** Features a built-in vector knowledge base that allows the model to retrieve relevant information and use it to generate more accurate and contextually-aware responses.
+*   **Self-Updating Knowledge Base:** The knowledge base can learn from interactions, user feedback, and its own successful outputs, continuously improving its performance over time.
+*   **Advanced Inference Strategies:** Supports multiple sampling methods, including greedy decoding, top-k, and nucleus (top-p) sampling.
+*   **Full Training Pipeline:** Includes a from-scratch implementation of backpropagation, an Adam optimizer, and a configurable training loop.
 
-To steer the agent, we are developing **TissLang**, a high-level, declarative language designed specifically for orchestrating agentic workflows. It allows developers to define complex tasks in a structured, human-readable format.
+---
 
-A TissLang script breaks a high-level goal into sequential steps, with commands to execute actions and assertions to verify outcomes.
+### 2. TissDB: High-Performance C++ NoSQL Database
 
-### Core Concepts
+**TissDB** is a lightweight, high-performance NoSQL database built entirely in C++. It serves as the primary persistence layer for the QuantaTissu ecosystem.
 
--   **`TASK`**: Defines the overall objective.
--   **`STEP`**: A logical unit of work within the task.
--   **Commands**: Specific actions like `WRITE` (to the file system), `RUN` (a shell command), or `PROMPT_AGENT` (to invoke the LLM).
--   **`ASSERT`**: Verifies the outcome of commands (e.g., `ASSERT LAST_RUN.EXIT_CODE == 0`).
--   **Directives**: Metadata, like `@persona`, to guide the agent's behavior.
--   **Advanced Control Flow**: Features like `PARALLEL` for concurrent execution and `CHOOSE` for conditional logic.
+**Key Features:**
+*   **LSM-Tree Storage Engine:** Optimized for high write throughput, making it suitable for logging, time-series data, and other write-intensive applications.
+*   **JSON-like Document Model:** Offers a flexible, schema-less data model.
+*   **TissQL Query Language:** A simple, SQL-like interface for data manipulation and retrieval.
+*   **RESTful API:** Provides a straightforward HTTP-based API for interacting with the database from any language.
+*   **Write-Ahead Log (WAL):** Ensures data durability and allows for state recovery on restart.
 
-### Example
+**Current Status:** TissDB is functional and in active development. Current limitations include in-memory primary data structures and non-persistent indexes, which are targets for future enhancement.
 
-Here is a simple TissLang script to create and test a Python file:
+---
 
+### 3. Nexus Flow: Graph Visualization & Analysis
+
+**Nexus Flow** is a C++ application for visualizing and interacting with complex graph structures. It is designed to be the primary interface for exploring relationships in data and AI-generated knowledge graphs.
+
+**Key Features:**
+*   **Interactive 3D Visualization:** Render and manipulate graphs in a 3D space.
+*   **LLM Integration (Planned):** Undergoing development to integrate tightly with **TissLM**, enabling users to generate and modify graphs using natural language prompts.
+*   **TissDB Integration (Planned):** Future versions will use **TissDB** as a persistence layer to save, load, and query graph structures.
+*   **Native Analytics Suite (Planned):** A high-performance graph analytics library is being developed to run directly within the C++ application.
+
+---
+
+### 4. Analytics Platform
+
+The ecosystem includes a Python-based analytics platform designed for complex data analysis and modeling.
+
+**Key Features:**
+*   **Database Connectivity:** Includes a dedicated connector (`db_connector.py`) to interface with data sources like TissDB.
+*   **Charting and Visualization:** Contains modules for generating charts and other data visualizations (`charting.py`).
+*   **Financial Modeling:** Features a `trading_engine.py` component, suggesting capabilities for financial analysis and algorithmic trading simulations.
+*   **Extensible Architecture:** Designed to be modular, allowing for the addition of new analytical tools and patterns.
+
+---
+
+### 5. TissLang: The Agentic Language
+
+**TissLang** is a high-level, declarative language designed to orchestrate agentic workflows. It provides a structured, human-readable syntax for defining complex tasks that the QuantaTissu agent can execute.
+
+**Core Concepts:**
+*   **`TASK` & `STEP`**: Define the overall objective and break it into logical units.
+*   **Commands**: Execute actions like `WRITE` to the file system or `RUN` a shell command.
+*   **`ASSERT`**: Verify the outcomes of commands to ensure the workflow is proceeding correctly.
+
+**Example:**
 ```tiss
 #TISS! Language=Python
 
-TASK "Create and test a simple Python hello world script"
+TASK "Create and test a simple Python script"
 
-STEP "Create the main application file" {
+STEP "Create the file" {
     WRITE "main.py" <<PYTHON
-import sys
-
-def main():
-    print(f"Hello, {sys.argv[1]}!")
-
-if __name__ == "__main__":
-    main()
+print("Hello, QuantaTissu!")
 PYTHON
 }
 
-STEP "Run the script and verify its output" {
-    RUN "python main.py TissLang"
+STEP "Run and verify" {
+    RUN "python main.py"
     ASSERT LAST_RUN.EXIT_CODE == 0
-    ASSERT LAST_RUN.STDOUT CONTAINS "Hello, TissLang!"
+    ASSERT LAST_RUN.STDOUT CONTAINS "Hello, QuantaTissu!"
 }
 ```
 
-This structured approach is key to enabling the agent to handle complex, multi-step tasks autonomously.
+---
 
-## TissDB: A High-Performance NoSQL Database
+### 6. Tissu Sinew: C++ Connector for TissDB
 
-TissDB is a lightweight, high-performance NoSQL database built from scratch in C++. It is designed to be a simple, embeddable database for C++ applications.
+**Tissu Sinew** is a lightweight, high-performance C++ connector providing a native interface to TissDB. It is the backbone for communication between C++ components (like **Nexus Flow**) and the database.
 
-### Features
+**Key Features:**
+*   **Thread-Safe Client:** Manages a connection pool for efficient, multi-threaded access.
+*   **Modern C++ API:** Uses RAII, smart pointers, and exception-based error handling for robust and clean code.
+*   **High Performance:** Designed for low-overhead communication with the TissDB server.
 
-*   **Multi-Database Support:** TissDB can manage multiple, isolated databases on a single server instance.
-*   **LSM-Tree Storage Engine:** TissDB uses a log-structured merge-tree (LSM-Tree) for high write throughput.
-*   **JSON-like Document Model:** TissDB stores data in a flexible, JSON-like document model.
-*   **TissQL Query Language:** TissDB provides a simple, SQL-like query language called TissQL for querying data.
-*   **B-Tree Indexing:** TissDB supports B-Tree indexing for fast lookups.
-*   **RESTful API:** TissDB provides a RESTful API for interacting with the database.
+## Project Philosophy
 
-More details can be found in `tissdb/README.md` and the documents in the `docs/` directory.
+*   **Ecological Awareness:** We aim to build AI systems that are not only powerful but also resource-efficient, from model architecture to code generation.
+*   **From-Scratch Implementation:** Core components are built from the ground up to ensure a deep understanding of the underlying technology and to maintain full control over the stack.
+*   **Agentic Computing:** Our ultimate goal is to create autonomous agents that can reason, plan, and execute complex tasks in a development environment.
 
-## Tissu Sinew: C++ Connector for TissDB
+## Getting Started
 
-Tissu Sinew is a lightweight, high-performance C++ connector for TissDB. It provides a native C++ interface for applications to communicate with the database server.
+Usage instructions for each component can be found in their respective directories and documentation files. For a quick start:
 
-### Key Features
-
-*   **Thread-Safe Client**: The `TissuClient` manages a connection pool and can be safely shared across multiple threads.
-*   **RAII-Based Session Management**: `TissuSession` and `TissuTransaction` use RAII principles, automatically managing the lifecycle of connections and transactions to prevent resource leaks.
-*   **Connection Pooling**: Reduces the overhead of establishing new connections for each request, improving performance in multi-threaded applications.
-*   **Clean, Modern C++ API**: Uses smart pointers (`std::unique_ptr`) for clear ownership and exception-based error handling for robust code.
-
-### Quick Start Example
-
-Here is a brief example of how to connect to TissDB and run a `PING` command.
-
-```cpp
-#include "quanta_tissu/tissu_sinew.hh"
-#include <iostream>
-#include <memory>
-
-int main() {
-    // Configure and create a client
-    tissudb::TissuConfig config;
-    config.host = "127.0.0.1";
-    config.port = 8080;
-    std::unique_ptr<tissudb::TissuClient> client = tissudb::TissuClient::create(config);
-
-    if (!client) {
-        std::cerr << "Failed to create TissuClient." << std::endl;
-        return 1;
-    }
-
-    try {
-        // Get a session from the pool (RAII handles return)
-        std::unique_ptr<tissudb::ISession> session = client->getSession();
-
-        // Run a query and print the result
-        std::unique_ptr<tissudb::TissuResult> result = session->run("PING");
-        if (result) {
-            std::cout << "Server response: " << result->asString() << std::endl;
-        }
-    } catch (const tissudb::TissuException& e) {
-        std::cerr << "Database error: " << e.what() << std::endl;
-        return 1;
-    }
-
-    return 0;
-}
-```
-
-A comprehensive guide to building the connector, along with a full API reference, can be found in `docs/tissu_sinew_plan.md`.
-
-## Ecological Awareness
-
-QuantaTissu aims to be a demonstration of how AI can be developed and used in an environmentally conscious manner. This involves a three-pronged approach to ecological awareness:
-
-1.  **Optimize the model for lower energy consumption.**
-2.  **Generate code that is more energy-efficient.**
-3.  **Have the AI agent reflect on the environmental impact of the code it writes.**
-
-More details on this initiative can be found in `docs/ecological_awareness.md`.
-
-## Features
-
-- Trainable Byte-Pair Encoding (BPE) tokenizer.
-- Full training pipeline with a custom Adam optimizer and backpropagation from scratch.
-- Configurable transformer model (d_model, n_heads, n_layers).
-- Sinusoidal positional encoding.
-- Multi-head self-attention with causal masking for correct autoregressive behavior.
-- Batched inference with greedy, top-k, and nucleus sampling methods.
-- Saving and loading of trained model weights and tokenizers.
-
-## Requirements
-
-- Python 3.7+
-- NumPy, Regex
-- See `requirements.txt` for specific versions.
-
-## Usage
-
-### Training
-
-To train the model from scratch on the provided corpus:
-```bash
-python quanta_tissu/tisslm/legacylm/train.py
-```
-This will train a new tokenizer and save it to `models/tokenizer.json`, and save the trained model weights to `models/quanta_tissu.npz`.
-
-### Inference
-
-To run inference with a trained model:
-```bash
-python -m quanta_tissu.tisslm.legacylm.run_inference --prompt "Your prompt here"
-```
-
-## How it Works
-
-The model is a decoder-only transformer built from scratch using NumPy.
-
-1.  **Tokenization**: Input text is converted into token IDs using a trained Byte-Pair Encoding (BPE) tokenizer.
-2.  **Embeddings**: Token IDs are mapped to dense vectors.
-3.  **Positional Encoding**: Sinusoidal encodings are added to give the model positional information.
-4.  **Transformer Blocks**: The sequence is processed by a stack of N transformer blocks. Each block contains:
-    *   A multi-head self-attention layer with a causal mask to ensure a token can only attend to previous tokens.
-    *   A position-wise feed-forward network.
-    *   Residual connections and layer normalization are applied around each sub-layer.
-5.  **Output Projection**: The final output is passed through a linear layer to produce logits over the vocabulary.
-6.  **Prediction**: The next token is predicted from the logits using a chosen sampling strategy (e.g., greedy, top-k, nucleus).
-
-A detailed implementation plan can be found in `docs/plan.md`, and a list of potential enhancements is in `docs/enhancements.md`.
-
-## Testing
-
-The project includes a testing plan to ensure the correctness of individual components and the overall behavior of the application. The testing strategy includes:
-
--   **Unit Tests**: To verify the correctness of individual components like the tokenizer, core math functions, attention mechanism, and transformer block.
--   **Behavior-Driven Development (BDD) Tests**: To ensure the application behaves as expected from a user's perspective, with scenarios for text generation and handling of unknown words.
-
-The full test plan is available in `docs/test.md`.
-
-## Future Work
-This project serves as a foundation. The `docs/enhancements.md` file contains a detailed list of potential improvements. Key areas include:
-
--   **Advanced Inference**: Implement performance optimizations like **KV Caching** to accelerate the generation of long sequences.
--   **Architectural Enhancements**:
-    -   Upgrade components with modern alternatives like **SwiGLU**, **RMSNorm**, and **RoPE**.
-    -   Implement dropout for regularization.
--   **Usability and Tooling**: Create visualization tools for attention maps and build an interactive web demo.
-
-## Project Structure
-
-The repository is organized into several key directories:
-
-```
-.
-├── docs/              # Documentation, design docs, and specifications
-├── quanta_tissu/      # Python-based language model (QuantaTissu)
-│   ├── tisslm/        # Source code for the QuantaTissu model
-│   └── scripts/       # Scripts to run and interact with the model
-├── tissdb/            # C++ NoSQL database (TissDB)
-│   ├── api/           # RESTful API implementation
-│   ├── common/        # Shared data structures
-│   ├── json/          # JSON parser
-│   ├── query/         # TissQL query parser and executor
-│   └── storage/       # LSM-Tree storage engine
-├── tests/             # Unit and integration tests
-│   ├── db/            # C++ tests for TissDB
-│   └── features/      # BDD tests for TissLang
-└── README.md
-```
+*   **To train the Python LLM:** `python quanta_tissu/tisslm/legacylm/train.py`
+*   **To run TissDB:** `make && ./tissdb` (from within the `tissdb` directory)
