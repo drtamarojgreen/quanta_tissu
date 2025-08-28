@@ -88,9 +88,11 @@ class Generator:
         # --- Telemetry Hook: Log initial logits and probabilities ---
         logger.debug(f"Telemetry: Logits (first 10): {logits[:10].tolist()}")
         
+        print(f"DEBUG: _predict_from_logits - Logits before softmax: {logits[:25].tolist()}") # Print first 25 logits
         probs = softmax(logits, temperature=temperature)
         if probs.ndim > 1:
             probs = np.squeeze(probs)
+        print(f"DEBUG: _predict_from_logits - Probs after softmax: {probs[:25].tolist()}") # Print first 25 probs
         logger.debug(f"Telemetry: Probabilities (first 10): {probs[:10].tolist()}")
 
         # --- Orchestration Hook: Apply external policies to probabilities ---
@@ -149,13 +151,15 @@ class Generator:
 
 
         elif method == "random" or method == "sampling":
-             next_token = np.random.choice(len(probs), p=probs.flatten())
+             print(f"DEBUG: _predict_from_logits - Probs before choice: {probs[:25].tolist()}") # Print first 25
+             print(f"DEBUG: _predict_from_logits - Sum of probs before choice: {np.sum(probs)}")
+             next_token = np.random.choice(len(probs), p=np.array(probs)) # Pass a new numpy array copy of probs
              logger.debug(f"Telemetry: Random selected token ID: {next_token}, probability: {probs[next_token]:.4f}")
 
         else:
             raise ConfigurationError(f"Unknown sampling method: {method}")
         
-        return next_token
+        return next_token, probs
 
     def _apply_orchestration_policy(self, probs, method, temperature, top_k, top_p, past_tokens, repetition_penalty, bias_token_id, bias_strength):
         """

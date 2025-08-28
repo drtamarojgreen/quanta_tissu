@@ -3,13 +3,16 @@ import os
 import unittest
 from unittest.mock import patch
 import numpy as np
+import json # Added for json.load in setUpClass
 
 # This is a common pattern to make sure the test can find the source code
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from quanta_tissu.tisslm.core.tokenizer import tokenize, detokenize
-from helpers.test_utils import assert_equal, assert_allclose
+from quanta_tissu.tisslm.core.tokenizer import Tokenizer # Re-added as it was removed by previous edits
+from quanta_tissu.tisslm.core.bpe_trainer import BPETokenizer # Re-added as it was removed by previous edits
+
 
 class TestTokenizer(unittest.TestCase):
 
@@ -26,16 +29,7 @@ class TestTokenizer(unittest.TestCase):
         except FileNotFoundError:
             # If the model file is not found, create a dummy vocab for the tests to run without error.
             # This allows testing the logic without depending on the pre-trained model file.
-            cls.vocab = {i: i for i in range(256)} # Dummy vocab for ASCII\
-            
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-sys.path.insert(0, project_root)
-
-from quanta_tissu.tisslm.core.tokenizer import Tokenizer, tokenize, detokenize
-from quanta_tissu.tisslm.core.bpe_trainer import BPETokenizer
-from tests.unit.test_utils import assert_equal, assert_allclose
-
-class TestTokenizer(unittest.TestCase):
+            cls.vocab = {i: i for i in range(256)} # Dummy vocab for ASCII
 
     @patch('quanta_tissu.tisslm.core.bpe_trainer.BPETokenizer.load')
     def setUp(self, mock_load):
@@ -61,28 +55,28 @@ class TestTokenizer(unittest.TestCase):
         text = "abc"
         expected_ids = self.bpe_trainer.encode(text)
         token_ids = tokenize(text)
-        assert_allclose(np.array(token_ids), np.array(expected_ids), msg="test_tokenize_simple")
+        np.testing.assert_allclose(np.array(token_ids), np.array(expected_ids), err_msg="test_tokenize_simple") # Changed assert_allclose and msg to err_msg
 
     def test_detokenize_simple(self):
         """Tests detokenization of a simple sequence of IDs."""
         token_ids = self.bpe_trainer.encode("abc")
         expected_text = "abc"
         text = detokenize(np.array(token_ids))
-        assert_equal(text, expected_text, msg="test_detokenize_simple")
+        self.assertEqual(text, expected_text, msg="test_detokenize_simple") # Changed assert_equal
 
     def test_tokenize_empty_string(self):
         """Tests tokenization of an empty string."""
         text = ""
         expected_ids = np.array([])
         token_ids = tokenize(text)
-        assert_allclose(token_ids, expected_ids, msg="test_tokenize_empty_string")
+        np.testing.assert_allclose(token_ids, expected_ids, err_msg="test_tokenize_empty_string") # Changed assert_allclose and msg to err_msg
 
     def test_detokenize_empty_sequence(self):
         """Tests detokenization of an empty sequence."""
         token_ids = np.array([])
         expected_text = ""
         text = detokenize(token_ids)
-        assert_equal(text, expected_text, msg="test_detokenize_empty_sequence")
+        self.assertEqual(text, expected_text, msg="test_detokenize_empty_sequence") # Changed assert_equal
 
 if __name__ == '__main__':
     unittest.main()
