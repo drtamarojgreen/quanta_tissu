@@ -14,12 +14,26 @@
                 <h3>QuantaTissu</h3>
             </div>
             <nav>
+                <h4>On This Page</h4>
                 <ul>
                     <li><a href="#intro">Introduction</a></li>
+                    <li><a href="#quantatissu-model">QuantaTissu LLM</a></li>
                     <li><a href="#tisslang">TissLang</a></li>
                     <li><a href="#tissdb">TissDB</a></li>
                     <li><a href="#tissu-sinew">Tissu Sinew</a></li>
                     <li><a href="#ecology">Ecological Awareness</a></li>
+                </ul>
+            </nav>
+            <nav>
+                <h4>Project Documents</h4>
+                <ul>
+                    <li><a href="overview.md">Project Overview</a></li>
+                    <li><a href="roadmap.md">Development Roadmap</a></li>
+                    <li><a href="enhancements.md">Enhancements List</a></li>
+                    <li><a href="api_spec.yml">API Specification</a></li>
+                    <li><a href="tissdb_api_guide.md">TissDB API Guide</a></li>
+                    <li><a href="TissLang_plan.md">TissLang Plan</a></li>
+                    <li><a href="test.md">Test Plan</a></li>
                 </ul>
             </nav>
         </aside>
@@ -27,43 +41,66 @@
         <main class="content">
             <header>
                 <h1>QuantaTissu Project</h1>
-                <p style="font-style: italic;">Document the Present. Discover the Future.</p>
+                <p style="font-style: italic;">A multi-faceted project to build an autonomous AI software engineering agent from scratch.</p>
             </header>
 
             <section id="intro">
-                <h2>Introduction to QuantaTissu</h2>
-                <p>QuantaTissu is a foundational project designed to build a minimal, yet powerful, transformer-based language model from scratch using Python and NumPy. Its primary goal is twofold: to serve as a transparent educational tool for understanding the intricate mechanics of transformer architectures, and to act as the core component of a future-thinking, agentic AI coding assistant. By building from the ground up, the project ensures a deep understanding of every component, from tokenization and embeddings to multi-head self-attention and output projection.</p>
-                <p>The long-term vision for QuantaTissu is to evolve it into a fully autonomous software engineering agent. This ambitious goal is broken into two major phases. The first phase focuses on enhancing the foundational model itself by implementing a production-grade training pipeline, upgrading the model architecture with modern, efficient components, and establishing rigorous evaluation benchmarks like HumanEval and MBPP to quantify its coding proficiency. This ensures the model has a deep and reliable understanding of code before it is asked to act.</p>
-                <p>The second phase layers agentic capabilities on top of this solid foundation. This involves creating a "Tool API" to allow the agent to interact with a developer's environment, including reading and writing files and executing shell commands. A sophisticated planning and reasoning engine, evolving from Chain of Thought to Tree of Thoughts, will enable the agent to decompose complex goals into actionable steps. Crucially, a feedback and self-correction loop will allow the agent to learn from compiler errors and test failures, making it a robust and reliable coding partner.</p>
+                <h2>Introduction</h2>
+                <p>QuantaTissu is a project centered around building an autonomous AI software engineering agent. It is comprised of several key components built from the ground up to be both an educational tool and the foundation for a sophisticated coding assistant.</p>
+                <p>The project includes:</p>
+                <ul>
+                    <li><b>QuantaTissu:</b> A transformer-based language model serving as the agent's core reasoning engine.</li>
+                    <li><b>TissLang:</b> A declarative language for orchestrating the agent's actions in a structured manner.</li>
+                    <li><b>TissDB:</b> A high-performance NoSQL database for persistence.</li>
+                    <li><b>Tissu Sinew:</b> A native C++ connector for TissDB.</li>
+                </ul>
+            </section>
+
+            <section id="quantatissu-model">
+                <h2>The QuantaTissu Language Model</h2>
+                <p>QuantaTissu is a decoder-only transformer model built in Python with NumPy. It features a full training and inference pipeline with modern, efficient components.</p>
+                <p><b>Implemented Features:</b></p>
+                <ul>
+                    <li><b>Architecture:</b> A configurable N-layer transformer with multi-head self-attention and causal masking.</li>
+                    <li><b>Tokenization:</b> A trainable Byte-Pair Encoding (BPE) subword tokenizer.</li>
+                    <li><b>Inference:</b> Supports batched inference, KV Caching for speed, and advanced sampling methods (greedy, top-k, nucleus).</li>
+                    <li><b>Training:</b> A full pipeline with an Adam optimizer, cross-entropy loss, learning rate scheduling, and model checkpointing.</li>
+                </ul>
+                <p>Future work will focus on architectural upgrades like SwiGLU and RoPE, and advanced techniques like quantization and LoRA for fine-tuning.</p>
             </section>
 
             <section id="tisslang">
                 <h2>TissLang: The Agentic Language</h2>
-                <p>TissLang is a high-level, declarative language designed as the primary interface for instructing the QuantaTissu agent. It provides a structured, reproducible, and human-readable format for defining complex, multi-step software development tasks. By moving beyond simple natural language prompts to a formal specification, TissLang ensures that agent workflows are predictable, reviewable, and safe. The language is built on core concepts such as `TASK` to define the overall objective and `STEP` to break the task into logical units of work.</p>
-                <p>The language provides a rich set of commands to interact with the development environment. `WRITE` allows the agent to create or modify files with specified content, `RUN` executes shell commands to compile or test code, and `ASSERT` provides a powerful mechanism to verify the outcomes of actions. For instance, an assertion can check that a command exited successfully or that its output contains a specific string. This structured approach is key to enabling the agent to handle complex tasks autonomously while providing clear checkpoints for validation.</p>
-                <p>The development of TissLang is planned in several phases, starting with a core parser and execution engine. Future phases will introduce advanced features like variables, conditional logic (`IF/ELSE`), and sub-tasks for modularity. A key long-term goal is to enable the QuantaTissu agent to generate its own TissLang scripts as a "plan of action" in response to a high-level goal. This generated plan can then be reviewed and approved by a human developer, providing a powerful and safe human-in-the-loop collaboration model.</p>
+                <p>TissLang is a structured, human-readable language designed to direct the agent's actions safely and predictably. It includes a parser and an execution engine to interpret scripts.</p>
+                <p><b>Implemented Features:</b></p>
+                <ul>
+                    <li><b>Core Syntax:</b> `TASK` and `STEP` blocks to define and organize workflows.</li>
+                    <li><b>Commands:</b> `WRITE` (to files), `RUN` (shell commands), and `READ` (file content).</li>
+                    <li><b>Assertions:</b> `ASSERT` to verify command outcomes, such as exit codes and stdout content.</li>
+                </ul>
+                <p>Future plans include adding control flow constructs like `IF/ELSE` and enabling the agent to generate its own TissLang scripts as plans for human review.</p>
             </section>
 
             <section id="tissdb">
                 <h2>TissDB: A High-Performance NoSQL Database</h2>
-                <p>TissDB is a lightweight, high-performance NoSQL database built from scratch in C++. It is designed as a simple, embeddable database solution for C++ applications that require a flexible data model and high write throughput. The database supports the management of multiple, isolated databases on a single server instance, with each database containing its own set of collections. Data durability is ensured through a Write-Ahead Log (WAL), which records all operations before they are applied.</p>
-                <p>The database stores data in a flexible, JSON-like document model, allowing for schema-less data structures that can evolve with an application's needs. TissDB provides a simple, SQL-like query language called TissQL for querying and manipulating data. To interact with the database, it exposes a RESTful API, making it accessible from various clients and programming languages. The storage engine is based on a Log-Structured Merge-Tree (LSM-Tree), an architecture known for its excellent write performance.</p>
-                <p>While powerful, TissDB is currently under active development and has some limitations. The primary data structures are held in-memory, and the database must replay the WAL on startup to restore its state. B-Tree indexes are not yet persistent across restarts, and full transaction support is still in progress. Future work will focus on addressing these limitations to create a more robust and feature-complete database solution.</p>
+                <p>TissDB is a lightweight NoSQL database built in C++ with an LSM-Tree storage engine, a JSON-like document model, and a SQL-like query language (TissQL). It ensures durability with a Write-Ahead Log (WAL) and provides a RESTful API for interaction.</p>
+                <p><b>Limitations and Future Work:</b></p>
+                <p>TissDB is under active development. Current limitations include being primarily in-memory (relying on WAL replay on startup), non-persistent B-Tree indexes, and incomplete ACID transaction support. Future work will focus on improving persistence and transactionality.</p>
             </section>
 
             <section id="tissu-sinew">
                 <h2>Tissu Sinew: C++ Connector for TissDB</h2>
-                <p>Tissu Sinew is the official C++ connector for TissDB, providing a high-performance, native interface for C++ applications. It is designed with modern C++ principles, abstracting away the low-level details of socket communication and the TissDB protocol. The connector's architecture is centered around a thread-safe `TissuClient` that manages a connection pool, significantly reducing the overhead of establishing new connections and improving performance in multi-threaded applications.</p>
-                <p>The API is designed for safety and ease of use, heavily utilizing RAII (Resource Acquisition Is Initialization) principles through smart pointers. When a developer requests a `TissuSession` from the client, it is returned as a `std::unique_ptr`, ensuring that the connection is automatically returned to the pool when the session goes out of scope. Similarly, `TissuTransaction` objects manage the lifecycle of transactions, automatically rolling back any uncommitted changes upon destruction. This design prevents common resource leaks and makes the code cleaner and more robust.</p>
-                <p>Error handling is managed through a hierarchy of custom exceptions, all inheriting from `std::runtime_error`. This allows developers to write clean `try-catch` blocks to handle specific issues, such as connection failures (`TissuConnectionException`) or query errors (`TissuQueryException`). The session object, which represents a single logical thread of execution, is intentionally not thread-safe, enforcing a clean programming model where each thread acquires its own session from the shared client.</p>
+                <p>Tissu Sinew is the official C++ connector for TissDB. It provides a high-performance, modern C++ interface designed for safety and ease of use. Key features include a thread-safe connection pool, RAII-based session and transaction management to prevent resource leaks, and a clear exception hierarchy for robust error handling.</p>
             </section>
 
             <section id="ecology">
                 <h2>Ecological Awareness</h2>
-                <p>The QuantaTissu project is founded on a commitment to sustainable and responsible AI development. Recognizing the significant environmental footprint of large-scale AI, the project integrates ecological awareness as a core design principle. This commitment is realized through a three-pronged strategy: building energy-efficient models, generating energy-efficient code, and providing transparent analysis of the environmental impact of its own work.</p>
-                <p>The first pillar is to optimize the model itself for lower energy consumption. This is achieved by using efficient modern architectures (like RMSNorm and SwiGLU), employing techniques like quantization and pruning to reduce model size, and implementing optimized inference algorithms like KV Caching and Flash Attention. The goal is to maximize performance per watt, ensuring that the AI's own operations are as lean as possible, and to design models that are compatible with low-power AI accelerators for edge deployments.</p>
-                <p>Beyond its own efficiency, QuantaTissu is being trained to act as a "green coding" assistant. The agent will learn to detect and flag energy-intensive patterns in user code, such as busy-wait loops or inefficient data structures, and suggest more sustainable alternatives. It will be trained on curated corpuses of energy-efficient code and recommend low-impact libraries and practices. This turns the agent into a proactive partner in reducing the environmental impact of the software it helps create.</p>
-                <p>Finally, the project aims to make the invisible cost of computation visible. Through a feature in TissLang, the agent will be able to estimate the carbon footprint of a proposed code change *before* it is executed. It will generate "eco-impact reports" with clear metrics like estimated energy usage and a Software Carbon Intensity (SCI) score. This empowers developers to make informed, conscious trade-offs between performance, cost, and sustainability, making green coding the default path, not the exception.</p>
+                <p>A core principle of the project is to promote sustainable AI development through a three-pronged strategy:</p>
+                <ol>
+                    <li><b>Model Efficiency:</b> Optimizing the model for lower energy consumption.</li>
+                    <li><b>Green Code Generation:</b> Training the agent to recognize and suggest energy-efficient code.</li>
+                    <li><b>Impact Transparency:</b> Building tools in TissLang to estimate the carbon footprint of code changes.</li>
+                </ol>
             </section>
         </main>
     </div>

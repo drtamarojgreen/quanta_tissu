@@ -1,118 +1,70 @@
+> [!NOTE]
+> This document outlines the initial testing strategy. The implemented tests, which cover a broader range of functionalities, can be found in the `/tests` directory.
+
 # QuantaTissu Test Plan
 
 This document outlines the testing strategy for the QuantaTissu application, including unit tests and behavior-driven development (BDD) tests.
 
 ## 1. Unit Tests
 
-Unit tests will be written to ensure the correctness of individual components of the application.
+Unit tests are written to ensure the correctness of individual components of the application. The tests can be found in `tests/unit/`.
 
-### 1.1. Tokenizer
+### 1.1. Tokenizer (BPE)
 
--   `test_tokenize`: Should correctly convert a string of text into a sequence of token IDs.
--   `test_tokenize_unknown_words`: Should handle unknown words by mapping them to the `<unk>` token.
+-   `test_train_bpe`: Should correctly train a tokenizer from a corpus and save it.
+-   `test_tokenize`: Should correctly convert a string of text into a sequence of subword token IDs.
 -   `test_detokenize`: Should correctly convert a sequence of token IDs back into a string of text.
+-   `test_out_of_vocabulary`: Should handle characters not seen during training.
 
-### 1.2. Core Components
+### 1.2. Core Model Components
 
--   `test_softmax`: Should correctly compute the softmax function for a given input.
--   `test_layer_norm`: Should correctly normalize the output of a layer.
--   `test_scaled_dot_product_attention`: Should compute the correct attention scores and output.
--   `test_multi_head_attention`: Should correctly split and combine heads, and produce the correct output shape.
--   `test_feed_forward`: Should produce the correct output shape.
--   `test_positional_encoding`: Should correctly add positional information to the input embeddings.
+-   `test_softmax`, `test_layer_norm`, `test_scaled_dot_product_attention`, `test_multi_head_attention`, `test_feed_forward`, `test_positional_encoding`.
+-   These tests verify the mathematical correctness and output shapes of the core transformer building blocks.
 
-### 1.3. Transformer Block
-
--   `test_transformer_block`: Should produce the correct output shape and not raise any errors.
-
-### 1.4. QuantaTissu Model
-
--   `test_forward_pass`: Should produce logits of the correct shape.
--   `test_predict`: Should return a single token ID.
+### 1.3. Training Components
+-   `test_optimizer`: Verify that the Adam optimizer correctly updates model weights.
+-   `test_loss`: Verify the cross-entropy loss calculation.
+-   `test_kv_caching`: Verify that inference with the KV cache produces the same results as without it, but faster.
 
 ## 2. Behavior-Driven Development (BDD) Tests
 
-BDD tests will be written to ensure that the application behaves as expected from a user's perspective. These tests will be written in a Gherkin-like syntax.
+BDD tests ensure the application behaves as expected from a user's perspective. The feature files and step definitions are in `tests/features/`.
 
-### 2.1. Generating Text
+### 2.1. TissLang
 
-**Feature**: Text Generation
-As a user, I want to be able to generate text from a prompt.
+**Feature**: TissLang Script Execution
+As a developer, I want to execute `.tiss` scripts to perform tasks.
 
-**Scenario**: Generate the next word
-**Given** a trained QuantaTissu model
-**And** a prompt "hello"
-**When** I ask the model to predict the next token
-**Then** the model should return a single token ID
+**Scenario**: Create and test a file
+**Given** a TissLang script that writes "hello" to `output.txt`
+**When** I execute the script
+**Then** the file `output.txt` should exist
+**And** its content should be "hello"
 
-**Scenario**: Generate a sequence of words
-**Given** a trained QuantaTissu model
-**And** a prompt "hello world"
-**When** I ask the model to generate a sequence of 5 tokens
-**Then** the model should return a sequence of 5 token IDs
+**Scenario**: Run a command and assert its output
+**Given** a TissLang script that runs `echo "test"`
+**When** I execute the script
+**Then** the last run result's stdout should contain "test"
+**And** the last run result's exit code should be 0
 
-### 2.2. Handling Unknown Words
-
-**Feature**: Unknown Word Handling
-As a user, I want the model to handle words that are not in its vocabulary.
-
-**Scenario**: Tokenize a sentence with an unknown word
-**Given** a QuantaTissu model with a fixed vocabulary
-**And** a sentence "this is a foobar test"
-**When** I tokenize the sentence
-**Then** the tokenizer should correctly handle the unknown word
-
-### 2.3. Generating Text with Knowledge Base
-
-**Feature**: Text Generation with Knowledge Base
-As a user, I want the model to use a knowledge base to answer my questions.
-
-**Scenario**: Answer a question using the knowledge base
-**Given** a QuantaTissu model with a knowledge base
-**And** the knowledge base contains the document "the sky is blue"
-**When** I ask the model to generate an answer to "what color is the sky" using the knowledge base
-**Then** the model should generate an answer containing the word "blue"
-
-### 2.4. TissDB Document Management
+### 2.2. TissDB API
 
 **Feature**: TissDB Document Management
-As a user, I want to be able to manage documents in TissDB.
+As a user, I want to be able to manage documents in TissDB via the REST API.
 
-**Scenario**: Create a new document
+**Scenario**: Create a new document in a collection
 **Given** a running TissDB instance
-**When** I send a POST request to "/documents" with the following JSON:
-"""
-{
-  "name": "John Doe",
-  "age": 30
-}
-"""
-**Then** the response should have a status code of 201
-**And** the response should contain a JSON object with the created document's ID
+**When** I send a POST request to "/my_collection" with a JSON body
+**Then** the response status code should be 201
+**And** the response should contain the ID of the created document
 
 **Scenario**: Retrieve an existing document
-**Given** a document with ID "1234" exists in TissDB
-**When** I send a GET request to "/documents/1234"
-**Then** the response should have a status code of 200
-**And** the response should contain a JSON object with the document's data
+**Given** a document with ID "1234" exists in the "my_collection" collection
+**When** I send a GET request to "/my_collection/1234"
+**Then** the response status code should be 200
+**And** the response body should contain the document's data
 
-**Scenario**: Update an existing document
-**Given** a document with ID "1234" exists in TissDB
-**When** I send a PUT request to "/documents/1234" with the following JSON:
-"""
-{
-  "age": 31
-}
-"""
-**Then** the response should have a status code of 200
-**And** the response should contain a JSON object with the updated document's data
-
-**Scenario**: Delete an existing document
-**Given** a document with ID "1234" exists in TissDB
-**When** I send a DELETE request to "/documents/1234"
-**Then** the response should have a status code of 204
-
-### 2.5. Tissu Sinew C++ Connector
+### 2.3. Tissu Sinew C++ Connector
 
 **Feature**: Tissu Sinew C++ Connector
 As a C++ developer, I want to reliably connect to TissDB.
