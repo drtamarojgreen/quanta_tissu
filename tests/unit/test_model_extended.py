@@ -2,12 +2,14 @@ import sys
 import os
 import unittest
 import numpy as np
+from numpy.testing import assert_allclose
 from unittest.mock import MagicMock
 
 # Add project root to path to allow importing quanta_tissu
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from quanta_tissu.tisslm.core.model import QuantaTissu
+from quanta_tissu.tisslm.core.layers import softmax
 
 class TestModelExtended(unittest.TestCase):
 
@@ -128,6 +130,92 @@ class TestModelExtended(unittest.TestCase):
 
         self.assertEqual(generated_tokens, expected_tokens, "Generated tokens should stop at eos_id.")
         self.assertLess(len(generated_tokens), n_new_tokens, "Generation should have stopped before n_new_tokens.")
+
+    def test_generate_topp(self):
+        """Test the model's sample method with nucleus sampling (top-p)."""
+        prompt_tokens = [5, 15, 25]
+        n_new_tokens = 1
+        vocab_size = self.config['vocab_size']
+        top_p = 0.9
+
+        # Create logits where one token (index 42) has a very high probability (e.g., > 0.9)
+        # and other tokens have low probabilities.
+        # With top_p = 0.9, only the token with the highest probability should be in the nucleus.
+        mock_logits = np.zeros((1, 1, vocab_size))
+        mock_logits[0, 0, 42] = 10.0  # High logit for token 42, giving it a high probability after softmax
+        mock_logits[0, 0, 55] = 1.0   # Lower logit for another token
+
+        # Mock the forward pass for the prompt and for the new token generation
+        self.model.model.forward = MagicMock(side_effect=[
+            (np.zeros((1, len(prompt_tokens), vocab_size)), None), # Processing prompt
+            (mock_logits, None) # Generating the new token
+        ])
+
+        # Mock the model's forward pass to return our crafted logits at the last position
+        mock_logits_for_prompt = np.zeros((1, len(prompt_tokens), vocab_size))
+        mock_logits_for_prompt[0, -1, 42] = 10.0
+        mock_logits_for_prompt[0, -1, 55] = 1.0
+        self.model.model.forward = MagicMock(return_value=(mock_logits_for_prompt, None))
+
+        # Even with a nucleus of one, the implementation uses np.random.choice, so we mock it.
+        with unittest.mock.patch('numpy.random.choice', return_value=42) as mock_choice:
+            generated_tokens = self.model.sample(prompt_tokens, n_new_tokens, method="nucleus", top_p=top_p)
+
+            # Verify that the probabilities passed to choice were correct
+            self.assertTrue(mock_choice.called)
+            args, kwargs = mock_choice.call_args
+            passed_probs = kwargs['p']
+            # The nucleus should contain only token 42
+            self.assertAlmostEqual(passed_probs[42], 1.0)
+            self.assertAlmostEqual(np.sum(passed_probs), 1.0)
+
+
+        expected_token = [42]
+        self.assertEqual(generated_tokens, expected_token, "Generated token with top-p sampling is incorrect.")
+
+    def test_generate_with_empty_prompt(self):
+        """Tests how the model handles an empty prompt."""
+        prompt_tokens = []
+        n_new_tokens = 5
+
+        # Depending on the implementation, this could raise an error or return an empty list.
+        # Based on the code, it's likely to raise an IndexError when accessing logits.
+        # A robust implementation might handle this, but we test the current behavior.
+        with self.assertRaises(IndexError):
+            self.model.sample(prompt_tokens, n_new_tokens)
+
+    def test_generate_with_temperature(self):
+        """Test that temperature scaling is correctly applied to logits."""
+        prompt_tokens = [1, 2]
+        n_new_tokens = 1
+        vocab_size = self.config['vocab_size']
+        temperature = 0.5
+
+        # Create the logits that we want the model to produce for the next token.
+        next_token_logits = np.zeros(vocab_size)
+        next_token_logits[10] = 2.0
+        next_token_logits[20] = 1.0
+
+        # Mock the model's forward pass to return these logits at the last position.
+        mock_logits_for_prompt = np.zeros((1, len(prompt_tokens), vocab_size))
+        mock_logits_for_prompt[0, -1, :] = next_token_logits
+        self.model.model.forward = MagicMock(return_value=(mock_logits_for_prompt, None))
+
+        with unittest.mock.patch('numpy.random.choice') as mock_choice:
+            mock_choice.return_value = 10 # Return a predictable token
+
+            self.model.sample(prompt_tokens, n_new_tokens, method="sampling", temperature=temperature)
+
+            self.assertTrue(mock_choice.called)
+            args, kwargs = mock_choice.call_args
+            passed_probs = kwargs['p']
+
+            # Calculate the expected probabilities for the entire vocabulary
+            expected_scaled_logits = next_token_logits / temperature
+            expected_probs = softmax(expected_scaled_logits)
+
+            assert_allclose(passed_probs, expected_probs, rtol=1e-5)
+
 
 if __name__ == '__main__':
     unittest.main()

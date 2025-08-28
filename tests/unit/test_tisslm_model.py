@@ -6,6 +6,7 @@ import unittest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from quanta_tissu.tisslm.core.model import QuantaTissu
+from quanta_tissu.tisslm.core.model_error_handler import ConfigurationError
 
 class TestQuantaTissuModel(unittest.TestCase):
 
@@ -34,6 +35,40 @@ class TestQuantaTissuModel(unittest.TestCase):
             self.assertIsNotNone(model.generator, "Generator should be initialized.")
         except Exception as e:
             self.fail(f"QuantaTissu model initialization failed with an exception: {e}")
+
+    def test_model_initialization_missing_config(self):
+        """
+        Tests that model initialization fails with a KeyError if a required key is missing.
+        """
+        config = {
+            'vocab_size': 100,
+            # 'n_embd' is missing
+            'n_layer': 2,
+            'n_head': 2,
+            'd_ff': 128,
+            'max_seq_len': 256,
+            'dropout': 0.1
+        }
+        with self.assertRaises(KeyError):
+            QuantaTissu(config)
+
+    def test_model_initialization_invalid_value(self):
+        """
+        Tests that model initialization fails with a ValueError for invalid config values.
+        """
+        config = {
+            'vocab_size': -100, # Invalid value
+            'n_embd': 64,
+            'n_layer': 2,
+            'n_head': 2,
+            'd_ff': 128,
+            'max_seq_len': 256,
+            'dropout': 0.1
+        }
+        # This will likely raise a ValueError from numpy when trying to create an array with a negative dimension.
+        with self.assertRaises(ValueError):
+            QuantaTissu(config)
+
 
 if __name__ == '__main__':
     unittest.main()
