@@ -9,12 +9,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from analytics.platform import patterns
 
-def test_bollinger_bands_placeholder():
+def test_bollinger_bands():
     """
-    Tests the placeholder implementation of the bollinger_bands function.
+    Tests the implementation of the bollinger_bands function.
     """
     print("Testing bollinger_bands...")
-    data = [100, 101, 102]
+    # Provide enough data for the default period of 20
+    data = list(range(100, 120))
     result = patterns.bollinger_bands(data)
 
     assert isinstance(result, dict), "bollinger_bands should return a dictionary"
@@ -22,15 +23,17 @@ def test_bollinger_bands_placeholder():
     assert "middle_band" in result
     assert "lower_band" in result
     assert "signal" in result
-    assert result["signal"] == "PRICE_NEAR_UPPER"
+    # With this data, the price should be within the bands
+    assert result["signal"] == "IN_BANDS"
     print("OK: bollinger_bands")
 
-def test_macd_placeholder():
+def test_macd():
     """
-    Tests the placeholder implementation of the moving_average_convergence_divergence function.
+    Tests the implementation of the moving_average_convergence_divergence function.
     """
     print("Testing moving_average_convergence_divergence (MACD)...")
-    data = [100, 101, 102]
+    # Provide enough data for slow_period (26) + signal_period (9) = 35
+    data = list(range(100, 135))
     result = patterns.moving_average_convergence_divergence(data)
 
     assert isinstance(result, dict), "MACD function should return a dictionary"
@@ -38,36 +41,43 @@ def test_macd_placeholder():
     assert "signal_line" in result
     assert "histogram" in result
     assert "signal" in result
-    assert result["signal"] == "BULLISH_CROSSOVER"
+    # With this linear data, we expect a neutral signal
+    assert result["signal"] == "NEUTRAL"
     print("OK: moving_average_convergence_divergence")
 
-def test_on_balance_volume_placeholder():
+def test_on_balance_volume():
     """
-    Tests the placeholder implementation of the on_balance_volume function.
+    Tests the implementation of the on_balance_volume function.
     """
     print("Testing on_balance_volume...")
-    # The placeholder doesn't actually use the data yet
-    data = [{'close': 100, 'volume': 1000}, {'close': 102, 'volume': 1200}]
+    # Data with a clear uptrend
+    data = [{'close': 100 + i, 'volume': 1000 + i*10} for i in range(10)]
     result = patterns.on_balance_volume(data)
 
     assert isinstance(result, str)
     assert result == "UPTREND"
     print("OK: on_balance_volume")
 
-def test_get_pattern_signals_includes_new_patterns():
+def test_get_pattern_signals_includes_all_patterns():
     """
-    Tests that the get_pattern_signals function includes the new patterns in its output.
+    Tests that the get_pattern_signals function includes all patterns in its output.
     """
-    print("Testing get_pattern_signals for inclusion of new patterns...")
-    data = [{'close': 100, 'volume': 1000}] * 6 # Mock data for all patterns
+    print("Testing get_pattern_signals for inclusion of all patterns...")
+    # Provide enough data for all patterns
+    data = [{'open': 100+i, 'high': 102+i, 'low': 99+i, 'close': 101+i, 'volume': 1000} for i in range(60)]
     all_signals = patterns.get_pattern_signals(data)
 
     assert "bollinger_bands" in all_signals
     assert "macd" in all_signals
     assert "obv" in all_signals
+    assert "moving_average_crossover" in all_signals
+    assert "relative_strength_index" in all_signals
+    assert "ichimoku_cloud" in all_signals
+    assert "keltner_channels" in all_signals
 
     # Check the nested structure of the returned values
     assert "upper_band" in all_signals["bollinger_bands"]
     assert "macd_line" in all_signals["macd"]
+    # With this data, OBV should be in an uptrend
     assert all_signals["obv"] == "UPTREND"
-    print("OK: get_pattern_signals includes new patterns")
+    print("OK: get_pattern_signals includes all patterns")
