@@ -16,7 +16,9 @@ def register_steps(runner):
     def predict_next_token(context, prompt):
         prompt_tokens = context['tokenizer'].tokenize(prompt)
         token_ids_np = np.array(prompt_tokens)
-        next_token_id = context['model'].predict(token_ids_np, method="greedy")
+        logits, _ = context['model'].forward(np.array([prompt_tokens]))
+        last_logit = logits[:, -1, :]
+        next_token_id = context['model'].generator._predict_from_logits(last_logit, method="greedy")
         context['next_token_id'] = next_token_id
 
     @runner.step(r'^Then the next token should be a valid token id$')

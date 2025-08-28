@@ -84,17 +84,17 @@ Value resolve_expression_to_value(const Expression& expr, const Document& doc, c
     }
     if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
         const auto& binary_expr = *binary_expr_ptr;
-        Value left_val = resolve_expression_to_value(binary_expr.left, doc, params);
-        Value right_val = resolve_expression_to_value(binary_expr.right, doc, params);
+        Value left_val = resolve_expression_to_value(binary_expr->left, doc, params);
+        Value right_val = resolve_expression_to_value(binary_expr->right, doc, params);
 
         auto left_num_opt = get_as_numeric(left_val);
         auto right_num_opt = get_as_numeric(right_val);
 
         if (left_num_opt && right_num_opt) {
-            if (binary_expr.op == "+") return *left_num_opt + *right_num_opt;
-            if (binary_expr.op == "-") return *left_num_opt - *right_num_opt;
-            if (binary_expr.op == "*") return *left_num_opt * *right_num_opt;
-            if (binary_expr.op == "/") {
+            if (binary_expr->op == "+") return *left_num_opt + *right_num_opt;
+            if (binary_expr->op == "-") return *left_num_opt - *right_num_opt;
+            if (binary_expr->op == "*") return *left_num_opt * *right_num_opt;
+            if (binary_expr->op == "/") {
                 if (*right_num_opt == 0) throw std::runtime_error("Division by zero");
                 return *left_num_opt / *right_num_opt;
             }
