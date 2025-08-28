@@ -203,7 +203,7 @@ class TestModelExtended(unittest.TestCase):
         
         # The _predict_from_logits method expects a 1D logits array.
         # mock_logits is (1, 1, vocab_size), so we need to squeeze it.
-        passed_probs = self.model.generator._predict_from_logits(
+        _, passed_probs = self.model.generator._predict_from_logits(
             mock_logits[0, 0, :], # Pass the 1D logits array
             method="sampling",
             temperature=temperature
