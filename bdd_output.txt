@@ -1,6 +1,0 @@
-BDD Runner: Script started.
-BDD Runner: Starting database at /app/tissdb/tissdb
-BDD Runner: ERROR - Database executable not found at /app/tissdb/tissdb
-BDD Runner: Compilation disabled.
-BDD Runner: Found feature files: ['tests/nexus_flow/nexus_flow.feature']
-BDD Runner: FATAL ERROR - No module named 'quanta_tissu.tisslm.tisslang_parser'

@@ -33,13 +33,15 @@ def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length:
     # Use the new efficient generate method
     logger.debug("Calling model.generate() for token generation.")
     generated_ids = model.sample(
-        prompt_token_ids,
+        prompt_token_ids.tolist(),
         n_new_tokens=length,
         method=method,
         temperature=temperature,
         top_k=top_k,
         top_p=top_p,
-        repetition_penalty=repetition_penalty
+        repetition_penalty=repetition_penalty,
+        bias_token_id=bias_token_id,
+        bias_strength=bias_strength
     )
     logger.debug(f"Generated token IDs from model: {generated_ids}")
 
@@ -81,6 +83,9 @@ def main():
     parser.add_argument("--temperature", type=float, default=0.8, help="Controls randomness. Higher is more random.")
     parser.add_argument("--top_k", type=int, default=20, help="K for top-k sampling.")
     parser.add_argument("--top_p", type=float, default=0.9, help="P for nucleus sampling.")
+    parser.add_argument("--repetition_penalty", type=float, default=1.0, help="Penalty for repeating tokens.")
+    parser.add_argument("--bias_token_id", type=int, default=None, help="Token ID to bias during generation.")
+    parser.add_argument("--bias_strength", type=float, default=0.0, help="Strength of the bias.")
 
     args = parser.parse_args()
 
@@ -117,7 +122,10 @@ def main():
         args.method,
         args.temperature,
         args.top_k,
-        args.top_p
+        args.top_p,
+        args.repetition_penalty,
+        args.bias_token_id,
+        args.bias_strength
     )
     print(generated_text)
 

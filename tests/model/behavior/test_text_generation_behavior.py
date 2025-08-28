@@ -94,6 +94,43 @@ class TestTextGenerationBehavior(unittest.TestCase):
                     os.rmdir(os.path.join(root, name))
             os.rmdir(self.test_dir)
 
+    @patch('builtins.print')
+    @patch('quanta_tissu.tisslm.core.generate_text.QuantaTissu')
+    @patch('quanta_tissu.tisslm.core.generate_text.Tokenizer')
+    def test_given_mismatched_tokenizer_when_generating_text_then_error_is_clear(self, MockTokenizer, MockQuantaTissu, mock_print):
+        """
+        Scenario: Generating text with a mismatched tokenizer
+        Given: A model that produces token IDs outside the tokenizer's vocabulary.
+        When: The generate_text function is called.
+        Then: The function should detect the decoding error and log an appropriate error message.
+        """
+        # Given: A tokenizer with a small vocabulary (e.g., 100 tokens)
+        mock_tokenizer_instance = MockTokenizer.return_value
+        # Simulate a decode that produces replacement characters for unknown IDs
+        def mismatched_decode(ids):
+            return "".join([chr(i) if i < 100 else "\uFFFD" for i in ids])
+        mock_tokenizer_instance.tokenize.side_effect = lambda x: np.array(self.bpe_tokenizer.encode(x))
+        mock_tokenizer_instance.detokenize.side_effect = mismatched_decode
+
+        # And: A model that generates token IDs outside that vocabulary (e.g., > 100)
+        mock_model_instance = MockQuantaTissu.return_value
+        mock_model_instance.sample.return_value = [50, 150, 250] # IDs 150 and 250 are "unknown"
+
+        # When: We call the generate_text function
+        with self.assertLogs('quanta_tissu.tisslm.core.generate_text', level='ERROR') as cm:
+            generated_text = generate_text_func(
+                model=mock_model_instance,
+                tokenizer=mock_tokenizer_instance,
+                prompt="Test",
+                length=3
+            )
+            # Then: The log should contain the specific error message about mismatch
+            self.assertTrue(any("DECODING ERROR DETECTED" in log for log in cm.output))
+            self.assertTrue(any("model-tokenizer mismatch" in log for log in cm.output))
+
+        # And: The output text should contain the replacement character
+        self.assertIn("\uFFFD", generated_text)
+
     @patch('argparse.ArgumentParser')
     @patch('builtins.print')
     @patch('quanta_tissu.tisslm.core.generate_text.QuantaTissu') # Mock the model
