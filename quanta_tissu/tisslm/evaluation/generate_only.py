@@ -27,6 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def main():
+    sys.stdout.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser(description="Generate text using the QuantaTissu model without full evaluation.")
     
     # Default parameters from config files or sensible hardcoded values
@@ -43,6 +44,8 @@ def main():
     parser.add_argument("--top_k", type=int, default=20, help="K for top-k sampling.")
     parser.add_argument("--top_p", type=float, default=0.9, help="P for nucleus sampling.")
     parser.add_argument("--repetition_penalty", type=float, default=1.2, help="Penalty for repeating tokens.")
+    parser.add_argument("--bias_token_id", type=int, default=None, help="Optional: Token ID to bias during generation.")
+    parser.add_argument("--bias_strength", type=float, default=0.0, help="Optional: Strength of the bias to apply to bias_token_id.")
 
     args = parser.parse_args()
 
@@ -98,7 +101,8 @@ def main():
         temperature=args.temperature,
         top_k=args.top_k,
         top_p=args.top_p,
-        repetition_penalty=args.repetition_penalty
+        bias_token_id=args.bias_token_id,
+        bias_strength=args.bias_strength
     )
     logger.info("\n--- Generated Text ---")
     # Use the logger to print the generated text. This ensures it uses the configured

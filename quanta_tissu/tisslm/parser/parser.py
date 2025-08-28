@@ -1,8 +1,8 @@
 import json
 from typing import List, Dict, Any, Optional
-from matcher import _PATTERNS
-from setup import handle_setup_command
-from step import handle_step_command
+from .matcher import _PATTERNS
+from .setup import handle_setup_command
+from .step import handle_step_command
 
 class TissLangParserError(Exception):
     """Custom exception for parsing errors in TissLang."""

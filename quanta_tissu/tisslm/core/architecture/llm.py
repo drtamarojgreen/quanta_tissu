@@ -43,6 +43,40 @@ class TransformerBlock:
         }
         return x_norm2, cache
 
+    def backward(self, d_out, cache):
+        """
+        Backward pass for the Transformer block.
+        """
+        # Unpack cache
+        mha_cache = cache['mha_cache']
+        ln1_cache = cache['ln1_cache']
+        ffn_cache = cache['ffn_cache']
+        ln2_cache = cache['ln2_cache']
+        x_plus_attn = cache['x_plus_attn']
+        x_norm1 = cache['x_norm1']
+
+        # 1. Backpropagate through ln2 (LayerNorm)
+        dx_norm2 = self.ln2.backward(d_out, ln2_cache)
+
+        # 2. Backpropagate through addition (x_norm1 + ffn_out)
+        d_ffn_out = dx_norm2
+        dx_norm1_from_ffn = dx_norm2
+
+        # 3. Backpropagate through ffn (FeedForward)
+        dx_norm1_from_ffn += self.ffn.backward(d_ffn_out, ffn_cache)
+
+        # 4. Backpropagate through ln1 (LayerNorm)
+        dx_plus_attn = self.ln1.backward(dx_norm1_from_ffn, ln1_cache)
+
+        # 5. Backpropagate through addition (x + attn_out)
+        d_attn_out = dx_plus_attn
+        dx_from_attn = dx_plus_attn
+
+        # 6. Backpropagate through mha (MultiHeadAttention)
+        dx_from_attn += self.mha.backward(d_attn_out, mha_cache)
+
+        return dx_from_attn
+
     def parameters(self):
         return self.mha.parameters() + self.ffn.parameters() + self.ln1.parameters() + self.ln2.parameters()
 
@@ -119,6 +153,33 @@ class Model:
         }
 
         return logits, model_cache
+
+    def backward(self, d_logits, model_cache):
+        """
+        Performs the backward pass of the model, propagating gradients.
+        """
+        token_ids = model_cache['token_ids']
+        final_x = model_cache['final_x']
+        block_caches = model_cache['block_caches']
+        embeddings = model_cache['embeddings']
+        output_proj = model_cache['output_proj']
+
+        # 1. Backpropagate through output projection
+        d_final_x = d_logits @ output_proj.value.T
+        output_proj.grad += final_x.reshape(-1, final_x.shape[-1]).T @ d_logits.reshape(-1, d_logits.shape[-1])
+
+        # 2. Backpropagate through transformer blocks in reverse order
+        dx = d_final_x
+        for i in reversed(range(len(self.transformer_blocks))):
+            block = self.transformer_blocks[i]
+            block_cache = block_caches[i]
+            dx = block.backward(dx, block_cache)
+
+        # 3. Backpropagate through positional encoding (no gradients for PE)
+        # 4. Backpropagate through embeddings
+        # Gradients for embeddings are accumulated based on token_ids
+        embeddings.grad = np.zeros_like(embeddings.value)
+        np.add.at(embeddings.grad, token_ids, dx)
 
     def parameters(self):
         params = [self.embeddings, self.output_proj]
