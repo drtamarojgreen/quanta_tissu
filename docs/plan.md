@@ -1,3 +1,8 @@
+> [!WARNING]
+> This document outlines the initial project plan and is now considered outdated.
+> For a current overview of the project's status and capabilities, please see **[Project Overview](overview.md)**.
+> For the future direction and development timeline, please refer to the **[Development Roadmap](roadmap.md)**.
+
 # QuantaTissu Project Plan
 
 This document outlines the development plan for **QuantaTissu**, a minimal transformer-based language model inference engine built from scratch using NumPy. The plan is divided into phases to ensure a structured and incremental development process.
