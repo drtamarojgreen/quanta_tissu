@@ -13,7 +13,7 @@ namespace Query {
 
 // Represents a token from the query string
 struct Token {
-    enum class Type { IDENTIFIER, KEYWORD, NUMERIC_LITERAL, STRING_LITERAL, OPERATOR, EOI };
+    enum class Type { IDENTIFIER, KEYWORD, NUMERIC_LITERAL, STRING_LITERAL, OPERATOR, PARAM_PLACEHOLDER, EOI };
     Type type;
     std::string value;
 };
@@ -26,6 +26,7 @@ public:
 private:
     std::vector<Token> tokens;
     size_t pos = 0;
+    size_t param_index = 0;
 
     // Tokenizer
     std::vector<Token> tokenize(const std::string& query_string);
