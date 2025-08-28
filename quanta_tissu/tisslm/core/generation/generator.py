@@ -41,7 +41,7 @@ class Generator:
             last_logit = logits[:, -1, :]
 
             # Select the next token based on the specified generation strategy.
-            next_token = self._predict_from_logits(
+            next_token, _ = self._predict_from_logits(
                 last_logit,
                 method=method,
                 temperature=temperature,
