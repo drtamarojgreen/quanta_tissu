@@ -3,6 +3,7 @@ import os
 import numpy as np
 
 # This is a common pattern to make sure the test can find the source code
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from quanta_tissu.tisslm.core.layers import (
@@ -12,7 +13,7 @@ from quanta_tissu.tisslm.core.layers import (
     MultiHeadAttention,
     FeedForward,
 )
-from tests.test_utils import assert_allclose, assert_equal, assert_raises
+from helpers.test_utils import assert_allclose, assert_equal, assert_raises
 
 # Set a seed for reproducibility of random inputs
 np.random.seed(42)
@@ -49,7 +50,7 @@ def test_layer_norm():
     seq_len = 10
     ln = LayerNorm(d_model)
     x = np.random.randn(batch_size, seq_len, d_model) # (batch_size, seq_len, d_model)
-    normed_x = ln(x)
+    normed_x, _ = ln(x)
     assert_equal(x.shape, normed_x.shape, "LayerNorm should not change shape")
     # The mean of the output should be close to 0
     assert_allclose(np.mean(normed_x, axis=-1), np.zeros(x.shape[:-1]), atol=1e-7, msg="Mean of LayerNorm output should be 0")
@@ -64,7 +65,7 @@ def test_layer_norm_zero_variance():
     ln = LayerNorm(d_model)
     # Create an input where all vectors are identical
     x = np.ones((batch_size, seq_len, d_model))
-    normed_x = ln(x)
+    normed_x, _ = ln(x)
     # The output should be all zeros, and not contain NaNs or Infs
     assert_allclose(normed_x, np.zeros_like(x), msg="LayerNorm with zero variance should output zeros")
 
@@ -87,7 +88,7 @@ def test_multi_head_attention():
     seq_len = 10
     mha = MultiHeadAttention(d_model, num_heads)
     x = np.random.randn(batch_size, seq_len, d_model)
-    output = mha(x)
+    output, _ = mha(x)
     assert_equal(output.shape, x.shape, "MHA output shape should match input shape")
 
 def test_multi_head_attention_constructor_fail():
@@ -105,5 +106,17 @@ def test_feed_forward():
     seq_len = 10
     ffn = FeedForward(d_model, d_ff)
     x = np.random.randn(batch_size, seq_len, d_model)
-    output = ffn(x)
+    output, _ = ffn(x)
     assert_equal(output.shape, x.shape, "FeedForward output shape should match input shape")
+
+if __name__ == "__main__":
+    test_softmax()
+    test_softmax_with_temperature()
+    test_softmax_invalid_temperature()
+    test_layer_norm()
+    test_layer_norm_zero_variance()
+    test_scaled_dot_product_attention()
+    test_multi_head_attention()
+    test_multi_head_attention_constructor_fail()
+    test_feed_forward()
+    print("All layer tests passed!")

@@ -64,7 +64,7 @@ def compare_generation_strategies(model, tokenizer, prompt: str, length: int = 5
     for name, kwargs in strategies.items():
         logging.info(f"Generating with strategy: {name}")
         try:
-            generated_text = generate_text(model=model, tokenizer=tokenizer, prompt=prompt, length=length, method=kwargs.get('method', 'greedy'), temperature=kwargs.get('temperature', 1.0), top_k=kwargs.get('top_k'), top_p=kwargs.get('top_p'), repetition_penalty=repetition_penalty)
+            generated_text = generate_text(model=model, tokenizer=tokenizer, prompt=prompt, length=length, method=kwargs.get('method', 'greedy'), temperature=kwargs.get('temperature', 1.0), top_k=kwargs.get('top_k'), top_p=kwargs.get('top_p'), repetition_penalty=repetition_penalty, bias_token_id=kwargs.get('bias_token_id'), bias_strength=kwargs.get('bias_strength'))
             results[name] = generated_text
             logging.info(f"  {name}: {generated_text}")
         except Exception as e:

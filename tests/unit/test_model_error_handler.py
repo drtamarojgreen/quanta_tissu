@@ -1,5 +1,9 @@
+import sys
+import os
 import logging
 import io
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from quanta_tissu.tisslm.core.model_error_handler import (
     handle_model_errors,
     TissModelError,
@@ -109,3 +113,11 @@ def test_custom_exception_str_representation():
 
     inference_error = InferenceError("An inference error.")
     assert str(inference_error) == "InferenceError: An inference error."
+
+if __name__ == "__main__":
+    test_decorator_success_path()
+    test_decorator_catches_and_reraises_tiss_model_error()
+    test_decorator_wraps_unexpected_error()
+    test_decorator_logs_errors_correctly()
+    test_custom_exception_str_representation()
+    print("All tests passed!")

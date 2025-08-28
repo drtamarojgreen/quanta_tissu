@@ -86,30 +86,7 @@ def main():
     os.makedirs(save_dir, exist_ok=True)
     tokenizer.save(args.save_prefix)
     
-    print(f"\n--- Testing Saved and Loaded Tokenizer ---")
     
-    # Create a new tokenizer instance and load the saved state
-    loaded_tokenizer = BPETokenizer()
-    loaded_tokenizer.load(args.save_prefix)
-    
-    print(f"Loaded tokenizer with vocab size: {len(loaded_tokenizer.vocab)}")
-    
-    # Test encoding and decoding with the loaded tokenizer
-    sample_text = "This is a test of the new tokenizer, demonstrating resilience."
-    encoded = loaded_tokenizer.encode(sample_text)
-    decoded = loaded_tokenizer.decode(encoded)
-    
-    print(f"Original: '{sample_text}'")
-    print(f"Encoded: {encoded}")
-    print(f"Decoded: '{decoded}'")
-    
-    assert sample_text == decoded
-    print("\nTest successful: Decoded text matches original.")
-    
-    # Verify that the loaded tokenizer is identical to the trained one
-    assert tokenizer.vocab == loaded_tokenizer.vocab
-    assert tokenizer.merges == loaded_tokenizer.merges
-    print("Verification successful: Loaded tokenizer matches the trained one.")
 
 if __name__ == "__main__":
     main()

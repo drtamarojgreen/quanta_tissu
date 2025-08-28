@@ -7,7 +7,7 @@ import numpy as np
 
 # Add the project root to sys.path for module discovery
 script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..')) # Adjust '..' count based on file location relative to project root
+project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
 sys.path.insert(0, project_root)
 
 # Import core model components
@@ -41,7 +41,7 @@ def main():
     checkpoint, focusing on how each component behaves.
     """
     parser = argparse.ArgumentParser(description="Run a complete evaluation suite for the QuantaTissu model.")
-    parser.add_argument("--tokenizer_path", type=str, required=True, help="Path to the tokenizer directory.")
+    parser.add_argument("--tokenizer_path", type=str, default="models/trained_tokenizer", help="Path prefix for the tokenizer files, relative to project root.")
     parser.add_argument("--corpus_path", type=str, default=os.path.join(project_root, "corpus"), help="Path to the training corpus directory.")
     parser.add_argument("--checkpoint_path", type=str, default=None, help="Optional path to the model checkpoint (.npz) to evaluate. If not provided, a fresh model is initialized.")
     parser.add_argument("--log_dir", type=str, default="evaluation_logs", help="Directory to save evaluation logs.")
@@ -85,8 +85,11 @@ def main():
     tokenizer = None
     loss_fn = None
     try:
-        # Initialize the tokenizer, which converts text to numerical IDs and vice-versa.
-        tokenizer = Tokenizer(tokenizer_path=args.tokenizer_path)
+        # Construct the full path to the tokenizer files for robustness
+        tokenizer_full_path = os.path.normpath(os.path.join(project_root, args.tokenizer_path))
+        logger.info(f"Initializing tokenizer from: {tokenizer_full_path}")
+        tokenizer = Tokenizer(tokenizer_path=tokenizer_full_path)
+
         # Update the model's vocabulary size based on the initialized tokenizer.
         model_config["vocab_size"] = tokenizer.get_vocab_size()
         # Instantiate the QuantaTissu model with the defined architecture.
@@ -214,14 +217,8 @@ def main():
     if model and tokenizer:
         log_subsection_header(logger, "Knowledge Base Retrieval Analysis")
         try:
-            # Initialize Embedder and TissDBClient for KnowledgeBase
-            from quanta_tissu.tisslm.core.embedding.embedder import Embedder
-            from quanta_tissu.tisslm.core.db.client import TissDBClient
-
-            embedder_instance = Embedder(tokenizer, model.embeddings.value) # Pass tokenizer and model.embeddings.value to Embedder
-            db_client_instance = TissDBClient() # Default host/port
-
-            knowledge_base = KnowledgeBase(embedder_instance, db_client_instance)
+            # Initialize KnowledgeBase
+            knowledge_base = KnowledgeBase(model.embeddings, tokenizer)
 
             # Create some dummy documents and embeddings for testing
             dummy_documents = [
@@ -231,12 +228,11 @@ def main():
                 "The earth is a planet.",
                 "The universe is vast."
             ]
-            # Use the embedder_instance to embed dummy documents
-            dummy_embeddings = [embedder_instance.embed(doc) for doc in dummy_documents]
+            dummy_embeddings = [knowledge_base._embed_text(doc) for doc in dummy_documents]
 
             # Define a list of test configurations for the retrieve function
             retrieval_configs = [
-                {'method': 'cosine', 'use_db': False},
+                {'method': 'cosine', 'use_db': True},
                 {'method': 'cosine', 'use_db': False, 'backward_pass_data': {'receptor_field': {'documents': dummy_documents, 'embeddings': dummy_embeddings}}},
                 {'method': 'cnn', 'use_db': False, 'backward_pass_data': {'receptor_field': {'documents': dummy_documents, 'embeddings': dummy_embeddings}}},
                 {'method': 'genetic', 'use_db': False, 'backward_pass_data': {'receptor_field': {'documents': dummy_documents, 'embeddings': dummy_embeddings}}},

@@ -28,9 +28,6 @@ class QuantaTissu:
 
         # Instantiate the generator
         self.generator = Generator(self.model)
-        import sys
-        print(f"DEBUG (direct print): Type of self.generator: {type(self.generator)}", file=sys.stderr)
-        print(f"DEBUG (direct print): Does self.generator have 'generate' method? {'generate' in dir(self.generator)}", file=sys.stderr)
 
         self.knowledge_base = None
         if use_db:
@@ -110,6 +107,13 @@ class QuantaTissu:
         """
         return self.model.forward(token_ids, kv_cache, start_pos)
 
+    def backward(self, d_logits, cache):
+        """
+        Performs a backward pass through the underlying model.
+        Delegates to the internal model instance.
+        """
+        self.model.backward(d_logits, cache)
+
     @property
     def embeddings(self):
         """
@@ -117,7 +121,7 @@ class QuantaTissu:
         """
         return self.model.embeddings
 
-    def generate(self, prompt_tokens, n_new_tokens, **kwargs):
+    def sample(self, prompt_tokens, n_new_tokens, **kwargs):
         """
         Generates text by delegating to the Generator class.
         

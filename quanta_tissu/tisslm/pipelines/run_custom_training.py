@@ -93,12 +93,12 @@ def main():
             # The model.forward() returns a tuple (logits, kv_cache).
             # For training, we only need the logits for the loss calculation.
             # We unpack the tuple and discard the kv_cache.
-            logits, _ = model.forward(x_batch)
+            logits, cache = model.forward(x_batch)
             loss = loss_fn.forward(logits, y_batch)
             d_logits = loss_fn.backward()
             # The backward pass should be called on the top-level model object,
             # which will orchestrate backpropagation through all its components.
-            model.backward(d_logits)
+            model.backward(d_logits, cache)
 
             params = model.parameters()
             grads = [p.grad for p in params if p.grad is not None]
