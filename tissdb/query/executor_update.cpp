@@ -5,14 +5,14 @@
 namespace TissDB {
 namespace Query {
 
-QueryResult execute_update_statement(Storage::LSMTree& storage_engine, UpdateStatement update_stmt) {
+QueryResult execute_update_statement(Storage::LSMTree& storage_engine, const UpdateStatement& update_stmt, const std::vector<Literal>& params) {
     auto all_docs = storage_engine.scan(update_stmt.collection_name);
     int updated_count = 0;
 
     for (auto& doc : all_docs) {
         bool should_update = false;
         if (update_stmt.where_clause) {
-            if (evaluate_expression(*update_stmt.where_clause, doc)) {
+            if (evaluate_expression(*update_stmt.where_clause, doc, params)) {
                 should_update = true;
             }
         } else {
@@ -26,7 +26,7 @@ QueryResult execute_update_statement(Storage::LSMTree& storage_engine, UpdateSta
                 const Expression& value_expr = set_pair.second;
 
                 // Evaluate the expression based on the original document state
-                Literal new_value = evaluate_update_expression(value_expr, original_doc);
+                Literal new_value = evaluate_update_expression(value_expr, original_doc, params);
 
                 auto it = std::find_if(doc.elements.begin(), doc.elements.end(),
                                        [&](const Element& elem) { return elem.key == field_to_update; });
