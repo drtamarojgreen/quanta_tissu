@@ -3,6 +3,7 @@ import os
 import numpy as np
 
 # This is a common pattern to make sure the test can find the source code
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from quanta_tissu.tisslm.core.layers import (
@@ -12,7 +13,7 @@ from quanta_tissu.tisslm.core.layers import (
     MultiHeadAttention,
     FeedForward,
 )
-from tests.unit.test_utils import assert_allclose, assert_equal, assert_raises
+from helpers.test_utils import assert_allclose, assert_equal, assert_raises
 
 # Set a seed for reproducibility of random inputs
 np.random.seed(42)

@@ -5,6 +5,29 @@ from unittest.mock import patch
 import numpy as np
 
 # This is a common pattern to make sure the test can find the source code
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from quanta_tissu.tisslm.core.tokenizer import tokenize, detokenize
+from helpers.test_utils import assert_equal, assert_allclose
+
+class TestTokenizer(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        """Load the vocabulary from the trained tokenizer."""
+        # Note: The path to the vocabulary file might need adjustment if tests are run from a different directory.
+        # This path assumes the test is run from the project root.
+        vocab_path = os.path.join(os.path.dirname(__file__), '..', '..', 'models', 'trained_tokenizer_vocab.json')
+        try:
+            with open(vocab_path, 'r') as f:
+                # The vocab is a mapping from string numbers to lists of numbers, convert to int -> int mapping
+                cls.vocab = {int(k): v[0] for k, v in json.load(f).items()}
+        except FileNotFoundError:
+            # If the model file is not found, create a dummy vocab for the tests to run without error.
+            # This allows testing the logic without depending on the pre-trained model file.
+            cls.vocab = {i: i for i in range(256)} # Dummy vocab for ASCII\
+            
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, project_root)
 
