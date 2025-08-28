@@ -67,11 +67,8 @@ class CNNSimilarityStrategy(RetrievalStrategy):
         # Apply activation (ReLU)
         activated_docs = np.maximum(0, convolved_docs)
 
-        # Apply pooling (max pooling across features)
-        pooled_docs = np.max(activated_docs, axis=1)
-
-        # Apply dense layer
-        similarities = np.dot(pooled_docs, self.dense_weights)
+        # Apply dense layer directly to activated features
+        similarities = np.dot(activated_docs, self.dense_weights)
         
         return similarities
 
