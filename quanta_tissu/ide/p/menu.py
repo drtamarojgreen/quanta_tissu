@@ -1,4 +1,3 @@
-import shlex
 import os
 import re
 import glob
@@ -28,7 +27,7 @@ class CommandExecutor:
             self.recorded_macro.append(command_string)
 
         try:
-            parts = shlex.split(command_string)
+            parts = command_string.split()
             if not parts:
                 return
             command = parts[0]
