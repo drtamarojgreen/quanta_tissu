@@ -399,7 +399,9 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 std::string id = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
                 doc.id = id;
                 storage_engine.put(collection_name, id, doc, transaction_id);
-                send_response(client_socket, "201 Created", "text/plain", "Document created with ID: " + id);
+                Json::JsonObject response_obj;
+                response_obj["id"] = Json::JsonValue(id);
+                send_response(client_socket, "201 Created", "application/json", Json::JsonValue(response_obj).serialize());
             } else if (req.method == "GET" && doc_path_parts.size() == 1) {
                  auto doc_opt = storage_engine.get(collection_name, doc_path_parts[0], transaction_id);
                  if (doc_opt && *doc_opt) {
