@@ -1,25 +1,28 @@
 import sys
 import os
 import msvcrt
-import shlex
 from .highlighter import TissLangHighlighter
+from .buffer import BufferManager
+from .search import Search
+from .menu import CommandExecutor
 from .editor import Editor
 
 class TissLangTUI:
-    def __init__(self):
-        self.buffer = [""]
+    def __init__(self, filepath=None):
+        self.buffer_manager = BufferManager(filepath)
+        self.search = Search()
+        self.editor = Editor()
+        # Pass self to CommandExecutor so it can modify TUI state
+        self.command_executor = CommandExecutor(self, self.buffer_manager, self.search, self.editor)
+
         self.cursor_x = 0
         self.cursor_y = 0
         self.running = True
         self.highlighter = TissLangHighlighter()
-        self.editor = Editor()
         self.status_bar_text = ""
         self.prompt_input = ""
-        self.mode = "edit" # 'edit', 'prompt', or 'command'
+        self.mode = "edit"
         self.prompt_callback = None
-        self.macros = {}
-        self.macro_recording_name = None
-        self.recorded_macro = []
 
     def get_char(self):
         return msvcrt.getch().decode('utf-8', errors='ignore')
@@ -29,27 +32,25 @@ class TissLangTUI:
 
     def draw(self):
         self.clear_screen()
-        # Draw buffer
-        for i, line in enumerate(self.buffer):
+        for i, line in enumerate(self.buffer_manager.buffer):
             highlighted_line = self.highlighter.highlight(line)
             sys.stdout.write(highlighted_line + '\n')
 
-        # Draw status bar
-        sys.stdout.write('\033[s') # save cursor
+        sys.stdout.write('\033[s')
         try:
             height, width = os.get_terminal_size()
-            sys.stdout.write(f'\033[{height};1H') # move to bottom left
+            sys.stdout.write(f'\033[{height};1H')
             if self.mode == 'command':
                 status = ":" + self.prompt_input
             else:
                 status = self.status_bar_text + self.prompt_input
             sys.stdout.write(status.ljust(width))
         except OSError:
-            # This can happen if not run in a real terminal
             pass
-        sys.stdout.write('\033[u') # restore cursor
+        sys.stdout.write('\033[u')
 
-        # Move cursor to the correct position
+        # Use buffer_manager.buffer to get line length
+        self.cursor_x = min(self.cursor_x, len(self.buffer_manager.buffer[self.cursor_y]))
         sys.stdout.write(f'\033[{self.cursor_y + 1};{self.cursor_x + 1}H')
         sys.stdout.flush()
 
@@ -61,41 +62,43 @@ class TissLangTUI:
         elif char == ':':
             self.mode = 'command'
             self.prompt_input = ""
-        elif char == '\r': # Enter key
-            self.buffer.insert(self.cursor_y + 1, self.buffer[self.cursor_y][self.cursor_x:])
-            self.buffer[self.cursor_y] = self.buffer[self.cursor_y][:self.cursor_x]
+        elif char == '\r':
+            line = self.buffer_manager.buffer[self.cursor_y]
+            self.buffer_manager.buffer.insert(self.cursor_y + 1, line[self.cursor_x:])
+            self.buffer_manager.buffer[self.cursor_y] = line[:self.cursor_x]
             self.cursor_y += 1
             self.cursor_x = 0
         elif ord(char) == 8: # Backspace
             if self.cursor_x > 0:
-                self.buffer[self.cursor_y] = self.buffer[self.cursor_y][:self.cursor_x - 1] + self.buffer[self.cursor_y][self.cursor_x:]
+                line = self.buffer_manager.buffer[self.cursor_y]
+                self.buffer_manager.buffer[self.cursor_y] = line[:self.cursor_x - 1] + line[self.cursor_x:]
                 self.cursor_x -= 1
             elif self.cursor_y > 0:
-                self.cursor_x = len(self.buffer[self.cursor_y - 1])
-                self.buffer[self.cursor_y - 1] += self.buffer.pop(self.cursor_y)
+                self.cursor_x = len(self.buffer_manager.buffer[self.cursor_y - 1])
+                self.buffer_manager.buffer[self.cursor_y - 1] += self.buffer_manager.buffer.pop(self.cursor_y)
                 self.cursor_y -= 1
-        elif char in ('\x00', '\xe0'): # Special keys (like arrows)
+        elif char in ('\x00', '\xe0'):
             char = msvcrt.getch().decode('utf-8', errors='ignore')
             if char == 'H': self.cursor_y = max(0, self.cursor_y - 1)
-            elif char == 'P': self.cursor_y = min(len(self.buffer) - 1, self.cursor_y + 1)
+            elif char == 'P': self.cursor_y = min(len(self.buffer_manager.buffer) - 1, self.cursor_y + 1)
             elif char == 'K': self.cursor_x = max(0, self.cursor_x - 1)
-            elif char == 'M': self.cursor_x = min(len(self.buffer[self.cursor_y]), self.cursor_x + 1)
-            self.cursor_x = min(self.cursor_x, len(self.buffer[self.cursor_y]))
+            elif char == 'M': self.cursor_x = min(len(self.buffer_manager.buffer[self.cursor_y]), self.cursor_x + 1)
         else:
-            self.buffer[self.cursor_y] = self.buffer[self.cursor_y][:self.cursor_x] + char + self.buffer[self.cursor_y][self.cursor_x:]
+            line = self.buffer_manager.buffer[self.cursor_y]
+            self.buffer_manager.buffer[self.cursor_y] = line[:self.cursor_x] + char + line[self.cursor_x:]
             self.cursor_x += 1
 
     def handle_prompt_input(self, char):
-        if char == '\r': # Enter
+        if char == '\r':
             if self.prompt_callback:
                 self.prompt_callback(self.prompt_input)
             self.mode = "edit"
             self.prompt_input = ""
             self.status_bar_text = ""
             self.prompt_callback = None
-        elif ord(char) == 8: # Backspace
+        elif ord(char) == 8:
             self.prompt_input = self.prompt_input[:-1]
-        elif ord(char) == 27: # Escape
+        elif ord(char) == 27:
             self.mode = "edit"
             self.prompt_input = ""
             self.status_bar_text = ""
@@ -103,21 +106,22 @@ class TissLangTUI:
             self.prompt_input += char
 
     def handle_command_input(self, char):
-        if char == '\r': # Enter
-            self.execute_command(self.prompt_input)
+        if char == '\r':
+            self.command_executor.execute_command(self.prompt_input)
             self.mode = "edit"
             self.prompt_input = ""
-        elif ord(char) == 8: # Backspace
+        elif ord(char) == 8:
             self.prompt_input = self.prompt_input[:-1]
-        elif ord(char) == 27: # Escape
+        elif ord(char) == 27:
             self.mode = "edit"
             self.prompt_input = ""
         else:
             self.prompt_input += char
 
     def handle_input(self, char):
-        if self.macro_recording_name and self.mode == 'edit':
-            self.recorded_macro.append(char)
+        if self.command_executor.is_recording_macro and self.mode == 'edit':
+             # This logic will be moved to CommandExecutor
+            pass
 
         if self.mode == 'edit':
             self.handle_edit_input(char)
@@ -125,46 +129,6 @@ class TissLangTUI:
             self.handle_prompt_input(char)
         elif self.mode == 'command':
             self.handle_command_input(char)
-
-    def execute_command(self, command_string):
-        try:
-            parts = shlex.split(command_string)
-            if not parts:
-                return
-            command = parts[0]
-            args = parts[1:]
-
-            if command == 'block' and len(args) == 5 and args[2] == 'replace':
-                start_regex, end_regex, _, search_regex, replacement = args
-                full_buffer = "\n".join(self.buffer)
-                new_buffer, err = self.editor.search_and_replace_in_block(full_buffer, start_regex, end_regex, search_regex, replacement)
-                if err:
-                    self.status_bar_text = err
-                else:
-                    self.buffer = new_buffer.split("\n")
-                    self.status_bar_text = f"Block replace executed."
-            elif command == 'macro_def' and len(args) == 1:
-                self.macro_recording_name = args[0]
-                self.recorded_macro = []
-                self.status_bar_text = f"Recording macro '{self.macro_recording_name}'... Press :macro_end to stop."
-            elif command == 'macro_end' and self.macro_recording_name:
-                self.macros[self.macro_recording_name] = self.recorded_macro
-                self.status_bar_text = f"Macro '{self.macro_recording_name}' saved."
-                self.macro_recording_name = None
-                self.recorded_macro = []
-            elif command == 'macro_run' and len(args) == 1:
-                macro_name = args[0]
-                if macro_name in self.macros:
-                    for recorded_char in self.macros[macro_name]:
-                        self.handle_input(recorded_char)
-                    self.status_bar_text = f"Macro '{macro_name}' executed."
-                else:
-                    self.status_bar_text = f"Macro '{macro_name}' not found."
-            else:
-                self.status_bar_text = f"Unknown command: {command_string}"
-        except Exception as e:
-            self.status_bar_text = f"Error executing command: {e}"
-
 
     def start_search_and_replace(self):
         self.mode = 'prompt'
@@ -177,11 +141,10 @@ class TissLangTUI:
         self.prompt_callback = lambda replace_term: self.do_replace(search_term, replace_term)
 
     def do_replace(self, search_term, replace_term):
-        full_buffer = "\n".join(self.buffer)
-        new_buffer = self.editor.search_and_replace(full_buffer, search_term, replace_term)
-        self.buffer = new_buffer.split("\n")
-        self.status_bar_text = f"Replaced all occurrences of '{search_term}' with '{replace_term}'"
-
+        full_buffer = "\n".join(self.buffer_manager.buffer)
+        new_buffer = self.search.search_and_replace(full_buffer, search_term, replace_term)
+        self.buffer_manager.buffer = new_buffer.split("\n")
+        self.status_bar_text = f"Replaced all occurrences of '{search_term}'"
 
     def run(self):
         self.clear_screen()
@@ -192,9 +155,9 @@ class TissLangTUI:
         self.clear_screen()
 
 def main():
-    tui = TissLangTUI()
+    filepath = sys.argv[1] if len(sys.argv) > 1 else None
+    tui = TissLangTUI(filepath)
     tui.run()
 
 if __name__ == "__main__":
     main()
-
