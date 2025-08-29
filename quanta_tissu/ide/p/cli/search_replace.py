@@ -3,6 +3,7 @@ import os
 import sys
 import glob
 import re
+import fnmatch
 
 def find_files(pattern):
     """Finds files matching a glob pattern."""
@@ -85,6 +86,12 @@ def main():
         help="A glob pattern to filter which files to include in the search (e.g., 'src/**/*.py'). Defaults to all relevant source files."
     )
     parser.add_argument(
+        "--exclude",
+        type=str,
+        default=None,
+        help="A glob pattern to filter which files to exclude from the search (e.g., '*.log')."
+    )
+    parser.add_argument(
         "--regex",
         action="store_true",
         help="If present, treats the --pattern argument as a regular expression."
@@ -162,6 +169,11 @@ def main():
             os.path.isdir(f) or
             f.startswith('.') # Ignore dot files/directories
         )]
+
+    # Filter out files based on the --exclude pattern
+    if args.exclude:
+        excluded_files = {f for f in files_to_search if fnmatch.fnmatch(f, args.exclude)}
+        files_to_search = [f for f in files_to_search if f not in excluded_files]
 
     all_results = [] # Stores filepaths where a match was found
     files_to_modify = {}
