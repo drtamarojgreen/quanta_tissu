@@ -24,6 +24,9 @@ LSMTree::LSMTree(const std::string& path) : path_(path), transaction_manager_(*t
     LOG_INFO("Database opened at: " + path_ + ". Starting recovery.");
     recover();
     LOG_INFO("Recovery complete.");
+    LOG_INFO("Loading collections and indexes...");
+    load_collections();
+    LOG_INFO("Collection loading complete.");
 }
 
 void LSMTree::recover() {
@@ -92,7 +95,11 @@ void LSMTree::create_collection(const std::string& name, const TissDB::Schema& s
     }
 
     LOG_INFO("Creating collection: " + name);
-    auto collection = std::make_unique<Collection>(this);
+    std::string collection_path = (std::filesystem::path(path_) / name).string();
+    if (!std::filesystem::exists(collection_path)) {
+        std::filesystem::create_directories(collection_path);
+    }
+    auto collection = std::make_unique<Collection>(this, collection_path);
     collection->set_schema(schema);
     collections_[name] = std::move(collection);
 }
@@ -265,9 +272,39 @@ std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::
 }
 
 void LSMTree::shutdown() {
+    LOG_INFO("Shutting down database at: " + path_);
+    save_collections();
     if (wal_) {
         wal_->shutdown();
     }
+    LOG_INFO("Database shutdown complete.");
+}
+
+void LSMTree::load_collections() {
+    namespace fs = std::filesystem;
+    if (!fs::exists(path_) || !fs::is_directory(path_)) {
+        return;
+    }
+
+    for (const auto& entry : fs::directory_iterator(path_)) {
+        if (entry.is_directory()) {
+            std::string collection_name = entry.path().filename().string();
+            if (collections_.find(collection_name) == collections_.end()) {
+                LOG_INFO("Discovered and loading collection: " + collection_name);
+                std::string collection_path = entry.path().string();
+                // Use the constructor that takes a path
+                collections_[collection_name] = std::make_unique<Collection>(collection_path, this);
+            }
+        }
+    }
+}
+
+void LSMTree::save_collections() {
+    LOG_INFO("Saving all collection indexes...");
+    for (auto const& [name, collection] : collections_) {
+        collection->save_indexes();
+    }
+    LOG_INFO("Finished saving all collection indexes.");
 }
 
 void replay_log_entry(LSMTree* tree, const LogEntry& entry) {
