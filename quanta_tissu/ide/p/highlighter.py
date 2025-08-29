@@ -12,6 +12,7 @@ COLORS = {
     "error": "\033[91m",        # Red for errors/warnings
     "special_var": "\033[96m",  # Cyan
     "operator": "\033[91m",     # Red
+    "indent": "\033[47;30m",    # White background, black text
 }
 
 class TissLangHighlighter:
@@ -28,21 +29,30 @@ class TissLangHighlighter:
     def highlight(self, text):
         """
         Applies syntax highlighting to a line of TissLang code.
-        This version correctly handles overlapping tokens by giving
-        comments and strings priority over other tokens.
         """
+        # Handle indentation first
+        leading_whitespace_match = re.match(r'^(\s+)', text)
+        if leading_whitespace_match:
+            indent_text = leading_whitespace_match.group(1)
+            highlighted_indent = f'{COLORS["indent"]}{indent_text}{COLORS["default"]}'
+            text_to_process = text[len(indent_text):]
+        else:
+            highlighted_indent = ""
+            text_to_process = text
+
+        if not text_to_process:
+            return highlighted_indent
+
         tokens = []
         for token_type, pattern in self.PATTERNS.items():
-            for match in re.finditer(pattern, text):
+            for match in re.finditer(pattern, text_to_process):
                 tokens.append({'start': match.start(), 'end': match.end(), 'type': token_type})
 
         if not tokens:
-            return text
+            return highlighted_indent + text_to_process
 
-        # Sort tokens by their starting position
         tokens.sort(key=lambda t: t['start'])
 
-        # Filter out overlapping tokens. The first token in a region "wins".
         final_tokens = []
         last_end = -1
         for token in tokens:
@@ -53,14 +63,11 @@ class TissLangHighlighter:
         last_index = 0
         highlighted_line = ""
         for token in final_tokens:
-            # Add the text between the last token and this one
-            highlighted_line += text[last_index:token['start']]
-            # Add the highlighted token
+            highlighted_line += text_to_process[last_index:token['start']]
             token_type = token['type']
-            token_text = text[token['start']:token['end']]
+            token_text = text_to_process[token['start']:token['end']]
             highlighted_line += f'{COLORS.get(token_type, COLORS["default"])}{token_text}{COLORS["default"]}'
             last_index = token['end']
 
-        # Add any remaining text after the last token
-        highlighted_line += text[last_index:]
-        return highlighted_line
+        highlighted_line += text_to_process[last_index:]
+        return highlighted_indent + highlighted_line
