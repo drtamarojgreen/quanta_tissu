@@ -83,6 +83,7 @@ def main():
     parser.add_argument("--temperature", type=float, default=0.8, help="Controls randomness. Higher is more random.")
     parser.add_argument("--top_k", type=int, default=20, help="K for top-k sampling.")
     parser.add_argument("--top_p", type=float, default=0.9, help="P for nucleus sampling.")
+    parser.add_argument("--tokenizer_path", type=str, default=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'models', 'tokenizers', 'revised_tokenizer'), help="Path to the trained tokenizer files.")
     parser.add_argument("--repetition_penalty", type=float, default=1.0, help="Penalty for repeating tokens.")
     parser.add_argument("--bias_token_id", type=int, default=None, help="Token ID to bias during generation.")
     parser.add_argument("--bias_strength", type=float, default=0.0, help="Strength of the bias.")
@@ -93,7 +94,7 @@ def main():
     # The Tokenizer class automatically loads the default tokenizer files.
     # Make sure you have run tisslm/train_bpe.py first.
     try:
-        tokenizer = Tokenizer()
+        tokenizer = Tokenizer(tokenizer_path=args.tokenizer_path)
     except FileNotFoundError as e:
         print(f"Error: Tokenizer files not found. {e}", file=sys.stderr)
         print("Please run `python3 -m quanta_tissu.tisslm.train_bpe` to train and save the tokenizer.", file=sys.stderr) # Updated path
