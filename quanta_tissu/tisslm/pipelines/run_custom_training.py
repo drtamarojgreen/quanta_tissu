@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def main():
     parser = argparse.ArgumentParser(description="Train the QuantaTissu model with custom tokenizer and text generation.")
-    parser.add_argument("--tokenizer_path", type=str, default="models/trained_tokenizer", help="Path prefix for the tokenizer files, relative to project root.")
+    parser.add_argument("--tokenizer_path", type=str, default="tokenizer/trained_tokenizer", help="Path prefix for the tokenizer files, relative to project root.")
     parser.add_argument("--corpus_path", type=str, default=os.path.join(project_root, "corpus"), help="Path to the training corpus directory.")
     parser.add_argument("--epochs", type=int, default=training_config["num_epochs"], help="Number of training epochs.")
     parser.add_argument("--batch_size", type=int, default=training_config["batch_size"], help="Batch size for training.")

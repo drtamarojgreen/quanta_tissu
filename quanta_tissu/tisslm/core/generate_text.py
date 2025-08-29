@@ -16,7 +16,7 @@ from ..config import model_config
 
 logger = logging.getLogger(__name__)
 
-def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float, repetition_penalty: float = 1.0, bias_token_id=None, bias_strength=0.0) -> str:
+def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float, repetition_penalty: float = 1.0, bias_token_id=None, bias_strength=0.0, query_embedding=None, hessian_matrix=None) -> str:
     """
     Generates text of a specified length, starting with a prompt.
     """
@@ -41,7 +41,9 @@ def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length:
         top_p=top_p,
         repetition_penalty=repetition_penalty,
         bias_token_id=bias_token_id,
-        bias_strength=bias_strength
+        bias_strength=bias_strength,
+        query_embedding=query_embedding,
+        hessian_matrix=hessian_matrix
     )
     logger.debug(f"Generated token IDs from model: {generated_ids}")
 
