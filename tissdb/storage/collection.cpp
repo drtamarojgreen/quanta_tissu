@@ -19,10 +19,37 @@ const TissDB::Value* get_value(const TissDB::Document& doc, const std::string& k
 namespace TissDB {
 namespace Storage {
 
-Collection::Collection(LSMTree* parent_db) : estimated_size(0), parent_db_(parent_db) {}
+Collection::Collection(LSMTree* parent_db, const std::string& path)
+    : estimated_size(0), parent_db_(parent_db), path_(path) {
+    if (!path_.empty()) {
+        load_indexes();
+    }
+}
 
-Collection::Collection(const std::string& path, LSMTree* parent_db) : estimated_size(0), parent_db_(parent_db) {
-    // TODO: Implement loading collection from path
+// This constructor is redundant but kept for compatibility just in case.
+Collection::Collection(const std::string& path, LSMTree* parent_db)
+    : estimated_size(0), parent_db_(parent_db), path_(path) {
+    load_indexes();
+}
+
+void Collection::load_indexes() {
+    if (path_.empty()) return;
+    try {
+        LOG_INFO("Loading indexes for collection from path: " + path_);
+        indexer_.load_indexes(path_);
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to load indexes for collection at " + path_ + ": " + e.what());
+    }
+}
+
+void Collection::save_indexes() {
+    if (path_.empty()) return;
+    try {
+        LOG_INFO("Saving indexes for collection to path: " + path_);
+        indexer_.save_indexes(path_);
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to save indexes for collection at " + path_ + ": " + e.what());
+    }
 }
 
 void Collection::set_schema(const TissDB::Schema& schema) {
@@ -45,10 +72,8 @@ void Collection::create_index(const std::vector<std::string>& field_names, bool 
             }
         }
     }
-}
-
-void Collection::shutdown() {
-    // TODO: Implement shutdown
+    // After creating and populating a new index, save it immediately.
+    save_indexes();
 }
 
 bool Collection::has_index(const std::vector<std::string>& field_names) const {
