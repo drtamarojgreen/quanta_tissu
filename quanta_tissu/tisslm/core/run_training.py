@@ -35,13 +35,14 @@ def main():
     parser.add_argument("--resume_from", type=str, default=None, help="Path to a checkpoint to resume training from.")
     parser.add_argument("--save_every", type=int, default=100, help="Save a checkpoint every N steps.")
     parser.add_argument("--keep_checkpoints", type=int, default=-1, help="Number of recent checkpoints to keep. Use -1 to keep all.")
+    parser.add_argument("--tokenizer_path", type=str, default=os.path.join(system_config["_project_root"], "models", "tokenizers", "revised_tokenizer"), help="Path to the trained tokenizer files.")
 
     args = parser.parse_args()
 
     logging.info("--- Initializing training components ---")
 
     try:
-        tokenizer = Tokenizer()
+        tokenizer = Tokenizer(tokenizer_path=args.tokenizer_path)
     except Exception as e:
         logging.error(f"Could not initialize tokenizer. Error: {e}")
         return
