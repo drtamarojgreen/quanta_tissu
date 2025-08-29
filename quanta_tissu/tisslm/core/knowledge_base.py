@@ -27,6 +27,7 @@ class KnowledgeBase:
         self.embedder = embedder
         self.db_client = db_client
         self.connected = False
+        self._local_document_cache = [] # Initialize local cache
         try:
             # The collections the KB requires
             collections = ["knowledge", "knowledge_feedback", "feedback"]
@@ -38,10 +39,6 @@ class KnowledgeBase:
         """
         Embeds a document and adds it to the knowledge base.
         """
-        if not self.connected:
-            logger.warning("Cannot add document: KnowledgeBase is not connected.")
-            return
-
         embedding = self.embedder.embed(text)
         doc = {
             'text': text,
@@ -51,6 +48,13 @@ class KnowledgeBase:
         }
         if metadata:
             doc.update(metadata)
+
+        # Add to local cache
+        self._local_document_cache.append({'text': text, 'embedding': embedding})
+
+        if not self.connected:
+            logger.warning("Cannot add document to DB: KnowledgeBase is not connected. Document added to local cache only.")
+            return
 
         self.db_client.add_document('knowledge', doc)
         logger.info(f"Added document to knowledge base.")
@@ -68,32 +72,28 @@ class KnowledgeBase:
         if use_db_for_retrieval:
             try:
                 # Attempt to get all documents from the database
+                # NOTE: TissDBClient.get_all_documents is currently a stub.
+                # This block will likely not retrieve anything from the DB.
                 all_docs_data = self.db_client.get_all_documents('knowledge')
                 if all_docs_data:
                     documents = [doc['text'] for doc in all_docs_data]
                     doc_embeddings = [np.array(json.loads(doc['embedding'])) for doc in all_docs_data]
+                    logger.info(f"Retrieved {len(documents)} documents from TissDB.")
                 else:
-                    logger.warning("No documents retrieved from TissDB. Falling back to dummy data if provided.")
+                    logger.warning("No documents retrieved from TissDB. Using local cache for retrieval.")
             except DatabaseConnectionError as e:
-                logger.warning(f"TissDB retrieval failed: {e}. Falling back to dummy data if provided.")
-                # Continue to use dummy data if DB retrieval fails
+                logger.warning(f"TissDB retrieval failed: {e}. Using local cache for retrieval.")
             except Exception as e:
-                logger.error(f"Unexpected error during TissDB retrieval: {e}. Falling back to dummy data if provided.", exc_info=True)
-        else:
-            logger.info("TissDB not used for retrieval (use_db=False or not connected). Using dummy data if provided.")
-
-        # If no documents from DB or DB not used, try to use backward_pass_data (dummy data)
-        if not documents and 'backward_pass_data' in kwargs and 'receptor_field' in kwargs['backward_pass_data']:
-            receptor_field = kwargs['backward_pass_data']['receptor_field']
-            if 'documents' in receptor_field and 'embeddings' in receptor_field:
-                documents = receptor_field['documents']
-                doc_embeddings = [np.array(emb) for emb in receptor_field['embeddings']]
-                logger.info(f"Using {len(documents)} dummy documents for retrieval analysis.")
-            else:
-                logger.warning("backward_pass_data provided but missing 'documents' or 'embeddings' in 'receptor_field'.")
+                logger.error(f"Unexpected error during TissDB retrieval: {e}. Using local cache for retrieval.", exc_info=True)
         
+        # Fallback to local cache if DB retrieval failed or not used
+        if not documents and self._local_document_cache:
+            documents = [d['text'] for d in self._local_document_cache]
+            doc_embeddings = [d['embedding'] for d in self._local_document_cache]
+            logger.info(f"Using {len(documents)} documents from local cache for retrieval.")
+
         if not documents:
-            logger.warning("No documents available for retrieval analysis (neither from DB nor dummy data). Returning empty list.")
+            logger.warning("No documents available for retrieval analysis (neither from DB nor local cache). Returning empty list.")
             return []
 
         try:

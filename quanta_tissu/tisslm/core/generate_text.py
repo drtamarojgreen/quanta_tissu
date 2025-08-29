@@ -13,16 +13,35 @@ import argparse
 from .model import QuantaTissu
 from .tokenizer import Tokenizer
 from ..config import model_config
+from .db.client import TissDBClient
+from .embedding.embedder import Embedder
+from .knowledge_base import KnowledgeBase
 
 logger = logging.getLogger(__name__)
 
-def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float, repetition_penalty: float = 1.0, bias_token_id=None, bias_strength=0.0, query_embedding=None, hessian_matrix=None) -> str:
+def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float, repetition_penalty: float = 1.0, bias_token_id=None, bias_strength=0.0, query_embedding=None, hessian_matrix=None, beam_width=3, tau=5.0, eta=0.1, rag_query: str = None, num_retrieved_docs: int = 1, db_port: int = 9876) -> str:
     """
     Generates text of a specified length, starting with a prompt.
     """
     logger.debug(f"Starting text generation with prompt: '{prompt}', length: {length}, method: {method}, temp: {temperature}, top_k: {top_k}, top_p: {top_p}, repetition_penalty: {repetition_penalty}")
 
     # Tokenize the initial prompt
+    # --- RAG Integration ---
+    if rag_query:
+        logger.info("--- RAG Integration: Retrieving documents ---")
+        embedder = Embedder(tokenizer, model.embeddings.value)
+        db_client = TissDBClient(db_port=db_port)
+        kb = KnowledgeBase(embedder, db_client)
+        retrieved_docs = kb.retrieve(rag_query, k=num_retrieved_docs, use_db=True)
+        logger.info(f"Retrieved {len(retrieved_docs)} documents.")
+
+        if retrieved_docs:
+            retrieved_text = "\n".join(retrieved_docs)
+            prompt = f"Based on the following information:\n{retrieved_text}\n\nAnswer the question: {prompt}"
+            logger.debug(f"RAG-augmented prompt: {prompt}")
+        else:
+            logger.warning("No documents retrieved for RAG query. Proceeding with original prompt.")
+
     logger.debug(f"Tokenizing prompt: '{prompt}'")
     prompt_token_ids = tokenizer.tokenize(prompt)
     if not prompt_token_ids.any(): # Check if the array is not empty
@@ -43,7 +62,10 @@ def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length:
         bias_token_id=bias_token_id,
         bias_strength=bias_strength,
         query_embedding=query_embedding,
-        hessian_matrix=hessian_matrix
+        hessian_matrix=hessian_matrix,
+        beam_width=beam_width,
+        tau=tau,
+        eta=eta
     )
     logger.debug(f"Generated token IDs from model: {generated_ids}")
 
