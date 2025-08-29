@@ -78,7 +78,7 @@ class Trainer:
         output_proj.grad += final_x_reshaped.T @ d_logits_reshaped
         dx = d_logits @ output_proj.value.T
 
-        for i in reversed(range(len(self.model.transformer_blocks))):
+        for i in reversed(range(len(self.model.model.transformer_blocks))):
             dx = self._backward_transformer_block(dx, block_caches[i])
 
         d_embeddings = np.zeros_like(embeddings.value)
