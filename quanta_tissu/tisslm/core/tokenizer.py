@@ -31,6 +31,10 @@ class Tokenizer:
             # Fallback to a minimal tokenizer or raise an error, depending on desired behavior
             # For now, we'll proceed with an empty tokenizer, which will likely cause errors later.
             # A more robust solution would be to train a default one or exit.
+        except Exception as e:
+            print(f"Error loading BPE tokenizer from {tokenizer_prefix}: {e}")
+            # Handle other potential loading errors, e.g., malformed files
+            # For now, we'll proceed with an empty tokenizer, which will likely cause errors later.
 
         # Special tokens, assuming they are part of the BPE vocabulary or handled externally
         # For BPE, <unk> and <pad> might be handled implicitly or added during training.
@@ -75,12 +79,15 @@ class Tokenizer:
         decoded_tokens = [self.bpe_tokenizer.decode([token_id]) for token_id in token_ids.tolist()]
         
         # Join tokens, handling spaces. This is a heuristic and might need adjustment.
-        text = "".join(decoded_tokens)
+        # A simple approach: add a space before each token unless it's the first token
+        # or it's a punctuation mark that should attach to the previous token.
+        reconstructed_text_parts = []
+        for i, token_str in enumerate(decoded_tokens):
+            if i > 0 and not token_str.startswith(('.', ',', '!', '?', ':', ';', ')', ']', '}')):
+                reconstructed_text_parts.append(' ')
+            reconstructed_text_parts.append(token_str)
         
-        # Common BPE libraries might use ' ' (U+2581) for spaces, or just a leading space.
-        # If the tokenizer was trained to include leading spaces, then simply joining
-        # and then stripping initial space might be enough.
-        text = text.replace(' ', ' ') # Replace common BPE space character with actual space
+        text = "".join(reconstructed_text_parts)
         
         # Remove any leading space that might result from the first token
         if text.startswith(' '):

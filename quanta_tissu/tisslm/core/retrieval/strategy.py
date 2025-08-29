@@ -40,22 +40,14 @@ class CNNSimilarityStrategy(RetrievalStrategy):
     A simplified CNN-based similarity model.
     Filters are derived from simple mathematical patterns to perform feature extraction.
     """
-    def __init__(self, embedding_dim=3):
-        # Define filters based on simple mathematical patterns
-        # These filters are designed to extract basic features like sums, differences, etc.
-        # The number of filters is fixed to 3 for this simplified example.
-        self.filters = np.array([
-            [1.0, 1.0, 1.0],  # Sum filter
-            [1.0, -1.0, 0.0], # Difference filter (dim1 - dim2)
-            [0.0, 1.0, -1.0]  # Difference filter (dim2 - dim3)
-        ])
-        
-        # Ensure filters match the embedding dimension
-        if self.filters.shape[1] != embedding_dim:
-            raise ValueError(f"Filter dimension mismatch. Expected {embedding_dim}, got {self.filters.shape[1]}")
+    def __init__(self, embedding_dim):
+        # Generate random filters based on the embedding dimension
+        # For a simplified CNN, we can assume a fixed number of filters (e.g., 3 or 5)
+        # and each filter's length matches the embedding_dim.
+        num_filters = 5  # Example: using 5 random filters
+        self.filters = np.random.rand(num_filters, embedding_dim) * 2 - 1 # Random values between -1 and 1
 
         # Dense weights are now calculated based on the number of filters
-        num_filters = self.filters.shape[0]
         self.dense_weights = np.full(num_filters, 1.0 / num_filters) # Equal contribution from each filter
 
     def calculate_similarity(self, query_embedding, doc_embeddings, **kwargs):
@@ -71,6 +63,7 @@ class CNNSimilarityStrategy(RetrievalStrategy):
         similarities = np.dot(activated_docs, self.dense_weights)
         
         return similarities
+
 
 class GeneticSimilarityStrategy(RetrievalStrategy):
     """

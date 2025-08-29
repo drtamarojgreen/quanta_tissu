@@ -4,6 +4,7 @@ import logging
 
 from .architecture.llm import Model
 from .generation.generator import Generator
+from .generation.alg_generator import AlgorithmicGenerator
 from .knowledge_base import KnowledgeBase
 from .tokenizer import tokenize
 from .parameter import Parameter
@@ -28,6 +29,7 @@ class QuantaTissu:
 
         # Instantiate the generator
         self.generator = Generator(self.model)
+        self.alg_generator = AlgorithmicGenerator(self.model, self.config)
 
         self.knowledge_base = None
         if use_db:
@@ -121,7 +123,7 @@ class QuantaTissu:
         """
         return self.model.embeddings
 
-    def sample(self, prompt_tokens, n_new_tokens, **kwargs):
+    def sample(self, prompt_tokens, n_new_tokens, query_embedding=None, hessian_matrix=None, **kwargs):
         """
         Generates text by delegating to the Generator class.
         
@@ -133,4 +135,5 @@ class QuantaTissu:
         Returns:
             list[int]: The list of newly generated token IDs.
         """
-        return self.generator.sample(prompt_tokens, n_new_tokens, **kwargs)
+        # return self.generator.sample(prompt_tokens, n_new_tokens, **kwargs)
+        return self.alg_generator.sample(prompt_tokens, n_new_tokens, query_embedding=query_embedding, hessian_matrix=hessian_matrix, **kwargs)
