@@ -20,7 +20,7 @@ class LSMTree; // Forward declaration
 // It is managed by the Database class.
 class Collection {
 public:
-    Collection(LSMTree* parent_db);
+    Collection(LSMTree* parent_db, const std::string& path = "");
     Collection(const std::string& path, LSMTree* parent_db);
 
     // Inserts or updates a document in the collection.
@@ -51,7 +51,9 @@ public:
 
     void set_schema(const TissDB::Schema& schema);
     void create_index(const std::vector<std::string>& field_names, bool is_unique = false);
-    void shutdown();
+
+    void save_indexes();
+    void load_indexes();
 
     // Indexer Wrappers
     bool has_index(const std::vector<std::string>& field_names) const;
@@ -69,6 +71,7 @@ private:
     TissDB::Schema schema_;
     Indexer indexer_;
     LSMTree* parent_db_; // Pointer to the parent database
+    std::string path_;
 };
 
 } // namespace Storage
