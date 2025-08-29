@@ -40,3 +40,10 @@ class BufferManager:
             return True
         except IOError:
             return False
+
+    def new_file(self):
+        """
+        Resets the buffer for a new file.
+        """
+        self.filepath = None
+        self.buffer = [""]
