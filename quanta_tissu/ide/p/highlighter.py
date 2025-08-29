@@ -1,18 +1,18 @@
 import re
 
-# ANSI escape codes for colors
+# ANSI escape codes and curses color codes
 COLORS = {
-    "default": "\033[0m",
-    "keyword": "\033[93m",      # Yellow
-    "string": "\033[92m",       # Green
-    "comment": "\033[90m",      # Grey
-    "directive": "\033[95m",    # Magenta
-    "heredoc": "\033[32m",       # Green (same as string)
-    "line_number": "\033[90m",  # Grey for line numbers
-    "error": "\033[91m",        # Red for errors/warnings
-    "special_var": "\033[96m",  # Cyan
-    "operator": "\033[91m",     # Red
-    "indent": "\033[47;30m",    # White background, black text
+    "default": (0, "\033[0m"),
+    "keyword": (1, "\033[93m"),      # Yellow
+    "string": (2, "\033[92m"),       # Green
+    "comment": (3, "\033[90m"),      # Grey
+    "directive": (4, "\033[95m"),    # Magenta
+    "heredoc": (5, "\033[32m"),       # Green (same as string)
+    "line_number": (6, "\033[90m"),  # Grey for line numbers
+    "error": (7, "\033[91m"),        # Red for errors/warnings
+    "special_var": (8, "\033[96m"),  # Cyan
+    "operator": (9, "\033[91m"),     # Red
+    "indent": (10, "\033[47;30m"),    # White background, black text
 }
 
 class TissLangHighlighter:
@@ -26,48 +26,33 @@ class TissLangHighlighter:
         'operator': r'\b(CONTAINS|IS_EMPTY|==)\b',
     }
 
+    def __init__(self):
+        # Build a single regex from all patterns
+        self.token_regex = re.compile('|'.join(f'(?P<{name}>{pattern})' for name, pattern in self.PATTERNS.items()))
+
     def highlight(self, text):
         """
-        Applies syntax highlighting to a line of TissLang code.
+        Generates a list of (token_type, token_string) tuples for a line of code.
         """
-        # Handle indentation first
-        leading_whitespace_match = re.match(r'^(\s+)', text)
-        if leading_whitespace_match:
-            indent_text = leading_whitespace_match.group(1)
-            highlighted_indent = f'{COLORS["indent"]}{indent_text}{COLORS["default"]}'
-            text_to_process = text[len(indent_text):]
-        else:
-            highlighted_indent = ""
-            text_to_process = text
-
-        if not text_to_process:
-            return highlighted_indent
-
         tokens = []
-        for token_type, pattern in self.PATTERNS.items():
-            for match in re.finditer(pattern, text_to_process):
-                tokens.append({'start': match.start(), 'end': match.end(), 'type': token_type})
+        last_end = 0
+        for match in self.token_regex.finditer(text):
+            start = match.start()
+            end = match.end()
+            if start > last_end:
+                tokens.append(('default', text[last_end:start]))
 
-        if not tokens:
-            return highlighted_indent + text_to_process
+            token_type = match.lastgroup
+            tokens.append((token_type, match.group(token_type)))
+            last_end = end
 
-        tokens.sort(key=lambda t: t['start'])
+        if last_end < len(text):
+            tokens.append(('default', text[last_end:]))
 
-        final_tokens = []
-        last_end = -1
-        for token in tokens:
-            if token['start'] >= last_end:
-                final_tokens.append(token)
-                last_end = token['end']
+        return tokens
 
-        last_index = 0
-        highlighted_line = ""
-        for token in final_tokens:
-            highlighted_line += text_to_process[last_index:token['start']]
-            token_type = token['type']
-            token_text = text_to_process[token['start']:token['end']]
-            highlighted_line += f'{COLORS.get(token_type, COLORS["default"])}{token_text}{COLORS["default"]}'
-            last_index = token['end']
-
-        highlighted_line += text_to_process[last_index:]
-        return highlighted_indent + highlighted_line
+    def get_color_code(self, token_type):
+        """
+        Returns the curses color code for a given token type.
+        """
+        return COLORS.get(token_type, COLORS['default'])[0]
