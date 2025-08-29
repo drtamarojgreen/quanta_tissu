@@ -162,7 +162,27 @@ class TissLangParser:
             self._current_block.append(node)
             return
 
-        raise TissLangParserError(f"Unexpected command inside STEP/SETUP block.", self._line_number)
+        set_budget_match = _PATTERNS['SET_BUDGET'].match(line)
+        if set_budget_match:
+            variable = set_budget_match.group(1)
+            value_str = set_budget_match.group(2)
+            value = parse_value(value_str) # Use parse_value
+            self._current_block.append({'type': 'SET_BUDGET', 'variable': variable, 'value': value})
+            return
+
+        request_review_match = _PATTERNS['REQUEST_REVIEW'].match(line)
+        if request_review_match:
+            message = request_review_match.group(1)
+            self._current_block.append({'type': 'REQUEST_REVIEW', 'message': message})
+            return
+
+        handled, new_state, new_current_block = handle_if_command(line, self.ast, self._current_block, self._state, self._line_number)
+        if handled:
+            self._state = new_state
+            self._current_block = new_current_block
+            return
+
+        raise TissLangParserError(f"Unexpected command inside STEP/SETUP block. Expected RUN, LOG, ASSERT, READ, WRITE, PROMPT_AGENT, SET_BUDGET, REQUEST_REVIEW, IF, or ELSE.", self._line_number)
 
     def _handle_write_block(self, line: str):
         """Handles parsing when inside a 'WRITE' heredoc block."""
@@ -176,6 +196,11 @@ class TissLangParser:
 
             # Reset state
             self._heredoc_delimiter = None
+            self._heredoc_content = []
+            self._state = "IN_STEP"
+        else:
+            self._heredoc_content.append(line + '\n')
+        self._heredoc_delimiter = None
             self._heredoc_content = []
             self._state = "IN_STEP"
         else:

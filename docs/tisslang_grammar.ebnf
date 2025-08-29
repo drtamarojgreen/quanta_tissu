@@ -21,7 +21,7 @@ choice_step  = "CHOOSE", ws, block ;
 
 cost_estimation_step = "ESTIMATE_COST", ws, block ;
 
-command      = run_cmd | write_cmd | read_cmd | prompt_cmd | assert_cmd | budget_cmd | review_cmd ;
+command      = run_cmd | write_cmd | read_cmd | prompt_cmd | assert_cmd | budget_cmd | review_cmd | log_cmd ;
 
 (* Core Commands *)
 run_cmd      = "RUN", ws, string ;
@@ -212,6 +212,11 @@ TASK "Find the best prompt to summarize a complex article" {
     }
 
     STEP "Evaluate which summary is better" {
+        @persona "editor_in_chief"
+        PROMPT_AGENT "Review these two summaries and determine which is clearer and more helpful for a non-expert reader. Summary A: {{summary_a}}. Summary B: {{summary_b}}."
+    }
+}
+  STEP "Evaluate which summary is better" {
         @persona "editor_in_chief"
         PROMPT_AGENT "Review these two summaries and determine which is clearer and more helpful for a non-expert reader. Summary A: {{summary_a}}. Summary B: {{summary_b}}."
     }
