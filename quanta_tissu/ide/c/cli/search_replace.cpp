@@ -129,8 +129,6 @@ int main(int argc, char* argv[]) {
     // --- Argument Parsing ---
     // Manual argument parsing. For a robust CLI, a library like cxxopts or Boost.Program_options
     // would be used, but per "no additional libraries" constraint, we do it manually.
-    int main(int argc, char* argv[]) {
-    // --- Argument Parsing ---
     std::string pattern_str;
     std::string replace_str;
     std::string pattern_file;

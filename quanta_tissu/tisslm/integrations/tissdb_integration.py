@@ -8,6 +8,7 @@ import threading
 import sys
 import requests
 import logging
+from quanta_tissu.tisslm.integrations.nexus_flow_integration import get_graphs_by_ids
 
 # Setup basic logging for better diagnostics
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(message)s')
@@ -25,16 +26,30 @@ TISSDB_PORT = os.environ.get("TISSDB_PORT", "9876") # Port for the C++ TissDB se
 PORT = 8000 # Port for this Python script's HTTP server
 LLAMACPP_URL = os.environ.get("LLAMACPP_URL", "http://127.0.0.1:8080/completion")
 
+# Global variable to store retrieved graph data
+NEXUS_GRAPH_DATA = []
+
 # === NEXUS FLOW HOOK ===
 def nexus_flow_hook(event: str, payload: dict):
     """
-    Minimal integration: nexus_flow could be imported or called
-    as a function. For now, simulate with logging.
+    Main integration point for Nexus Flow.
+    This hook is called at various points in the application lifecycle.
     """
-    logging.info(f"[nexus_flow] Event={event}, Payload={payload}")
+    global NEXUS_GRAPH_DATA
+    logging.info(f"[nexus_flow_hook] Event='{event}', Payload={payload}")
+
+    if event == "tissdb_started":
+        # TissDB is running, now we can fetch the graph data.
+        # For now, we'll use a hardcoded list of graph IDs we expect to exist.
+        graph_ids_to_fetch = ["cbt_graph_1", "cbt_graph_2"]
+        NEXUS_GRAPH_DATA = get_graphs_by_ids(graph_ids_to_fetch)
+        if NEXUS_GRAPH_DATA:
+            logging.info(f"Successfully loaded {len(NEXUS_GRAPH_DATA)} graph(s) from Nexus Flow.")
+        else:
+            logging.warning("Could not load any graph data from Nexus Flow.")
 
 
-# === STEP 1: START TISSDB SERVER ===
+# === STEP 1: START TISSDB SERVER AND POPULATE DATA ===
 def start_tissdb():
     logging.info("Starting TissDB server...")
     if not os.path.isfile(TISSDB_BIN):
@@ -58,9 +73,14 @@ def start_tissdb():
         text=True,
         encoding='utf-8'
     )
-    time.sleep(2)  # allow warmup
 
-    # Check if the process terminated unexpectedly
+    # Now that the server process is started, run the population script.
+    # The population script has its own retry logic to wait for the server to be ready.
+    from quanta_tissu.tisslm.migration_tools.populate_nexus_db import main as populate_nexus_db_main
+    populate_nexus_db_main()
+
+
+    # Check if the process terminated unexpectedly after population attempt
     if proc.poll() is not None:
         logging.error("TissDB server failed to start or terminated unexpectedly.")
         stdout, stderr = proc.communicate()
@@ -68,6 +88,7 @@ def start_tissdb():
         logging.error(f"TissDB STDERR: {stderr}")
         return None
 
+    # With the database populated, we can now trigger the hook to load the data.
     nexus_flow_hook("tissdb_started", {"pid": proc.pid})
     return proc
 
@@ -77,12 +98,40 @@ def train_llm(prompt: str, session_name: str = "session"):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     output_file = os.path.join(OUTPUT_DIR, f"{session_name}.txt")
 
-    logging.info(f"Getting completion for prompt: {prompt[:50]}...")
+    # Format the graph data from the global variable into a string context
+    graph_context = ""
+    if NEXUS_GRAPH_DATA:
+        graph_context += "--- Begin Nexus Flow Graph Context ---\n"
+        for graph in NEXUS_GRAPH_DATA:
+            graph_id = graph.get('graph_id', 'Unknown Graph')
+            graph_context += f"Graph: {graph_id}\n"
+
+            nodes_str = []
+            if 'nodes' in graph:
+                for node in graph['nodes']:
+                    nodes_str.append(f"  - Node {node.get('id')}: {node.get('label')}")
+            if nodes_str:
+                graph_context += "Nodes:\n" + "\\n".join(nodes_str) + "\n"
+
+            edges_str = []
+            if 'edges' in graph:
+                for edge in graph['edges']:
+                    edges_str.append(f"  - Edge from {edge.get('from')} to {edge.get('to')}")
+            if edges_str:
+                graph_context += "Edges:\n" + "\\n".join(edges_str) + "\n"
+
+        graph_context += "--- End Nexus Flow Graph Context ---\n\n"
+
+    # Prepend the context to the original prompt
+    final_prompt = f"{graph_context}User Prompt: {prompt}"
+
+
+    logging.info(f"Getting completion for prompt: {final_prompt[:200]}...")
     nexus_flow_hook("llm_completion_started", {"session": session_name})
 
     try:
         payload = {
-            "prompt": prompt,
+            "prompt": final_prompt,
             "n_predict": 256,
         }
         # Add a timeout to prevent hanging indefinitely. Must be less than the evaluation script's wait time.
@@ -162,9 +211,9 @@ if __name__ == "__main__":
     threading.Thread(target=start_http_server, daemon=True).start()
 
     # Run a training session
-    train_llm("Hello TissDB, this is a test integration with nexus_flow.", "test1")
+    train_llm("Based on the provided context about Cognitive-Behavioral Therapy, what are some strategies for well-being?", "test_rag")
 
-    logging.info("Ready. Access LLM output at http://localhost:8000/llm/test1")
+    logging.info("Ready. Access LLM output at http://localhost:8000/llm/test_rag")
     try:
         while True:
             time.sleep(1)

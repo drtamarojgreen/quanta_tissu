@@ -29,3 +29,19 @@ add_executable(TissLangIDE
 
 # Link to the Qt libraries
 target_link_libraries(TissLangIDE PRIVATE Qt5::Core Qt5::Gui Qt5::Widgets)
+
+# --- Command-Line Tools ---
+
+# Linter executable
+add_executable(tiss-lint
+    cli/lint.cpp
+    TissLinter.cpp # Source for the TissLinter class
+)
+
+# Link tiss-lint to Qt Core
+target_link_libraries(tiss-lint PRIVATE Qt5::Core)
+
+# Search and Replace executable
+add_executable(tiss-search-replace
+    cli/search_replace.cpp
+)
