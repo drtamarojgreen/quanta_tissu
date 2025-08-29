@@ -6,6 +6,7 @@
 // Forward declarations
 class TissEditor;
 class SearchDialog;
+class TissLinter;
 class QAction;
 class QMenu;
 
@@ -33,6 +34,7 @@ public slots:
     void replaceAll(const QString &str, const QString &replace_str, Qt::CaseSensitivity cs, bool use_regex);
 
 private:
+    void runLinter();
     void createActions();
     void createMenus();
     void createStatusBar();
@@ -46,6 +48,7 @@ private:
 
     TissEditor *editor;
     SearchDialog *search_dialog;
+    TissLinter *linter;
     QString current_file;
 
     QMenu *file_menu;
