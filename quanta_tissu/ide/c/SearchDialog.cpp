@@ -103,10 +103,20 @@ void SearchDialog::saveMacro()
     bool ok;
     QString name = QInputDialog::getText(this, tr("Save Macro"),
                                          tr("Macro name:"), QLineEdit::Normal,
-                                         "", &ok);
+                                         macro_combo_box->currentText(), &ok);
     if (ok && !name.isEmpty()) {
         QSettings settings;
         settings.beginGroup("SearchMacros");
+
+        if (settings.contains(name)) {
+            if (QMessageBox::question(this, tr("Overwrite Macro"),
+                                      tr("A macro named '%1' already exists. Do you want to overwrite it?").arg(name),
+                                      QMessageBox::Yes | QMessageBox::No) == QMessageBox::No) {
+                settings.endGroup();
+                return;
+            }
+        }
+
         settings.setValue(name, QStringList() << search_line_edit->text() << replace_line_edit->text());
         settings.endGroup();
         loadMacros();

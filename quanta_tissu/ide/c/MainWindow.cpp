@@ -2,6 +2,7 @@
 #include "TissEditor.h"
 #include "TissSyntaxHighlighter.h"
 #include "SearchDialog.h"
+#include "TissLinter.h"
 
 #include <QAction>
 #include <QMenu>
@@ -23,6 +24,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     new TissSyntaxHighlighter(editor->document());
     search_dialog = new SearchDialog(this);
+    linter = new TissLinter();
 
     createActions();
     createMenus();
@@ -260,6 +262,7 @@ void MainWindow::loadFile(const QString &fileName)
 
     setCurrentFile(fileName);
     statusBar()->showMessage(tr("File loaded"), 2000);
+    runLinter();
 }
 
 bool MainWindow::saveFile(const QString &fileName)
@@ -279,6 +282,7 @@ bool MainWindow::saveFile(const QString &fileName)
 
     setCurrentFile(fileName);
     statusBar()->showMessage(tr("File saved"), 2000);
+    runLinter();
     return true;
 }
 
@@ -297,6 +301,32 @@ void MainWindow::setCurrentFile(const QString &fileName)
 QString MainWindow::strippedName(const QString &fullFileName)
 {
     return QFileInfo(fullFileName).fileName();
+}
+
+void MainWindow::runLinter()
+{
+    qDebug() << "--- Running Linter ---";
+    const QString text = editor->toPlainText();
+    if (text.isEmpty()) {
+        qDebug() << "No text to lint.";
+        return;
+    }
+
+    QMap<int, QList<QString>> issues = linter->lint(text);
+
+    if (issues.isEmpty()) {
+        qDebug() << "No issues found.";
+    } else {
+        qDebug() << "Found" << issues.size() << "issues:";
+        QMapIterator<int, QList<QString>> i(issues);
+        while (i.hasNext()) {
+            i.next();
+            for (const QString &issue : i.value()) {
+                qDebug() << "  - Line" << i.key() << ":" << issue;
+            }
+        }
+    }
+    qDebug() << "--- Linter Finished ---";
 }
 
 void MainWindow::findNext(const QString &str, Qt::CaseSensitivity cs, bool use_regex)
@@ -359,10 +389,20 @@ void MainWindow::replaceAll(const QString &str, const QString &replace_str, Qt::
     if (cs == Qt::CaseInsensitive)
         flags |= QTextDocument::FindCaseSensitively;
 
-    while(editor->find(str, flags)) {
-        if (editor->textCursor().hasSelection()) {
-            editor->insertPlainText(replace_str);
-            count++;
+    if (use_regex) {
+        QRegularExpression regex(str, cs == Qt::CaseSensitive ? QRegularExpression::NoPatternOption : QRegularExpression::CaseInsensitiveOption);
+        while (editor->find(regex, flags)) {
+            if (editor->textCursor().hasSelection()) {
+                editor->insertPlainText(replace_str);
+                count++;
+            }
+        }
+    } else {
+        while (editor->find(str, flags)) {
+            if (editor->textCursor().hasSelection()) {
+                editor->insertPlainText(replace_str);
+                count++;
+            }
         }
     }
     statusBar()->showMessage(tr("Replaced %1 occurrence(s)").arg(count), 2000);

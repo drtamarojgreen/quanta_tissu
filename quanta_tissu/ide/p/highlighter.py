@@ -1,17 +1,18 @@
 import re
 
-# ANSI escape codes for colors
+# ANSI escape codes and curses color codes
 COLORS = {
-    "default": "\033[0m",
-    "keyword": "\033[93m",      # Yellow
-    "string": "\033[92m",       # Green
-    "comment": "\033[90m",      # Grey
-    "directive": "\033[95m",    # Magenta
-    "heredoc": "\033[32m",       # Green (same as string)
-    "line_number": "\033[90m",  # Grey for line numbers
-    "error": "\033[91m",        # Red for errors/warnings
-    "special_var": "\033[96m",  # Cyan
-    "operator": "\033[91m",     # Red
+    "default": (0, "\033[0m"),
+    "keyword": (1, "\033[93m"),      # Yellow
+    "string": (2, "\033[92m"),       # Green
+    "comment": (3, "\033[90m"),      # Grey
+    "directive": (4, "\033[95m"),    # Magenta
+    "heredoc": (5, "\033[32m"),       # Green (same as string)
+    "line_number": (6, "\033[90m"),  # Grey for line numbers
+    "error": (7, "\033[91m"),        # Red for errors/warnings
+    "special_var": (8, "\033[96m"),  # Cyan
+    "operator": (9, "\033[91m"),     # Red
+    "indent": (10, "\033[47;30m"),    # White background, black text
 }
 
 class TissLangHighlighter:
@@ -25,42 +26,33 @@ class TissLangHighlighter:
         'operator': r'\b(CONTAINS|IS_EMPTY|==)\b',
     }
 
+    def __init__(self):
+        # Build a single regex from all patterns
+        self.token_regex = re.compile('|'.join(f'(?P<{name}>{pattern})' for name, pattern in self.PATTERNS.items()))
+
     def highlight(self, text):
         """
-        Applies syntax highlighting to a line of TissLang code.
-        This version correctly handles overlapping tokens by giving
-        comments and strings priority over other tokens.
+        Generates a list of (token_type, token_string) tuples for a line of code.
         """
         tokens = []
-        for token_type, pattern in self.PATTERNS.items():
-            for match in re.finditer(pattern, text):
-                tokens.append({'start': match.start(), 'end': match.end(), 'type': token_type})
+        last_end = 0
+        for match in self.token_regex.finditer(text):
+            start = match.start()
+            end = match.end()
+            if start > last_end:
+                tokens.append(('default', text[last_end:start]))
 
-        if not tokens:
-            return text
+            token_type = match.lastgroup
+            tokens.append((token_type, match.group(token_type)))
+            last_end = end
 
-        # Sort tokens by their starting position
-        tokens.sort(key=lambda t: t['start'])
+        if last_end < len(text):
+            tokens.append(('default', text[last_end:]))
 
-        # Filter out overlapping tokens. The first token in a region "wins".
-        final_tokens = []
-        last_end = -1
-        for token in tokens:
-            if token['start'] >= last_end:
-                final_tokens.append(token)
-                last_end = token['end']
+        return tokens
 
-        last_index = 0
-        highlighted_line = ""
-        for token in final_tokens:
-            # Add the text between the last token and this one
-            highlighted_line += text[last_index:token['start']]
-            # Add the highlighted token
-            token_type = token['type']
-            token_text = text[token['start']:token['end']]
-            highlighted_line += f'{COLORS.get(token_type, COLORS["default"])}{token_text}{COLORS["default"]}'
-            last_index = token['end']
-
-        # Add any remaining text after the last token
-        highlighted_line += text[last_index:]
-        return highlighted_line
+    def get_color_code(self, token_type):
+        """
+        Returns the curses color code for a given token type.
+        """
+        return COLORS.get(token_type, COLORS['default'])[0]
