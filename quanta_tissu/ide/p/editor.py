@@ -33,12 +33,20 @@ class Editor:
 
     def format_buffer(self, lines):
         """
-        Formats the indentation of the buffer.
-        Assumes TASK blocks are not nested.
+        Formats the indentation of the TissLang buffer.
+        Handles nested blocks and complex language structures.
         """
         new_lines = []
         indent_level = 0
         indent_size = 4
+
+        # Keywords that start a new indented block
+        INDENT_KEYWORDS = {
+            "TASK", "STEP", "SETUP", "IF", "TRY", "CHOOSE", "PARALLEL", "ESTIMATE_COST",
+            "OPTION"
+        }
+        # Keywords that should be dedented before being placed
+        DEDENT_KEYWORDS = {"ELSE", "CATCH"}
 
         for line in lines:
             stripped_line = line.strip()
@@ -47,14 +55,24 @@ class Editor:
                 new_lines.append("")
                 continue
 
-            # TASK always resets the indentation to 0 for itself.
-            if stripped_line.startswith("TASK"):
-                indent_level = 0
+            # Handle dedenting keywords like ELSE and CATCH
+            if stripped_line.split()[0] in DEDENT_KEYWORDS:
+                indent_level = max(0, indent_level - 1)
 
+            # Handle explicit block closing with '}'
+            if stripped_line == "}":
+                 indent_level = max(0, indent_level - 1)
+
+            # Append the line with the current indentation
             new_lines.append(" " * indent_level * indent_size + stripped_line)
 
-            # After a TASK line, the next lines should be indented.
-            if stripped_line.startswith("TASK"):
-                indent_level = 1
+            # Increase indentation for the next line if a block is opened
+            if stripped_line.split()[0] in INDENT_KEYWORDS or stripped_line.endswith("{"):
+                indent_level += 1
+
+            # Special case for ELSE, which also opens a block
+            if stripped_line.split()[0] == "ELSE":
+                indent_level += 1
+
 
         return new_lines
