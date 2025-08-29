@@ -4,6 +4,7 @@ Core trading engine for the algorithmic trading platform.
 
 from .db_connector import TissDBConnector
 from .lm_interface import TissLMInterface
+from . import charting
 
 class TradingEngine:
     """
@@ -39,6 +40,34 @@ class TradingEngine:
 
             # Main loop
             market_data = self._db_connector.fetch_market_data(symbol)
+
+            # --- Begin Charting Integration ---
+            # NOTE: The following is a demonstration of the charting module.
+            # In a real-world scenario, the historical data would be fetched
+            # from the db_connector instead of being hardcoded.
+            print("\n--- Generating Historical Data Chart ---")
+            historical_data = [
+                {'open': 100, 'high': 105, 'low': 98, 'close': 102, 'volume': 10000},
+                {'open': 102, 'high': 108, 'low': 101, 'close': 107, 'volume': 12000},
+                {'open': 107, 'high': 112, 'low': 105, 'close': 110, 'volume': 15000},
+                {'open': 110, 'high': 115, 'low': 108, 'close': 112, 'volume': 13000},
+                {'open': 112, 'high': 118, 'low': 111, 'close': 115, 'volume': 16000},
+                {'open': 115, 'high': 120, 'low': 114, 'close': 118, 'volume': 17000},
+                {'open': 118, 'high': 122, 'low': 117, 'close': 120, 'volume': 14000},
+                {'open': 120, 'high': 125, 'low': 119, 'close': 123, 'volume': 18000},
+                {'open': 123, 'high': 128, 'low': 122, 'close': 126, 'volume': 20000},
+                {'open': 126, 'high': 130, 'low': 125, 'close': 129, 'volume': 19000},
+            ]
+            chart_output = charting.plot_candlestick_chart(
+                historical_data,
+                height=15,
+                volume_height=4,
+                show_trend_line=True
+            )
+            print(chart_output)
+            print("--- End Chart ---\n")
+            # --- End Charting Integration ---
+
             signal = self._lm_interface.get_trading_signal(market_data)
 
             self.execute_trade(signal, market_data)
