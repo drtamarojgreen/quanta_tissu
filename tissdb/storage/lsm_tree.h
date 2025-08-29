@@ -57,6 +57,9 @@ public:
     void shutdown();
 
 private:
+    void load_collections();
+    void save_collections();
+
     std::map<std::string, std::unique_ptr<Collection>> collections_;
     std::string path_;
     std::unique_ptr<WriteAheadLog> wal_;
