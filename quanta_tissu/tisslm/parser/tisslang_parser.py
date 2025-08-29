@@ -4,6 +4,8 @@ from .matcher import _PATTERNS
 from .setup import handle_setup_command
 from .step import handle_step_command
 from .errors import TissLangParserError
+from .value_parser import parse_value
+
 
 class TissLangParser:
     """
@@ -18,13 +20,25 @@ class TissLangParser:
 
     def __init__(self):
         self.ast: List[Dict[str, Any]] = []
-        self._state: str = "IDLE"  # Can be IDLE, IN_STEP, IN_WRITE
-        self._current_block: Optional[List[Dict[str, Any]]] = None
+        self._states: List[str] = ["IDLE"]
+        self._blocks: List[List[Dict[str, Any]]] = [self.ast]
         self._heredoc_delimiter: Optional[str] = None
         self._heredoc_content: List[str] = []
         self._line_number: int = 0
         self.commands = [] # Added to fix attribute error from old code
         self.metadata = {} # Added to fix attribute error from old code
+
+    @property
+    def _state(self) -> str:
+        return self._states[-1]
+
+    @_state.setter
+    def _state(self, value: str):
+        self._states[-1] = value
+
+    @property
+    def _current_block(self) -> List[Dict[str, Any]]:
+        return self._blocks[-1]
 
     def _dedent(self, text: str) -> str:
         """
@@ -66,7 +80,7 @@ class TissLangParser:
             self._line_number += 1
             self._parse_line(line)
 
-        if self._state != "IDLE":
+        if len(self._states) > 1:
             raise TissLangParserError(f"Unexpected end of script. Current state is '{self._state}'. A block may be unclosed.", self._line_number)
 
         return self.ast
@@ -82,17 +96,17 @@ class TissLangParser:
 
         comment_match = _PATTERNS['COMMENT'].match(line)
         if comment_match:
-            # Comments are added to the AST for better representation,
-            # unless we are inside a STEP/SETUP block, in which case they
-            # are added to the block's command list.
-            target_list = self._current_block if self._state == "IN_STEP" else self.ast
-            target_list.append({'type': 'COMMENT', 'text': line.strip()})
+            self._current_block.append({'type': 'COMMENT', 'text': line.strip()})
             return
 
         if self._state == "IDLE":
             self._handle_idle_state(line)
         elif self._state == "IN_STEP":
             self._handle_in_step_state(line)
+        elif self._state == "IN_CHOOSE":
+            self._handle_in_choose_state(line)
+        elif self._state == "AFTER_TRY":
+            self._handle_after_try_state(line)
         else:
             raise TissLangParserError(f"Invalid parser state: {self._state}", self._line_number)
 
@@ -103,25 +117,25 @@ class TissLangParser:
             self.ast.append({'type': 'TASK', 'description': task_match.group(1)})
             return
 
-        handled, new_state, new_current_block = handle_step_command(line, self.ast, self._current_block, self._state, self._line_number)
-        if handled:
-            self._state = new_state
-            self._current_block = new_current_block
+        step_node = handle_step_command(line, self.ast, self._line_number)
+        if step_node:
+            self._states.append("IN_STEP")
+            self._blocks.append(step_node['commands'])
             return
 
-        handled, new_state, new_current_block = handle_setup_command(line, self.ast, self._current_block, self._state, self._line_number)
-        if handled:
-            self._state = new_state
-            self._current_block = new_current_block
+        setup_node = handle_setup_command(line, self.ast, self._line_number)
+        if setup_node:
+            self._states.append("IN_STEP")
+            self._blocks.append(setup_node['commands'])
             return
 
         raise TissLangParserError(f"Unexpected command. Expected TASK, STEP, or SETUP.", self._line_number)
 
     def _handle_in_step_state(self, line: str):
-        """Handles parsing when inside a 'STEP' or 'SETUP' block."""
+        """Handles parsing when inside a 'STEP', 'SETUP', 'TRY', 'CATCH', or 'OPTION' block."""
         if _PATTERNS['BLOCK_END'].match(line):
-            self._state = "IDLE"
-            self._current_block = None
+            self._states.pop()
+            self._blocks.pop()
             return
 
         run_match = _PATTERNS['RUN'].match(line)
@@ -162,6 +176,14 @@ class TissLangParser:
             self._current_block.append(node)
             return
 
+        var_match = _PATTERNS['VAR'].match(line)
+        if var_match:
+            variable = var_match.group(1)
+            value_str = var_match.group(2)
+            value = parse_value(value_str)
+            self._current_block.append({'type': 'VAR', 'variable': variable, 'value': value})
+            return
+
         set_budget_match = _PATTERNS['SET_BUDGET'].match(line)
         if set_budget_match:
             variable = set_budget_match.group(1)
@@ -176,31 +198,79 @@ class TissLangParser:
             self._current_block.append({'type': 'REQUEST_REVIEW', 'message': message})
             return
 
-        handled, new_state, new_current_block = handle_if_command(line, self.ast, self._current_block, self._state, self._line_number)
-        if handled:
-            self._state = new_state
-            self._current_block = new_current_block
+        pause_match = _PATTERNS['PAUSE'].match(line)
+        if pause_match:
+            message = pause_match.group(1)
+            self._current_block.append({'type': 'PAUSE', 'message': message})
             return
 
-        raise TissLangParserError(f"Unexpected command inside STEP/SETUP block. Expected RUN, LOG, ASSERT, READ, WRITE, PROMPT_AGENT, SET_BUDGET, REQUEST_REVIEW, IF, or ELSE.", self._line_number)
+        choose_match = _PATTERNS['CHOOSE'].match(line)
+        if choose_match:
+            choose_node = {'type': 'CHOOSE', 'options': []}
+            self._current_block.append(choose_node)
+            self._states.append("IN_CHOOSE")
+            self._blocks.append(choose_node['options'])
+            return
+
+        estimate_cost_match = _PATTERNS['ESTIMATE_COST'].match(line)
+        if estimate_cost_match:
+            estimate_cost_node = {'type': 'ESTIMATE_COST', 'commands': []}
+            self._current_block.append(estimate_cost_node)
+            self._states.append("IN_STEP")
+            self._blocks.append(estimate_cost_node['commands'])
+            return
+
+        try_match = _PATTERNS['TRY'].match(line)
+        if try_match:
+            try_node = {'type': 'TRY_CATCH', 'try_commands': [], 'catch_commands': []}
+            self._current_block.append(try_node)
+            self._states.append("AFTER_TRY")
+            self._blocks.append(try_node) # Special case: block is the node itself
+            self._states.append("IN_STEP")
+            self._blocks.append(try_node['try_commands'])
+            return
+
+        raise TissLangParserError(f"Unexpected command inside block. Expected RUN, LOG, ASSERT, READ, WRITE, PROMPT_AGENT, VAR, SET_BUDGET, REQUEST_REVIEW, PAUSE, IF, CHOOSE, ESTIMATE_COST, TRY, or }.", self._line_number)
+
+    def _handle_in_choose_state(self, line: str):
+        """Handles parsing when inside a 'CHOOSE' block."""
+        if _PATTERNS['BLOCK_END'].match(line):
+            self._states.pop()
+            self._blocks.pop()
+            return
+
+        option_match = _PATTERNS['OPTION'].match(line)
+        if option_match:
+            option_node = {'type': 'OPTION', 'description': option_match.group(1), 'commands': []}
+            self._current_block.append(option_node)
+            self._states.append("IN_STEP")
+            self._blocks.append(option_node['commands'])
+            return
+
+        raise TissLangParserError(f"Unexpected command inside CHOOSE block. Expected OPTION or }.", self._line_number)
+
+    def _handle_after_try_state(self, line: str):
+        """Handles parsing after a 'TRY' block, expecting a 'CATCH' or another command."""
+        catch_match = _PATTERNS['CATCH'].match(line)
+        if catch_match:
+            try_node = self._current_block # The block is the TRY_CATCH node
+            self._state = "IN_STEP" # Change state from AFTER_TRY to IN_STEP
+            self._blocks[-1] = try_node['catch_commands']
+            return
+
+        # If it's not a CATCH block, pop the AFTER_TRY state and re-parse the line
+        self._states.pop()
+        self._blocks.pop()
+        self._parse_line(line)
+
 
     def _handle_write_block(self, line: str):
         """Handles parsing when inside a 'WRITE' heredoc block."""
         if line.strip() == self._heredoc_delimiter:
-            # Last command added to the current block must be the WRITE command
             write_node = self._current_block[-1]
-
-            # Join, dedent, and strip the collected lines
             content = "".join(self._heredoc_content)
             write_node['content'] = self._dedent(content).rstrip('\n')
-
-            # Reset state
             self._heredoc_delimiter = None
-            self._heredoc_content = []
-            self._state = "IN_STEP"
-        else:
-            self._heredoc_content.append(line + '\n')
-        self._heredoc_delimiter = None
             self._heredoc_content = []
             self._state = "IN_STEP"
         else:
