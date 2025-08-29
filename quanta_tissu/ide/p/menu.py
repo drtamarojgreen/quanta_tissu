@@ -36,14 +36,21 @@ class CommandExecutor:
             if command == 'open' and len(args) == 1:
                 if self.buffer_manager.load_file(args[0]):
                     self.tui.status_bar_text = f"Opened {args[0]}"
+                    self.tui.run_linter()
                 else:
                     self.tui.status_bar_text = f"File not found: {args[0]}"
-            elif command == 'save':
+            elif command in ['save', 'saveas']:
                 filepath = args[0] if args else None
                 if self.buffer_manager.save_file(filepath):
                     self.tui.status_bar_text = f"Saved to {self.buffer_manager.filepath}"
+                    self.tui.run_linter()
                 else:
                     self.tui.status_bar_text = "No filename. Use :save <filepath>"
+            elif command == 'new':
+                self.buffer_manager.new_file()
+                self.tui.cursor_x = 0
+                self.tui.cursor_y = 0
+                self.tui.status_bar_text = "New file created."
             elif command == 'format':
                 self.buffer_manager.buffer = self.editor.format_buffer(self.buffer_manager.buffer)
                 self.tui.status_bar_text = "Buffer formatted."
