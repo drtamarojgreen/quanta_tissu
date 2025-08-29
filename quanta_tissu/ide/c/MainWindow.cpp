@@ -382,8 +382,6 @@ void MainWindow::replace(const QString &str, const QString &replace_str, Qt::Cas
 
 void MainWindow::replaceAll(const QString &str, const QString &replace_str, Qt::CaseSensitivity cs, bool use_regex)
 {
-    // This is the original, simpler implementation. It ignores the use_regex parameter.
-    // Reverting to this version to keep the scope of changes focused on the linter/highlighter task.
     int count = 0;
     editor->moveCursor(QTextCursor::Start);
 
@@ -391,10 +389,20 @@ void MainWindow::replaceAll(const QString &str, const QString &replace_str, Qt::
     if (cs == Qt::CaseInsensitive)
         flags |= QTextDocument::FindCaseSensitively;
 
-    while(editor->find(str, flags)) {
-        if (editor->textCursor().hasSelection()) {
-            editor->insertPlainText(replace_str);
-            count++;
+    if (use_regex) {
+        QRegularExpression regex(str, cs == Qt::CaseSensitive ? QRegularExpression::NoPatternOption : QRegularExpression::CaseInsensitiveOption);
+        while (editor->find(regex, flags)) {
+            if (editor->textCursor().hasSelection()) {
+                editor->insertPlainText(replace_str);
+                count++;
+            }
+        }
+    } else {
+        while (editor->find(str, flags)) {
+            if (editor->textCursor().hasSelection()) {
+                editor->insertPlainText(replace_str);
+                count++;
+            }
         }
     }
     statusBar()->showMessage(tr("Replaced %1 occurrence(s)").arg(count), 2000);
