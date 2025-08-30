@@ -8,6 +8,8 @@ def get_headers(context):
     headers = {}
     if 'transaction_id' in context:
         headers['X-Transaction-ID'] = str(context['transaction_id'])
+    if 'auth_token' in context:
+        headers['Authorization'] = f"Bearer {context['auth_token']}"
     return headers
 
 def register_steps(runner):
