@@ -15,14 +15,16 @@ def register_steps(runner):
 
     @runner.step(r'^a TissDB collection named "(.*)" is available for TissLM$')
     def given_tissdb_collection_is_available(context, collection_name):
-        response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}")
+        headers = get_headers(context)
+        response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}", headers=headers)
         assert response.status_code in [201, 200, 409] # 409 Conflict is ok if it already exists
         context['collection_name'] = collection_name
 
     @runner.step(r'And the "(.*)" collection contains a document with ID "(.*)" and content (.*)')
     def and_collection_contains_document(context, collection_name, doc_id, content_str):
+        headers = get_headers(context)
         content = json.loads(content_str)
-        response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}", json=content)
+        response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}", json=content, headers=headers)
         assert response.status_code == 200
 
     @runner.step(r'When the TissLM receives a user prompt "(.*)"')
@@ -36,7 +38,8 @@ def register_steps(runner):
     @runner.step(r'And the KnowledgeBase executes the query against the "(.*)" collection')
     def and_knowledgebase_executes_query(context, collection_name):
         data = {"query": context['tissql_query']}
-        response = requests.post(f"{BASE_URL}/{DB_NAME}/{collection_name}/_query", json=data)
+        headers = get_headers(context)
+        response = requests.post(f"{BASE_URL}/{DB_NAME}/{collection_name}/_query", json=data, headers=headers)
         assert response.status_code == 200
         context['query_result'] = response.json()
 
@@ -78,11 +81,13 @@ def register_steps(runner):
 
     @runner.step(r'When a simulated Sinew client creates a document with ID "(.*)" and content (.*) in "(.*)"')
     def when_sinew_creates_document(context, doc_id, content_str, collection_name):
+        headers = get_headers(context)
         content = json.loads(content_str)
-        response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}", json=content)
+        response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}", json=content, headers=headers)
         assert response.status_code == 200
 
     @runner.step(r'When a simulated Sinew client deletes the document with ID "(.*)" from "(.*)"')
     def when_sinew_deletes_document(context, doc_id, collection_name):
-        response = requests.delete(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}")
+        headers = get_headers(context)
+        response = requests.delete(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}", headers=headers)
         assert response.status_code == 204

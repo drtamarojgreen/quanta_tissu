@@ -6,30 +6,30 @@ import re
 BASE_URL = "http://localhost:9876"
 DB_NAME = "testdb" # Use a consistent test database
 
+def get_headers(context):
+    headers = {}
+    if 'auth_token' in context:
+        headers['Authorization'] = f"Bearer {context['auth_token']}"
+    return headers
+
 def register_steps(runner):
 
     @runner.step(r'^When I execute the TissQL query "(.*)"$')
     def execute_tissql_query_from_string(context, query_string):
-        # Extracts the collection name from the query, assuming "FROM [collection_name]"
         match = re.search(r'(?:FROM|UPDATE)\s+(\w+)', query_string, re.IGNORECASE)
         if not match:
-            # Some queries like 'SELECT 1' don't have a FROM clause.
-            # In this case, we can't determine a collection.
-            # We'll need a different endpoint or handling for such queries.
-            # For now, let's assume all test queries have a FROM clause.
             assert match, f"Could not find collection name in query: {query_string}"
 
         collection_name = match.group(1) if match else '_default'
         db_name = context.get('db_name', 'testdb')
         data = {"query": query_string}
+        headers = get_headers(context)
 
-        # Ensure the database and collection exist before querying
-        requests.put(f"{BASE_URL}/{db_name}")
+        requests.put(f"{BASE_URL}/{db_name}", headers=headers)
         if match:
-            requests.put(f"{BASE_URL}/{db_name}/{collection_name}")
+            requests.put(f"{BASE_URL}/{db_name}/{collection_name}", headers=headers)
 
-        # The query endpoint is on the database, not the collection
-        response = requests.post(f"{BASE_URL}/{db_name}/{collection_name}/_query", json=data)
+        response = requests.post(f"{BASE_URL}/{db_name}/{collection_name}/_query", json=data, headers=headers)
 
         assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
         context['query_result'] = response.json()
@@ -61,7 +61,6 @@ def register_steps(runner):
             num_value = float(value)
 
         for doc in result:
-            # Also check for string representation
             if doc.get(key) == num_value or str(doc.get(key)) == str(num_value):
                 return
         assert False, f"No document found with '{key}' = {num_value} in {context['query_result']}"

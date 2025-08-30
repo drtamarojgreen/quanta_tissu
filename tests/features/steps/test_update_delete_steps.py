@@ -9,6 +9,8 @@ def get_headers(context):
     headers = {}
     if 'transaction_id' in context:
         headers['X-Transaction-ID'] = str(context.transaction_id)
+    if 'auth_token' in context:
+        headers['Authorization'] = f"Bearer {context['auth_token']}"
     return headers
 
 def register_steps(runner):
@@ -21,7 +23,6 @@ def register_steps(runner):
 
         actual_content = response.json()
 
-        # Handle single-quoted JSON which is common in the feature files
         if expected_content_str.startswith("'") and expected_content_str.endswith("'"):
             expected_content_str = expected_content_str.replace("'", '"')
 
@@ -32,7 +33,6 @@ def register_steps(runner):
 
         for key, value in expected_content.items():
             assert key in actual_content
-            # Type-agnostic comparison for simplicity in tests
             assert str(actual_content[key]) == str(value), f"Mismatch for key '{key}' in doc '{doc_id}': expected '{value}', got '{actual_content[key]}'"
 
     @runner.step(r'the document with ID "(.*)" in "(.*)" should exist')
