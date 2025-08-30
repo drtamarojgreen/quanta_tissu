@@ -18,8 +18,6 @@ public:
     HttpClient(const std::string& host, int port);
     ~HttpClient();
 
-    void set_header(const std::string& key, const std::string& value);
-
     HttpResponse get(const std::string& path);
     HttpResponse post(const std::string& path, const std::string& body, const std::string& content_type = "application/json");
     HttpResponse put(const std::string& path, const std::string& body, const std::string& content_type = "application/json");
@@ -28,7 +26,6 @@ public:
 private:
     std::string host_;
     int port_;
-    std::map<std::string, std::string> headers_;
 
     int connect_to_server();
     HttpResponse send_request(const std::string& method, const std::string& path, const std::string& body = "", const std::string& content_type = "");

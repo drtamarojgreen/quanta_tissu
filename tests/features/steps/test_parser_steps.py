@@ -2,9 +2,9 @@ import json
 from quanta_tissu.tisslm.parser.tisslang_parser import TissLangParser, TissLangParserError
 
 def register_steps(runner):
-    @runner.step(r'Given a TissLang script:\s*"""\s*([\s\S]*?)"""')
+    @runner.step(r'Given I have a TissLang script with content: "(.*)"')
     def given_a_tisslang_script(context, script):
-        context['script'] = script.strip()
+        context['script'] = script
 
     @runner.step(r'When I parse the script')
     def when_i_parse_the_script(context):
