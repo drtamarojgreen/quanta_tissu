@@ -35,6 +35,10 @@ HttpClient::~HttpClient() {
 #endif
 }
 
+void HttpClient::set_header(const std::string& key, const std::string& value) {
+    headers_[key] = value;
+}
+
 int HttpClient::connect_to_server() {
     int sock = -1;
 #ifdef _WIN32
@@ -85,6 +89,10 @@ HttpResponse HttpClient::send_request(const std::string& method, const std::stri
     request_ss << "Host: " << host_ << ":" << port_ << "\r\n";
     request_ss << "User-Agent: TissDB-BDD-Client/1.0\r\n";
     request_ss << "Accept: */*\r\n";
+
+    for (const auto& header : headers_) {
+        request_ss << header.first << ": " << header.second << "\r\n";
+    }
 
     if (!body.empty()) {
         request_ss << "Content-Type: " << content_type << "\r\n";
