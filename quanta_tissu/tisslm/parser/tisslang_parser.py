@@ -210,7 +210,7 @@ class TissLangParser:
             self._current_block = try_node['try_commands']
             return
 
-        raise TissLangParserError(f"Unexpected command inside block.", self._line_number)
+        raise TissLangParserError(f"Unexpected command inside block. Expected RUN, LOG, ASSERT, READ, WRITE, PROMPT_AGENT, VAR, SET_BUDGET, REQUEST_REVIEW, PAUSE, IF, CHOOSE, ESTIMATE_COST, TRY, or }}.", self._line_number)
 
     def _handle_in_choose_state(self, line: str):
         """Handles parsing when inside a 'CHOOSE' block."""
@@ -229,7 +229,7 @@ class TissLangParser:
             self._current_block = option_node['commands']
             return
 
-        raise TissLangParserError(f"Unexpected command inside CHOOSE block. Expected OPTION or }.", self._line_number)
+        raise TissLangParserError(f"Unexpected command inside CHOOSE block. Expected OPTION or }}.", self._line_number)
 
     def _handle_after_try_state(self, line: str):
         """Handles parsing after a 'TRY' block, expecting a 'CATCH' or another command."""
