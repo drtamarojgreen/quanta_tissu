@@ -1,7 +1,7 @@
 import requests
 import json
 
-BASE_URL = "http://localhost:8080"
+BASE_URL = "http://localhost:9876"
 
 # This is a duplicate of the helper in test_database_steps.py
 # In a real-world scenario, this would be moved to a shared utility module.
