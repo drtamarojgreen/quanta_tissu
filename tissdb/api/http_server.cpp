@@ -20,6 +20,8 @@
 #include <sstream>
 #include <map>
 #include <chrono>
+#include <algorithm>
+#include <cctype>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -43,6 +45,11 @@ namespace TissDB {
 namespace API {
 
 namespace {
+
+void to_lower(std::string& s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+}
 
 Json::JsonValue value_to_json(const Value& value); // Forward declaration
 
@@ -262,6 +269,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
         auto colon_pos = header_line.find(':');
         if (colon_pos != std::string::npos) {
             std::string key = header_line.substr(0, colon_pos);
+            to_lower(key); // Make header key case-insensitive
             std::string value = header_line.substr(colon_pos + 1);
             // Trim leading whitespace from value
             value.erase(0, value.find_first_not_of(" \t"));
@@ -275,7 +283,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
 
     // --- Authentication Check ---
     if (req.path != "/_health") {
-        if (req.headers.find("Authorization") == req.headers.end()) {
+        if (req.headers.find("authorization") == req.headers.end()) {
             audit_logger_.log({std::chrono::system_clock::now(), "", source_ip, Audit::EventType::AuthFailure,
                 req.method + " " + req.path, false, "Authorization header missing."});
             send_response(client_socket, "401 Unauthorized", "text/plain", "Authorization header missing.");
@@ -283,7 +291,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
             return;
         }
 
-        std::string auth_header = req.headers.at("Authorization");
+        std::string auth_header = req.headers.at("authorization");
         std::string token;
         std::stringstream ss(auth_header);
         std::string bearer;
@@ -305,7 +313,7 @@ void HttpServer::Impl::handle_client(int client_socket) {
     // TODO: The role should be retrieved from the token's metadata.
     // For now, we hardcode the role based on the static token for demonstration.
     std::string token_val;
-    std::stringstream ss(req.headers.at("Authorization"));
+    std::stringstream ss(req.headers.at("authorization"));
     std::string bearer;
     ss >> bearer >> token_val;
     Auth::Role user_role;
@@ -386,9 +394,9 @@ void HttpServer::Impl::handle_client(int client_socket) {
         std::vector<std::string> sub_path_parts(path_parts.begin() + 1, path_parts.end());
 
         Transactions::TransactionID transaction_id = -1;
-        if (req.headers.count("X-Transaction-ID")) {
+        if (req.headers.count("x-transaction-id")) {
             try {
-                transaction_id = std::stoi(req.headers.at("X-Transaction-ID"));
+                transaction_id = std::stoi(req.headers.at("x-transaction-id"));
             } catch (const std::exception& e) {
                 LOG_WARNING("Could not parse X-Transaction-ID header: " + std::string(e.what()));
                 // Invalid header, proceed without transaction context
