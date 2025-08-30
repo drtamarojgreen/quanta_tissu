@@ -3,7 +3,7 @@ import json
 from typing import List, Dict, Any
 import re
 
-BASE_URL = "http://localhost:8080"
+BASE_URL = "http://localhost:9876"
 DB_NAME = "testdb" # Use a consistent test database
 
 def register_steps(runner):
