@@ -2,8 +2,14 @@ import requests
 import json
 import re
 
-BASE_URL = "http://localhost:8080"
+BASE_URL = "http://localhost:9876"
 DB_NAME = "testdb" # Use a consistent test database
+
+def get_headers(context):
+    headers = {}
+    if 'auth_token' in context:
+        headers['Authorization'] = f"Bearer {context['auth_token']}"
+    return headers
 
 def register_steps(runner):
 

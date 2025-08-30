@@ -2,7 +2,7 @@ import requests
 import json
 import re
 
-BASE_URL = "http://localhost:8080"
+BASE_URL = "http://localhost:9876"
 DB_NAME = "testdb"
 
 def get_headers(context):
