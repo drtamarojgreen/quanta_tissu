@@ -10,6 +10,7 @@ def get_headers(context):
         headers['X-Transaction-ID'] = str(context['transaction_id'])
     if 'auth_token' in context:
         headers['Authorization'] = f"Bearer {context['auth_token']}"
+    print(f"DEBUG: Generated headers: {headers}")
     return headers
 
 def register_steps(runner):
@@ -17,9 +18,14 @@ def register_steps(runner):
     @runner.step(r'a running TissDB instance')
     def running_tissdb_instance(context):
         context['db_name'] = "testdb"
-        # Ensure a clean slate
-        requests.delete(f"{BASE_URL}/{context['db_name']}")
-        response = requests.put(f"{BASE_URL}/{context['db_name']}")
+        # Set a default admin token for all subsequent requests in the tests.
+        # Security-specific tests can override or remove this.
+        context['auth_token'] = "static_test_token"
+        headers = get_headers(context)
+
+        # Ensure a clean slate. These requests now require authentication.
+        requests.delete(f"{BASE_URL}/{context['db_name']}", headers=headers)
+        response = requests.put(f"{BASE_URL}/{context['db_name']}", headers=headers)
         assert response.status_code in [201, 200, 409], f"Failed to create database. Status: {response.status_code}, Body: {response.text}"
 
     @runner.step(r'a collection named "(.*)"( exists)?')
