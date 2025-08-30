@@ -78,18 +78,12 @@ class Tokenizer:
         # Decode tokens to a list of strings
         decoded_tokens = [self.bpe_tokenizer.decode([token_id]) for token_id in token_ids.tolist()]
         
-        # Join tokens, handling spaces. This is a heuristic and might need adjustment.
-        # A simple approach: add a space before each token unless it's the first token
-        # or it's a punctuation mark that should attach to the previous token.
-        reconstructed_text_parts = []
-        for i, token_str in enumerate(decoded_tokens):
-            if i > 0 and not token_str.startswith(('.', ',', '!', '?', ':', ';', ')', ']', '}')):
-                reconstructed_text_parts.append(' ')
-            reconstructed_text_parts.append(token_str)
+        text = "".join(decoded_tokens)
         
-        text = "".join(reconstructed_text_parts)
-        
-        # Remove any leading space that might result from the first token
+        # The BPE tokenizer should ideally handle spaces correctly.
+        # If there are still issues with leading spaces, it might be due to how
+        # the BPE tokenizer encodes/decodes initial spaces.
+        # For now, we assume the BPE tokenizer's decode method is robust.
         if text.startswith(' '):
             text = text[1:]
             
