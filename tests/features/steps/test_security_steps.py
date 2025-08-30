@@ -88,3 +88,51 @@ def register_steps(runner):
     def plaintext_should_not_be_found(context, plaintext):
         assert 'raw_data_content' in context, "Raw data was not inspected."
         assert plaintext not in context['raw_data_content'], f"Found plaintext '{plaintext}' in raw data file!"
+
+    # Steps for Auditing Testing
+    @runner.step(r'the audit log file is cleared')
+    def clear_audit_log(context):
+        import os
+        log_path = "tissdb_audit.log"
+        if os.path.exists(log_path):
+            os.remove(log_path)
+
+    @runner.step(r'the audit log should contain an event with type "(.*)"')
+    def audit_log_should_contain_event(context, event_type):
+        import os
+        import json
+        log_path = "tissdb_audit.log"
+        assert os.path.exists(log_path), "Audit log file was not created."
+
+        found = False
+        with open(log_path, 'r') as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                    if entry.get("event_type") == event_type:
+                        found = True
+                        break
+                except json.JSONDecodeError:
+                    continue # Ignore malformed lines
+
+        assert found, f"Did not find an audit log event with type '{event_type}' in the audit log."
+
+    # Steps for Cryptographic Shredding
+    @runner.step(r'I force a flush of the memtable for "(.*)"')
+    def force_memtable_flush(context, collection_name):
+        # This is a fragile hack to encourage a memtable -> sstable flush.
+        # A proper test API would be ideal.
+        import time
+        headers = get_headers(context)
+        for i in range(200):
+            requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}/flush_doc_{i}", json={"data": f"dummy{i}"}, headers=headers)
+        time.sleep(2) # Give time for compaction/flush to occur
+
+    @runner.step(r'attempting to read the document with ID "(.*)" from "(.*)" should fail')
+    def attempt_read_should_fail(context, doc_id, collection_name):
+        headers = get_headers(context)
+        response = requests.get(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", headers=headers)
+        # After cryptographic shredding, the old document should be unreadable.
+        # This will likely manifest as a 404 Not Found, as the key is gone from the memtable.
+        # Even if the old SSTable is searched, decryption will fail, which should not result in a 200 OK.
+        assert response.status_code != 200, f"Expected read to fail, but got status code 200."
