@@ -7,6 +7,9 @@
 #include "../query/parser.h"
 #include "../query/ast.h"
 #include "../query/executor.h"
+#include "../auth/token_manager.h"
+#include "../auth/rbac.h"
+#include "../audit/audit_logger.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -152,6 +155,9 @@ private:
     void handle_client(int client_socket);
     void send_response(int sock, const std::string& code, const std::string& ctype, const std::string& body);
 
+    Auth::TokenManager token_manager_;
+    Auth::RBACManager rbac_manager_;
+    Audit::AuditLogger audit_logger_;
     Storage::DatabaseManager& db_manager_;
     int server_fd = -1;
     int server_port;
@@ -159,7 +165,10 @@ private:
     std::thread server_thread;
 };
 
-HttpServer::Impl::Impl(Storage::DatabaseManager& manager, int port) : db_manager_(manager), server_port(port) {
+HttpServer::Impl::Impl(Storage::DatabaseManager& manager, int port)
+    : db_manager_(manager),
+      server_port(port),
+      audit_logger_("tissdb_audit.log") {
 #ifdef _WIN32
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0) throw std::runtime_error("WSAStartup failed");
@@ -219,6 +228,10 @@ void HttpServer::Impl::send_response(int sock, const std::string& code, const st
 }
 
 void HttpServer::Impl::handle_client(int client_socket) {
+    // Note: In a real server, we'd get the client's IP address from the socket.
+    // This is a placeholder.
+    std::string source_ip = "127.0.0.1";
+
     char buffer[4096] = {0};
     if (recv(client_socket, buffer, 4095, 0) <= 0) {
         close(client_socket);
@@ -240,6 +253,9 @@ void HttpServer::Impl::handle_client(int client_socket) {
 
     LOG_INFO("Incoming request: " + req.method + " " + req.path);
 
+    audit_logger_.log({std::chrono::system_clock::now(), "", source_ip,
+        Audit::EventType::RequestBegin, req.method + " " + req.path, true, "Request received."});
+
     // Parse headers
     std::string header_line;
     while (std::getline(request_ss, header_line) && !header_line.empty() && header_line != "\r") {
@@ -256,6 +272,69 @@ void HttpServer::Impl::handle_client(int client_socket) {
             req.headers[key] = value;
         }
     }
+
+    // --- Authentication Check ---
+    if (req.path != "/_health") {
+        if (req.headers.find("Authorization") == req.headers.end()) {
+            audit_logger_.log({std::chrono::system_clock::now(), "", source_ip, Audit::EventType::AuthFailure,
+                req.method + " " + req.path, false, "Authorization header missing."});
+            send_response(client_socket, "401 Unauthorized", "text/plain", "Authorization header missing.");
+            close(client_socket);
+            return;
+        }
+
+        std::string auth_header = req.headers.at("Authorization");
+        std::string token;
+        std::stringstream ss(auth_header);
+        std::string bearer;
+        ss >> bearer >> token;
+
+        if (bearer != "Bearer" || !token_manager_.validate_token(token)) {
+            audit_logger_.log({std::chrono::system_clock::now(), token, source_ip, Audit::EventType::AuthFailure,
+                req.method + " " + req.path, false, "Invalid or missing bearer token."});
+            send_response(client_socket, "401 Unauthorized", "text/plain", "Invalid or missing bearer token.");
+            close(client_socket);
+            return;
+        }
+        audit_logger_.log({std::chrono::system_clock::now(), token, source_ip, Audit::EventType::AuthSuccess,
+            req.method + " " + req.path, true, "Authentication successful."});
+    }
+    // --- End Authentication Check ---
+
+    // --- RBAC Check ---
+    // TODO: The role should be retrieved from the token's metadata.
+    // For now, we hardcode the role based on the static token for demonstration.
+    std::string token_val;
+    std::stringstream ss(req.headers.at("Authorization"));
+    std::string bearer;
+    ss >> bearer >> token_val;
+    Auth::Role user_role;
+    if (token_val == "static_test_token") {
+        user_role = Auth::Role::Admin;
+    } else if (token_val == "read_only_token") {
+        user_role = Auth::Role::ReadOnly;
+    } else {
+        user_role = Auth::Role::NoAccess;
+    }
+
+    std::vector<std::string> path_parts_for_rbac;
+    std::stringstream path_ss_for_rbac(req.path);
+    std::string segment_for_rbac;
+    while(std::getline(path_ss_for_rbac, segment_for_rbac, '/')) {
+        if(!segment_for_rbac.empty()) path_parts_for_rbac.push_back(segment_for_rbac);
+    }
+
+    // Example of checking a specific permission for a critical action
+    if (req.method == "DELETE" && path_parts_for_rbac.size() == 1) { // e.g., DELETE /my_database
+        if (!rbac_manager_.has_permission(user_role, Auth::Permission::DbDelete)) {
+            audit_logger_.log({std::chrono::system_clock::now(), token_val, source_ip, Audit::EventType::PermissionCheckFailure,
+                req.method + " " + req.path, false, "User does not have DbDelete permission."});
+            send_response(client_socket, "403 Forbidden", "text/plain", "You do not have permission to delete a database.");
+            close(client_socket);
+            return;
+        }
+    }
+    // --- End RBAC Check ---
 
     size_t body_start = request_str.find("\r\n\r\n");
     if (body_start != std::string::npos) {
@@ -295,6 +374,8 @@ void HttpServer::Impl::handle_client(int client_socket) {
 
         if (req.method == "DELETE" && path_parts.size() == 1) {
             db_manager_.delete_database(path_parts[0]);
+            audit_logger_.log({std::chrono::system_clock::now(), token_val, source_ip, Audit::EventType::DbDelete,
+                req.path, true, "Database deleted successfully."});
             send_response(client_socket, "204 No Content", "text/plain", "");
             close(client_socket);
             return;
@@ -445,6 +526,24 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 } catch (const std::runtime_error& e) {
                     // This is likely "Collection not found"
                     send_response(client_socket, "404 Not Found", "text/plain", e.what());
+                }
+            } else if (req.method == "GET" && path_parts.size() >= 2 && path_parts[0] == "_admin" && path_parts[1] == "audit_log") {
+                if (!rbac_manager_.has_permission(user_role, Auth::Permission::AdminRead)) {
+                    audit_logger_.log({std::chrono::system_clock::now(), token_val, source_ip, Audit::EventType::PermissionCheckFailure,
+                        req.path, false, "User does not have AdminRead permission."});
+                    send_response(client_socket, "403 Forbidden", "text/plain", "You do not have permission to access the audit log.");
+                } else {
+                    // In a real implementation, this would return a JSON array of log entries.
+                    // The get_logs function is a placeholder and will throw an exception.
+                    try {
+                        // TODO: Add time range filtering from query params
+                        auto logs = audit_logger_.get_logs(std::chrono::system_clock::now() - std::chrono::hours(24),
+                                                         std::chrono::system_clock::now());
+                        // This part will not be reached due to the placeholder exception.
+                        send_response(client_socket, "200 OK", "application/json", "[]");
+                    } catch (const std::logic_error& e) {
+                        send_response(client_socket, "501 Not Implemented", "text/plain", e.what());
+                    }
                 }
             } else {
                  send_response(client_socket, "404 Not Found", "text/plain", "Endpoint not found.");
