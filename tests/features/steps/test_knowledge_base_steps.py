@@ -3,6 +3,8 @@ from quanta_tissu.tisslm.core.model import QuantaTissu
 from quanta_tissu.tisslm.config import model_config
 from quanta_tissu.tisslm.core.tokenizer import Tokenizer
 from quanta_tissu.tisslm.core.knowledge_base import KnowledgeBase
+from quanta_tissu.tisslm.core.embedding.embedder import Embedder
+from quanta_tissu.tisslm.core.db.client import TissDBClient
 
 def register_steps(runner):
     @runner.step(r'^(?:Given|And) a knowledge base with a model and tokenizer$')
@@ -11,9 +13,15 @@ def register_steps(runner):
         tokenizer = Tokenizer()
         model_config['vocab_size'] = tokenizer.get_vocab_size()
         model = QuantaTissu(model_config)
-        context['model'] = model # Store model for other steps
-        context['tokenizer'] = tokenizer # Store tokenizer for other steps
-        context['knowledge_base'] = KnowledgeBase(model.embeddings, tokenizer)
+
+        # Create the correct dependencies for the KnowledgeBase
+        embedder = Embedder(tokenizer, model.embeddings.value)
+        # The BDD tests run the server on port 9876.
+        db_client = TissDBClient(db_host='127.0.0.1', db_port=9876)
+
+        context['model'] = model
+        context['tokenizer'] = tokenizer
+        context['knowledge_base'] = KnowledgeBase(embedder, db_client)
 
     @runner.step(r'^(?:When|And) I add the document "(.*)"$')
     def add_document(context, document_text):
@@ -21,12 +29,12 @@ def register_steps(runner):
 
     @runner.step(r'^(?:When|And) I retrieve documents for the query "(.*)"$')
     def retrieve_documents(context, query_text):
+        context['last_query'] = query_text # Save for feedback step
         context['retrieved_docs'] = context['knowledge_base'].retrieve(query_text)
 
     @runner.step(r'^Then the retrieved documents should contain "(.*)"$')
     def check_retrieved_documents(context, expected_document):
-        assert expected_document in context['retrieved_docs']
-        return "Test passed!"
+        assert expected_document in context['retrieved_docs'], f"Expected to retrieve '{expected_document}', but got {context['retrieved_docs']}"
 
     @runner.step(r'^(?:When|And) I add feedback with score (\d+) and text "(.*)" for the retrieved documents$')
     def add_feedback(context, score, feedback_text):
@@ -41,7 +49,6 @@ def register_steps(runner):
     def check_feedback_entry(context, expected_count):
         stats = context['knowledge_base'].get_knowledge_stats()
         assert stats.get('feedback_entries', 0) == int(expected_count)
-        return "Test passed!"
 
     @runner.step(r'^(?:When|And) I self-update from interaction with query "(.*)" generated response "(.*)" and user correction "(.*)"$')
     def self_update_with_correction(context, query, generated_response, user_correction):
@@ -49,11 +56,8 @@ def register_steps(runner):
 
     @runner.step(r'^Then the knowledge base should contain "(.*)"$')
     def check_knowledge_base_content(context, expected_content):
-        # This is a simplified check. In a real scenario, you might search for the document.
-        # For now, we'll just check if the document was added.
         retrieved_docs = context['knowledge_base'].retrieve(expected_content)
-        assert any(expected_content in doc for doc in retrieved_docs)
-        return "Test passed!"
+        assert any(expected_content in doc for doc in retrieved_docs), f"Did not find '{expected_content}' in knowledge base after self-update."
 
     @runner.step(r'^(?:When|And) I self-update from interaction with query "(.*)" generated response "(.*)" and no user correction$')
     def self_update_no_correction(context, query, generated_response):
@@ -63,5 +67,3 @@ def register_steps(runner):
     def check_total_documents(context, expected_count):
         stats = context['knowledge_base'].get_knowledge_stats()
         assert stats.get('total_docs', 0) == int(expected_count)
-        return "Test passed!"
-

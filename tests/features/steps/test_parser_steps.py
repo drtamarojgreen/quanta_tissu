@@ -2,6 +2,11 @@ import json
 from quanta_tissu.tisslm.parser.tisslang_parser import TissLangParser, TissLangParserError
 
 def register_steps(runner):
+    @runner.step(r'Given I have a TissLang script with content:(.*)')
+    def given_a_tisslang_script_with_content(context, script_content):
+        # This handles scripts provided on a single line, often with quotes
+        context['script'] = script_content.strip().strip("'\"")
+
     @runner.step(r'Given a TissLang script:\s*"""\s*([\s\S]*?)"""')
     def given_a_tisslang_script(context, script):
         context['script'] = script.strip()
