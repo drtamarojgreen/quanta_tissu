@@ -1,7 +1,7 @@
 import requests
 import json
 
-BASE_URL = "http://localhost:8080"
+BASE_URL = "http://localhost:9876"
 
 def register_steps(runner):
     @runner.step(r'^And I insert the following documents into "([^"]*)":')
