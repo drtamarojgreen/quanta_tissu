@@ -4,6 +4,12 @@ import json
 BASE_URL = "http://localhost:9876"
 DB_NAME = "testdb" # Use a consistent test database
 
+def get_headers(context):
+    headers = {}
+    if 'auth_token' in context:
+        headers['Authorization'] = f"Bearer {context['auth_token']}"
+    return headers
+
 def register_steps(runner):
 
     @runner.step(r'I insert the following documents into "(.*)":')
@@ -11,14 +17,10 @@ def register_steps(runner):
         headers = get_headers(context)
         for row in context.table:
             doc_id = row['id']
-            # The content in the feature file is a string representation of a dict.
-            # We need to parse it carefully.
             content_str = row['content']
             try:
                 content = json.loads(content_str)
             except json.JSONDecodeError:
-                # If it's not valid JSON, it might be single-quoted.
-                # This is a common issue in the feature files.
                 content = json.loads(content_str.replace("'", '"'))
 
             response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}", json=content, headers=headers)
@@ -26,9 +28,9 @@ def register_steps(runner):
 
     @runner.step(r'^When I list all documents in "(.*)"$')
     def list_all_documents(context, collection_name):
-        # The /_all endpoint is not implemented. Use a query instead.
+        headers = get_headers(context)
         query = {"query": "SELECT * FROM " + collection_name}
-        response = requests.post(f"{BASE_URL}/{DB_NAME}/{collection_name}/_query", json=query)
+        response = requests.post(f"{BASE_URL}/{DB_NAME}/{collection_name}/_query", json=query, headers=headers)
         assert response.status_code == 200
         context['document_list'] = response.json()
 
@@ -39,7 +41,8 @@ def register_steps(runner):
 
     @runner.step(r'^When I attempt to create a collection named "(.*)"$')
     def attempt_create_collection(context, collection_name):
-        response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}")
+        headers = get_headers(context)
+        response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}", headers=headers)
         context['response_status_code'] = response.status_code
 
     @runner.step(r'^Then the operation should be successful with status code (.*)$')
@@ -48,7 +51,8 @@ def register_steps(runner):
 
     @runner.step(r'^When I attempt to delete the document with ID "(.*)" from "(.*)"$')
     def attempt_delete_document(context, doc_id, collection_name):
-        response = requests.delete(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}")
+        headers = get_headers(context)
+        response = requests.delete(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}", headers=headers)
         context['response_status_code'] = response.status_code
 
     @runner.step(r'^Then the operation should fail with status code (.*)$')
@@ -58,7 +62,6 @@ def register_steps(runner):
     @runner.step(r'^Then the document list should contain "(.*)"$')
     def then_document_list_should_contain(context, doc_id):
         found = False
-        # Documents returned from a query have their ID in the '_id' field.
         for doc in context.get('document_list', []):
             if doc.get('_id') == doc_id:
                 found = True
