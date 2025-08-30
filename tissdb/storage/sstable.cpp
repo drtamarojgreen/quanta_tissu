@@ -2,7 +2,6 @@
 #include "../common/serialization.h"
 #include "../common/binary_stream_buffer.h"
 #include "../common/checksum.h"
-#include "../crypto/kms.h"
 #include <iostream>
 #include <chrono>
 #include <map>
@@ -11,20 +10,6 @@
 
 namespace TissDB {
 namespace Storage {
-
-namespace {
-// This is a placeholder for a proper dependency injection mechanism.
-// In a real system, the KMS would be managed as a central service.
-TissDB::Crypto::KeyManagementSystem& get_kms_instance() {
-    // This master key should be loaded from a secure configuration or vault, not hardcoded.
-    static TissDB::Crypto::Key master_key = {
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10
-    };
-    static TissDB::Crypto::KeyManagementSystem instance(master_key);
-    return instance;
-}
-} // anonymous namespace
 
 const int SSTABLE_INDEX_INTERVAL = 16; // Sample every 16th key for the sparse index
 
@@ -74,14 +59,7 @@ std::optional<std::vector<uint8_t>> SSTable::find(const std::string& key) {
                 if (val_len_marker == static_cast<size_t>(-1)) { // Tombstone marker
                     return std::vector<uint8_t>();
                 }
-                auto encrypted_bytes = bsb.read_bytes_with_length(val_len_marker);
-                // TODO: The collection name should be passed in, not hardcoded.
-                auto dek = get_kms_instance().get_dek("default_collection");
-                auto decrypted_bytes = get_kms_instance().decrypt(encrypted_bytes, dek);
-                if (decrypted_bytes.empty() && !encrypted_bytes.empty()) {
-                    throw std::runtime_error("Decryption failed (tampering suspected).");
-                }
-                return decrypted_bytes;
+                return bsb.read_bytes_with_length(val_len_marker);
             } else if (current_key > key) {
                 // We've scanned past where the key should be, so it doesn't exist.
                 return std::nullopt;
@@ -116,16 +94,7 @@ std::vector<Document> SSTable::scan() {
             bsb.read(val_len_marker);
 
             if (val_len_marker != static_cast<size_t>(-1)) { // Not a tombstone
-                auto encrypted_bytes = bsb.read_bytes_with_length(val_len_marker);
-                // TODO: The collection name should be passed in, not hardcoded.
-                auto dek = get_kms_instance().get_dek("default_collection");
-                auto decrypted_bytes = get_kms_instance().decrypt(encrypted_bytes, dek);
-                if (decrypted_bytes.empty() && !encrypted_bytes.empty()) {
-                     // Data is corrupt or key is wrong, skip this record.
-                     std::cerr << "Could not decrypt record with key: " << current_key << ". Skipping." << std::endl;
-                     continue;
-                }
-                documents.push_back(deserialize(decrypted_bytes));
+                documents.push_back(deserialize(bsb.read_bytes_with_length(val_len_marker)));
             } else {
                 // Tombstone
                 Document tombstone;
@@ -162,10 +131,7 @@ std::string SSTable::write_from_memtable(const std::string& data_dir, const Memt
 
         if (pair.second) {
             std::vector<uint8_t> value_bytes = TissDB::serialize(*(pair.second));
-            // TODO: The collection name should be passed in, not hardcoded.
-            auto dek = get_kms_instance().get_dek("default_collection");
-            auto encrypted_bytes = get_kms_instance().encrypt(value_bytes, dek);
-            bsb.write_bytes(encrypted_bytes);
+            bsb.write_bytes(value_bytes);
         } else {
             size_t tombstone_marker = static_cast<size_t>(-1);
             bsb.write(tombstone_marker);
@@ -230,10 +196,7 @@ std::string SSTable::merge(const std::string& data_dir, const std::vector<SSTabl
         bsb.write_string(pair.first);
 
         if (pair.second.has_value()) {
-            // TODO: The collection name should be passed in, not hardcoded.
-            auto dek = get_kms_instance().get_dek("default_collection");
-            auto encrypted_bytes = get_kms_instance().encrypt(pair.second.value(), dek);
-            bsb.write_bytes(encrypted_bytes);
+            bsb.write_bytes(pair.second.value());
         } else {
             size_t tombstone_marker = static_cast<size_t>(-1);
             bsb.write(tombstone_marker);

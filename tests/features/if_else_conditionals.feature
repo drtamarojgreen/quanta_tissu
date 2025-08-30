@@ -1,12 +1,7 @@
 Feature: TissLang IF THEN ELSE Conditionals
 
   Scenario: Parse IF THEN with boolean condition
-    Given I have a TissLang script with content:
-      """
-      IF true THEN {
-        LOG "Condition is true"
-      }
-      """
+    Given I have a TissLang script with content: "IF true THEN { LOG \"Condition is true\" }"
     When I parse the script
     Then the parser should produce an Abstract Syntax Tree (AST)
     And the AST should contain a IF node at index 0
@@ -17,14 +12,7 @@ Feature: TissLang IF THEN ELSE Conditionals
     And the LOG command should have message "Condition is true"
 
   Scenario: Parse IF THEN ELSE with comparison condition
-    Given I have a TissLang script with content:
-      """
-      IF var == "value" THEN {
-        LOG "Var is value"
-      } ELSE {
-        LOG "Var is not value"
-      }
-      """
+    Given I have a TissLang script with content: "IF var == \"value\" THEN { LOG \"Var is value\" } ELSE { LOG \"Var is not value\" }"
     When I parse the script
     Then the parser should produce an Abstract Syntax Tree (AST)
     And the AST should contain a IF node at index 0
@@ -38,16 +26,7 @@ Feature: TissLang IF THEN ELSE Conditionals
     And the LOG command should have message "Var is not value"
 
   Scenario: Parse nested IF statements
-    Given I have a TissLang script with content:
-      """
-      IF true THEN {
-        IF false THEN {
-          LOG "Inner true"
-        } ELSE {
-          LOG "Inner false"
-        }
-      }
-      """
+    Given I have a TissLang script with content: "IF true THEN { IF false THEN { LOG \"Inner true\" } ELSE { LOG \"Inner false\" } }"
     When I parse the script
     Then the parser should produce an Abstract Syntax Tree (AST)
     And the AST should contain a IF node at index 0

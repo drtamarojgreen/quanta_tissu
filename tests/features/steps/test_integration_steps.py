@@ -2,7 +2,7 @@ import requests
 import json
 import re
 
-BASE_URL = "http://localhost:9876"
+BASE_URL = "http://localhost:8080"
 DB_NAME = "testdb" # Use a consistent test database
 
 def register_steps(runner):

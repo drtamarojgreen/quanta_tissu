@@ -2,26 +2,12 @@
 #include "../common/log.h"
 #include "../common/serialization.h"
 #include "../common/binary_stream_buffer.h"
-#include "../crypto/kms.h"
 #include <iostream>
 #include <vector>
 #include <sstream>
 
 namespace TissDB {
 namespace Storage {
-
-namespace {
-// This is a placeholder for a proper dependency injection mechanism.
-TissDB::Crypto::KeyManagementSystem& get_kms_instance() {
-    // This master key should be loaded from a secure configuration or vault, not hardcoded.
-    static TissDB::Crypto::Key master_key = {
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10
-    };
-    static TissDB::Crypto::KeyManagementSystem instance(master_key);
-    return instance;
-}
-} // anonymous namespace
 
 WriteAheadLog::WriteAheadLog(const std::string& path) : log_path(path) {
     log_file.open(log_path, std::ios::app | std::ios::binary);
@@ -79,18 +65,12 @@ void WriteAheadLog::append(const LogEntry& entry) {
     }
 
     std::string buffer_str = buffer_stream.str();
-
-    // Encrypt the entire log entry
-    auto dek = get_kms_instance().get_dek("wal_key"); // Use a dedicated key for the WAL
-    Crypto::Buffer plaintext_buffer(buffer_str.begin(), buffer_str.end());
-    Crypto::Buffer encrypted_buffer = get_kms_instance().encrypt(plaintext_buffer, dek);
-
-    uint32_t checksum = Common::crc32(encrypted_buffer.data(), encrypted_buffer.size());
-    uint32_t entry_size = encrypted_buffer.size();
+    uint32_t checksum = Common::crc32(buffer_str.data(), buffer_str.size());
+    uint32_t entry_size = buffer_str.size();
 
     BinaryStreamBuffer file_bsb(log_file);
     file_bsb.write(entry_size);
-    log_file.write(reinterpret_cast<const char*>(encrypted_buffer.data()), entry_size);
+    log_file.write(buffer_str.data(), entry_size);
     file_bsb.write(checksum);
 
     log_file.flush();
@@ -127,16 +107,8 @@ std::vector<LogEntry> WriteAheadLog::recover() {
                 break;
             }
 
-            // Decrypt the entry data
-            auto dek = get_kms_instance().get_dek("wal_key");
-            auto decrypted_buffer = get_kms_instance().decrypt(entry_data, dek);
-            if (decrypted_buffer.empty() && !entry_data.empty()) {
-                std::cerr << "WAL entry decryption failed. Recovery may be incomplete." << std::endl;
-                break;
-            }
-
             LogEntry entry;
-            std::string entry_data_str(decrypted_buffer.begin(), decrypted_buffer.end());
+            std::string entry_data_str(entry_data.begin(), entry_data.end());
             std::istringstream entry_stream(entry_data_str);
             BinaryStreamBuffer entry_bsb(entry_stream);
             entry_bsb.read(entry.type);
