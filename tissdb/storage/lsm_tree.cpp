@@ -1,12 +1,26 @@
 #include "lsm_tree.h"
 #include "../common/log.h"
 #include "../common/serialization.h"
+#include "../crypto/kms.h"
 #include <stdexcept>
 #include <filesystem>
 #include <set>
 
 namespace TissDB {
 namespace Storage {
+
+namespace {
+// This is a placeholder for a proper dependency injection mechanism.
+TissDB::Crypto::KeyManagementSystem& get_kms_instance() {
+    // This master key should be loaded from a secure configuration or vault, not hardcoded.
+    static TissDB::Crypto::Key master_key = {
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10
+    };
+    static TissDB::Crypto::KeyManagementSystem instance(master_key);
+    return instance;
+}
+} // anonymous namespace
 
 void replay_log_entry(LSMTree* tree, const LogEntry& entry);
 
@@ -110,6 +124,13 @@ void LSMTree::delete_collection(const std::string& name) {
         throw std::runtime_error("Collection does not exist: " + name);
     }
 
+    // --- Cryptographic Shredding ---
+    // By deleting the Data Encryption Key, the data in the SSTables becomes
+    // permanently unrecoverable, even if the files were to be recovered later.
+    LOG_INFO("Shredding encryption key for collection: " + name);
+    get_kms_instance().delete_dek(name);
+    // --- End Cryptographic Shredding ---
+
     LogEntry entry;
     entry.type = LogEntryType::DELETE_COLLECTION;
     entry.collection_name = name;
@@ -117,6 +138,18 @@ void LSMTree::delete_collection(const std::string& name) {
 
     LOG_INFO("Deleting collection: " + name);
     collections_.erase(name);
+
+    // Also delete the directory from disk
+    try {
+        std::string collection_path = (std::filesystem::path(path_) / name).string();
+        if (std::filesystem::exists(collection_path)) {
+            std::filesystem::remove_all(collection_path);
+            LOG_INFO("Removed collection data directory: " + collection_path);
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        LOG_ERROR("Error deleting collection directory: " + std::string(e.what()));
+        // Don't re-throw, as the collection is already gone from memory and WAL.
+    }
 }
 
 std::vector<std::string> LSMTree::list_collections() const {

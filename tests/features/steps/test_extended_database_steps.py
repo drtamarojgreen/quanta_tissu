@@ -2,7 +2,13 @@ import requests
 import json
 import re
 
-BASE_URL = "http://localhost:8080"
+BASE_URL = "http://localhost:9876"
+
+def get_headers(context):
+    headers = {}
+    if 'auth_token' in context:
+        headers['Authorization'] = f"Bearer {context['auth_token']}"
+    return headers
 
 def register_steps(runner):
 
@@ -15,12 +21,13 @@ def register_steps(runner):
 
         db_name = context.get('db_name', 'testdb')
         data = {"query": query_string}
+        headers = get_headers(context)
 
         # Ensure the database and collection exist before querying
-        requests.put(f"{BASE_URL}/{db_name}")
-        requests.put(f"{BASE_URL}/{db_name}/{collection_name}")
+        requests.put(f"{BASE_URL}/{db_name}", headers=headers)
+        requests.put(f"{BASE_URL}/{db_name}/{collection_name}", headers=headers)
 
-        response = requests.post(f"{BASE_URL}/{db_name}/{collection_name}/_query", json=data)
+        response = requests.post(f"{BASE_URL}/{db_name}/{collection_name}/_query", json=data, headers=headers)
 
         # It's possible for a query to correctly return a 404 if the collection doesn't exist yet
         # For the purpose of these tests, we will treat an empty list as the result.
