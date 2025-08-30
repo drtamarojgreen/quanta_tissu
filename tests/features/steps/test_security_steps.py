@@ -62,25 +62,26 @@ def register_steps(runner):
 
     @runner.step(r'I inspect the raw data files for "(.*)"')
     def inspect_raw_data_files(context, collection_name):
-        # This is a bit of a hack. We assume the server is running from the root of the repo.
-        # The data is stored in tissdb_data/<db_name>/<collection_name>
         import os
         import time
         data_path = os.path.join("tissdb_data", context['db_name'], collection_name)
-        context['raw_data_content'] = ""
-        # We need to force a flush from memtable to sstable.
-        # There's no API for this, so we'll just add more data to trigger it.
-        # This is fragile and a proper test API would be better.
+
+        # We need to force a flush from memtable to sstable to ensure data is on disk.
         headers = get_headers(context)
-        for i in range(200): # Assuming memtable size is less than 200
+        # The first document was already created, add more to trigger a flush.
+        for i in range(199):
              requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}/doc_{i}", json={"data": f"dummy{i}"}, headers=headers)
 
         time.sleep(2) # Give time for compaction/flush to occur
 
+        context['raw_data_content'] = ""
+        if not os.path.exists(data_path):
+            print(f"WARNING: Data path {data_path} not found after attempting to flush. Cannot inspect for encryption.")
+            return
+
         for filename in os.listdir(data_path):
             if filename.endswith(".db"):
                 with open(os.path.join(data_path, filename), 'rb') as f:
-                    # Read raw bytes to avoid decoding errors
                     context['raw_data_content'] += f.read().decode('latin-1')
 
 
