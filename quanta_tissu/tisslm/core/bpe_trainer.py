@@ -125,17 +125,48 @@ class BPETokenizer:
         return all_ids
 
     def decode(self, ids):
-        """Decodes a list of token IDs back into a string."""
-        tokens = []
-        for i in ids:
-            token = self.vocab.get(i)
-            if token is None:
-                print(f"Warning: Invalid token ID {i} found during decoding.")
-                tokens.append(b'?')
-            else:
-                tokens.append(token)
-        text_bytes = b"".join(tokens)
-        return text_bytes.decode("utf-8", errors="replace")
+        """Decodes a list of token IDs back into a string with robust UTF-8 error handling."""
+        # First, get all the byte sequences for the given token IDs.
+        all_bytes = b"".join(self.vocab.get(i, b'') for i in ids)
+
+        # Now, decode the byte sequence one character at a time to handle errors gracefully.
+        text_parts = []
+        i = 0
+        while i < len(all_bytes):
+            # Try to decode the next character.
+            try:
+                # Check the first byte to determine how many bytes the character should have.
+                byte1 = all_bytes[i]
+                if byte1 < 0x80:  # 0xxxxxxx (ASCII)
+                    num_bytes = 1
+                elif 0xC0 <= byte1 < 0xE0:  # 110xxxxx
+                    num_bytes = 2
+                elif 0xE0 <= byte1 < 0xF0:  # 1110xxxx
+                    num_bytes = 3
+                elif 0xF0 <= byte1 < 0xF8:  # 11110xxx
+                    num_bytes = 4
+                else:
+                    # Invalid starting byte, skip it.
+                    i += 1
+                    continue
+
+                # Ensure we don't read past the end of the byte string.
+                if i + num_bytes > len(all_bytes):
+                    # Incomplete character at the end of the string, skip.
+                    i += 1
+                    continue
+
+                # Slice the potential character's bytes and try to decode.
+                char_bytes = all_bytes[i : i + num_bytes]
+                text_parts.append(char_bytes.decode("utf-8"))
+                i += num_bytes # Move past the decoded character.
+
+            except UnicodeDecodeError:
+                # If a decode error occurs even with the length check, 
+                # it means the continuation bytes were invalid. Skip the starting byte and retry.
+                i += 1
+        
+        return "".join(text_parts)
 
     def save(self, prefix):
         """
