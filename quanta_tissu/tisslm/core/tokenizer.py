@@ -74,25 +74,11 @@ class Tokenizer:
         """
         if not isinstance(token_ids, np.ndarray):
             token_ids = np.array(token_ids)
-            
-        # Decode tokens to a list of strings
-        decoded_tokens = [self.bpe_tokenizer.decode([token_id]) for token_id in token_ids.tolist()]
-        
-        # Join tokens, handling spaces. This is a heuristic and might need adjustment.
-        # A simple approach: add a space before each token unless it's the first token
-        # or it's a punctuation mark that should attach to the previous token.
-        reconstructed_text_parts = []
-        for i, token_str in enumerate(decoded_tokens):
-            if i > 0 and not token_str.startswith(('.', ',', '!', '?', ':', ';', ')', ']', '}')):
-                reconstructed_text_parts.append(' ')
-            reconstructed_text_parts.append(token_str)
-        
-        text = "".join(reconstructed_text_parts)
-        
-        # Remove any leading space that might result from the first token
-        if text.startswith(' '):
-            text = text[1:]
-            
+
+        # Decode the entire sequence of token IDs at once.
+        # This is generally more efficient and handles subword stitching correctly.
+        text = self.bpe_tokenizer.decode(token_ids.tolist())
+
         return text
     
     def get_vocab_size(self) -> int:

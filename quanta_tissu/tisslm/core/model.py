@@ -123,17 +123,42 @@ class QuantaTissu:
         """
         return self.model.embeddings
 
-    def sample(self, prompt_tokens, n_new_tokens, query_embedding=None, hessian_matrix=None, **kwargs):
+    def sample(self, prompt_tokens, n_new_tokens, **kwargs):
         """
-        Generates text by delegating to the Generator class.
-        
+        Generates text by dynamically dispatching to the appropriate generator.
+
+        If experimental parameters like 'query_embedding', 'beam_width', etc.,
+        are present in kwargs, it uses the AlgorithmicGenerator. Otherwise, it uses
+        the standard Generator, which supports sentiment biasing.
+
         Args:
             prompt_tokens (list[int]): The initial sequence of token IDs.
             n_new_tokens (int): The number of new tokens to generate.
-            **kwargs: Additional arguments for the generator, e.g., method, temperature.
+            **kwargs: Additional arguments for the generator, e.g., method, 
+                      temperature, query_embedding, sentiment_bias.
             
         Returns:
             list[int]: The list of newly generated token IDs.
         """
-        # return self.generator.sample(prompt_tokens, n_new_tokens, **kwargs)
-        return self.alg_generator.sample(prompt_tokens, n_new_tokens, query_embedding=query_embedding, hessian_matrix=hessian_matrix, **kwargs)
+        # Define keys that are specific to the AlgorithmicGenerator (excluding method name itself)
+        alg_specific_kwargs = ['query_embedding', 'hessian_matrix', 'beam_width', 'tau', 'eta']
+        
+        # Check if the method is one of the algorithmic ones, or if any alg-specific kwargs are present
+        use_algorithmic_generator = kwargs.get('method') in ['dynamic_token_revision', 'bayesian_word_expansion'] or \
+                                    any(key in kwargs for key in alg_specific_kwargs)
+        
+        if use_algorithmic_generator:
+            logger.debug("Dispatching to AlgorithmicGenerator.")
+            return self.alg_generator.sample(
+                prompt_tokens,
+                n_new_tokens,
+                **kwargs
+            )
+        else:
+            logger.debug("Dispatching to standard Generator.")
+            # The standard generator accepts sentiment_bias, which will be in kwargs if provided.
+            return self.generator.sample(
+                prompt_tokens, 
+                n_new_tokens, 
+                **kwargs
+            )

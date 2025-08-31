@@ -19,7 +19,7 @@ from .knowledge_base import KnowledgeBase
 
 logger = logging.getLogger(__name__)
 
-def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float, repetition_penalty: float = 1.0, bias_token_id=None, bias_strength=0.0, query_embedding=None, hessian_matrix=None, beam_width=3, tau=5.0, eta=0.1, rag_query: str = None, num_retrieved_docs: int = 1, db_port: int = 9876) -> str:
+def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length: int, method: str, temperature: float, top_k: int, top_p: float, repetition_penalty: float = 1.0, bias_token_id=None, bias_strength=0.0, rag_query: str = None, num_retrieved_docs: int = 1, db_port: int = 9876) -> str:
     """
     Generates text of a specified length, starting with a prompt.
     """
@@ -60,12 +60,7 @@ def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length:
         top_p=top_p,
         repetition_penalty=repetition_penalty,
         bias_token_id=bias_token_id,
-        bias_strength=bias_strength,
-        query_embedding=query_embedding,
-        hessian_matrix=hessian_matrix,
-        beam_width=beam_width,
-        tau=tau,
-        eta=eta
+        bias_strength=bias_strength
     )
     logger.debug(f"Generated token IDs from model: {generated_ids}")
 
