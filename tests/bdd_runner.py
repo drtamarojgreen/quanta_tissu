@@ -39,7 +39,6 @@ class BDDRunner:
 
     def step(self, pattern):
         def decorator(func):
-            print(f"  Registering step: {pattern}")
             self.steps.append((re.compile(pattern), func))
             return func
         return decorator
@@ -194,8 +193,7 @@ class BDDRunner:
                                               test_generate_steps, test_knowledge_base_steps, test_database_steps,
                                               test_more_database_steps, test_extended_database_steps, test_parser_steps,
                                               test_model_integration_steps, test_integration_steps, test_update_delete_steps,
-                                              test_select_queries_steps, test_common_steps, test_security_steps,
-                                              test_datetime_steps)
+                                              test_select_queries_steps, test_common_steps, test_security_steps)
             # Import the new nexus_flow steps
             from tests.nexus_flow import test_nexus_flow_bdd
 
@@ -204,11 +202,10 @@ class BDDRunner:
                            test_more_database_steps, test_extended_database_steps, test_parser_steps,
                            test_model_integration_steps, test_integration_steps, test_update_delete_steps,
                            test_select_queries_steps, test_common_steps, test_security_steps,
-                           test_datetime_steps,
                            # Add the new nexus_flow module to the list
                            test_nexus_flow_bdd]:
                 module.register_steps(self)
-            print(f"BDD Runner: All steps registered. Total steps: {len(self.steps)}")
+            print("BDD Runner: All steps registered.")
             sys.stdout.flush()
 
             for feature_file in feature_files:
