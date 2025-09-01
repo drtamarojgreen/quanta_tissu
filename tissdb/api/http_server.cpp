@@ -485,7 +485,8 @@ void HttpServer::Impl::handle_client(int client_socket) {
              std::string query_str = parsed_body.as_object().at("query").as_string();
              Query::Parser parser;
              Query::AST ast = parser.parse(query_str);
-             auto result_docs = Query::execute_query(storage_engine, ast);
+             Query::Executor executor(storage_engine);
+             auto result_docs = executor.execute(ast, {});
              Json::JsonArray result_array;
              for (const auto& doc : result_docs) {
                  result_array.push_back(Json::JsonValue(document_to_json(doc)));
