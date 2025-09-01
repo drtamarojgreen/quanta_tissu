@@ -39,6 +39,7 @@ class BDDRunner:
 
     def step(self, pattern):
         def decorator(func):
+            print(f"  Registering step: {pattern}")
             self.steps.append((re.compile(pattern), func))
             return func
         return decorator
@@ -207,7 +208,7 @@ class BDDRunner:
                            # Add the new nexus_flow module to the list
                            test_nexus_flow_bdd]:
                 module.register_steps(self)
-            print("BDD Runner: All steps registered.")
+            print(f"BDD Runner: All steps registered. Total steps: {len(self.steps)}")
             sys.stdout.flush()
 
             for feature_file in feature_files:
