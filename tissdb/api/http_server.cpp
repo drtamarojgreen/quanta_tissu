@@ -22,6 +22,7 @@
 #include <chrono>
 #include <algorithm>
 #include <cctype>
+#include <iomanip> // for std::put_time
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -71,6 +72,24 @@ Json::JsonValue value_to_json(const Value& value) {
         return Json::JsonValue(*num_val);
     } else if (const auto* bool_val = std::get_if<bool>(&value)) {
         return Json::JsonValue(*bool_val);
+    } else if (const auto* date_val = std::get_if<Date>(&value)) {
+        std::stringstream ss;
+        ss << std::setfill('0') << std::setw(4) << date_val->year << "-"
+           << std::setw(2) << static_cast<int>(date_val->month) << "-"
+           << std::setw(2) << static_cast<int>(date_val->day);
+        return Json::JsonValue(ss.str());
+    } else if (const auto* time_val = std::get_if<Time>(&value)) {
+        std::stringstream ss;
+        ss << std::setfill('0') << std::setw(2) << static_cast<int>(time_val->hour) << ":"
+           << std::setw(2) << static_cast<int>(time_val->minute) << ":"
+           << std::setw(2) << static_cast<int>(time_val->second);
+        return Json::JsonValue(ss.str());
+    } else if (const auto* dt_val = std::get_if<DateTime>(&value)) {
+        std::time_t time = std::chrono::system_clock::to_time_t(*dt_val);
+        std::tm tm = *std::gmtime(&time);
+        std::stringstream ss;
+        ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+        return Json::JsonValue(ss.str());
     } else if (const auto* arr_ptr = std::get_if<std::shared_ptr<Array>>(&value)) {
         Json::JsonArray arr;
         if (arr_ptr && *arr_ptr) {
@@ -122,6 +141,9 @@ Value json_to_value(const Json::JsonValue& json_val) {
     if (json_val.is_null()) {
         return nullptr;
     } else if (json_val.is_string()) {
+        // This is where we could try to auto-detect date/time formats from strings
+        // when inserting JSON, but for now we'll just treat them as strings.
+        // The TissQL parser is the primary way to insert typed date/time values.
         return json_val.as_string();
     } else if (json_val.is_number()) {
         return json_val.as_number();
@@ -313,9 +335,11 @@ void HttpServer::Impl::handle_client(int client_socket) {
     // TODO: The role should be retrieved from the token's metadata.
     // For now, we hardcode the role based on the static token for demonstration.
     std::string token_val;
-    std::stringstream ss(req.headers.at("authorization"));
-    std::string bearer;
-    ss >> bearer >> token_val;
+    if (req.headers.count("authorization")) {
+        std::stringstream ss(req.headers.at("authorization"));
+        std::string bearer;
+        ss >> bearer >> token_val;
+    }
     Auth::Role user_role;
     if (token_val == "static_test_token") {
         user_role = Auth::Role::Admin;
@@ -407,9 +431,9 @@ void HttpServer::Impl::handle_client(int client_socket) {
         if (sub_path_parts.empty()) {
             send_response(client_socket, "400 Bad Request", "text/plain", "Collection name missing from URL.");
         } else if (sub_path_parts[0] == "_begin" && req.method == "POST") {
-            Transactions::TransactionID transaction_id = storage_engine.begin_transaction();
+            Transactions::TransactionID new_transaction_id = storage_engine.begin_transaction();
             Json::JsonObject response_obj;
-            response_obj["transaction_id"] = Json::JsonValue(static_cast<double>(transaction_id));
+            response_obj["transaction_id"] = Json::JsonValue(static_cast<double>(new_transaction_id));
             send_response(client_socket, "200 OK", "application/json", Json::JsonValue(response_obj).serialize());
         } else if (sub_path_parts[0] == "_commit" && req.method == "POST") {
             try {
@@ -419,8 +443,8 @@ void HttpServer::Impl::handle_client(int client_socket) {
                     close(client_socket);
                     return;
                 }
-                Transactions::TransactionID transaction_id = static_cast<Transactions::TransactionID>(parsed_body.as_object().at("transaction_id").as_number());
-                bool success = storage_engine.commit_transaction(transaction_id);
+                Transactions::TransactionID tid_to_commit = static_cast<Transactions::TransactionID>(parsed_body.as_object().at("transaction_id").as_number());
+                bool success = storage_engine.commit_transaction(tid_to_commit);
                 Json::JsonObject response_obj;
                 response_obj["success"] = Json::JsonValue(success);
                 send_response(client_socket, "200 OK", "application/json", Json::JsonValue(response_obj).serialize());
@@ -435,8 +459,8 @@ void HttpServer::Impl::handle_client(int client_socket) {
                     close(client_socket);
                     return;
                 }
-                Transactions::TransactionID transaction_id = static_cast<Transactions::TransactionID>(parsed_body.as_object().at("transaction_id").as_number());
-                bool success = storage_engine.rollback_transaction(transaction_id);
+                Transactions::TransactionID tid_to_rollback = static_cast<Transactions::TransactionID>(parsed_body.as_object().at("transaction_id").as_number());
+                bool success = storage_engine.rollback_transaction(tid_to_rollback);
                 Json::JsonObject response_obj;
                 response_obj["success"] = Json::JsonValue(success);
                 send_response(client_socket, "200 OK", "application/json", Json::JsonValue(response_obj).serialize());
@@ -456,6 +480,17 @@ void HttpServer::Impl::handle_client(int client_socket) {
             doc.id = id;
             storage_engine.put("knowledge_feedback", id, doc, transaction_id);
             send_response(client_socket, "201 Created", "text/plain", "Feedback created with ID: " + id);
+        } else if (sub_path_parts[0] == "_query" && req.method == "POST") {
+             const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+             std::string query_str = parsed_body.as_object().at("query").as_string();
+             Query::Parser parser;
+             Query::AST ast = parser.parse(query_str);
+             auto result_docs = Query::execute_query(storage_engine, ast);
+             Json::JsonArray result_array;
+             for (const auto& doc : result_docs) {
+                 result_array.push_back(Json::JsonValue(document_to_json(doc)));
+             }
+             send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
         } else if (sub_path_parts[0] == "_collections" && req.method == "GET") {
             Json::JsonArray collections_array;
             for (const auto& name : storage_engine.list_collections()) {
