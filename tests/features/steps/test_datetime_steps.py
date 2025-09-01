@@ -1,4 +1,3 @@
-from behave import *
 import json
 
 def find_doc_with_field_value(context, field, value):
