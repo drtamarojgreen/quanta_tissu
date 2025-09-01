@@ -148,6 +148,11 @@ def register_steps(runner):
         assert 'query_result' in context, "No query result found in context"
         assert len(context['query_result']) == 0, f"Expected empty result, but got: {context['query_result']}"
 
+    @runner.step(r'the query should succeed')
+    def query_should_succeed(context):
+        assert 'response' in context, "No response found in context"
+        assert context['response'].ok, f"Query failed with status {context['response'].status_code}: {context['response'].text}"
+
     @runner.step(r'I begin a transaction')
     def begin_transaction(context):
         response = requests.post(f"{BASE_URL}/{context['db_name']}/_begin")
