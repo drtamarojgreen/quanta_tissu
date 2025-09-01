@@ -8,22 +8,22 @@ def find_doc_with_field_value(context, field, value):
     return False
 
 def register_steps(runner):
-    @runner.step(r'the document should contain the field "{field}" with the date "{value}"')
+    @runner.step(r'the document should contain the field "(.*)" with the date "(.*)"')
     def step_impl_date(context, field, value):
         assert find_doc_with_field_value(context, field, value), \
             f"Could not find a document with field '{field}' having date value '{value}'"
 
-    @runner.step(r'the document should contain the field "{field}" with the time "{value}"')
+    @runner.step(r'the document should contain the field "(.*)" with the time "(.*)"')
     def step_impl_time(context, field, value):
         assert find_doc_with_field_value(context, field, value), \
             f"Could not find a document with field '{field}' having time value '{value}'"
 
-    @runner.step(r'the document should contain the field "{field}" with the datetime "{value}"')
+    @runner.step(r'the document should contain the field "(.*)" with the datetime "(.*)"')
     def step_impl_datetime(context, field, value):
         assert find_doc_with_field_value(context, field, value), \
             f"Could not find a document with field '{field}' having datetime value '{value}'"
 
-    @runner.step(r'the result should contain a document with the field "{field}" having the value "{value}"')
+    @runner.step(r'the result should contain a document with the field "(.*)" having the value "(.*)"')
     def step_impl_field_value(context, field, value):
         # This is a more generic step, but we can make it work for our case.
         # The value might be a string or number, so we handle both.
