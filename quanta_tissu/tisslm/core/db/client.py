@@ -10,10 +10,17 @@ class TissDBClient:
     A client for interacting with the TissDB HTTP API.
     This class encapsulates all direct network requests to the database.
     """
-    def __init__(self, db_host='127.0.0.1', db_port=8080, db_name='testdb'):
+    def __init__(self, db_host='127.0.0.1', db_port=8080, db_name='testdb', token=None):
         self.base_url = f"http://{db_host}:{db_port}"
         self.db_name = db_name
         self.db_url = f"{self.base_url}/{self.db_name}"
+        self.token = token
+
+    def _get_headers(self):
+        """Returns headers for authentication."""
+        if self.token:
+            return {'Authorization': f'Bearer {self.token}'}
+        return {}
 
     def ensure_db_setup(self, collections: list):
         """
@@ -26,8 +33,9 @@ class TissDBClient:
             bool: True if connection and setup were successful, False otherwise.
         """
         try:
+            headers = self._get_headers()
             # Ensure database exists
-            response = requests.put(self.db_url)
+            response = requests.put(self.db_url, headers=headers)
             # Accept 200 (OK), 201 (Created), 409 (Conflict), or 500 if it's due to "already exists"
             if response.status_code not in [200, 201, 409]:
                 # Check if 500 is due to "already exists"
@@ -38,7 +46,7 @@ class TissDBClient:
 
             # Ensure collections exist
             for collection_name in collections:
-                coll_response = requests.put(f"{self.db_url}/{collection_name}")
+                coll_response = requests.put(f"{self.db_url}/{collection_name}", headers=headers)
                 if coll_response.status_code not in [200, 201, 409]:
                     coll_response.raise_for_status()
 
@@ -59,7 +67,8 @@ class TissDBClient:
         Adds a document to a specified collection.
         """
         try:
-            response = requests.post(f"{self.db_url}/{collection}", json=document)
+            headers = self._get_headers()
+            response = requests.post(f"{self.db_url}/{collection}", json=document, headers=headers)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -84,7 +93,8 @@ class TissDBClient:
         Retrieves statistics for the database.
         """
         try:
-            response = requests.get(f"{self.db_url}/_stats")
+            headers = self._get_headers()
+            response = requests.get(f"{self.db_url}/_stats", headers=headers)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:

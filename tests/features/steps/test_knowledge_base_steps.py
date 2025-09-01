@@ -17,7 +17,7 @@ def register_steps(runner):
         # Create the correct dependencies for the KnowledgeBase
         embedder = Embedder(tokenizer, model.embeddings.value)
         # The BDD tests run the server on port 9876.
-        db_client = TissDBClient(db_host='127.0.0.1', db_port=9876)
+        db_client = TissDBClient(db_host='127.0.0.1', db_port=9876, token='static_test_token')
 
         context['model'] = model
         context['tokenizer'] = tokenizer
