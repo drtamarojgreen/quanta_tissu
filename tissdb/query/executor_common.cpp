@@ -56,6 +56,7 @@ std::optional<std::string> get_as_string(const Value& val) {
     if (std::holds_alternative<std::nullptr_t>(val)) {
         return "null";
     }
+    // Note: No automatic conversion from Date/Time/DateTime to string for now
     return std::nullopt; // Incompatible types for string comparison
 }
 
@@ -70,6 +71,9 @@ Value resolve_expression_to_value(const Expression& expr, const Document& doc, c
         if (const auto* str_val = std::get_if<std::string>(lit_ptr)) return *str_val;
         if (const auto* num_val = std::get_if<double>(lit_ptr)) return *num_val;
         if (const auto* bool_val = std::get_if<bool>(lit_ptr)) return *bool_val;
+        if (const auto* date_val = std::get_if<Date>(lit_ptr)) return *date_val;
+        if (const auto* time_val = std::get_if<Time>(lit_ptr)) return *time_val;
+        if (const auto* dt_val = std::get_if<DateTime>(lit_ptr)) return *dt_val;
         if (std::holds_alternative<Null>(*lit_ptr)) return std::nullptr_t{};
     }
     if (const auto* param_ptr = std::get_if<ParameterExpression>(&expr)) {
@@ -80,6 +84,9 @@ Value resolve_expression_to_value(const Expression& expr, const Document& doc, c
         if (const auto* str_val = std::get_if<std::string>(&param_lit)) return *str_val;
         if (const auto* num_val = std::get_if<double>(&param_lit)) return *num_val;
         if (const auto* bool_val = std::get_if<bool>(&param_lit)) return *bool_val;
+        if (const auto* date_val = std::get_if<Date>(&param_lit)) return *date_val;
+        if (const auto* time_val = std::get_if<Time>(&param_lit)) return *time_val;
+        if (const auto* dt_val = std::get_if<DateTime>(&param_lit)) return *dt_val;
         if (std::holds_alternative<Null>(param_lit)) return std::nullptr_t{};
     }
     if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
@@ -122,6 +129,44 @@ bool evaluate_expression(const Expression& expr, const Document& doc, const std:
 
         const std::string& op = binary_expr->op;
 
+        // Type-specific comparisons
+        if (const auto* left_date = std::get_if<Date>(&left_value)) {
+            if (const auto* right_date = std::get_if<Date>(&right_value)) {
+                if (op == "=") return *left_date == *right_date;
+                if (op == "!=") return !(*left_date == *right_date);
+                if (op == ">") return *right_date < *left_date;
+                if (op == "<") return *left_date < *right_date;
+                if (op == ">=") return !(*left_date < *right_date);
+                if (op == "<=") return !(*right_date < *left_date);
+                return false; // Unsupported operator for Date
+            }
+        }
+
+        if (const auto* left_time = std::get_if<Time>(&left_value)) {
+            if (const auto* right_time = std::get_if<Time>(&right_value)) {
+                if (op == "=") return *left_time == *right_time;
+                if (op == "!=") return !(*left_time == *right_time);
+                if (op == ">") return *right_time < *left_time;
+                if (op == "<") return *left_time < *right_time;
+                if (op == ">=") return !(*left_time < *right_time);
+                if (op == "<=") return !(*right_time < *left_time);
+                return false; // Unsupported operator for Time
+            }
+        }
+
+        if (const auto* left_dt = std::get_if<DateTime>(&left_value)) {
+            if (const auto* right_dt = std::get_if<DateTime>(&right_value)) {
+                if (op == "=") return *left_dt == *right_dt;
+                if (op == "!=") return *left_dt != *right_dt;
+                if (op == ">") return *left_dt > *right_dt;
+                if (op == "<") return *left_dt < *right_dt;
+                if (op == ">=") return *left_dt >= *right_dt;
+                if (op == "<=") return *left_dt <= *right_dt;
+                return false; // Unsupported operator for DateTime
+            }
+        }
+
+        // Fallback to numeric and string comparisons
         auto left_num_opt = get_as_numeric(left_value);
         auto right_num_opt = get_as_numeric(right_value);
 
@@ -171,6 +216,15 @@ Literal evaluate_update_expression(const Expression& expr, const Document& doc, 
     }
     if (const auto* bool_val = std::get_if<bool>(&resolved_value)) {
         return *bool_val;
+    }
+    if (const auto* date_val = std::get_if<Date>(&resolved_value)) {
+        return *date_val;
+    }
+    if (const auto* time_val = std::get_if<Time>(&resolved_value)) {
+        return *time_val;
+    }
+    if (const auto* dt_val = std::get_if<DateTime>(&resolved_value)) {
+        return *dt_val;
     }
     if (std::holds_alternative<std::nullptr_t>(resolved_value)) {
         return Null{};
@@ -304,6 +358,7 @@ std::string value_to_string(const Value& value) {
     } else if (std::holds_alternative<std::nullptr_t>(value)) {
         ss << "null";
     }
+    // TODO: Add support for printing Date, Time, DateTime
     return ss.str();
 }
 
