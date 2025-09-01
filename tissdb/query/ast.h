@@ -5,13 +5,14 @@
 #include <variant>
 #include <optional>
 #include <memory>
+#include "../common/document.h"
 
 namespace TissDB {
 namespace Query {
 
 // Represents a literal value in a query
 struct Null {};
-using Literal = std::variant<std::string, double, bool, Null>;
+using Literal = std::variant<std::string, double, bool, Null, Date, Time, DateTime>;
 
 // Forward-declare recursive types
 struct BinaryExpression;

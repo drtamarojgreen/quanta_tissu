@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <iomanip>
 
 namespace TissDB {
 namespace Query {
@@ -15,6 +16,16 @@ struct GroupKeyVisitor {
     void operator()(const std::string& s) const { ss << s; }
     void operator()(const Number& n) const { ss << n; }
     void operator()(const Boolean& b) const { ss << (b ? "true" : "false"); }
+    void operator()(const Date& d) const {
+        ss << std::setfill('0') << std::setw(4) << d.year << "-"
+           << std::setw(2) << static_cast<int>(d.month) << "-"
+           << std::setw(2) << static_cast<int>(d.day);
+    }
+    void operator()(const Time& t) const {
+        ss << std::setfill('0') << std::setw(2) << static_cast<int>(t.hour) << ":"
+           << std::setw(2) << static_cast<int>(t.minute) << ":"
+           << std::setw(2) << static_cast<int>(t.second);
+    }
     void operator()(const DateTime& dt) const {
         ss << std::chrono::duration_cast<std::chrono::milliseconds>(dt.time_since_epoch()).count();
     }

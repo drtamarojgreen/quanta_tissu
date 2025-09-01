@@ -18,6 +18,41 @@ struct Object;
 // Primitive types supported by TissDB
 using Number = double; // Using double to handle both integer and float values
 using Boolean = bool;
+
+struct Date {
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+
+    bool operator==(const Date& other) const {
+        return year == other.year && month == other.month && day == other.day;
+    }
+     bool operator<(const Date& other) const {
+        if (year < other.year) return true;
+        if (year > other.year) return false;
+        if (month < other.month) return true;
+        if (month > other.month) return false;
+        return day < other.day;
+    }
+};
+
+struct Time {
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
+
+     bool operator==(const Time& other) const {
+        return hour == other.hour && minute == other.minute && second == other.second;
+    }
+    bool operator<(const Time& other) const {
+        if (hour < other.hour) return true;
+        if (hour > other.hour) return false;
+        if (minute < other.minute) return true;
+        if (minute > other.minute) return false;
+        return second < other.second;
+    }
+};
+
 using DateTime = std::chrono::time_point<std::chrono::system_clock>;
 using BinaryData = std::vector<uint8_t>;
 
@@ -26,6 +61,8 @@ using Value = std::variant<
     std::string,
     Number,
     Boolean,
+    Date,
+    Time,
     DateTime,
     BinaryData,
     std::vector<Element>,
