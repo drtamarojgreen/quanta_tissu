@@ -144,7 +144,18 @@ class BayesianSimilarityStrategy(RetrievalStrategy):
         if hessian_matrix is None:
             raise ValueError("BayesianSimilarityStrategy requires a 'hessian_matrix' in kwargs.")
 
-        eigenvalues = np.array(hessian_matrix.get('eigenvalues', [1.0]))
+        # FIX: Handle both NumPy array and dictionary for Hessian data
+        if isinstance(hessian_matrix, np.ndarray):
+            # If it's a matrix, compute the eigenvalues.
+            # Assuming the Hessian is symmetric, which it should be.
+            eigenvalues = np.linalg.eigvalsh(hessian_matrix)
+        elif isinstance(hessian_matrix, dict):
+            # For backward compatibility or other use cases, allow passing eigenvalues directly.
+            if 'eigenvalues' not in hessian_matrix:
+                raise ValueError("Hessian dictionary must contain 'eigenvalues' key.")
+            eigenvalues = np.array(hessian_matrix['eigenvalues'])
+        else:
+            raise TypeError(f"Unsupported type for 'hessian_matrix': {type(hessian_matrix)}")
         
         # Simplified Bayesian update:
         # Assume query_embedding is the prior mean.
