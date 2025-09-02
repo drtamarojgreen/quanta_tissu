@@ -2,7 +2,7 @@ import requests
 import json
 import time
 
-BASE_URL = "http://localhost:8080"
+BASE_URL = "http://localhost:9876"
 
 def get_headers(context):
     headers = {}
