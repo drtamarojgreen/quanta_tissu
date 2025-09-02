@@ -41,13 +41,15 @@ def register_steps(runner):
 
     @runner.step(r'the collection "(.*)" should exist')
     def collection_should_exist(context, collection_name):
-        response = requests.get(f"{BASE_URL}/{context['db_name']}/_collections")
+        headers = get_headers(context)
+        response = requests.get(f"{BASE_URL}/{context['db_name']}/_collections", headers=headers)
         assert response.status_code == 200
         assert collection_name in response.json()
 
     @runner.step(r'the collection "(.*)" should not exist')
     def collection_should_not_exist(context, collection_name):
-        response = requests.get(f"{BASE_URL}/{context['db_name']}/_collections")
+        headers = get_headers(context)
+        response = requests.get(f"{BASE_URL}/{context['db_name']}/_collections", headers=headers)
         assert response.status_code == 200
         assert collection_name not in response.json()
 
@@ -155,20 +157,23 @@ def register_steps(runner):
 
     @runner.step(r'I begin a transaction')
     def begin_transaction(context):
-        response = requests.post(f"{BASE_URL}/{context['db_name']}/_begin")
+        headers = get_headers(context)
+        response = requests.post(f"{BASE_URL}/{context['db_name']}/_begin", headers=headers)
         assert response.status_code == 200
         context['transaction_id'] = response.json()['transaction_id']
 
     @runner.step(r'I commit the transaction')
     def commit_transaction(context):
+        headers = get_headers(context)
         data = {'transaction_id': context['transaction_id']}
-        response = requests.post(f"{BASE_URL}/{context['db_name']}/_commit", json=data)
+        response = requests.post(f"{BASE_URL}/{context['db_name']}/_commit", json=data, headers=headers)
         assert response.status_code in [200, 204]
         del context['transaction_id']
 
     @runner.step(r'I rollback the transaction')
     def rollback_transaction(context):
+        headers = get_headers(context)
         data = {'transaction_id': context['transaction_id']}
-        response = requests.post(f"{BASE_URL}/{context['db_name']}/_rollback", json=data)
+        response = requests.post(f"{BASE_URL}/{context['db_name']}/_rollback", json=data, headers=headers)
         assert response.status_code in [200, 204]
         del context['transaction_id']

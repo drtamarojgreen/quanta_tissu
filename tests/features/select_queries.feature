@@ -32,9 +32,10 @@ Feature: TissQL Select Queries
 
   Scenario: Select specific fields with a WHERE clause
     When I execute the TissQL query "SELECT name FROM products WHERE stock > 250"
-    Then the query result should have 2 documents
+    Then the query result should have 3 documents
     And the query result should contain a document with "name" = "Mouse"
     And the query result should contain a document with "name" = "T-Shirt"
+    And the query result should contain a document with "name" = "Coffee Mug"
     And the query result should not contain a document with "name" = "Laptop"
 
   Scenario: Complex query with multiple conditions
