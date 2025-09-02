@@ -2,7 +2,7 @@ import requests
 import json
 import time
 
-BASE_URL = "http://localhost:9876"
+BASE_URL = "http://localhost:8080"
 
 def get_headers(context):
     headers = {}
@@ -43,6 +43,9 @@ def register_steps(runner):
     def collection_should_exist(context, collection_name):
         headers = get_headers(context)
         response = requests.get(f"{BASE_URL}/{context['db_name']}/_collections", headers=headers)
+        if response.status_code != 200:
+            print(f"DEBUG: GET /_collections failed with status {response.status_code}")
+            print(f"DEBUG: Response body: {response.text}")
         assert response.status_code == 200
         assert collection_name in response.json()
 
