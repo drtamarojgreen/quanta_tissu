@@ -114,9 +114,7 @@ class AlgorithmicGenerator:
             next_token, probs = self._predict_from_logits(
                 last_logit, 
                 'bayesian_influenced', 
-                query_embedding=kwargs.get('query_embedding'), 
-                hessian_matrix=kwargs.get('hessian_matrix'), 
-                **{k: v for k, v in kwargs.items() if k not in ['query_embedding', 'hessian_matrix']}
+                **kwargs
             )
             kwargs['past_tokens'] = current_tokens
             generated_tokens.append(next_token)
@@ -212,8 +210,7 @@ class AlgorithmicGenerator:
             logits, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
         return generated_tokens
 
-    def _predict_from_logits(self, logits, method="greedy", **kwargs_original):
-        kwargs = dict(kwargs_original) # Ensure kwargs is a dictionary
+    def _predict_from_logits(self, logits, method="greedy", **kwargs):
         if logits.ndim > 1:
             logits = np.squeeze(logits)
         if kwargs.get('past_tokens') and kwargs.get('repetition_penalty', 1.0) != 1.0:

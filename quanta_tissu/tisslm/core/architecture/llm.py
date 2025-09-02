@@ -128,11 +128,9 @@ class Model:
         _, seq_len = token_ids.shape
         block_caches = []
 
-        mask = None
-        if start_pos == 0:
-            mask = self._create_causal_mask(seq_len)
-            if mask is not None:
-                mask = mask[np.newaxis, np.newaxis, :, :]
+        mask = self._create_causal_mask(seq_len)
+        if mask is not None:
+            mask = mask[np.newaxis, np.newaxis, :, :]
 
         x = self.embeddings.value[token_ids]
         x = self.pos_encoding(x, start_pos=start_pos)
