@@ -39,6 +39,8 @@ class AlgorithmicGenerator:
             return self.dynamic_token_revision_sampling(prompt_tokens, n_new_tokens, **kwargs)
         elif method == "bayesian_word_expansion":
             return self.bayesian_word_expansion_sampling(prompt_tokens, n_new_tokens, **kwargs)
+        elif method == "adaptive_sentiment":
+            return self.adaptive_sentiment_sampling(prompt_tokens, n_new_tokens, **kwargs)
         else:
             return self.iterative_sampling(prompt_tokens, n_new_tokens, method=method, **kwargs)
 
@@ -130,6 +132,82 @@ class AlgorithmicGenerator:
                         logger.info(f"Expanded wordlist with new word: {last_word}")
                     except IOError as e:
                         logger.error(f"Could not write to {self.wordlist_path}: {e}")
+            next_token_array = np.array([[next_token]])
+            logits, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
+        return generated_tokens
+
+    def adaptive_sentiment_sampling(self, prompt_tokens, n_new_tokens, **kwargs):
+        """
+        Generates text by adaptively adjusting bias based on the sentiment of generated chunks.
+        """
+        tokenizer = kwargs.get('tokenizer')
+        sentiment_analyzer = kwargs.get('sentiment_analyzer')
+        target_sentiment = kwargs.get('target_sentiment', 'neutral')
+        target_strength = kwargs.get('target_strength', 0.5)
+        evaluation_interval = kwargs.get('evaluation_interval', 10) # Re-evaluate sentiment every N tokens
+        underlying_method = kwargs.get('underlying_method', 'nucleus')
+
+        if not tokenizer or not sentiment_analyzer:
+            raise ConfigurationError("adaptive_sentiment_sampling requires 'tokenizer' and 'sentiment_analyzer' in kwargs.")
+
+        generated_tokens = []
+        current_tokens = [int(t) for t in prompt_tokens]
+        prompt_array = np.array([current_tokens])
+        logits, _ = self.model.forward(prompt_array, start_pos=0)
+
+        current_sentiment_bias = sentiment_analyzer.get_sentiment_bias(target_sentiment, target_strength)
+
+        for i in range(n_new_tokens):
+            last_logit = logits[:, -1, :]
+            
+            # Apply current sentiment bias to logits before prediction
+            biased_logits = np.copy(last_logit) # Work on a copy
+            for token_id, bias_val in current_sentiment_bias.items():
+                if token_id < len(biased_logits):
+                    biased_logits[token_id] += bias_val
+
+            next_token, _ = self._predict_from_logits(biased_logits, underlying_method, **kwargs)
+            kwargs['past_tokens'] = current_tokens
+            generated_tokens.append(next_token)
+            current_tokens.append(next_token)
+
+            # Re-evaluate sentiment and adjust bias periodically
+            if (i + 1) % evaluation_interval == 0:
+                chunk_tokens = generated_tokens[-evaluation_interval:]
+                chunk_text = tokenizer.detokenize(np.array(chunk_tokens))
+                
+                # Calculate average sentiment of the chunk
+                chunk_sentiment_sum = 0.0
+                scored_words_in_chunk = 0
+                words_in_chunk = re.findall(r'\b\w+\b', chunk_text.lower())
+                for word in words_in_chunk:
+                    score = sentiment_analyzer.sentiment_scores.get(word, 0.0)
+                    if score != 0.0:
+                        chunk_sentiment_sum += score
+                        scored_words_in_chunk += 1
+                
+                avg_chunk_sentiment = chunk_sentiment_sum / scored_words_in_chunk if scored_words_in_chunk > 0 else 0.0
+
+                # Adjust bias for the next chunk based on deviation from target
+                target_score = 0.0
+                if target_sentiment == 'positive': target_score = 1.0
+                elif target_sentiment == 'negative': target_score = -1.0
+
+                deviation = target_score - avg_chunk_sentiment
+                
+                # Simple adaptive logic: increase strength if deviating, decrease if on target
+                # This is a basic heuristic and can be refined.
+                adjustment_factor = 0.1 # How much to adjust strength by
+                if abs(deviation) > 0.1: # If significant deviation
+                    if deviation > 0: # Need more of target sentiment
+                        target_strength += adjustment_factor
+                    else: # Too much of target sentiment, or wrong sentiment
+                        target_strength -= adjustment_factor
+                
+                target_strength = max(0.0, min(1.0, target_strength)) # Clamp strength
+                current_sentiment_bias = sentiment_analyzer.get_sentiment_bias(target_sentiment, target_strength)
+                logger.debug(f"Adapted sentiment bias. New strength: {target_strength:.2f}")
+
             next_token_array = np.array([[next_token]])
             logits, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
         return generated_tokens

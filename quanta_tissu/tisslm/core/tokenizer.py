@@ -74,6 +74,7 @@ class Tokenizer:
         """
         if not isinstance(token_ids, np.ndarray):
             token_ids = np.array(token_ids)
+<<<<<<< Updated upstream
 <<<<<<< HEAD
 
         # Decode the entire sequence of token IDs at once.
@@ -95,6 +96,11 @@ class Tokenizer:
             text = text[1:]
             
 >>>>>>> 530d1982eebe3dab46adb3990ade0fe7f5172820
+=======
+        # Decode the entire sequence of token IDs at once.
+        # This is generally more efficient and handles subword stitching correctly.
+        text = self.bpe_tokenizer.decode(token_ids.tolist())
+>>>>>>> Stashed changes
         return text
     
     def get_vocab_size(self) -> int:
