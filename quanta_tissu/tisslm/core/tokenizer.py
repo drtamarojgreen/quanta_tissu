@@ -73,16 +73,10 @@ class Tokenizer:
             Reconstructed text string
         """
         if not isinstance(token_ids, np.ndarray):
-            token_ids = np.array(token_ids)
-<<<<<<< Updated upstream
-<<<<<<< HEAD
-
+            t
         # Decode the entire sequence of token IDs at once.
         # This is generally more efficient and handles subword stitching correctly.
         text = self.bpe_tokenizer.decode(token_ids.tolist())
-
-=======
-            
         # Decode tokens to a list of strings
         decoded_tokens = [self.bpe_tokenizer.decode([token_id]) for token_id in token_ids.tolist()]
         
@@ -95,12 +89,6 @@ class Tokenizer:
         if text.startswith(' '):
             text = text[1:]
             
->>>>>>> 530d1982eebe3dab46adb3990ade0fe7f5172820
-=======
-        # Decode the entire sequence of token IDs at once.
-        # This is generally more efficient and handles subword stitching correctly.
-        text = self.bpe_tokenizer.decode(token_ids.tolist())
->>>>>>> Stashed changes
         return text
     
     def get_vocab_size(self) -> int:
