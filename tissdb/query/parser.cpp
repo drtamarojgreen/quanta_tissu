@@ -3,9 +3,58 @@
 #include <stdexcept>
 #include <cctype>
 #include <algorithm>
+#include <cstdio>
+#include <optional>
+#include <sstream>
+#include <iomanip>
+#include <chrono>
 
 namespace TissDB {
 namespace Query {
+
+namespace {
+// Helper to parse YYYY-MM-DD
+std::optional<Date> parse_date_string(const std::string& s) {
+    Date d;
+    int year, month, day;
+    if (sscanf(s.c_str(), "%d-%d-%d", &year, &month, &day) == 3) {
+        d.year = year;
+        d.month = month;
+        d.day = day;
+        return d;
+    }
+    return std::nullopt;
+}
+
+// Helper to parse HH:MM:SS
+std::optional<Time> parse_time_string(const std::string& s) {
+    Time t;
+    int hour, minute, second;
+    if (sscanf(s.c_str(), "%d:%d:%d", &hour, &minute, &second) == 3) {
+        t.hour = hour;
+        t.minute = minute;
+        t.second = second;
+        return t;
+    }
+    return std::nullopt;
+}
+
+// Helper to parse YYYY-MM-DD HH:MM:SS
+std::optional<DateTime> parse_datetime_string(const std::string& s) {
+    std::tm tm = {};
+    std::stringstream ss(s);
+    ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+    if (!ss.fail()) {
+        // The tm_isdst field is not set by get_time, which can cause mktime to be off by an hour.
+        // We assume UTC and use timegm on platforms that support it, or a more complex conversion.
+        // For simplicity here, we'll use mktime and acknowledge it might be affected by local timezone DST.
+        tm.tm_isdst = -1; // Let mktime determine DST
+        return std::chrono::system_clock::from_time_t(std::mktime(&tm));
+    }
+    return std::nullopt;
+}
+} // anonymous namespace
+
 
 // --- Tokenizer ---
 
@@ -23,7 +72,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             std::string upper_value = value;
             std::transform(upper_value.begin(), upper_value.end(), upper_value.begin(), ::toupper);
 
-            if (upper_value == "SELECT" || upper_value == "FROM" || upper_value == "WHERE" || upper_value == "AND" || upper_value == "OR" || upper_value == "UPDATE" || upper_value == "DELETE" || upper_value == "SET" || upper_value == "GROUP" || upper_value == "BY" || upper_value == "COUNT" || upper_value == "AVG" || upper_value == "SUM" || upper_value == "MIN" || upper_value == "MAX" || upper_value == "INSERT" || upper_value == "INTO" || upper_value == "VALUES" || upper_value == "STDDEV" || upper_value == "LIKE" || upper_value == "ORDER" || upper_value == "LIMIT" || upper_value == "JOIN" || upper_value == "ON" || upper_value == "UNION" || upper_value == "ALL" || upper_value == "ASC" || upper_value == "DESC" || upper_value == "WITH" || upper_value == "DRILLDOWN" || upper_value == "TRUE" || upper_value == "FALSE" || upper_value == "NULL") {
+            if (upper_value == "SELECT" || upper_value == "FROM" || upper_value == "WHERE" || upper_value == "AND" || upper_value == "OR" || upper_value == "UPDATE" || upper_value == "DELETE" || upper_value == "SET" || upper_value == "GROUP" || upper_value == "BY" || upper_value == "COUNT" || upper_value == "AVG" || upper_value == "SUM" || upper_value == "MIN" || upper_value == "MAX" || upper_value == "INSERT" || upper_value == "INTO" || upper_value == "VALUES" || upper_value == "STDDEV" || upper_value == "LIKE" || upper_value == "ORDER" || upper_value == "LIMIT" || upper_value == "JOIN" || upper_value == "ON" || upper_value == "UNION" || upper_value == "ALL" || upper_value == "ASC" || upper_value == "DESC" || upper_value == "WITH" || upper_value == "DRILLDOWN" || upper_value == "TRUE" || upper_value == "FALSE" || upper_value == "NULL" || upper_value == "DATE" || upper_value == "TIME" || upper_value == "DATETIME") {
                 new_tokens.push_back(Token{Token::Type::KEYWORD, upper_value});
             } else {
                 new_tokens.push_back(Token{Token::Type::IDENTIFIER, value});
@@ -116,7 +165,7 @@ SelectStatement Parser::parse_select_statement() {
             all = true;
         }
 
-        // The statement we just built is the left side of the union.
+        // The statement we just built is the left side of the.
         auto left_select_ptr = std::make_unique<SelectStatement>(std::move(current_select));
 
         // The right side of the union is the result of the next recursive call.
@@ -182,8 +231,7 @@ std::vector<std::variant<std::string, AggregateFunction>> Parser::parse_select_l
             fields.push_back(parse_aggregate_function());
         } else {
             // It's a regular column name
-            expect(Token::Type::IDENTIFIER);
-            fields.push_back(tokens[pos-1].value);
+            fields.push_back(consume().value);
         }
 
         if (peek().type == Token::Type::OPERATOR && peek().value == ",") {
@@ -246,20 +294,12 @@ std::vector<std::string> Parser::parse_column_list() {
 std::vector<Literal> Parser::parse_value_list() {
     std::vector<Literal> values;
     do {
-        auto token = consume();
-        if (token.type == Token::Type::NUMERIC_LITERAL) {
-            values.push_back(std::stod(token.value));
-        } else if (token.type == Token::Type::STRING_LITERAL) {
-            values.push_back(token.value);
-        } else if (token.type == Token::Type::KEYWORD && token.value == "TRUE") {
-            values.push_back(true);
-        } else if (token.type == Token::Type::KEYWORD && token.value == "FALSE") {
-            values.push_back(false);
-        } else if (token.type == Token::Type::KEYWORD && token.value == "NULL") {
-            values.push_back(Null{});
+        auto expr = parse_primary_expression();
+        if (std::holds_alternative<Literal>(expr)) {
+            values.push_back(std::get<Literal>(expr));
         } else {
             LOG_ERROR("Parse error: Expected a literal value in value list.");
-            throw std::runtime_error("Expected a literal value.");
+            throw std::runtime_error("Expected a literal value in value list, but got other expression type.");
         }
 
         if (peek().type == Token::Type::OPERATOR && peek().value == ",") {
@@ -427,6 +467,31 @@ Expression Parser::parse_expression(int precedence) {
 }
 
 Expression Parser::parse_primary_expression() {
+    if (peek().type == Token::Type::KEYWORD && (peek().value == "DATE" || peek().value == "TIME" || peek().value == "DATETIME")) {
+        std::string keyword = consume().value; // consume the keyword
+        auto token = consume();
+        if (token.type != Token::Type::STRING_LITERAL) {
+            throw std::runtime_error("Expected a string literal after " + keyword);
+        }
+
+        if (keyword == "DATE") {
+            if (auto date = parse_date_string(token.value)) {
+                return Literal{*date};
+            }
+            throw std::runtime_error("Invalid DATE format: " + token.value);
+        } else if (keyword == "TIME") {
+            if (auto time = parse_time_string(token.value)) {
+                return Literal{*time};
+            }
+            throw std::runtime_error("Invalid TIME format: " + token.value);
+        } else { // DATETIME
+            if (auto dt = parse_datetime_string(token.value)) {
+                return Literal{*dt};
+            }
+            throw std::runtime_error("Invalid DATETIME format: " + token.value);
+        }
+    }
+
     auto token = consume();
     if (token.type == Token::Type::IDENTIFIER) {
         return Identifier{token.value};
@@ -446,6 +511,7 @@ Expression Parser::parse_primary_expression() {
     LOG_ERROR("Parse error: Unexpected token in expression: " + token.value);
     throw std::runtime_error("Unexpected token in expression");
 }
+
 
 // --- Helper methods ---
 

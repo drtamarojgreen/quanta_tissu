@@ -15,6 +15,10 @@ SRCS = main.cpp \
        ../quanta_tissu/schema_manager.cpp \
        ../quanta_tissu/ddl_parser.cpp \
        api/http_server.cpp \
+       auth/token_manager.cpp \
+       auth/rbac.cpp \
+       audit/audit_logger.cpp \
+       crypto/kms.cpp \
        common/binary_stream_buffer.cpp \
        common/checksum.cpp \
        common/document.cpp \
