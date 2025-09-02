@@ -25,13 +25,9 @@ def register_steps(runner):
 
     @runner.step(r'the result should contain a document with the field "(.*)" having the value "(.*)"')
     def step_impl_field_value(context, field, value):
-        # This is a more generic step, but we can make it work for our case.
-        # The value might be a string or number, so we handle both.
         try:
-            # Try to convert value to a number if it looks like one
             expected_value = json.loads(value)
         except (json.JSONDecodeError, TypeError):
-            # Otherwise, treat it as a string
             expected_value = value
 
         assert find_doc_with_field_value(context, field, expected_value), \
