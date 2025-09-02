@@ -480,18 +480,6 @@ void HttpServer::Impl::handle_client(int client_socket) {
             doc.id = id;
             storage_engine.put("knowledge_feedback", id, doc, transaction_id);
             send_response(client_socket, "201 Created", "text/plain", "Feedback created with ID: " + id);
-        } else if (sub_path_parts[0] == "_query" && req.method == "POST") {
-             const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
-             std::string query_str = parsed_body.as_object().at("query").as_string();
-             Query::Parser parser;
-             Query::AST ast = parser.parse(query_str);
-             Query::Executor executor(storage_engine);
-             auto result_docs = executor.execute(ast, {});
-             Json::JsonArray result_array;
-             for (const auto& doc : result_docs) {
-                 result_array.push_back(Json::JsonValue(document_to_json(doc)));
-             }
-             send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
         } else if (sub_path_parts[0] == "_collections" && req.method == "GET") {
             Json::JsonArray collections_array;
             for (const auto& name : storage_engine.list_collections()) {
@@ -515,7 +503,20 @@ void HttpServer::Impl::handle_client(int client_socket) {
                     }
                     storage_engine.create_index(collection_name, field_names);
                     send_response(client_socket, "200 OK", "text/plain", "Index creation initiated.");
-                } else {
+                } else if (doc_path_parts[0] == "_query") {
+                    const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
+                    std::string query_str = parsed_body.as_object().at("query").as_string();
+                    Query::Parser parser;
+                    Query::AST ast = parser.parse(query_str);
+                    Query::Executor executor(storage_engine);
+                    auto result_docs = executor.execute(ast, {});
+                    Json::JsonArray result_array;
+                    for (const auto& doc : result_docs) {
+                        result_array.push_back(Json::JsonValue(document_to_json(doc)));
+                    }
+                    send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
+                }
+                else {
                     send_response(client_socket, "404 Not Found", "text/plain", "Endpoint not found.");
                 }
             } else if (req.method == "POST" && doc_path_parts.empty()) {
