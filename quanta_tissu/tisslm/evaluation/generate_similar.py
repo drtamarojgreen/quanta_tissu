@@ -5,6 +5,13 @@ import json
 import numpy as np
 import re # Import regex for tokenization
 
+# --- Configuration ---
+TEST_TOKENIZER_DIR = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')), "test_tokenizer")
+TEST_MODEL_DIR = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')), "test_model")
+TOKENIZER_SAVE_PREFIX = os.path.join(TEST_TOKENIZER_DIR, "test_tokenizer")
+FINAL_CHECKPOINT_PATH = os.path.join(TEST_MODEL_DIR, "checkpoint_step_50000.npz") # Assuming the 50k checkpoint
+DICT_PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')), "data", "dict.json")
+
 # Add project root for module discovery
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
@@ -14,13 +21,6 @@ from quanta_tissu.tisslm.core.tokenizer import Tokenizer
 from quanta_tissu.tisslm.core.model import QuantaTissu
 from quanta_tissu.tisslm.core.generate_text import generate_text
 from quanta_tissu.tisslm.config import model_config
-
-# --- Configuration ---
-TEST_TOKENIZER_DIR = os.path.join(project_root, "test_tokenizer")
-TEST_MODEL_DIR = os.path.join(project_root, "test_model")
-TOKENIZER_SAVE_PREFIX = os.path.join(TEST_TOKENIZER_DIR, "test_tokenizer")
-FINAL_CHECKPOINT_PATH = os.path.join(TEST_MODEL_DIR, "checkpoint_step_50000.npz") # Assuming the 50k checkpoint
-DICT_PATH = os.path.join(project_root, "data", "dict.json")
 
 def levenshtein_distance(s1, s2):
     """Calculates the Levenshtein distance between two strings from scratch."""
@@ -42,9 +42,22 @@ def levenshtein_distance(s1, s2):
     
     return previous_row[-1]
 
-def analyze_similarity(generated_text, dictionary):
+def get_match_quality(distance, word_length):
     """
-    For each word in the generated text, finds the most similar word
+    Categorizes match quality based on Levenshtein distance and word length.
+    """
+    if distance == 0:
+        return "Exact Match"
+    elif distance == 1:
+        return "Close Match"
+    elif distance <= word_length * 0.2: # Distance is 20% or less of word length
+        return "Fair Match"
+    else:
+        return "Poor Match"
+
+def analyze_similarity(generated_text, dictionary, top_n=3):
+    """
+    For each word in the generated text, finds the top_n most similar words
     in the provided dictionary based on Levenshtein distance.
     Returns a list of dictionaries, preserving the order of unique words.
     """
@@ -52,12 +65,8 @@ def analyze_similarity(generated_text, dictionary):
         print("Warning: Dictionary is empty. Cannot perform similarity analysis.")
         return []
 
-    # Tokenize the generated text while preserving order and handling duplicates
     ordered_unique_words = []
     seen_words = set()
-    
-    # Use a simple regex to find words, preserving their order
-    # re.findall will return a list of all non-overlapping matches
     all_generated_words = re.findall(r'\b\w+\b', generated_text.lower())
     
     for word in all_generated_words:
@@ -67,22 +76,26 @@ def analyze_similarity(generated_text, dictionary):
     
     analysis_results = [] # This will be a list of dicts, preserving order
 
-    for word_lc in ordered_unique_words:
-        min_distance = float('inf')
-        closest_word = ""
-
+    for gen_word_lc in ordered_unique_words:
+        similarities = []
         for dict_word in dictionary:
-            distance = levenshtein_distance(word_lc, dict_word)
-            if distance < min_distance:
-                min_distance = distance
-                closest_word = dict_word
-            if distance == 0: # Perfect match, no need to search further
-                break
+            distance = levenshtein_distance(gen_word_lc, dict_word)
+            similarities.append({
+                "word": dict_word,
+                "distance": distance
+            })
+        
+        # Sort by distance and get top N
+        similarities.sort(key=lambda x: x['distance'])
+        top_n_matches = similarities[:top_n]
+
+        # Add match quality to each top match
+        for match in top_n_matches:
+            match['quality'] = get_match_quality(match['distance'], len(gen_word_lc))
         
         analysis_results.append({
-            "generated_word": word_lc,
-            "closest_word": closest_word,
-            "distance": min_distance
+            "generated_word": gen_word_lc,
+            "top_matches": top_n_matches
         })
         
     return analysis_results
@@ -126,6 +139,12 @@ def main():
         default=0.9, 
         help="P for nucleus sampling."
     )
+    parser.add_argument(
+        "--top_n_similar",
+        type=int,
+        default=3,
+        help="Number of top similar words to report for each generated word."
+    )
     args = parser.parse_args()
 
     # --- Load Dictionary ---
@@ -161,13 +180,18 @@ def main():
 
     # --- Analyze Similarity ---
     print("\n--- Similarity Analysis ---")
-    analysis_results = analyze_similarity(generated_text, dictionary)
+    analysis_results = analyze_similarity(generated_text, dictionary, top_n=args.top_n_similar)
 
     # Print results in a readable format
-    print(f"{ 'Generated Word':<20} | { 'Closest Dictionary Word':<25} | { 'Distance':<10}")
-    print("-" * 70)
+    print(f"{ 'Generated Word':<20} | { 'Closest Dictionary Word(s)':<40} | { 'Distance':<10} | { 'Quality':<15}")
+    print("-" * 100)
     for item in analysis_results:
-        print(f"{item['generated_word']:<20} | {item['closest_word']:<25} | {item['distance']:<10}")
+        gen_word = item['generated_word']
+        for i, match in enumerate(item['top_matches']):
+            if i == 0:
+                print(f"{gen_word:<20} | {match['word'] + ' (' + str(match['distance']) + ')':<40} | {match['distance']:<10} | {match['quality']:<15}")
+            else:
+                print(f"{ ' ':<20} | {match['word'] + ' (' + str(match['distance']) + ')':<40} | {match['distance']:<10} | {match['quality']:<15}")
 
     # Print words in order of appearance
     print("\n--- Words in Order of Appearance ---")
