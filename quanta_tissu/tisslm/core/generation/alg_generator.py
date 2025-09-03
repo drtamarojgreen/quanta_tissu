@@ -119,6 +119,7 @@ class AlgorithmicGenerator:
             kwargs['past_tokens'] = current_tokens
             generated_tokens.append(next_token)
             current_tokens.append(next_token)
+            logger.debug(f"BWE: Generated token: {next_token}, Prob: {probs[next_token]:.4f}, Max Prob: {np.max(probs):.4f}")
             current_text = tokenizer.detokenize(np.array(current_tokens))
             last_word = current_text.split(' ')[-1].lower()
             if last_word and len(last_word) > 2 and last_word not in self.known_words:

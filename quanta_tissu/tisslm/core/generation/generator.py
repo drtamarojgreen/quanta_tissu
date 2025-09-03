@@ -30,6 +30,17 @@ class Generator:
         generated_tokens = []
         current_tokens = [int(t) for t in prompt_tokens]
 
+        # Extract sentiment parameters if adaptive_sentiment method is used
+        sentiment_analyzer = kwargs.pop('sentiment_analyzer', None)
+        target_sentiment = kwargs.pop('target_sentiment', None)
+        target_strength = kwargs.pop('target_strength', None)
+
+        sentiment_bias = None
+        if method == "adaptive_sentiment" and sentiment_analyzer:
+            sentiment_bias = sentiment_analyzer.get_sentiment_bias(target_sentiment, target_strength)
+            logger.debug(f"Applying adaptive sentiment bias for {target_sentiment} with strength {target_strength}")
+
+
         # First, process the entire prompt to populate the model's internal KV cache.
         prompt_array = np.array([current_tokens])
         logits, _ = self.model.forward(prompt_array, start_pos=0)
@@ -46,7 +57,7 @@ class Generator:
                 top_p=top_p,
                 past_tokens=current_tokens,
                 repetition_penalty=repetition_penalty,
-                sentiment_bias=kwargs.get('sentiment_bias') # Pass sentiment bias
+                sentiment_bias=sentiment_bias # Pass sentiment bias
             )
 
             if eos_id is not None and next_token == eos_id:
@@ -120,6 +131,12 @@ class Generator:
 
         elif method == "random" or method == "sampling":
              next_token = np.random.choice(len(probs), p=np.array(probs))
+
+        elif method == "adaptive_sentiment":
+            # Sentiment bias is already applied before this point.
+            # We can default to greedy or nucleus sampling after bias application.
+            # For now, let's default to greedy after bias.
+            next_token = np.argmax(probs).item()
 
         else:
             raise ConfigurationError(f"Unknown sampling method: {method}")
