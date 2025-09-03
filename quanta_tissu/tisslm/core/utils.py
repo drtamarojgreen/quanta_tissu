@@ -1,89 +1,14 @@
-import numpy as np
-import os
-import logging
+def convert_to_utf8(text, current_encoding='latin-1'):
+    """
+    Attempts to decode text from its current_encoding and then encode it to UTF-8.
+    Useful for handling text with mixed or unknown encodings by first normalizing it.
+    """
+    if isinstance(text, bytes):
+        # If it's bytes, decode it first using the specified current_encoding
+        decoded_text = text.decode(current_encoding, errors='replace')
+    else:
+        # If it's already a string, assume it's already decoded (e.g., from a file read)
+        decoded_text = text
 
-def save_checkpoint(model, optimizer, epoch, step, checkpoint_dir, keep_last=-1):
-    """Saves model and optimizer state to a checkpoint file."""
-    if not os.path.exists(checkpoint_dir):
-        os.makedirs(checkpoint_dir)
-
-    # --- Save the current checkpoint ---
-    filename = os.path.join(checkpoint_dir, f"checkpoint_step_{step}.npz")
-
-    # Get model state
-    model_params = model.parameters()
-    model_state = {f"param_{i}": p.value for i, p in enumerate(model_params)}
-
-    # Get optimizer state, saving each array individually
-    optimizer_m_state = {f"optimizer_m_{i}": arr for i, arr in enumerate(optimizer.m)}
-    optimizer_v_state = {f"optimizer_v_{i}": arr for i, arr in enumerate(optimizer.v)}
-
-    # Combine all state
-    full_state = {
-        **model_state,
-        **optimizer_m_state,
-        **optimizer_v_state,
-        "num_params": np.array(len(model_params)),
-        "optimizer_t": np.array(optimizer.t),
-        "epoch": np.array(epoch),
-        "step": np.array(step),
-    }
-
-    np.savez(filename, **full_state)
-    logging.info(f"Saved checkpoint to {filename}")
-
-    # --- Clean up old checkpoints ---
-    if keep_last > 0:
-        checkpoints = sorted(
-            [os.path.join(checkpoint_dir, f) for f in os.listdir(checkpoint_dir) if f.startswith("checkpoint_step_") and f.endswith(".npz")],
-            key=os.path.getmtime
-        )
-        if len(checkpoints) > keep_last:
-            for old_checkpoint in checkpoints[:-keep_last]:
-                os.remove(old_checkpoint)
-                logging.info(f"Removed old checkpoint: {os.path.basename(old_checkpoint)}")
-
-    return filename
-
-def load_checkpoint(model, optimizer, file_path):
-    """Loads model and optimizer state from a checkpoint file."""
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Checkpoint file not found: {file_path}")
-
-    data = np.load(file_path, allow_pickle=True)
-
-    num_params = int(data["num_params"])
-
-    # Load model state
-    model_params = model.parameters()
-    for i in range(num_params):
-        model_params[i].value = data[f"param_{i}"]
-
-    # Load optimizer state
-    optimizer.m = [data[f"optimizer_m_{i}"] for i in range(num_params)]
-    optimizer.v = [data[f"optimizer_v_{i}"] for i in range(num_params)]
-    optimizer.t = int(data["optimizer_t"])
-
-    # Load training progress
-    epoch = int(data["epoch"])
-    step = int(data["step"])
-
-    logging.info(f"Loaded checkpoint from {file_path}. Resuming from epoch {epoch}, step {step}.")
-    return epoch, step
-
-def calculate_perplexity(model, val_dataset, loss_fn):
-    total_loss = 0
-    total_tokens = 0
-    
-    # Temporarily set model to evaluation mode if it has one (e.g., for dropout/batchnorm)
-    # Assuming no specific eval mode for this simple model, so skipping for now.
-
-    for x_batch, y_batch in val_dataset:
-        logits = model.forward(x_batch)
-        loss = loss_fn.forward(logits, y_batch)
-        total_loss += loss * y_batch.size # Accumulate loss weighted by number of tokens in batch
-        total_tokens += y_batch.size # Accumulate total number of tokens
-
-    avg_loss = total_loss / total_tokens
-    perplexity = np.exp(avg_loss)
-    return perplex
+    # Ensure the text is then encoded to UTF-8
+    return decoded_text.encode('utf-8', errors='replace').decode('utf-8')
