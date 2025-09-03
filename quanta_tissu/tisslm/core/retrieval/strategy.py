@@ -173,6 +173,8 @@ class BayesianSimilarityStrategy(RetrievalStrategy):
         # Sample a noisy query from a Gaussian centered at the original query_embedding
         # with variance derived from the Hessian eigenvalues.
         # This simulates drawing from a posterior distribution where the Hessian informs uncertainty.
+        # Ensure posterior_variance is non-negative before taking square root
+        posterior_variance = np.maximum(posterior_variance, 1e-9) # Clamp to a small positive value
         noisy_query = np.random.normal(query_embedding, np.sqrt(posterior_variance), size=query_embedding.shape)
 
         return CosineSimilarityStrategy().calculate_similarity(noisy_query, doc_embeddings)
