@@ -1,0 +1,138 @@
+# TissDB Timestamp Implementation and Testing Plan
+
+## 1. Overview and Goals
+
+The objective of this plan is to elevate the `DateTime` type in TissDB to a first-class citizen. Currently, while a `DateTime` type exists in the data model (`std::chrono::time_point`), it is not fully integrated into the database's core systems. The query parser treats dates as strings, and the indexer cannot perform efficient time-based operations.
+
+This implementation will address these shortcomings. The primary goals are:
+
+1.  **Full Integration:** Make the `DateTime` type a fully supported data type across all TissDB components, including the query engine, storage/indexing layer, and logging/serialization.
+2.  **Timezone Support:** Implement robust timezone handling. The recommended approach is to store all timestamps internally in UTC and handle conversions at the application boundary.
+3.  **Millisecond Precision:** Ensure that the timestamp representation preserves at least millisecond precision throughout the system.
+4.  **Queryability:** Enable users to write intuitive, efficient queries against `DateTime` fields, including range scans (`>`, `<`, `>=`, `<=`) and equality checks.
+
+## 2. Phase 1: Data Type and Parser Enhancement
+
+This phase focuses on establishing a robust timestamp type and enabling the query parser to understand it.
+
+### 2.1. Timestamp Data Type Definition
+
+The existing `TissDB::DateTime` (`std::chrono::time_point`) is a good foundation, but lacks explicit timezone handling. We will enhance it.
+
+**File to Modify:** `tissdb/common/document.h`
+
+**Plan:**
+1.  Define a new `Timestamp` struct. This struct will encapsulate the time information and ensure consistency.
+    ```cpp
+    struct Timestamp {
+        // Use a 64-bit integer to store microseconds since Unix epoch, UTC.
+        // This provides high precision and avoids timezone ambiguity in storage.
+        int64_t microseconds_since_epoch_utc;
+
+        bool operator==(const Timestamp& other) const;
+        bool operator<(const Timestamp& other) const;
+        // ... other comparison operators
+    };
+    ```
+2.  Replace the `DateTime` alias in the `TissDB::Value` variant with this new `Timestamp` struct.
+    ```cpp
+    // In tissdb/common/document.h
+    using Value = std::variant<
+        std::nullptr_t,
+        std::string,
+        Number,
+        Boolean,
+        Date,
+        Time,
+        Timestamp, // Replaces DateTime
+        BinaryData,
+        // ... other types
+    >;
+    ```
+
+### 2.2. Query Parser and AST Enhancement
+
+The parser needs to recognize and correctly parse timestamp literals from query strings.
+
+**Files to Modify:** `tissdb/query/parser.h`, `tissdb/query/parser.cpp`, `tissdb/query/ast.h`
+
+**Plan:**
+1.  **AST Update (`ast.h`):** Add the `Timestamp` struct to the `Literal` variant in the Abstract Syntax Tree.
+2.  **Tokenizer Update (`parser.h`, `parser.cpp`):** The tokenizer will not need a new token type. We will treat timestamp literals as strings initially but add a dedicated parsing function to interpret them.
+3.  **Parser Logic (`parser.cpp`):**
+    *   Create a new private helper function, e.g., `try_parse_timestamp(const std::string& literal) -> std::optional<Timestamp>`.
+    *   This function will attempt to parse string literals that match the ISO 8601 format (e.g., `"YYYY-MM-DDTHH:MM:SS.sssZ"` or `"YYYY-MM-DDTHH:MM:SS.sss+HH:MM"`). It must correctly handle the `Z` (Zulu/UTC) suffix and timezone offsets, converting the final value to UTC for storage in the `Timestamp` struct.
+    *   In `parse_primary_expression`, when a string literal is encountered, call `try_parse_timestamp`. If it succeeds, create a `Literal` node in the AST with the `Timestamp` value. Otherwise, treat it as a regular string.
+
+## 3. Phase 2: Indexing and Storage
+
+This phase focuses on enabling efficient storage and retrieval of timestamp data.
+
+### 3.1. Indexer Enhancement
+
+The indexer must be updated to handle `Timestamp` values natively to support efficient range queries.
+
+**Files to Modify:** `tissdb/storage/indexer.h`, `tissdb/storage/indexer.cpp`, `tissdb/storage/native_b_tree.h`
+
+**Plan:**
+1.  **Create a Specialized B-Tree:** The current `BTree<std::string, std::string>` is insufficient. A new B-Tree specialization for timestamps is required.
+    *   The key should be a numeric type that preserves chronological order. The `int64_t` from our `Timestamp` struct is perfect for this.
+    *   We will introduce a new index type in the `Indexer` class: `std::map<std::string, std::shared_ptr<BTree<int64_t, std::string>>> timestamp_indexes_;`
+2.  **Update Index Creation:** The `create_index` method will need a way to specify the type of the index. This could be an optional `type` parameter or inferred from the schema (if a schema system is added later). For now, we can add a new function `create_timestamp_index`.
+3.  **Update Index Population:** The `get_composite_key` logic needs to be replaced. When updating an index for a `Timestamp` field:
+    *   Extract the `Timestamp` value from the document.
+    *   Use its `microseconds_since_epoch_utc` value as the key for the `timestamp_indexes_` B-Tree.
+4.  **Update Index Lookup:** The `find_by_index` methods must be overloaded or updated to accept `Timestamp` values for lookups, enabling queries like `WHERE event_time > '2025-01-01T00:00:00Z'`.
+
+## 4. Phase 3: Query Execution and Logging
+
+This phase wires the new capabilities into the query execution engine and ensures durability.
+
+### 4.1. Query Executor Integration
+
+**Files to Modify:** `tissdb/query/executor.cpp`, `tissdb/query/executor_select.cpp`
+
+**Plan:**
+1.  The query executor's expression evaluation logic needs to be updated.
+2.  When evaluating a comparison (`>`, `<`, `=`, etc.), if one operand is a `Timestamp` literal from the AST and the other is a `Timestamp` value from a document, the comparison should be done directly on the `microseconds_since_epoch_utc` values.
+
+### 4.2. Serialization and Logging
+
+The `Timestamp` object must be correctly serialized for the Write-Ahead Log (WAL) and any other data persistence mechanisms.
+
+**Files to Modify:** `tissdb/common/serialization.h`, `tissdb/common/serialization.cpp`, `tissdb/storage/wal.cpp`
+
+**Plan:**
+1.  Add serialization and deserialization functions for the `Timestamp` struct in the `TissDB::Serialization` namespace.
+2.  These functions will write/read the `microseconds_since_epoch_utc` (a simple `int64_t`) to/from the binary stream. This is efficient and language-agnostic.
+3.  Ensure the WAL's logging functions correctly call these new serialization functions when handling operations involving `Timestamp` values.
+
+## 5. Testing Outline
+
+A comprehensive testing strategy is crucial. Since we cannot compile, this section outlines the tests that **should be written and implemented** by a developer with a build environment.
+
+### 5.1. Unit Tests
+
+1.  **Timestamp Struct (`tissdb/common/document.h`):**
+    *   Test comparison operators (`==`, `<`, `>`).
+2.  **Parser (`tissdb/query/parser.cpp`):**
+    *   Test `try_parse_timestamp` with valid ISO 8601 strings (with `Z`, with `+HH:MM`, with `-HH:MM`, with milliseconds).
+    *   Test with invalid and ambiguous timestamp strings to ensure they are correctly rejected (and treated as plain strings).
+    *   Test that a full query `SELECT * WHERE ts = '...'` produces an AST with a `Timestamp` literal.
+3.  **Indexer (`tissdb/storage/indexer.cpp`):**
+    *   Test `create_timestamp_index`.
+    *   Test that `update_indexes` correctly adds `Timestamp` values to the specialized B-Tree.
+    *   Test `find_by_index` for a `Timestamp` index, including range queries (`>`, `<`, `BETWEEN`).
+4.  **Serialization (`tissdb/common/serialization.cpp`):**
+    *   Test that a `Timestamp` can be serialized and deserialized back to its original value without loss of precision.
+
+### 5.2. Integration Tests
+
+1.  **End-to-End Querying:**
+    *   Insert documents with `Timestamp` fields.
+    *   Execute `SELECT` statements with `WHERE` clauses on the `Timestamp` field (e.g., `SELECT * FROM events WHERE event_time > '2025-09-01T12:00:00Z'`).
+    *   Verify that the correct documents are returned.
+2.  **WAL Recovery:**
+    *   Insert documents with `Timestamp` fields.
+    *   Simulate a crash and restart.
+    *   Verify that the data, including the `Timestamp` values and their indexes, is correctly recovered from the WAL.
