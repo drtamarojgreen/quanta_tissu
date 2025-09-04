@@ -35,6 +35,9 @@ bool SchemaValidator::validate(const Document& doc, const Schema& schema) const 
                     case FieldType::DateTime:
                         if (std::holds_alternative<DateTime>(element.value)) type_matches = true;
                         break;
+                    case FieldType::Timestamp:
+                        if (std::holds_alternative<Timestamp>(element.value)) type_matches = true;
+                        break;
                     case FieldType::Binary:
                         if (std::holds_alternative<BinaryData>(element.value)) type_matches = true;
                         break;

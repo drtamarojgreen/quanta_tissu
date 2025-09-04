@@ -56,6 +56,11 @@ std::optional<std::string> get_as_string(const Value& val) {
     if (std::holds_alternative<std::nullptr_t>(val)) {
         return "null";
     }
+    if (const auto* ts_val = std::get_if<Timestamp>(&val)) {
+        // This is a simple conversion for now. A more robust implementation
+        // would format it as an ISO 8601 string.
+        return std::to_string(ts_val->microseconds_since_epoch_utc);
+    }
     // Note: No automatic conversion from Date/Time/DateTime to string for now
     return std::nullopt; // Incompatible types for string comparison
 }
@@ -74,6 +79,7 @@ Value resolve_expression_to_value(const Expression& expr, const Document& doc, c
         if (const auto* date_val = std::get_if<Date>(lit_ptr)) return *date_val;
         if (const auto* time_val = std::get_if<Time>(lit_ptr)) return *time_val;
         if (const auto* dt_val = std::get_if<DateTime>(lit_ptr)) return *dt_val;
+        if (const auto* ts_val = std::get_if<Timestamp>(lit_ptr)) return *ts_val;
         if (std::holds_alternative<Null>(*lit_ptr)) return std::nullptr_t{};
     }
     if (const auto* param_ptr = std::get_if<ParameterExpression>(&expr)) {
@@ -87,6 +93,7 @@ Value resolve_expression_to_value(const Expression& expr, const Document& doc, c
         if (const auto* date_val = std::get_if<Date>(&param_lit)) return *date_val;
         if (const auto* time_val = std::get_if<Time>(&param_lit)) return *time_val;
         if (const auto* dt_val = std::get_if<DateTime>(&param_lit)) return *dt_val;
+        if (const auto* ts_val = std::get_if<Timestamp>(&param_lit)) return *ts_val;
         if (std::holds_alternative<Null>(param_lit)) return std::nullptr_t{};
     }
     if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
@@ -226,6 +233,9 @@ Literal evaluate_update_expression(const Expression& expr, const Document& doc, 
     if (const auto* dt_val = std::get_if<DateTime>(&resolved_value)) {
         return *dt_val;
     }
+    if (const auto* ts_val = std::get_if<Timestamp>(&resolved_value)) {
+        return *ts_val;
+    }
     if (std::holds_alternative<std::nullptr_t>(resolved_value)) {
         return Null{};
     }
@@ -357,6 +367,8 @@ std::string value_to_string(const Value& value) {
         ss << (*bool_val ? "true" : "false");
     } else if (std::holds_alternative<std::nullptr_t>(value)) {
         ss << "null";
+    } else if (const auto* ts_val = std::get_if<Timestamp>(&value)) {
+        ss << ts_val->microseconds_since_epoch_utc;
     }
     // TODO: Add support for printing Date, Time, DateTime
     return ss.str();
