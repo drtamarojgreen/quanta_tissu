@@ -554,10 +554,10 @@ Expression Parser::parse_primary_expression() {
             if (auto time = parse_time_string(token.value)) return Literal{*time};
             throw std::runtime_error("Invalid TIME format: " + token.value);
         } else { // DATETIME
-            // This is now legacy. Timestamps should be parsed directly.
-            // We can keep it for backward compatibility if needed, or remove it.
-            // For now, let's assume it's deprecated and guide users towards ISO 8601 strings.
-            throw std::runtime_error("DATETIME keyword is deprecated. Use an ISO 8601 string literal for timestamps.");
+            if (auto dt = parse_datetime_string(token.value)) {
+                return Literal{*dt};
+            }
+            throw std::runtime_error("Invalid DATETIME format: " + token.value);
         }
     }
 
