@@ -13,13 +13,17 @@
 namespace TissDB {
 namespace Storage {
 
+enum class IndexType {
+    String,
+    Timestamp
+};
+
 // The Indexer class manages all B+ tree indexes for the database.
 class Indexer {
 public:
     Indexer() = default;
 
-    void create_index(const std::vector<std::string>& field_names, bool is_unique = false);
-    void create_timestamp_index(const std::string& field_name);
+    void create_index(const std::vector<std::string>& field_names, bool is_unique = false, IndexType type = IndexType::String);
     bool has_index(const std::vector<std::string>& field_names) const;
     void update_indexes(const std::string& document_id, const Document& doc);
     void remove_from_indexes(const std::string& document_id, const Document& doc);
@@ -46,6 +50,8 @@ private:
 
     // Maps an index name to the list of fields it covers.
     std::map<std::string, std::vector<std::string>> index_fields_;
+    // Maps an index name to its type.
+    std::map<std::string, IndexType> index_types_;
     // Maps an index name to whether it's a unique index.
     std::map<std::string, bool> index_uniqueness_;
 };

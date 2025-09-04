@@ -19,29 +19,32 @@ std::string Indexer::get_index_name(const std::vector<std::string>& field_names)
     return ss.str();
 }
 
-void Indexer::create_index(const std::vector<std::string>& field_names, bool is_unique) {
+void Indexer::create_index(const std::vector<std::string>& field_names, bool is_unique, IndexType type) {
     std::string index_name = get_index_name(field_names);
-    if (indexes_.find(index_name) == indexes_.end()) {
-        indexes_[index_name] = std::make_shared<BTree<std::string, std::string>>();
-        index_fields_[index_name] = field_names;
-        index_uniqueness_[index_name] = is_unique;
+    if (indexes_.count(index_name) || timestamp_indexes_.count(index_name)) {
+        return; // Index already exists
     }
-}
 
-void Indexer::create_timestamp_index(const std::string& field_name) {
-    if (timestamp_indexes_.find(field_name) == timestamp_indexes_.end()) {
-        timestamp_indexes_[field_name] = std::make_shared<BTree<int64_t, std::string>>();
-        // We can reuse index_fields_ to know that this field is indexed.
-        // The type of index will be determined by checking which map it exists in.
-        index_fields_[field_name] = {field_name};
-        index_uniqueness_[field_name] = false; // Timestamp indexes are not unique by default
+    if (type == IndexType::Timestamp) {
+        if (field_names.size() != 1) {
+            throw std::runtime_error("Timestamp indexes must be on a single field.");
+        }
+        if (is_unique) {
+            throw std::runtime_error("Unique timestamp indexes are not supported.");
+        }
+        timestamp_indexes_[index_name] = std::make_shared<BTree<int64_t, std::string>>();
+    } else {
+        indexes_[index_name] = std::make_shared<BTree<std::string, std::string>>();
     }
+
+    index_fields_[index_name] = field_names;
+    index_uniqueness_[index_name] = is_unique;
+    index_types_[index_name] = type;
 }
 
 bool Indexer::has_index(const std::vector<std::string>& field_names) const {
-    // This function might need to be updated to check both regular and timestamp indexes
-    // if a single field name can be used for both. For now, assuming they are distinct.
-    return indexes_.count(get_index_name(field_names)) > 0 || timestamp_indexes_.count(get_index_name(field_names)) > 0;
+    std::string index_name = get_index_name(field_names);
+    return index_types_.count(index_name) > 0;
 }
 
 // Private helper to get a composite key from a document
@@ -78,9 +81,13 @@ void Indexer::update_indexes(const std::string& document_id, const Document& doc
         const std::string& index_name = pair.first;
         const auto& field_names = pair.second;
 
-        // Check if this is a timestamp index
-        if (timestamp_indexes_.count(index_name)) {
-            if (field_names.size() != 1) continue; // Timestamp indexes are single-field
+        auto it = index_types_.find(index_name);
+        if (it == index_types_.end()) continue;
+
+        IndexType type = it->second;
+
+        if (type == IndexType::Timestamp) {
+            if (field_names.size() != 1) continue; // Should be enforced by create_index
             const std::string& field_name = field_names[0];
 
             int64_t key = 0;
@@ -159,7 +166,12 @@ void Indexer::remove_from_indexes(const std::string& document_id, const Document
         const std::string& index_name = pair.first;
         const auto& field_names = pair.second;
 
-        if (timestamp_indexes_.count(index_name)) {
+        auto it = index_types_.find(index_name);
+        if (it == index_types_.end()) continue;
+
+        IndexType type = it->second;
+
+        if (type == IndexType::Timestamp) {
             if (field_names.size() != 1) continue;
             const std::string& field_name = field_names[0];
 

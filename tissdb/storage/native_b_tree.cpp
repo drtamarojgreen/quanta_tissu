@@ -391,6 +391,7 @@ std::unique_ptr<typename BTree<Key, Value, Order>::BTreeNode> BTree<Key, Value, 
 
 // Explicit template instantiation
 template class BTree<std::string, std::string>;
+template class BTree<int64_t, std::string>;
 
 
 } // namespace Storage
