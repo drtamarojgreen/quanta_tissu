@@ -12,7 +12,7 @@ namespace Query {
 
 // Represents a literal value in a query
 struct Null {};
-using Literal = std::variant<std::string, double, bool, Null, Date, Time, DateTime>;
+using Literal = std::variant<std::string, double, bool, Null, Date, Time, DateTime, TissDB::Timestamp>;
 
 // Forward-declare recursive types
 struct BinaryExpression;
