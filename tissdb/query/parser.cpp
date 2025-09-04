@@ -56,6 +56,78 @@ std::optional<DateTime> parse_datetime_string(const std::string& s) {
 } // anonymous namespace
 
 
+std::optional<Timestamp> Parser::try_parse_timestamp(const std::string& literal) {
+    std::tm tm = {};
+    std::stringstream ss(literal);
+
+    // Try to parse the main part of the timestamp
+    ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
+    if (ss.fail()) {
+        return std::nullopt; // Does not match the base format
+    }
+
+    // Check for fractional seconds
+    long microseconds = 0;
+    if (ss.peek() == '.') {
+        ss.ignore(); // consume '.'
+        std::string fractional_part;
+        while (std::isdigit(ss.peek())) {
+            fractional_part += ss.get();
+        }
+        if (!fractional_part.empty()) {
+            // Pad with zeros to make it 6 digits for microseconds
+            if (fractional_part.length() < 6) {
+                fractional_part.append(6 - fractional_part.length(), '0');
+            } else {
+                fractional_part = fractional_part.substr(0, 6);
+            }
+            microseconds = std::stoi(fractional_part);
+        }
+    }
+
+    // After parsing numbers, what's left should be the timezone part.
+    std::string remaining_str;
+    ss >> remaining_str;
+
+    time_t time = -1;
+    // The calendar time to UTC, this function is non-standard but available on Linux/macOS
+    #ifdef _WIN32
+        time = _mkgmtime(&tm);
+    #else
+        time = timegm(&tm);
+    #endif
+
+    if (time == -1) {
+        return std::nullopt;
+    }
+
+    long long total_seconds = time;
+
+    // Handle timezone offset
+    if (remaining_str == "Z") {
+        // It's UTC, no offset to apply
+    } else if (remaining_str.length() >= 6 && (remaining_str[0] == '+' || remaining_str[0] == '-')) {
+        try {
+            int offset_hours = std::stoi(remaining_str.substr(1, 2));
+            int offset_minutes = std::stoi(remaining_str.substr(4, 2));
+            int offset_seconds = (offset_hours * 3600) + (offset_minutes * 60);
+
+            if (remaining_str[0] == '-') {
+                total_seconds += offset_seconds;
+            } else {
+                total_seconds -= offset_seconds;
+            }
+        } catch (const std::exception& e) {
+            return std::nullopt; // Invalid offset format
+        }
+    } else if (!remaining_str.empty()) {
+        return std::nullopt; // Unrecognized characters at the end
+    }
+
+    return Timestamp{total_seconds * 1000000 + microseconds};
+}
+
+
 // --- Tokenizer ---
 
 std::vector<Token> Parser::tokenize(const std::string& query_string) {
@@ -467,38 +539,43 @@ Expression Parser::parse_expression(int precedence) {
 }
 
 Expression Parser::parse_primary_expression() {
+    // Handle specific type casting keywords like DATE '...' or TIME '...'
     if (peek().type == Token::Type::KEYWORD && (peek().value == "DATE" || peek().value == "TIME" || peek().value == "DATETIME")) {
-        std::string keyword = consume().value; // consume the keyword
+        std::string keyword = consume().value;
         auto token = consume();
         if (token.type != Token::Type::STRING_LITERAL) {
             throw std::runtime_error("Expected a string literal after " + keyword);
         }
 
         if (keyword == "DATE") {
-            if (auto date = parse_date_string(token.value)) {
-                return Literal{*date};
-            }
+            if (auto date = parse_date_string(token.value)) return Literal{*date};
             throw std::runtime_error("Invalid DATE format: " + token.value);
         } else if (keyword == "TIME") {
-            if (auto time = parse_time_string(token.value)) {
-                return Literal{*time};
-            }
+            if (auto time = parse_time_string(token.value)) return Literal{*time};
             throw std::runtime_error("Invalid TIME format: " + token.value);
         } else { // DATETIME
-            if (auto dt = parse_datetime_string(token.value)) {
-                return Literal{*dt};
-            }
-            throw std::runtime_error("Invalid DATETIME format: " + token.value);
+            // This is now legacy. Timestamps should be parsed directly.
+            // We can keep it for backward compatibility if needed, or remove it.
+            // For now, let's assume it's deprecated and guide users towards ISO 8601 strings.
+            throw std::runtime_error("DATETIME keyword is deprecated. Use an ISO 8601 string literal for timestamps.");
         }
     }
 
     auto token = consume();
+
+    if (token.type == Token::Type::STRING_LITERAL) {
+        // Attempt to parse the string as a timestamp first.
+        if (auto ts = try_parse_timestamp(token.value)) {
+            return Literal{*ts};
+        }
+        // If it's not a valid timestamp, treat it as a regular string.
+        return Literal{token.value};
+    }
+
     if (token.type == Token::Type::IDENTIFIER) {
         return Identifier{token.value};
     } else if (token.type == Token::Type::NUMERIC_LITERAL) {
         return Literal{std::stod(token.value)};
-    } else if (token.type == Token::Type::STRING_LITERAL) {
-        return Literal{token.value};
     } else if (token.type == Token::Type::KEYWORD && token.value == "TRUE") {
         return Literal{true};
     } else if (token.type == Token::Type::KEYWORD && token.value == "FALSE") {
@@ -508,6 +585,7 @@ Expression Parser::parse_primary_expression() {
     } else if (token.type == Token::Type::PARAM_PLACEHOLDER) {
         return ParameterExpression{param_index++};
     }
+
     LOG_ERROR("Parse error: Unexpected token in expression: " + token.value);
     throw std::runtime_error("Unexpected token in expression");
 }
