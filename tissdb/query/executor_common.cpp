@@ -73,6 +73,7 @@ Value resolve_expression_to_value(const Expression& expr, const Document& doc, c
         if (const auto* bool_val = std::get_if<bool>(lit_ptr)) return *bool_val;
         if (const auto* date_val = std::get_if<Date>(lit_ptr)) return *date_val;
         if (const auto* time_val = std::get_if<Time>(lit_ptr)) return *time_val;
+        if (const auto* ts_val = std::get_if<Timestamp>(lit_ptr)) return *ts_val;
         if (const auto* dt_val = std::get_if<DateTime>(lit_ptr)) return *dt_val;
         if (std::holds_alternative<Null>(*lit_ptr)) return std::nullptr_t{};
     }
@@ -86,6 +87,7 @@ Value resolve_expression_to_value(const Expression& expr, const Document& doc, c
         if (const auto* bool_val = std::get_if<bool>(&param_lit)) return *bool_val;
         if (const auto* date_val = std::get_if<Date>(&param_lit)) return *date_val;
         if (const auto* time_val = std::get_if<Time>(&param_lit)) return *time_val;
+        if (const auto* ts_val = std::get_if<Timestamp>(&param_lit)) return *ts_val;
         if (const auto* dt_val = std::get_if<DateTime>(&param_lit)) return *dt_val;
         if (std::holds_alternative<Null>(param_lit)) return std::nullptr_t{};
     }
@@ -166,6 +168,18 @@ bool evaluate_expression(const Expression& expr, const Document& doc, const std:
             }
         }
 
+        if (const auto* left_ts = std::get_if<Timestamp>(&left_value)) {
+            if (const auto* right_ts = std::get_if<Timestamp>(&right_value)) {
+                if (op == "=") return *left_ts == *right_ts;
+                if (op == "!=") return *left_ts != *right_ts;
+                if (op == ">") return *left_ts > *right_ts;
+                if (op == "<") return *left_ts < *right_ts;
+                if (op == ">=") return *left_ts >= *right_ts;
+                if (op == "<=") return *left_ts <= *right_ts;
+                return false; // Unsupported operator
+            }
+        }
+
         // Fallback to numeric and string comparisons
         auto left_num_opt = get_as_numeric(left_value);
         auto right_num_opt = get_as_numeric(right_value);
@@ -222,6 +236,9 @@ Literal evaluate_update_expression(const Expression& expr, const Document& doc, 
     }
     if (const auto* time_val = std::get_if<Time>(&resolved_value)) {
         return *time_val;
+    }
+    if (const auto* ts_val = std::get_if<Timestamp>(&resolved_value)) {
+        return *ts_val;
     }
     if (const auto* dt_val = std::get_if<DateTime>(&resolved_value)) {
         return *dt_val;

@@ -53,6 +53,31 @@ struct Time {
     }
 };
 
+struct Timestamp {
+    // Use a 64-bit integer to store microseconds since Unix epoch, UTC.
+    // This provides high precision and avoids timezone ambiguity in storage.
+    int64_t microseconds_since_epoch_utc;
+
+    bool operator==(const Timestamp& other) const {
+        return microseconds_since_epoch_utc == other.microseconds_since_epoch_utc;
+    }
+    bool operator<(const Timestamp& other) const {
+        return microseconds_since_epoch_utc < other.microseconds_since_epoch_utc;
+    }
+    bool operator!=(const Timestamp& other) const {
+        return microseconds_since_epoch_utc != other.microseconds_since_epoch_utc;
+    }
+    bool operator<=(const Timestamp& other) const {
+        return microseconds_since_epoch_utc <= other.microseconds_since_epoch_utc;
+    }
+    bool operator>(const Timestamp& other) const {
+        return microseconds_since_epoch_utc > other.microseconds_since_epoch_utc;
+    }
+    bool operator>=(const Timestamp& other) const {
+        return microseconds_since_epoch_utc >= other.microseconds_since_epoch_utc;
+    }
+};
+
 using DateTime = std::chrono::time_point<std::chrono::system_clock>;
 using BinaryData = std::vector<uint8_t>;
 
@@ -63,7 +88,7 @@ using Value = std::variant<
     Boolean,
     Date,
     Time,
-    DateTime,
+    Timestamp,
     BinaryData,
     std::vector<Element>,
     std::shared_ptr<Array>,
