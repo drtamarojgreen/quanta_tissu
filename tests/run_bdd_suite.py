@@ -110,7 +110,7 @@ class BDDRunner:
             })
             return False, True
 
-    def is_server_running(self, host='127.0.0.1', port=8080):
+    def is_server_running(self, host='127.0.0.1', port=9876):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.connect((host, port))
@@ -265,7 +265,15 @@ class BDDRunner:
                         self.report_data['scenarios_failed'] += 1
                         continue
 
-                    scenario_steps_and_tables = self._parse_scenario_steps(lines[1:])
+                    scenario_lines = scenario_block.strip().splitlines()
+                    if not scenario_lines:
+                        continue
+
+                    scenario_title = scenario_lines[0]
+                    print(f"  Scenario: {scenario_title}")
+                    sys.stdout.flush()
+
+                    scenario_steps_and_tables = self._parse_scenario_steps(scenario_lines[1:])
                     for step_line, table in scenario_steps_and_tables:
                         if not scenario_success:
                             print(f"    Skipping step due to previous failure: {step_line}")
