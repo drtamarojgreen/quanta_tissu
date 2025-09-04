@@ -84,6 +84,12 @@ Json::JsonValue value_to_json(const Value& value) {
            << std::setw(2) << static_cast<int>(time_val->minute) << ":"
            << std::setw(2) << static_cast<int>(time_val->second);
         return Json::JsonValue(ss.str());
+    } else if (const auto* dt_val = std::get_if<DateTime>(&value)) {
+        std::time_t time = std::chrono::system_clock::to_time_t(*dt_val);
+        std::tm tm = *std::gmtime(&time);
+        std::stringstream ss;
+        ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+        return Json::JsonValue(ss.str());
     } else if (const auto* ts_val = std::get_if<Timestamp>(&value)) {
         // Convert microseconds since epoch to a string in ISO 8601 format
         const long long microseconds_since_epoch = ts_val->microseconds_since_epoch_utc;
