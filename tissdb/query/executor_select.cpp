@@ -29,6 +29,9 @@ struct GroupKeyVisitor {
     void operator()(const DateTime& dt) const {
         ss << std::chrono::duration_cast<std::chrono::milliseconds>(dt.time_since_epoch()).count();
     }
+    void operator()(const TissDB::Timestamp& ts) const {
+        ss << ts.microseconds_since_epoch_utc;
+    }
     void operator()(const BinaryData& /*bd*/) const {
         // Note: Grouping by binary data is tricky.
         // A proper implementation might hash the data.

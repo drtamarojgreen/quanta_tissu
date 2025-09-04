@@ -14,6 +14,7 @@ enum class DataType : uint8_t {
     NUMBER,
     BOOLEAN,
     DATETIME,
+    TIMESTAMP,
     BINARY_DATA,
     ELEMENT_LIST,
     ARRAY,
@@ -43,6 +44,9 @@ void serialize_value(BinaryStreamBuffer& bsb, const Value& value) {
             bsb.write(DataType::DATETIME);
             auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(arg.time_since_epoch()).count();
             bsb.write(nanoseconds);
+        } else if constexpr (std::is_same_v<T, Timestamp>) {
+            bsb.write(DataType::TIMESTAMP);
+            bsb.write(arg.microseconds_since_epoch_utc);
         } else if constexpr (std::is_same_v<T, BinaryData>) {
             bsb.write(DataType::BINARY_DATA);
             bsb.write_bytes(arg);
@@ -115,6 +119,11 @@ Value deserialize_value(BinaryStreamBuffer& bsb) {
             long long nanoseconds_count;
             bsb.read(nanoseconds_count);
             return DateTime(std::chrono::nanoseconds(nanoseconds_count));
+        }
+        case DataType::TIMESTAMP: {
+            int64_t microseconds_count;
+            bsb.read(microseconds_count);
+            return Timestamp{microseconds_count};
         }
         case DataType::BINARY_DATA: {
             return bsb.read_bytes();
