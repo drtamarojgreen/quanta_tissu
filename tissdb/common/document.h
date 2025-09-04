@@ -88,6 +88,7 @@ using Value = std::variant<
     Boolean,
     Date,
     Time,
+    DateTime,
     Timestamp,
     BinaryData,
     std::vector<Element>,
