@@ -56,6 +56,78 @@ std::optional<DateTime> parse_datetime_string(const std::string& s) {
 } // anonymous namespace
 
 
+std::optional<Timestamp> Parser::try_parse_timestamp(const std::string& literal) {
+    std::tm tm = {};
+    std::stringstream ss(literal);
+
+    // Try to parse the main part of the timestamp
+    ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
+    if (ss.fail()) {
+        return std::nullopt; // Does not match the base format
+    }
+
+    // Check for fractional seconds
+    long microseconds = 0;
+    if (ss.peek() == '.') {
+        ss.ignore(); // consume '.'
+        std::string fractional_part;
+        while (std::isdigit(ss.peek())) {
+            fractional_part += ss.get();
+        }
+        if (!fractional_part.empty()) {
+            // Pad with zeros to make it 6 digits for microseconds
+            if (fractional_part.length() < 6) {
+                fractional_part.append(6 - fractional_part.length(), '0');
+            } else {
+                fractional_part = fractional_part.substr(0, 6);
+            }
+            microseconds = std::stoi(fractional_part);
+        }
+    }
+
+    // After parsing numbers, what's left should be the timezone part.
+    std::string remaining_str;
+    ss >> remaining_str;
+
+    time_t time = -1;
+    // The calendar time to UTC, this function is non-standard but available on Linux/macOS
+    #ifdef _WIN32
+        time = _mkgmtime(&tm);
+    #else
+        time = timegm(&tm);
+    #endif
+
+    if (time == -1) {
+        return std::nullopt;
+    }
+
+    long long total_seconds = time;
+
+    // Handle timezone offset
+    if (remaining_str == "Z") {
+        // It's UTC, no offset to apply
+    } else if (remaining_str.length() >= 6 && (remaining_str[0] == '+' || remaining_str[0] == '-')) {
+        try {
+            int offset_hours = std::stoi(remaining_str.substr(1, 2));
+            int offset_minutes = std::stoi(remaining_str.substr(4, 2));
+            int offset_seconds = (offset_hours * 3600) + (offset_minutes * 60);
+
+            if (remaining_str[0] == '-') {
+                total_seconds += offset_seconds;
+            } else {
+                total_seconds -= offset_seconds;
+            }
+        } catch (const std::exception& e) {
+            return std::nullopt; // Invalid offset format
+        }
+    } else if (!remaining_str.empty()) {
+        return std::nullopt; // Unrecognized characters at the end
+    }
+
+    return Timestamp{total_seconds * 1000000 + microseconds};
+}
+
+
 // --- Tokenizer ---
 
 std::vector<Token> Parser::tokenize(const std::string& query_string) {
