@@ -90,6 +90,20 @@ Json::JsonValue value_to_json(const Value& value) {
         std::stringstream ss;
         ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
         return Json::JsonValue(ss.str());
+    } else if (const auto* ts_val = std::get_if<Timestamp>(&value)) {
+        // Convert microseconds since epoch to a string in ISO 8601 format
+        const long long microseconds_since_epoch = ts_val->microseconds_since_epoch_utc;
+        const long long seconds_since_epoch = microseconds_since_epoch / 1000000;
+        const long long microseconds_part = microseconds_since_epoch % 1000000;
+        std::time_t time = seconds_since_epoch;
+        std::tm tm = *std::gmtime(&time);
+        std::stringstream ss;
+        ss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S");
+        if (microseconds_part > 0) {
+            ss << '.' << std::setfill('0') << std::setw(6) << microseconds_part;
+        }
+        ss << 'Z';
+        return Json::JsonValue(ss.str());
     } else if (const auto* arr_ptr = std::get_if<std::shared_ptr<Array>>(&value)) {
         Json::JsonArray arr;
         if (arr_ptr && *arr_ptr) {

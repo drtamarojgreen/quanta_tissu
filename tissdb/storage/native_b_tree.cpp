@@ -342,11 +342,19 @@ void BTree<Key, Value, Order>::dump_node(std::ostream& os, const BTreeNode* node
     os.write(reinterpret_cast<const char*>(&key_count), sizeof(key_count));
 
     for (const auto& key : node->keys) {
-        write_string(os, key);
+        if constexpr (std::is_same_v<Key, std::string>) {
+            write_string(os, key);
+        } else {
+            os.write(reinterpret_cast<const char*>(&key), sizeof(key));
+        }
     }
     if (node->is_leaf) {
         for (const auto& value : node->values) {
-            write_string(os, value);
+            if constexpr (std::is_same_v<Value, std::string>) {
+                write_string(os, value);
+            } else {
+                os.write(reinterpret_cast<const char*>(&value), sizeof(value));
+            }
         }
     }
 
@@ -369,13 +377,21 @@ std::unique_ptr<typename BTree<Key, Value, Order>::BTreeNode> BTree<Key, Value, 
 
     node->keys.resize(key_count);
     for (size_t i = 0; i < key_count; ++i) {
-        node->keys[i] = read_string(is);
+        if constexpr (std::is_same_v<Key, std::string>) {
+            node->keys[i] = read_string(is);
+        } else {
+            is.read(reinterpret_cast<char*>(&node->keys[i]), sizeof(Key));
+        }
     }
 
     if (is_leaf) {
         node->values.resize(key_count);
         for (size_t i = 0; i < key_count; ++i) {
-            node->values[i] = read_string(is);
+            if constexpr (std::is_same_v<Value, std::string>) {
+                node->values[i] = read_string(is);
+            } else {
+                is.read(reinterpret_cast<char*>(&node->values[i]), sizeof(Value));
+            }
         }
     }
 
@@ -391,6 +407,7 @@ std::unique_ptr<typename BTree<Key, Value, Order>::BTreeNode> BTree<Key, Value, 
 
 // Explicit template instantiation
 template class BTree<std::string, std::string>;
+template class BTree<int64_t, std::string>;
 
 
 } // namespace Storage

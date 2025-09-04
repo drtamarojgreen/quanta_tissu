@@ -56,6 +56,78 @@ std::optional<DateTime> parse_datetime_string(const std::string& s) {
 } // anonymous namespace
 
 
+std::optional<Timestamp> Parser::try_parse_timestamp(const std::string& literal) {
+    std::tm tm = {};
+    std::stringstream ss(literal);
+
+    // Try to parse the main part of the timestamp
+    ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
+    if (ss.fail()) {
+        return std::nullopt; // Does not match the base format
+    }
+
+    // Check for fractional seconds
+    long microseconds = 0;
+    if (ss.peek() == '.') {
+        ss.ignore(); // consume '.'
+        std::string fractional_part;
+        while (std::isdigit(ss.peek())) {
+            fractional_part += ss.get();
+        }
+        if (!fractional_part.empty()) {
+            // Pad with zeros to make it 6 digits for microseconds
+            if (fractional_part.length() < 6) {
+                fractional_part.append(6 - fractional_part.length(), '0');
+            } else {
+                fractional_part = fractional_part.substr(0, 6);
+            }
+            microseconds = std::stoi(fractional_part);
+        }
+    }
+
+    // After parsing numbers, what's left should be the timezone part.
+    std::string remaining_str;
+    ss >> remaining_str;
+
+    time_t time = -1;
+    // The calendar time to UTC, this function is non-standard but available on Linux/macOS
+    #ifdef _WIN32
+        time = _mkgmtime(&tm);
+    #else
+        time = timegm(&tm);
+    #endif
+
+    if (time == -1) {
+        return std::nullopt;
+    }
+
+    long long total_seconds = time;
+
+    // Handle timezone offset
+    if (remaining_str == "Z") {
+        // It's UTC, no offset to apply
+    } else if (remaining_str.length() >= 6 && (remaining_str[0] == '+' || remaining_str[0] == '-')) {
+        try {
+            int offset_hours = std::stoi(remaining_str.substr(1, 2));
+            int offset_minutes = std::stoi(remaining_str.substr(4, 2));
+            int offset_seconds = (offset_hours * 3600) + (offset_minutes * 60);
+
+            if (remaining_str[0] == '-') {
+                total_seconds += offset_seconds;
+            } else {
+                total_seconds -= offset_seconds;
+            }
+        } catch (const std::exception& e) {
+            return std::nullopt; // Invalid offset format
+        }
+    } else if (!remaining_str.empty()) {
+        return std::nullopt; // Unrecognized characters at the end
+    }
+
+    return Timestamp{total_seconds * 1000000 + microseconds};
+}
+
+
 // --- Tokenizer ---
 
 std::vector<Token> Parser::tokenize(const std::string& query_string) {
@@ -72,7 +144,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             std::string upper_value = value;
             std::transform(upper_value.begin(), upper_value.end(), upper_value.begin(), ::toupper);
 
-            if (upper_value == "SELECT" || upper_value == "FROM" || upper_value == "WHERE" || upper_value == "AND" || upper_value == "OR" || upper_value == "UPDATE" || upper_value == "DELETE" || upper_value == "SET" || upper_value == "GROUP" || upper_value == "BY" || upper_value == "COUNT" || upper_value == "AVG" || upper_value == "SUM" || upper_value == "MIN" || upper_value == "MAX" || upper_value == "INSERT" || upper_value == "INTO" || upper_value == "VALUES" || upper_value == "STDDEV" || upper_value == "LIKE" || upper_value == "ORDER" || upper_value == "LIMIT" || upper_value == "JOIN" || upper_value == "ON" || upper_value == "UNION" || upper_value == "ALL" || upper_value == "ASC" || upper_value == "DESC" || upper_value == "WITH" || upper_value == "DRILLDOWN" || upper_value == "TRUE" || upper_value == "FALSE" || upper_value == "NULL" || upper_value == "DATE" || upper_value == "TIME" || upper_value == "DATETIME") {
+            if (upper_value == "SELECT" || upper_value == "FROM" || upper_value == "WHERE" || upper_value == "AND" || upper_value == "OR" || upper_value == "UPDATE" || upper_value == "DELETE" || upper_value == "SET" || upper_value == "GROUP" || upper_value == "BY" || upper_value == "COUNT" || upper_value == "AVG" || upper_value == "SUM" || upper_value == "MIN" || upper_value == "MAX" || upper_value == "INSERT" || upper_value == "INTO" || upper_value == "VALUES" || upper_value == "STDDEV" || upper_value == "LIKE" || upper_value == "ORDER" || upper_value == "LIMIT" || upper_value == "JOIN" || upper_value == "ON" || upper_value == "UNION" || upper_value == "ALL" || upper_value == "ASC" || upper_value == "DESC" || upper_value == "WITH" || upper_value == "DRILLDOWN" || upper_value == "TRUE" || upper_value == "FALSE" || upper_value == "NULL" || upper_value == "DATE" || upper_value == "TIME" || upper_value == "DATETIME" || upper_value == "TIMESTAMP") {
                 new_tokens.push_back(Token{Token::Type::KEYWORD, upper_value});
             } else {
                 new_tokens.push_back(Token{Token::Type::IDENTIFIER, value});
@@ -467,28 +539,25 @@ Expression Parser::parse_expression(int precedence) {
 }
 
 Expression Parser::parse_primary_expression() {
-    if (peek().type == Token::Type::KEYWORD && (peek().value == "DATE" || peek().value == "TIME" || peek().value == "DATETIME")) {
-        std::string keyword = consume().value; // consume the keyword
+    if (peek().type == Token::Type::KEYWORD && (peek().value == "DATE" || peek().value == "TIME" || peek().value == "DATETIME" || peek().value == "TIMESTAMP")) {
+        std::string keyword = consume().value;
         auto token = consume();
         if (token.type != Token::Type::STRING_LITERAL) {
             throw std::runtime_error("Expected a string literal after " + keyword);
         }
 
         if (keyword == "DATE") {
-            if (auto date = parse_date_string(token.value)) {
-                return Literal{*date};
-            }
+            if (auto date = parse_date_string(token.value)) return Literal{*date};
             throw std::runtime_error("Invalid DATE format: " + token.value);
         } else if (keyword == "TIME") {
-            if (auto time = parse_time_string(token.value)) {
-                return Literal{*time};
-            }
+            if (auto time = parse_time_string(token.value)) return Literal{*time};
             throw std::runtime_error("Invalid TIME format: " + token.value);
-        } else { // DATETIME
-            if (auto dt = parse_datetime_string(token.value)) {
-                return Literal{*dt};
-            }
+        } else if (keyword == "DATETIME") {
+            if (auto dt = parse_datetime_string(token.value)) return Literal{*dt};
             throw std::runtime_error("Invalid DATETIME format: " + token.value);
+        } else { // TIMESTAMP
+            if (auto ts = try_parse_timestamp(token.value)) return Literal{*ts};
+            throw std::runtime_error("Invalid TIMESTAMP format: " + token.value);
         }
     }
 
