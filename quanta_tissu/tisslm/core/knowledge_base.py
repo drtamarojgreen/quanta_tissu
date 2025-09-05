@@ -41,7 +41,7 @@ class KnowledgeBase:
         """
         embedding = self.embedder.embed(text)
         doc = {
-            'text': text,
+            'text': text.replace('\n', '\\n'), # Escape newlines for JSON
             'embedding': json.dumps(embedding.tolist()),
             'source': 'user_input',
             'timestamp': datetime.utcnow().isoformat()

@@ -28,9 +28,8 @@ class Tokenizer:
             self.bpe_tokenizer.load(tokenizer_prefix)
         except FileNotFoundError:
             print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using tisslm/train_bpe.py.")
-            # Fallback to a minimal tokenizer or raise an error, depending on desired behavior
-            # For now, we'll proceed with an empty tokenizer, which will likely cause errors later.
-            # A more robust solution would be to train a default one or exit.
+            self.bpe_tokenizer.vocab = None # Explicitly set to None on failure
+            self.bpe_tokenizer.merges = None # Explicitly set to None on failure
         except Exception as e:
             print(f"Error loading BPE tokenizer from {tokenizer_prefix}: {e}")
             # Handle other potential loading errors, e.g., malformed files
