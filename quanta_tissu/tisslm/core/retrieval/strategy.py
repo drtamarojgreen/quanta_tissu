@@ -29,11 +29,18 @@ class CosineSimilarityStrategy(RetrievalStrategy):
         query_norm = np.linalg.norm(query_embedding)
         doc_norms = np.linalg.norm(doc_embeddings_np, axis=1)
 
-        # Avoid division by zero
-        if query_norm == 0 or np.all(doc_norms == 0):
-            return np.zeros(len(doc_embeddings_np))
+        similarities = np.zeros(len(doc_embeddings_np))
 
-        return np.dot(doc_embeddings_np, query_embedding) / (doc_norms * query_norm)
+        # Handle cases where query_norm is zero
+        if query_norm == 0:
+            return similarities
+
+        # Calculate similarities for non-zero document embeddings
+        non_zero_doc_indices = doc_norms != 0
+        if np.any(non_zero_doc_indices):
+            similarities[non_zero_doc_indices] = np.dot(doc_embeddings_np[non_zero_doc_indices], query_embedding) / (doc_norms[non_zero_doc_indices] * query_norm)
+
+        return similarities
 
 class CNNSimilarityStrategy(RetrievalStrategy):
     """
@@ -178,4 +185,3 @@ class BayesianSimilarityStrategy(RetrievalStrategy):
         noisy_query = np.random.normal(query_embedding, np.sqrt(posterior_variance), size=query_embedding.shape)
 
         return CosineSimilarityStrategy().calculate_similarity(noisy_query, doc_embeddings)
-
