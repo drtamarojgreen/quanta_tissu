@@ -3,6 +3,7 @@ import logging
 import os
 import json
 from collections import defaultdict, Counter
+import re
 
 from ..layers import softmax
 from ..model_error_handler import ConfigurationError
