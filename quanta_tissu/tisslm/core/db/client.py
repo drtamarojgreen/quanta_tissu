@@ -1,5 +1,7 @@
 import requests
 import logging
+import uuid
+from datetime import datetime
 
 from ..system_error_handler import DatabaseConnectionError
 
@@ -17,7 +19,9 @@ class TissDBClient:
         self.token = token
 
     def _get_headers(self):
-        """Returns headers for authentication."""
+        """
+        Returns headers for authentication.
+        """
         if self.token:
             return {'Authorization': f'Bearer {self.token}'}
         return {}
@@ -62,13 +66,18 @@ class TissDBClient:
             logger.warning(f"TissDB setup failed: {e}. Client will be in a disconnected state.")
             raise DatabaseConnectionError(f"Database setup failed: {e}") from e
 
-    def add_document(self, collection: str, document: dict):
+    def add_document(self, collection: str, document: dict, doc_id: str = None):
         """
-        Adds a document to a specified collection.
+        Adds a document to a specified collection. Always uses PUT.
+        Generates a doc_id if not provided.
         """
         try:
             headers = self._get_headers()
-            response = requests.post(f"{self.db_url}/{collection}", json=document, headers=headers)
+            if doc_id is None:
+                doc_id = str(uuid.uuid4()) # Generate a unique ID
+
+            response = requests.put(f"{self.db_url}/{collection}/{doc_id}", json=document, headers=headers)
+            logger.info(f"add_document: Status Code: {response.status_code}, Response Text: {response.text}")
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -104,6 +113,6 @@ class TissDBClient:
         """
         Adds feedback data to the feedback collection.
         """
-        # The original KB had a hardcoded "_feedback" endpoint, which seems wrong.
-        # A more RESTful approach would be a 'feedback' collection.
-        return self.add_document('feedback', feedback_data)
+        # Generate a unique ID for feedback documents
+        feedback_id = f"feedback_{feedback_data.get('timestamp', datetime.utcnow().isoformat())}_{uuid.uuid4()}"
+        return self.add_document('feedback', feedback_data, doc_id=feedback_id)
