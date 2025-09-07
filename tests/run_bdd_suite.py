@@ -204,7 +204,8 @@ class BDDRunner:
                 test_update_delete_steps,
                 test_select_queries_steps,
                 test_common_steps,
-                test_security_steps
+                test_security_steps,
+                test_insert_steps
             )
             # Import the new nexus_flow steps
             from tests.nexus_flow import test_nexus_flow_bdd
@@ -225,6 +226,7 @@ class BDDRunner:
                 test_select_queries_steps,
                 test_common_steps,
                 test_security_steps,
+                test_insert_steps,
                 # Add the new nexus_flow module to the list
                 test_nexus_flow_bdd
             ]:
