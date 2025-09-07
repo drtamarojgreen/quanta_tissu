@@ -28,6 +28,11 @@ def register_steps(runner):
         response = requests.put(f"{BASE_URL}/{context['db_name']}", headers=headers)
         assert response.status_code in [201, 200, 409], f"Failed to create database. Status: {response.status_code}, Body: {response.text}"
 
+    @runner.step(r'^Given a TissDB instance$')
+    def tissdb_instance(context):
+        # This is an alias for the "a running TissDB instance" step.
+        running_tissdb_instance(context)
+
     @runner.step(r'a collection named "(.*)"( exists)?')
     def collection_exists(context, collection_name, exists_word=None):
         context['collection_name'] = collection_name
