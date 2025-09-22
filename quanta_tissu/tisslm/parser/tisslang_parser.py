@@ -5,6 +5,7 @@ from .setup import handle_setup_command
 from .step import handle_step_command
 from .errors import TissLangParserError
 from .value_parser import parse_value
+from .if_command_handler import handle_if_command, handle_else_command
 
 
 class TissLangParser:
@@ -79,6 +80,8 @@ class TissLangParser:
             self._handle_in_choose_state(line)
         elif self._state == "AFTER_TRY":
             self._handle_after_try_state(line)
+        elif self._state == "AFTER_IF":
+            self._handle_after_if_state(line)
         else:
             raise TissLangParserError(f"Invalid parser state: {self._state}", self._line_number)
 
@@ -109,6 +112,16 @@ class TissLangParser:
         if _PATTERNS['BLOCK_END'].match(line):
             self._state = self._state_stack.pop()
             self._current_block = self._block_stack.pop()
+            return
+
+        if_node = handle_if_command(line, self._current_block, self._line_number)
+        if if_node:
+            self._state_stack.append(self._state)
+            self._block_stack.append(self._current_block)
+            self._state_stack.append("AFTER_IF")
+            self._block_stack.append(if_node)
+            self._state = "IN_STEP"
+            self._current_block = if_node['then_block']
             return
 
         run_match = _PATTERNS['RUN'].match(line)
@@ -246,6 +259,24 @@ class TissLangParser:
         # If it's not a CATCH block, it's an implicit end of the try.
         self._state_stack.pop() # Pop AFTER_TRY
         self._block_stack.pop() # Pop the TRY_CATCH node
+        self._parse_line(line) # Re-parse the line in the previous state.
+
+    def _handle_after_if_state(self, line: str):
+        """Handles parsing after an 'IF' block's 'THEN' clause, expecting an 'ELSE' or another command."""
+        if_node = self._block_stack[-1]
+        else_node = handle_else_command(line, self._block_stack[-2], self._line_number)
+
+        if else_node:
+            self._state = "IN_STEP"
+            self._current_block = else_node['else_block']
+            # We are now in the ELSE block, so we pop the 'AFTER_IF' state and the IF node.
+            self._state_stack.pop() # Pop AFTER_IF
+            self._block_stack.pop() # Pop the IF node
+            return
+
+        # If it's not an ELSE block, it's an implicit end of the IF.
+        self._state_stack.pop() # Pop AFTER_IF
+        self._block_stack.pop() # Pop the IF node
         self._parse_line(line) # Re-parse the line in the previous state.
 
     def _handle_write_block(self, line: str):

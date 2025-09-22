@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 from .matcher import _PATTERNS
 from .errors import TissLangParserError
 from .value_parser import parse_value
@@ -21,33 +22,37 @@ def parse_expression(expression_str: str, line_number: int) -> dict:
     raise TissLangParserError(f"Invalid expression: '{expression_str}'", line_number)
 
 
-def handle_if_command(line: str, ast: list, current_block: list, state: str, line_number: int) -> tuple[bool, str, list]:
+def handle_if_command(line: str, current_block: list, line_number: int) -> Optional[dict]:
     """
-    Handles parsing of IF and ELSE commands.
-
-    Returns:
-        A tuple: (was_handled, new_state, new_current_block)
+    Checks if a line is an IF command and returns the parsed node if it is.
+    Does not handle state changes.
     """
     if_match = _PATTERNS['IF'].match(line)
     if if_match:
         expression_str = if_match.group(1)
         expression_node = parse_expression(expression_str, line_number)
         if_node = {'type': 'IF', 'condition': expression_node, 'then_block': [], 'else_block': None}
-        ast.append(if_node)
-        current_block = if_node['then_block']
-        state = "IN_STEP" # Reuse IN_STEP state for THEN block
-        return True, state, current_block
+        current_block.append(if_node)
+        return if_node
+    return None
 
+
+def handle_else_command(line: str, current_block: list, line_number: int) -> Optional[dict]:
+    """
+    Checks if a line is an ELSE command and returns the corresponding IF node if it is.
+    """
     else_match = _PATTERNS['ELSE'].match(line)
     if else_match:
-        # Ensure the previous node was an IF with a then_block
-        if not ast or ast[-1]['type'] != 'IF' or ast[-1]['else_block'] is not None:
-            raise TissLangParserError("ELSE without a preceding IF or ELSE already defined.", line_number)
+        # Find the last IF node in the current block that doesn't have an else_block yet
+        last_if_node = None
+        for node in reversed(current_block):
+            if node.get('type') == 'IF' and node.get('else_block') is None:
+                last_if_node = node
+                break
 
-        if_node = ast[-1]
-        if_node['else_block'] = []
-        current_block = if_node['else_block']
-        state = "IN_STEP" # Reuse IN_STEP state for ELSE block
-        return True, state, current_block
+        if last_if_node is None:
+            raise TissLangParserError("ELSE without a preceding IF.", line_number)
 
-    return False, state, current_block
+        last_if_node['else_block'] = []
+        return last_if_node
+    return None
