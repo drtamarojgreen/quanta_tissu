@@ -1,7 +1,7 @@
 Feature: TissLM Parser
 
   Scenario: Parse a simple TissLM script
-    Given I have a TissLM script with content:
+    Given I have a TissLM script with content
       """
       PRINT "Hello, TissLM!"
       """
