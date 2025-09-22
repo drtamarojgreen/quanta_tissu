@@ -1,7 +1,7 @@
 import numpy as np
 import logging
 
-from ..layers import MultiHeadAttention, FeedForward, LayerNorm
+from ..layers import MultiHeadAttention, FeedForward, RMSNorm, Dropout, precompute_rope_freqs
 from ..parameter import Parameter
 from ..model_error_handler import InputValidationError
 
@@ -12,22 +12,26 @@ class TransformerBlock:
     A single block of the Transformer model.
     This version's forward pass returns a cache for backpropagation.
     """
-    def __init__(self, d_model, num_heads, d_ff, name=""):
+    def __init__(self, d_model, num_heads, d_ff, dropout_rate, name=""):
         self.mha = MultiHeadAttention(d_model, num_heads, name=f"{name}.mha")
         self.ffn = FeedForward(d_model, d_ff, name=f"{name}.ffn")
-        self.ln1 = LayerNorm(d_model, name=f"{name}.ln1")
-        self.ln2 = LayerNorm(d_model, name=f"{name}.ln2")
+        self.ln1 = RMSNorm(d_model, name=f"{name}.ln1")
+        self.ln2 = RMSNorm(d_model, name=f"{name}.ln2")
+        self.attn_dropout = Dropout(dropout_rate)
+        self.ffn_dropout = Dropout(dropout_rate)
 
-    def __call__(self, x, mask=None, kv_cache=None):
+    def __call__(self, x, rope_freqs, mask=None, kv_cache=None, training=True):
         """
         Forward pass for the Transformer block, returning output and cache.
         """
-        attn_out, mha_cache = self.mha(x, mask=mask, kv_cache=kv_cache)
+        attn_out, mha_cache = self.mha(x, rope_freqs, mask=mask, kv_cache=kv_cache)
+        attn_out, attn_dropout_cache = self.attn_dropout(attn_out, training=training)
 
         x_plus_attn = x + attn_out
         x_norm1, ln1_cache = self.ln1(x_plus_attn)
 
         ffn_out, ffn_cache = self.ffn(x_norm1)
+        ffn_out, ffn_dropout_cache = self.ffn_dropout(ffn_out, training=training)
 
         x_plus_ffn = x_norm1 + ffn_out
         x_norm2, ln2_cache = self.ln2(x_plus_ffn)
@@ -35,8 +39,10 @@ class TransformerBlock:
         # Aggregate caches for the backward pass
         cache = {
             'mha_cache': mha_cache,
+            'attn_dropout_cache': attn_dropout_cache,
             'ln1_cache': ln1_cache,
             'ffn_cache': ffn_cache,
+            'ffn_dropout_cache': ffn_dropout_cache,
             'ln2_cache': ln2_cache,
             'x_plus_attn': x_plus_attn,
             'x_norm1': x_norm1
@@ -49,8 +55,10 @@ class TransformerBlock:
         """
         # Unpack cache
         mha_cache = cache['mha_cache']
+        attn_dropout_cache = cache['attn_dropout_cache']
         ln1_cache = cache['ln1_cache']
         ffn_cache = cache['ffn_cache']
+        ffn_dropout_cache = cache['ffn_dropout_cache']
         ln2_cache = cache['ln2_cache']
         x_plus_attn = cache['x_plus_attn']
         x_norm1 = cache['x_norm1']
@@ -62,44 +70,29 @@ class TransformerBlock:
         d_ffn_out = dx_norm2
         dx_norm1_from_ffn = dx_norm2
 
-        # 3. Backpropagate through ffn (FeedForward)
+        # 3. Backpropagate through ffn_dropout
+        d_ffn_out = self.ffn_dropout.backward(d_ffn_out, ffn_dropout_cache)
+
+        # 4. Backpropagate through ffn (FeedForward)
         dx_norm1_from_ffn += self.ffn.backward(d_ffn_out, ffn_cache)
 
-        # 4. Backpropagate through ln1 (LayerNorm)
+        # 5. Backpropagate through ln1 (LayerNorm)
         dx_plus_attn = self.ln1.backward(dx_norm1_from_ffn, ln1_cache)
 
-        # 5. Backpropagate through addition (x + attn_out)
+        # 6. Backpropagate through addition (x + attn_out)
         d_attn_out = dx_plus_attn
         dx_from_attn = dx_plus_attn
 
-        # 6. Backpropagate through mha (MultiHeadAttention)
+        # 7. Backpropagate through attn_dropout
+        d_attn_out = self.attn_dropout.backward(d_attn_out, attn_dropout_cache)
+
+        # 8. Backpropagate through mha (MultiHeadAttention)
         dx_from_attn += self.mha.backward(d_attn_out, mha_cache)
 
         return dx_from_attn
 
     def parameters(self):
         return self.mha.parameters() + self.ffn.parameters() + self.ln1.parameters() + self.ln2.parameters()
-
-class PositionalEncoding:
-    """
-    Injects positional information into the input embeddings.
-    """
-    def __init__(self, d_model, max_len=5000):
-        pe = np.zeros((max_len, d_model))
-        position = np.arange(0, max_len)[:, np.newaxis]
-        div_term = np.exp(np.arange(0, d_model, 2) * (-np.log(10000.0) / d_model))
-        pe[:, 0::2] = np.sin(position * div_term)
-        pe[:, 1::2] = np.cos(position * div_term)
-        self.pe = pe
-
-    def __call__(self, x, start_pos=0):
-        seq_len = x.shape[1]
-        max_len = self.pe.shape[0]
-        if start_pos + seq_len > max_len:
-            raise InputValidationError(f"Sequence of length {seq_len} at start position {start_pos} exceeds max positional encoding length of {max_len}.")
-
-        positions = np.arange(start_pos, start_pos + seq_len)
-        return x + self.pe[np.newaxis, positions, :]
 
 class Model:
     """
@@ -112,16 +105,21 @@ class Model:
         n_head = config["n_head"]
         d_ff = config["d_ff"]
         n_layer = config["n_layer"]
+        dropout_rate = config["dropout_rate"]
+        max_len = config.get("positional_encoding_max_len", 5000)
+
+        d_head = d_model // n_head
+        self.rope_cos_freqs, self.rope_sin_freqs = precompute_rope_freqs(d_head, max_len)
 
         self.embeddings = Parameter(np.random.randn(vocab_size, d_model) / np.sqrt(d_model), name="embeddings")
-        self.pos_encoding = PositionalEncoding(d_model)
-        self.transformer_blocks = [TransformerBlock(d_model, n_head, d_ff, name=f"transformer_blocks.{i}") for i in range(n_layer)]
+        self.dropout = Dropout(dropout_rate)
+        self.transformer_blocks = [TransformerBlock(d_model, n_head, d_ff, dropout_rate, name=f"transformer_blocks.{i}") for i in range(n_layer)]
         self.output_proj = Parameter(np.random.randn(d_model, vocab_size) / np.sqrt(d_model), name="output_proj")
 
     def _create_causal_mask(self, seq_len):
         return np.triu(np.ones((seq_len, seq_len)), k=1) * -1e9
 
-    def forward(self, token_ids, kv_cache=None, start_pos=0):
+    def forward(self, token_ids, kv_cache=None, start_pos=0, training=True):
         """
         Performs the forward pass of the model, returning logits and a cache.
         """
@@ -133,11 +131,14 @@ class Model:
             mask = mask[np.newaxis, np.newaxis, :, :]
 
         x = self.embeddings.value[token_ids]
-        x = self.pos_encoding(x, start_pos=start_pos)
+        x, dropout_cache = self.dropout(x, training=training)
+
+        # Pass rope_freqs to each block
+        rope_freqs = (self.rope_cos_freqs[start_pos : start_pos + seq_len], self.rope_sin_freqs[start_pos : start_pos + seq_len])
 
         for i, block in enumerate(self.transformer_blocks):
             layer_kv_cache = kv_cache[i] if kv_cache is not None else None
-            x, block_cache = block(x, mask=mask, kv_cache=layer_kv_cache)
+            x, block_cache = block(x, rope_freqs, mask=mask, kv_cache=layer_kv_cache, training=training)
             block_caches.append(block_cache)
 
         logits = x @ self.output_proj.value
@@ -145,6 +146,7 @@ class Model:
         model_cache = {
             'token_ids': token_ids,
             'final_x': x,
+            'dropout_cache': dropout_cache,
             'block_caches': block_caches,
             'embeddings': self.embeddings,
             'output_proj': self.output_proj
@@ -158,6 +160,7 @@ class Model:
         """
         token_ids = model_cache['token_ids']
         final_x = model_cache['final_x']
+        dropout_cache = model_cache['dropout_cache']
         block_caches = model_cache['block_caches']
         embeddings = model_cache['embeddings']
         output_proj = model_cache['output_proj']
@@ -173,8 +176,11 @@ class Model:
             block_cache = block_caches[i]
             dx = block.backward(dx, block_cache)
 
-        # 3. Backpropagate through positional encoding (no gradients for PE)
-        # 4. Backpropagate through embeddings
+        # 3. Backpropagate through dropout
+        dx = self.dropout.backward(dx, dropout_cache)
+
+        # 4. Backpropagate through positional encoding (no gradients for PE)
+        # 5. Backpropagate through embeddings
         # Gradients for embeddings are accumulated based on token_ids
         embeddings.grad = np.zeros_like(embeddings.value)
         np.add.at(embeddings.grad, token_ids, dx)
