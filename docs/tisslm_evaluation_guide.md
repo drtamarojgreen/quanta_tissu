@@ -234,3 +234,109 @@ An attempt was made to apply this change using the `replace` tool. However, the 
 ## 7. Next Steps
 
 Proceed with manual implementation of the proposed solution for the `detokenize` method in `quanta_tissu/tisslm/core/tokenizer.py`.
+
+
+
+python3 -m quanta_tissu.tisslm.core.train_bpe --corpus_path corpus/ --vocab_size 8000 --save_prefix models/tokenizers/revised_tokenizer --verbose
+  
+python3 -m quanta_tissu.tisslm.core.run_training --corpus_path corpus/ --tokenizer_prefix models/tokenizers/revised_tokenizer
+
+
+python3 -m quanta_tissu.tisslm.core.run_training --corpus_path corpus/ --tokenizer_prefix models/tokenizers/revised_tokenizer 
+  --output_dir checkpoints/ --steps 10000 --batch_size 16 --block_size 128 --eval_interval 1000 --log_interval 100 --learning_rate 1e-4
+  
+python3 -m quanta_tissu.tisslm.core.generate_text --prompt "The quick brown fox" --length 50 --checkpoint_path checkpoints/checkpoint_step_800.npz --method nucleus --temperatur
+e 0.8 --top_p 0.9
+
+
+python3 -m quanta_tissu.tisslm.evaluation.generate_algorithmic --verbose --checkpoint_path checkpoints/checkpoint_step_160000.npz --tokenizer_path models/tokenizers/revised_tok
+enizer
+
+
+# Model BDD Test Issues Log
+
+This document logs issues encountered during the creation and refinement of the `tisslm` model BDD tests in `tests/model/behavior/`.
+
+---
+
+## Issue 1: Initial `SyntaxError` in `test_text_generation_behavior.py` (Line 13)
+
+*   **Problem:** An `ImportError` was reported, leading to a `SyntaxError` at line 13 in `test_text_generation_behavior.py`. The original code used multiple `unittest.mock.patch` context managers on a single line without proper Python 3.10+ syntax (parentheses for multi-line `with` statements).
+    ```python
+    # Original problematic code snippet:
+    with patch('quanta_tissu.tisslm.core.generate_text.model_config') as mock_model_config, \
+         patch('quanta_tissu.tisslm.core.generate_text.system_config') as mock_system_config:
+    ```
+*   **Resolution:** The `patch` statements were enclosed in parentheses to conform to the correct syntax for multi-line `with` statements.
+    ```python
+    # Corrected code snippet:
+    with (patch('quanta_tissu.tisslm.core.generate_text.model_config') as mock_model_config,
+          patch('quanta_tissu.tisslm.core.generate_text.system_config') as mock_system_config):
+    ```
+
+---
+
+## Issue 2: `AttributeError: 'module' object has no attribute 'system_config'` in `test_text_generation_behavior.py`
+
+*   **Problem:** After fixing the `SyntaxError`, an `AttributeError` occurred during module import. The test attempted to patch `quanta_tissu.tisslm.core.generate_text.system_config`. However, the `generate_text.py` module does not directly import or use `system_config` as an attribute; it only imports `model_config` from `..config`.
+*   **Resolution:** The patch for `system_config` was removed from `test_text_generation_behavior.py` as it was unnecessary and incorrectly targeted. The `generate_text` module does not depend on `system_config` for its functionality.
+
+---
+
+## Issue 3: `AttributeError: 'list' object has no attribute 'any'` in `test_text_generation_behavior.py`
+
+*   **Problem:** The `generate_text` function in `quanta_tissu/tisslm/core/generate_text.py` expected the output of the `tokenizer.tokenize` method to be a NumPy array (specifically, it called `.any()` on it). However, the mocked `tokenizer.tokenize` (which was set to `self.bpe_tokenizer.encode`) returned a standard Python `list`.
+*   **Resolution:** The mock for `mock_tokenizer_instance.tokenize.side_effect` was updated to explicitly convert the output of `self.bpe_tokenizer.encode` into a NumPy array using a `lambda` function.
+    ```python
+    # Corrected code snippet:
+    mock_tokenizer_instance.tokenize.side_effect = lambda x: np.array(self.bpe_tokenizer.encode(x))
+    ```
+
+---
+
+## Issue 4: `SystemExit: 1` in `test_text_generation_behavior.py`
+
+*   **Problem:** The `main()` function within `quanta_tissu/tisslm/core/generate_text.py` includes `sys.exit(1)` calls if required files (like tokenizer files or model checkpoints) are not found. In the test environment, the mocked `checkpoint_path` did not physically exist, causing `os.path.exists()` to return `False` and trigger the `SystemExit`.
+*   **Resolution:** `os.path.exists` was patched within the test method to return `True` for the mocked `checkpoint_path`, preventing the `SystemExit` and allowing the test to proceed with mocking the model loading.
+
+---
+
+## Issue 5: `IndentationError: unexpected indent` in `test_text_generation_behavior.py` (Line 219)
+
+*   **Problem:** An `IndentationError` occurred because the `if __name__ == '__main__':` block was incorrectly placed and indented within the `TestTextGenerationBehavior` class. This misplacement was introduced during the addition of multiple new test methods via `replace` operations.
+*   **Resolution:** (Pending) The `if __name__ == '__main__':` block needs to be moved to the very end of the file, at the top level (no indentation), and any subsequent misaligned code needs to be correctly indented.
+
+---
+
+## Issue 6: `ValueError: The truth value of an array with more than one element is ambiguous` in `test_text_generation_behavior.py`
+
+*   **Problem:** This error occurred in `unittest.mock.assert_called_with` when comparing arguments that included NumPy arrays. `unittest.mock`'s internal comparison uses `==`, which for NumPy arrays returns a boolean array, leading to the `ValueError`.
+*   **Repeated Failure:** Attempts to fix this using the `replace` tool by providing a precise `old_string` repeatedly failed due to subtle variations in whitespace and comments within the target code blocks, leading to a repetitive loop.
+*   **Resolution:** (Pending) A new strategy will be employed: read the entire file content, perform in-memory modification using string manipulation/regex to replace the problematic `assert_called_with` calls with granular assertions using `np.testing.assert_array_equal` and `self.assertEqual`, and then write the modified content back to the file. This bypasses the brittle `replace` tool's `old_string` matching. This will be applied to all relevant test methods in `test_text_generation_behavior.py`.
+
+# Model Testing Strategy
+
+This project utilizes a custom test runner (`tests/run_model_tests.py`) built with Python's `unittest` framework for model testing. This runner orchestrates both traditional `unittest`-based unit tests and behavior-driven tests using a custom BDD framework (similar to `behave`). We are not currently using `behave` or `pytest` directly for our testing needs.
+
+## BDD Test Structure
+
+The Behavior-Driven Development (BDD) tests are organized as follows:
+
+*   **Feature Files:** Located in `tests/features/`
+*   **Step Definitions:** Located in `tests/features/steps/`
+
+## Current Status of Model Testing
+
+The model testing suite is currently in a **failing state**.
+
+While some basic unit tests are passing, a significant number of BDD model tests are failing. The primary issues observed are:
+
+*   **Model/Tokenizer Initialization:** Many failures stem from `IndexError` related to model embeddings and tokenizer operations. These are often accompanied by warnings about missing BPE tokenizer files (`Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.`). This strongly suggests that the language model or tokenizer is not being correctly initialized or trained before the tests are executed.
+
+*   **TissDB Interaction:** Numerous `AssertionError`s indicate problems with TissDB queries. Specific errors include "Query failed: 500, Server error: Collection not found: _query" and mismatches in query results. This suggests issues with database setup, data insertion, or query execution within the test environment.
+
+*   **Data Handling:** Specific failures in database tests (e.g., `Mismatch for key 'array': expected '[1, 'two', False]', got 'None'`) point to incorrect handling of various data types.
+
+*   **Tokenizer Functionality:** Basic tokenization and detokenization tests are also failing, indicating fundamental issues with the tokenizer's core functionality.
+
+Overall, core functionalities related to the language model, tokenizer, and database interactions are exhibiting significant errors. Before further development, these foundational issues need to be addressed, likely starting with ensuring the model and tokenizer are properly trained and loaded for testing, and that TissDB interactions are correctly handled within the test environment.
