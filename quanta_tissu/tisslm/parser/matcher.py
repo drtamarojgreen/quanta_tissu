@@ -26,6 +26,6 @@ _PATTERNS = {
     'COMPARATOR': re.compile(r'(==|!=|<|>|<=|>=)'),
     'BOOLEAN': re.compile(r'^(true|false)$'),
     'DIRECTIVE': re.compile(r'^\s*@([a-zA-Z_][a-zA-Z0-9_]*)\s+(.+?)\s*$'),
-    'COMMENT': re.compile(r'^\s*#.*\n?'),
-    'EMPTY': re.compile(r'^\s*\n?$'),
+    'COMMENT': re.compile(r'^\s*#.*$'),
+    'EMPTY': re.compile(r'^\s*$'),
 }

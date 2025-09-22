@@ -60,7 +60,7 @@ class TissLangParser:
 
     def _parse_line(self, line: str):
         """Processes a single line of the script based on the current state."""
-        if _PATTERNS['EMPTY'].match(line):
+        if not line.strip():
             return
         if self._state == "IN_WRITE":
             self._handle_write_block(line)
@@ -87,6 +87,9 @@ class TissLangParser:
 
     def _handle_idle_state(self, line: str):
         """Handles parsing when in the top-level 'IDLE' state."""
+        if not line.strip():
+            return
+
         task_match = _PATTERNS['TASK'].match(line)
         if task_match:
             self.ast.append({'type': 'TASK', 'description': task_match.group(1)})

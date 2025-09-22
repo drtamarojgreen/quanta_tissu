@@ -1,7 +1,7 @@
 Feature: TissLang LOG Command
 
   Scenario: Parse a simple LOG command
-    Given I have a TissLang script with content:
+    Given I have a TissLang script with content
       """
       STEP "Log test" {
         LOG "This is a log message"
