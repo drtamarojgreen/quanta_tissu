@@ -27,3 +27,8 @@ Feature: TissLang C++ IDE Functionality
     Given a file is open in the TissLang IDE with unsaved changes
     When I save the file as "new_file.tiss"
     Then a file named "new_file.tiss" should be created with the editor's content
+
+  Scenario: Linter identifies an error in an incomplete query
+    Given a file is open in the TissLang IDE
+    When the editor contains the text "ACTION { query = 'SELECT * FROM' }"
+    Then the linter should report an error on that line
