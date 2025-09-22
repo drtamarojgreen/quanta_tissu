@@ -194,7 +194,7 @@ class BDDRunner:
                                               test_more_database_steps, test_extended_database_steps, test_parser_steps,
                                               test_model_integration_steps, test_integration_steps, test_update_delete_steps,
                                               test_select_queries_steps, test_common_steps, test_security_steps, test_datetime_steps,
-                                              test_block_steps)
+                                              test_block_steps, test_tissu_sinew_steps, test_cllm_steps, test_ctisslm_steps)
             # Import the new nexus_flow steps
             from tests.nexus_flow import test_nexus_flow_bdd
 
@@ -204,7 +204,7 @@ class BDDRunner:
                            test_model_integration_steps, test_integration_steps, test_update_delete_steps,
                            test_select_queries_steps, test_common_steps, test_security_steps,
                            # Add the new nexus_flow module to the list
-                           test_nexus_flow_bdd, test_datetime_steps, test_block_steps]:
+                           test_nexus_flow_bdd, test_datetime_steps, test_block_steps, test_tissu_sinew_steps, test_cllm_steps, test_ctisslm_steps]:
                 module.register_steps(self)
             print("BDD Runner: All steps registered.")
             sys.stdout.flush()

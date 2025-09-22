@@ -35,6 +35,19 @@ def register_steps(runner):
     def user_with_readonly_token(context):
         context['auth_token'] = "read_only_token"
 
+    @runner.step(r'a user with a valid "admin" token')
+    def user_with_admin_token(context):
+        context['auth_token'] = "static_test_token"
+
+    @runner.step(r'I delete the collection "(.*)"')
+    def delete_collection(context, collection_name):
+        # This step assumes a db_name is already in the context
+        if 'db_name' not in context:
+            context.db_name = "testdb" # Default for standalone security tests
+        headers = get_headers(context)
+        context['response'] = requests.delete(f"{BASE_URL}/{context['db_name']}/{collection_name}", headers=headers)
+        # We don't assert status here, the test can do that if it needs to.
+
     @runner.step(r'I attempt to DELETE the database')
     def attempt_delete_database(context):
         # We assume the default db name is 'testdb' from the common steps

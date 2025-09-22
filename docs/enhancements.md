@@ -11,9 +11,9 @@ Status Key: `[Not Started]` `[In Progress]` `[Done]`
 -   **[Done] Causal Attention Mask**: Implement and apply a causal (look-ahead) mask in the attention mechanism. This is crucial for correct autoregressive behavior during training and efficient inference.
 -   **[Done] Dropout Layers**: Add dropout layers after embeddings, attention, and feed-forward layers for regularization to prevent overfitting.
 -   **[Done] Hyperparameter Configuration**: Centralize all model hyperparameters (e.g., `d_model`, `num_heads`, `d_ff`, `n_layers`, `vocab_size`) into a configuration object or file (e.g., `config.py` or a YAML file).
--   **[Not Started] Modern Feed-Forward Networks (SwiGLU)**: Replace the standard ReLU-based FFN with a more modern Gated Linear Unit variant like SwiGLU, which is used in models like Llama.
--   **[Not Started] Alternative Normalization (RMSNorm)**: Implement RMSNorm as a simpler and often faster alternative to standard Layer Normalization.
--   **[Not Started] Alternative Positional Encodings (RoPE)**: Replace sinusoidal positional encodings with a more modern approach like Rotary Positional Embeddings (RoPE).
+-   **[Done] Modern Feed-Forward Networks (SwiGLU)**: Replace the standard ReLU-based FFN with a more modern Gated Linear Unit variant like SwiGLU, which is used in models like Llama.
+-   **[Done] Alternative Normalization (RMSNorm)**: Implement RMSNorm as a simpler and often faster alternative to standard Layer Normalization.
+-   **[Done] Alternative Positional Encodings (RoPE)**: Replace sinusoidal positional encodings with a more modern approach like Rotary Positional Embeddings (RoPE).
 
 ### 1.2. Inference and Sampling
 -   **[Done] Batched Inference**: The model's forward pass already accepts a batch of prompts simultaneously.

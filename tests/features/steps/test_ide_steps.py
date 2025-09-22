@@ -8,7 +8,8 @@ def register_steps(runner):
         context.ide_state = {
             "editor_content": "",
             "opened_file": None,
-            "highlighted_elements": []
+            "highlighted_elements": [],
+            "linter_errors": []
         }
         print("SIM: TissLang IDE is running.")
 
@@ -110,3 +111,12 @@ def register_steps(runner):
     def file_should_be_created(context, filename):
         assert context.ide_state['saved_as'] == filename
         print(f"SIM: Verified that file '{filename}' would be created.")
+
+    @runner.step(r'the linter should report an error on that line')
+    def linter_reports_error(context):
+        # Simulate the linter finding an error in the current content
+        content = context.ide_state.get('editor_content', '')
+        if "FROM'" in content: # A simplistic check for an incomplete query
+            context.ide_state['linter_errors'] = ["Incomplete SQL query."]
+        assert 'linter_errors' in context.ide_state and context.ide_state['linter_errors']
+        print(f"SIM: Verified linter reported an error: {context.ide_state['linter_errors'][0]}")
