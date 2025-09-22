@@ -185,4 +185,3 @@ class BayesianSimilarityStrategy(RetrievalStrategy):
         noisy_query = np.random.normal(query_embedding, np.sqrt(posterior_variance), size=query_embedding.shape)
 
         return CosineSimilarityStrategy().calculate_similarity(noisy_query, doc_embeddings)
-

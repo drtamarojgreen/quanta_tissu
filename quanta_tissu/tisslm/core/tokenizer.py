@@ -24,16 +24,18 @@ class Tokenizer:
             # Construct the path to the trained tokenizer files
             tokenizer_prefix = os.path.join(os.path.dirname(system_config["model_save_path"]), "trained_tokenizer")
         
+        self.load_successful = False
         try:
             self.bpe_tokenizer.load(tokenizer_prefix)
+            self.load_successful = True
         except FileNotFoundError:
             print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using tisslm/train_bpe.py.")
             self.bpe_tokenizer.vocab = None # Explicitly set to None on failure
             self.bpe_tokenizer.merges = None # Explicitly set to None on failure
+            # vocab and merges will remain as empty dicts from BPETokenizer.__init__
         except Exception as e:
             print(f"Error loading BPE tokenizer from {tokenizer_prefix}: {e}")
             # Handle other potential loading errors, e.g., malformed files
-            # For now, we'll proceed with an empty tokenizer, which will likely cause errors later.
 
         # Special tokens, assuming they are part of the BPE vocabulary or handled externally
         # For BPE, <unk> and <pad> might be handled implicitly or added during training.
@@ -41,8 +43,12 @@ class Tokenizer:
         self.unk_token = "<unk>"
         self.pad_token = "<pad>"
         # These might need to be mapped to actual BPE token IDs if they are not directly bytes
-        self.unk_token_id = self.bpe_tokenizer.encode(self.unk_token)[0] if self.bpe_tokenizer.encode(self.unk_token) else 0 # Fallback
-        self.pad_token_id = self.bpe_tokenizer.encode(self.pad_token)[0] if self.bpe_tokenizer.encode(self.pad_token) else 1 # Fallback
+        if self.load_successful:
+            self.unk_token_id = self.bpe_tokenizer.encode(self.unk_token)[0] if self.bpe_tokenizer.encode(self.unk_token) else 0
+            self.pad_token_id = self.bpe_tokenizer.encode(self.pad_token)[0] if self.bpe_tokenizer.encode(self.pad_token) else 1
+        else:
+            self.unk_token_id = 0  # Fallback ID
+            self.pad_token_id = 1  # Fallback ID
 
     def tokenize(self, text: str) -> np.ndarray:
         """

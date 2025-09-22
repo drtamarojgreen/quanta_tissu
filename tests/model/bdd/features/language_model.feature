@@ -10,17 +10,23 @@ Feature: Comprehensive Language Model Tests
     Then the generated text with and without the cache should be identical
     And the generation with the KV cache should be faster than without it
 
-  Scenario Outline: The model can generate text using different standard sampling methods
+  Scenario: The model can generate text using greedy sampling
     Given a trained language model and tokenizer
-    When I generate <length> tokens from the prompt "<prompt>" using the "<method>" sampling method
+    When I generate 30 tokens from the prompt "The meaning of life is" using the "greedy" sampling method
     Then the generated text should not be empty
     And the generated text should contain a plausible number of words based on the token length
 
-    Examples:
-      | prompt                                   | method  | length |
-      | The meaning of life is                   | greedy  | 30     |
-      | The future of humanity is                | nucleus | 30     |
-      | In a shocking turn of events, scientists | top_k   | 30     |
+  Scenario: The model can generate text using nucleus sampling
+    Given a trained language model and tokenizer
+    When I generate 30 tokens from the prompt "The future of humanity is" using the "nucleus" sampling method
+    Then the generated text should not be empty
+    And the generated text should contain a plausible number of words based on the token length
+
+  Scenario: The model can generate text using top_k sampling
+    Given a trained language model and tokenizer
+    When I generate 30 tokens from the prompt "In a shocking turn of events, scientists" using the "top_k" sampling method
+    Then the generated text should not be empty
+    And the generated text should contain a plausible number of words based on the token length
 
   Scenario: The RuleEnforcer can clean up generated text
     Given a trained language model and tokenizer
@@ -51,14 +57,20 @@ Feature: Comprehensive Language Model Tests
 
   # --- Advanced Sampling ---
 
-  Scenario Outline: The model can generate text with a specific sentiment
+  Scenario: The model can generate text with a positive sentiment
     Given a trained language model and tokenizer
     And a sentiment analyzer
-    When I generate 30 tokens from the prompt "<prompt>" with a "<sentiment>" sentiment of strength 0.8
-    Then the generated text should have a "<sentiment>" sentiment
+    When I generate 30 tokens from the prompt "I feel very" with a "positive" sentiment of strength 0.8
+    Then the generated text should have a "positive" sentiment
 
-    Examples:
-      | prompt              | sentiment |
-      | I feel very         | positive  |
-      | This is a very      | negative  |
-      | The situation is    | neutral   |
+  Scenario: The model can generate text with a negative sentiment
+    Given a trained language model and tokenizer
+    And a sentiment analyzer
+    When I generate 30 tokens from the prompt "This is a very" with a "negative" sentiment of strength 0.8
+    Then the generated text should have a "negative" sentiment
+
+  Scenario: The model can generate text with a neutral sentiment
+    Given a trained language model and tokenizer
+    And a sentiment analyzer
+    When I generate 30 tokens from the prompt "The situation is" with a "neutral" sentiment of strength 0.8
+    Then the generated text should have a "neutral" sentiment
