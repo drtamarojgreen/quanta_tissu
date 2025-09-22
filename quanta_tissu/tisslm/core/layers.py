@@ -237,3 +237,48 @@ class FeedForward:
 
     def parameters(self):
         return [self.W1, self.b1, self.W2, self.b2]
+
+
+class Dropout:
+    """
+    Applies Dropout regularization.
+    """
+    def __init__(self, p=0.5):
+        if not (0 <= p < 1):
+            raise ValueError("Dropout probability must be in [0, 1)")
+        self.p = p
+        self.mask = None
+
+    def __call__(self, x, training=True):
+        """
+        Forward pass for Dropout.
+
+        Args:
+            x: The input data.
+            training: If True, applies dropout. Otherwise, returns the input untouched.
+
+        Returns:
+            The output after applying dropout and the cache for backpropagation.
+        """
+        if not training or self.p == 0:
+            self.mask = None
+            cache = {'mask': self.mask}
+            return x, cache
+
+        # Inverted dropout: scale up during training
+        self.mask = (np.random.rand(*x.shape) > self.p) / (1.0 - self.p)
+        out = x * self.mask
+        cache = {'mask': self.mask}
+        return out, cache
+
+    def backward(self, d_out, cache):
+        """
+        Backward pass for Dropout.
+        """
+        mask = cache.get('mask')
+        if mask is None: # If not in training mode or p=0
+            return d_out
+        return d_out * mask
+
+    def parameters(self):
+        return []
