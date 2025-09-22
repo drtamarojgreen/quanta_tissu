@@ -1,0 +1,17 @@
+{
+  "name": "tissdb-lite",
+  "version": "0.1.0",
+  "description": "A lightweight, in-memory database and Wix Data query engine for the Tiss ecosystem.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node lite/test.js"
+  },
+  "keywords": [
+    "tissdb",
+    "wix",
+    "velo",
+    "database"
+  ],
+  "author": "",
+  "license": "ISC"
+}

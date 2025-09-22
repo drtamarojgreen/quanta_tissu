@@ -16,7 +16,8 @@ def register_steps(runner):
 
     @runner.step(r'^When I execute the TissQL query "(.*)"$')
     def execute_tissql_query_from_string(context, query_string):
-        match = re.search(r'(?:FROM|UPDATE|INSERT INTO)\s+(\w+)', query_string, re.IGNORECASE)
+        # This regex now handles INSERT with an optional INTO clause.
+        match = re.search(r'(?:FROM|UPDATE|INSERT(?: INTO)?)\s+([a-zA-Z0-9_]+)', query_string, re.IGNORECASE)
         if not match:
             assert match, f"Could not find collection name in query: {query_string}"
 
