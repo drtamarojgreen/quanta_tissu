@@ -45,11 +45,14 @@ std::optional<DateTime> parse_datetime_string(const std::string& s) {
     std::stringstream ss(s);
     ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
     if (!ss.fail()) {
-        // The tm_isdst field is not set by get_time, which can cause mktime to be off by an hour.
-        // We assume UTC and use timegm on platforms that support it, or a more complex conversion.
-        // For simplicity here, we'll use mktime and acknowledge it might be affected by local timezone DST.
-        tm.tm_isdst = -1; // Let mktime determine DST
-        return std::chrono::system_clock::from_time_t(std::mktime(&tm));
+        time_t time;
+        #ifdef _WIN32
+            time = _mkgmtime(&tm);
+        #else
+            time = timegm(&tm);
+        #endif
+        if (time == -1) return std::nullopt;
+        return std::chrono::system_clock::from_time_t(time);
     }
     return std::nullopt;
 }
@@ -154,7 +157,11 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             while (i + 1 < query_string.length() && (std::isdigit(query_string[i + 1]) || query_string[i + 1] == '.')) {
                 i++;
             }
-            new_tokens.push_back(Token{Token::Type::NUMERIC_LITERAL, query_string.substr(start, i - start + 1)});
+            std::string val = query_string.substr(start, i - start + 1);
+            if (val.empty()) {
+                throw std::runtime_error("Tokenizer created an empty numeric literal.");
+            }
+            new_tokens.push_back(Token{Token::Type::NUMERIC_LITERAL, val});
         } else if (query_string[i] == '\'') {
             size_t start = ++i;
             while (i < query_string.length() && query_string[i] != '\'') {
@@ -163,7 +170,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             new_tokens.push_back(Token{Token::Type::STRING_LITERAL, query_string.substr(start, i - start)});
         } else if (query_string[i] == '=' || query_string[i] == '!' || query_string[i] == '<' || query_string[i] == '>' || query_string[i] == '+' || query_string[i] == '-' || query_string[i] == '*' || query_string[i] == '/') {
             size_t start = i;
-            if (i + 1 < query_string.length() && query_string[i + 1] == '=') {
+            if (i + 1 < query_string.length() && query_string[i + 1] == '=') { // Handles ==, !=, <=, >=
                 i++;
             }
             new_tokens.push_back(Token{Token::Type::OPERATOR, query_string.substr(start, i - start + 1)});

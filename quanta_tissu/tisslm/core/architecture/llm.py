@@ -1,7 +1,7 @@
 import numpy as np
 import logging
 
-from ..layers import MultiHeadAttention, FeedForward, LayerNorm, Dropout
+from ..layers import MultiHeadAttention, FeedForward, RMSNorm, Dropout, precompute_rope_freqs
 from ..parameter import Parameter
 from ..model_error_handler import InputValidationError
 
@@ -15,16 +15,16 @@ class TransformerBlock:
     def __init__(self, d_model, num_heads, d_ff, dropout_rate, name=""):
         self.mha = MultiHeadAttention(d_model, num_heads, name=f"{name}.mha")
         self.ffn = FeedForward(d_model, d_ff, name=f"{name}.ffn")
-        self.ln1 = LayerNorm(d_model, name=f"{name}.ln1")
-        self.ln2 = LayerNorm(d_model, name=f"{name}.ln2")
+        self.ln1 = RMSNorm(d_model, name=f"{name}.ln1")
+        self.ln2 = RMSNorm(d_model, name=f"{name}.ln2")
         self.attn_dropout = Dropout(dropout_rate)
         self.ffn_dropout = Dropout(dropout_rate)
 
-    def __call__(self, x, mask=None, kv_cache=None, training=True):
+    def __call__(self, x, rope_freqs, mask=None, kv_cache=None, training=True):
         """
         Forward pass for the Transformer block, returning output and cache.
         """
-        attn_out, mha_cache = self.mha(x, mask=mask, kv_cache=kv_cache)
+        attn_out, mha_cache = self.mha(x, rope_freqs, mask=mask, kv_cache=kv_cache)
         attn_out, attn_dropout_cache = self.attn_dropout(attn_out, training=training)
 
         x_plus_attn = x + attn_out
@@ -94,27 +94,6 @@ class TransformerBlock:
     def parameters(self):
         return self.mha.parameters() + self.ffn.parameters() + self.ln1.parameters() + self.ln2.parameters()
 
-class PositionalEncoding:
-    """
-    Injects positional information into the input embeddings.
-    """
-    def __init__(self, d_model, max_len=5000):
-        pe = np.zeros((max_len, d_model))
-        position = np.arange(0, max_len)[:, np.newaxis]
-        div_term = np.exp(np.arange(0, d_model, 2) * (-np.log(10000.0) / d_model))
-        pe[:, 0::2] = np.sin(position * div_term)
-        pe[:, 1::2] = np.cos(position * div_term)
-        self.pe = pe
-
-    def __call__(self, x, start_pos=0):
-        seq_len = x.shape[1]
-        max_len = self.pe.shape[0]
-        if start_pos + seq_len > max_len:
-            raise InputValidationError(f"Sequence of length {seq_len} at start position {start_pos} exceeds max positional encoding length of {max_len}.")
-
-        positions = np.arange(start_pos, start_pos + seq_len)
-        return x + self.pe[np.newaxis, positions, :]
-
 class Model:
     """
     The core Transformer model architecture.
@@ -127,9 +106,12 @@ class Model:
         d_ff = config["d_ff"]
         n_layer = config["n_layer"]
         dropout_rate = config["dropout_rate"]
+        max_len = config.get("positional_encoding_max_len", 5000)
+
+        d_head = d_model // n_head
+        self.rope_cos_freqs, self.rope_sin_freqs = precompute_rope_freqs(d_head, max_len)
 
         self.embeddings = Parameter(np.random.randn(vocab_size, d_model) / np.sqrt(d_model), name="embeddings")
-        self.pos_encoding = PositionalEncoding(d_model)
         self.dropout = Dropout(dropout_rate)
         self.transformer_blocks = [TransformerBlock(d_model, n_head, d_ff, dropout_rate, name=f"transformer_blocks.{i}") for i in range(n_layer)]
         self.output_proj = Parameter(np.random.randn(d_model, vocab_size) / np.sqrt(d_model), name="output_proj")
@@ -149,12 +131,14 @@ class Model:
             mask = mask[np.newaxis, np.newaxis, :, :]
 
         x = self.embeddings.value[token_ids]
-        x = self.pos_encoding(x, start_pos=start_pos)
         x, dropout_cache = self.dropout(x, training=training)
+
+        # Pass rope_freqs to each block
+        rope_freqs = (self.rope_cos_freqs[start_pos : start_pos + seq_len], self.rope_sin_freqs[start_pos : start_pos + seq_len])
 
         for i, block in enumerate(self.transformer_blocks):
             layer_kv_cache = kv_cache[i] if kv_cache is not None else None
-            x, block_cache = block(x, mask=mask, kv_cache=layer_kv_cache, training=training)
+            x, block_cache = block(x, rope_freqs, mask=mask, kv_cache=layer_kv_cache, training=training)
             block_caches.append(block_cache)
 
         logits = x @ self.output_proj.value
