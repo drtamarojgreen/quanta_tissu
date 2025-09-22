@@ -2,14 +2,21 @@ import json
 from quanta_tissu.tisslm.parser.tisslang_parser import TissLangParser, TissLangParserError
 
 def register_steps(runner):
-    @runner.step(r'Given I have a TissLang script with content:(.*)')
-    def given_a_tisslang_script_with_content(context, script_content):
-        # This handles scripts provided on a single line, often with quotes
-        context['script'] = script_content.strip().strip("'\"")
+    @runner.step('Given I have a {language} script with content')
+    def given_a_script_with_content(context, language):
+        """
+        Handles both TissLang and TissLM scripts provided as multiline docstrings.
+        Example:
+            Given I have a TissLang script with content:
+                \"\"\"
+                STEP "My Step" { ... }
+                \"\"\"
+        """
+        if not hasattr(context, 'text') or not context.text:
+            raise ValueError("This step requires a multiline script in a docstring.")
 
-    @runner.step(r'Given a TissLang script:\s*"""\s*([\s\S]*?)"""')
-    def given_a_tisslang_script(context, script):
-        context['script'] = script.strip()
+        context['script'] = context.text.strip()
+        context['language'] = language
 
     @runner.step(r'When I parse the script')
     def when_i_parse_the_script(context):
@@ -183,9 +190,6 @@ def register_steps(runner):
         assert command.get('type') == 'SET_BUDGET', "Current command is not of type SET_BUDGET."
         assert str(command.get('value')) == value, f"Expected value to be '{value}', but got '{command.get('value')}'."
 
-    @runner.step(r'Given I have a TissLM script with content:')
-    def given_a_tisslm_script_with_content(context, script_content):
-        context['script'] = script_content.strip().strip("'\"")
 
     @runner.step(r'And the AST should contain a print statement with the text "(.*)"')
     def and_the_ast_should_contain_print_statement(context, text):

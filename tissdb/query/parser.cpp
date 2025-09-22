@@ -154,7 +154,11 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             while (i + 1 < query_string.length() && (std::isdigit(query_string[i + 1]) || query_string[i + 1] == '.')) {
                 i++;
             }
-            new_tokens.push_back(Token{Token::Type::NUMERIC_LITERAL, query_string.substr(start, i - start + 1)});
+            std::string val = query_string.substr(start, i - start + 1);
+            if (val.empty()) {
+                throw std::runtime_error("Tokenizer created an empty numeric literal.");
+            }
+            new_tokens.push_back(Token{Token::Type::NUMERIC_LITERAL, val});
         } else if (query_string[i] == '\'') {
             size_t start = ++i;
             while (i < query_string.length() && query_string[i] != '\'') {
@@ -163,7 +167,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             new_tokens.push_back(Token{Token::Type::STRING_LITERAL, query_string.substr(start, i - start)});
         } else if (query_string[i] == '=' || query_string[i] == '!' || query_string[i] == '<' || query_string[i] == '>' || query_string[i] == '+' || query_string[i] == '-' || query_string[i] == '*' || query_string[i] == '/') {
             size_t start = i;
-            if (i + 1 < query_string.length() && query_string[i + 1] == '=') {
+            if (i + 1 < query_string.length() && query_string[i + 1] == '=') { // Handles ==, !=, <=, >=
                 i++;
             }
             new_tokens.push_back(Token{Token::Type::OPERATOR, query_string.substr(start, i - start + 1)});
