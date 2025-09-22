@@ -13,11 +13,16 @@ def get_headers(context):
 
 def register_steps(runner):
 
-    @runner.step(r'^a TissDB collection named "(.*)" is available for TissLM$')
+    @runner.step(r'a TissDB collection named "(.*)" is available for TissLM')
     def given_tissdb_collection_is_available(context, collection_name):
+        # This step should probably do more, like configure the TissLM instance
+        # to use this collection. For now, just creating it is enough to fix the test flow.
         headers = get_headers(context)
+        # Ensure the database exists first
+        requests.put(f"{BASE_URL}/{DB_NAME}", headers=headers)
+
         response = requests.put(f"{BASE_URL}/{DB_NAME}/{collection_name}", headers=headers)
-        assert response.status_code in [201, 200, 409] # 409 Conflict is ok if it already exists
+        assert response.status_code in [201, 200, 409] # 201 Created, 200 OK, 409 Conflict is ok if it already exists
         context['collection_name'] = collection_name
 
     @runner.step(r'And the "(.*)" collection contains a document with ID "(.*)" and content (.*)')

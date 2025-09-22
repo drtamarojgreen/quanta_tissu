@@ -581,6 +581,8 @@ void HttpServer::Impl::handle_client(int client_socket) {
             } else if (req.method == "DELETE" && doc_path_parts.empty()) {
                 try {
                     storage_engine.delete_collection(collection_name);
+                    audit_logger_.log({std::chrono::system_clock::now(), token_val, source_ip, Audit::EventType::CollectionDelete,
+                        req.path, true, "Collection '" + collection_name + "' deleted successfully."});
                     send_response(client_socket, "204 No Content", "text/plain", "");
                 } catch (const std::runtime_error& e) {
                     // This is likely "Collection not found"
