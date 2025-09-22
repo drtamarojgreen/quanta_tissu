@@ -102,12 +102,12 @@ class QuantaTissu:
             logger.error(f"Error processing model weights from {path}: {e}", exc_info=True)
             raise ModelProcessingError(f"Failed to process model weights from {path}: {e}") from e
 
-    def forward(self, token_ids, kv_cache=None, start_pos=0):
+    def forward(self, token_ids, kv_cache=None, start_pos=0, training=True):
         """
         Performs a forward pass through the underlying model.
         Delegates to the internal model instance.
         """
-        return self.model.forward(token_ids, kv_cache, start_pos)
+        return self.model.forward(token_ids, kv_cache=kv_cache, start_pos=start_pos, training=training)
 
     def backward(self, d_logits, cache):
         """

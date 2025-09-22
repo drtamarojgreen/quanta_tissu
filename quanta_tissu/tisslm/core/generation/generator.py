@@ -43,7 +43,7 @@ class Generator:
 
         # First, process the entire prompt to populate the model's internal KV cache.
         prompt_array = np.array([current_tokens])
-        logits, _ = self.model.forward(prompt_array, start_pos=0)
+        logits, _ = self.model.forward(prompt_array, start_pos=0, training=False)
 
         for _ in range(n_new_tokens):
             last_logit = logits[:, -1, :]
@@ -67,7 +67,7 @@ class Generator:
             current_tokens.append(next_token)
 
             next_token_array = np.array([[next_token]])
-            logits, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
+            logits, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1, training=False)
 
         return generated_tokens
 

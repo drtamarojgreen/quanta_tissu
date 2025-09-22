@@ -45,11 +45,14 @@ std::optional<DateTime> parse_datetime_string(const std::string& s) {
     std::stringstream ss(s);
     ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
     if (!ss.fail()) {
-        // The tm_isdst field is not set by get_time, which can cause mktime to be off by an hour.
-        // We assume UTC and use timegm on platforms that support it, or a more complex conversion.
-        // For simplicity here, we'll use mktime and acknowledge it might be affected by local timezone DST.
-        tm.tm_isdst = -1; // Let mktime determine DST
-        return std::chrono::system_clock::from_time_t(std::mktime(&tm));
+        time_t time;
+        #ifdef _WIN32
+            time = _mkgmtime(&tm);
+        #else
+            time = timegm(&tm);
+        #endif
+        if (time == -1) return std::nullopt;
+        return std::chrono::system_clock::from_time_t(time);
     }
     return std::nullopt;
 }
