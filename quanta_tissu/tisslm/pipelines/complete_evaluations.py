@@ -15,7 +15,6 @@ from quanta_tissu.tisslm.core.tokenizer import Tokenizer
 from quanta_tissu.tisslm.core.model import QuantaTissu
 from quanta_tissu.tisslm.core.loss import CrossEntropyLoss
 from quanta_tissu.tisslm.core.data import Dataset, load_corpus
-from quanta_tissu.tisslm.core.utils import load_checkpoint
 from quanta_tissu.tisslm.core.generate_text import generate_text # For text_generation_analysis
 from quanta_tissu.tisslm.config import model_config, training_config, tokenizer_config, system_config # Import configs directly
 from quanta_tissu.tisslm.core.knowledge_base import KnowledgeBase
@@ -101,14 +100,10 @@ def main():
             # If a checkpoint path is provided, load the model's weights from it.
             # This allows evaluating a specific state of a trained model.
             logger.info(f"Attempting to load model from checkpoint: {args.checkpoint_path}")
-            # Dummy optimizer is passed because load_checkpoint might expect one,
-            # even if not used for evaluation-only loading.
-            class DummyOptimizer: 
-                def __init__(self): self.lr = 0.0
-                def step(self): pass
-                def zero_grad(self): pass
-            dummy_optimizer = DummyOptimizer()
-            load_checkpoint(model, dummy_optimizer, args.checkpoint_path)
+            # If a checkpoint path is provided, load the model's weights from it.
+            # This allows evaluating a specific state of a trained model.
+            logger.info(f"Attempting to load model from checkpoint: {args.checkpoint_path}")
+            model.load_weights(args.checkpoint_path)
             logger.info("Model and tokenizer initialized and checkpoint loaded successfully.")
         else:
             # If no checkpoint is specified, the model starts with random/default initialized weights.
