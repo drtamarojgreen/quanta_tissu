@@ -47,6 +47,7 @@ model_config = {
     "vocab_size": 8000,  # Will be set dynamically in run_training.py
     "block_size": tokenizer_config["max_len"], # Max sequence length for the model's internal processing.
     "layer_norm_eps": 1e-6, # Epsilon for Layer Normalization to prevent division by zero.
+    "dropout_rate": 0.1,  # The dropout rate for regularization.
     # Max length for positional encodings, tied to tokenizer's max length.
     "positional_encoding_max_len": tokenizer_config["max_len"],
 }
