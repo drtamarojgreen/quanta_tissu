@@ -72,6 +72,19 @@ class TissLangParser:
             else:
                  self.ast.append({'type': 'COMMENT', 'text': line.strip()})
             return
+
+        directive_match = _PATTERNS['DIRECTIVE'].match(line)
+        if directive_match:
+            name = directive_match.group(1)
+            value_str = directive_match.group(2)
+            value = parse_value(value_str)
+            node = {'type': 'DIRECTIVE', 'name': name, 'value': value}
+            if self._current_block is not None:
+                self._current_block.append(node)
+            else:
+                self.ast.append(node)
+            return
+
         if self._state == "IDLE":
             self._handle_idle_state(line)
         elif self._state == "IN_STEP":
@@ -94,19 +107,19 @@ class TissLangParser:
         if task_match:
             self.ast.append({'type': 'TASK', 'description': task_match.group(1)})
             return
-        step_node = handle_step_command(line, self.ast, self._line_number)
-        if step_node:
-            self._state_stack.append(self._state)
-            self._block_stack.append(self._current_block)
-            self._state = "IN_STEP"
-            self._current_block = step_node['commands']
-            return
         setup_node = handle_setup_command(line, self.ast, self._line_number)
         if setup_node:
             self._state_stack.append(self._state)
             self._block_stack.append(self._current_block)
             self._state = "IN_STEP"
             self._current_block = setup_node['commands']
+            return
+        step_node = handle_step_command(line, self.ast, self._line_number)
+        if step_node:
+            self._state_stack.append(self._state)
+            self._block_stack.append(self._current_block)
+            self._state = "IN_STEP"
+            self._current_block = step_node['commands']
             return
         raise TissLangParserError(f"Unexpected command. Expected TASK, STEP, or SETUP.", self._line_number)
 

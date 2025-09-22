@@ -184,6 +184,17 @@ The `ctisslm` component is a from-scratch C++ implementation of a transformer mo
 *   **State**: The implementation is highly incomplete. The `forward` and `backward` passes in the model are placeholders and do not contain functional logic.
 *   **Dependencies**: It has no major external dependencies, but the tokenizer's file loading includes a brittle, hand-written JSON parser.
 
+### 2.2.1. CMake Build Process
+
+The `ctisslm` component is intended to be built using CMake, as defined by its `CMakeLists.txt` file. The key aspects of its build process are:
+
+*   **Core Library**: CMake compiles the primary source files (`ctisslm.cpp` and its headers) into a static or shared library named `ctisslm_lib`. This library encapsulates the model's functionality.
+*   **Source File Aggregation**: While not explicitly listed, other source files like `transformer_components.cpp` are included by `ctisslm.cpp` and are thus compiled as part of the `ctisslm_lib` library. CMake handles resolving these dependencies and ensuring all necessary code is compiled.
+*   **C++ Standard**: The build is configured to use the C++17 standard.
+*   **Test Executable**: The `CMakeLists.txt` also contains a commented-out section for building a test executable, demonstrating how the `ctisslm_lib` would be linked against by another program.
+
+Essentially, CMake is required to build the entire `ctisslm` component into a single, linkable library, managing all its internal source files.
+
 ### 2.3. Development & Deployment Plans
 
 *   **Development**: The component requires a complete overhaul to become functional. The primary development path would be to **replace all manual math with a dedicated library like Eigen** (as used in `cllm`). Alternatively, it could be kept as an educational tool, in which case the focus would be on fixing the compilation errors and completing the placeholder logic to create a slow but functional reference implementation.
@@ -436,6 +447,25 @@ The `c` directory contains a desktop text editor application built using the C++
 25. **Support for more languages in Syntax Highlighter**: Extend `TissSyntaxHighlighter` to support more programming languages.
     *   **Challenge**: Each new language requires a new set of highlighting rules.
     *   **Mitigation**: Design the rule system to be data-driven, loading highlighting rules from configuration files (e.g., JSON or XML) instead of hardcoding them.
+
+---
+
+### 3.1. Alternative: Building a Native Editor
+
+While the provided editor is built with the cross-platform Qt framework, a "native" editor could be built for a specific operating system. This approach trades cross-platform compatibility for a smaller binary size and deeper integration with the OS. The general process involves:
+
+1.  **Platform & Toolkit Selection**:
+    *   **Windows**: Use the Win32 API for C-style development or WinUI/XAML for a more modern C++ approach. This involves creating a window class, a message loop, and handling UI events manually.
+    *   **macOS**: Use the Cocoa framework with Objective-C or Swift, creating an `NSWindow` and using an `NSTextView` as the base for the editor.
+    *   **Linux**:
+        *   **GUI**: Use a toolkit like GTK+ (C-based) or a simpler C++ library like FLTK.
+        *   **Terminal (TUI)**: For a terminal-based editor (like Vim or Emacs), use a library like `ncurses` to control the cursor, colors, and input/output directly in the terminal.
+
+2.  **Core Component Implementation**:
+    *   **Text Buffer**: The heart of the editor. A performant data structure like a **Rope** (for fast edits in large files) or a **Gap Buffer** (simpler, good for typical editing patterns) is needed to store and manage the document's text.
+    *   **Rendering Engine**: This component is responsible for drawing the text from the buffer to the screen. In a GUI, this means drawing glyphs to a canvas. In a TUI, it means writing characters to the terminal screen via `ncurses`.
+    *   **Syntax Parser**: A system to parse the text and identify tokens (keywords, strings, comments) for syntax highlighting. This can be implemented with regular expressions for simple languages or a more formal parser for complex ones.
+    *   **Linter/LLM Integration**: A mechanism to run the `cllm` engine in a background thread or process. It would receive the text from the buffer, send it to the LLM for analysis, and then receive back diagnostics to be displayed in the UI (e.g., as underlines or in a status bar).
 
 ---
 
