@@ -1,6 +1,8 @@
 import numpy as np
 import sys
 import os
+import subprocess
+import json
 
 # Adjust the path to import from the parent directory's 'tisslm' module
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -102,6 +104,60 @@ TissQL: """
 
         return tissql_query
 
+    def execute_on_lite(self, tissql_query: str) -> dict:
+        """
+        Executes a TissQL query on the tissdb-lite Node.js script.
+
+        Args:
+            tissql_query: The TissQL query to execute.
+
+        Returns:
+            A dictionary containing the query result or an error message.
+        """
+        if not tissql_query:
+            return {"error": "Cannot execute an empty query."}
+
+        # The node script is in the `lite` directory, relative to the repo root.
+        # We need to construct the path to it.
+        # __file__ is quanta_tissu/analytics/translator.py
+        # We need to go up two levels to the repo root.
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        script_path = os.path.join(repo_root, 'lite', 'query_executor.js')
+
+        if not os.path.exists(script_path):
+            return {"error": f"Query executor not found at {script_path}"}
+
+        process = None
+        try:
+            process = subprocess.Popen(
+                ['node', script_path],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8'
+            )
+
+            stdout, stderr = process.communicate(input=tissql_query + '\\n', timeout=10)
+
+            if process.returncode != 0:
+                return {"error": "Query executor script failed", "details": stderr}
+
+            # The script might return an error object or an array of results.
+            try:
+                result = json.loads(stdout)
+                return result
+            except json.JSONDecodeError:
+                return {"error": "Failed to decode JSON from query executor", "raw_output": stdout}
+
+        except subprocess.TimeoutExpired:
+            if process:
+                process.kill()
+            return {"error": "Query execution timed out."}
+        except Exception as e:
+            return {"error": f"An unexpected error occurred: {str(e)}"}
+
+
 if __name__ == '__main__':
     # Example usage of the NLQTranslator
     # Note: This requires the environment to be fully set up first.
@@ -122,8 +178,24 @@ if __name__ == '__main__':
     print("Running NLQTranslator example...")
     translator = NLQTranslator()
 
-    print("\n--- Example 1: Simple Query ---")
-    question1 = "how many records are in the telemetry collection"
-    tissql1 = translator.translate(question1)
+    print("\n--- Example 1: Translate and Execute ---")
+    question1 = "show me all developers"
     print(f"Question: '{question1}'")
-    print(f"TissQL: {tissql1}")
+
+    # 1. Translate NLQ to TissQL
+    tissql1 = translator.translate(question1, schema={"users": ["name", "age", "role", "status"]})
+    print(f"Translated TissQL: {tissql1}")
+
+    # 2. Execute the TissQL on tissdb-lite
+    print("\nExecuting query on tissdb-lite...")
+    results = translator.execute_on_lite(tissql1)
+
+    # 3. Print the results
+    print("Execution Results:")
+    if "error" in results:
+        print(f"  Error: {results['error']}")
+        if "details" in results:
+            print(f"  Details: {results['details']}")
+    else:
+        # Using json.dumps for pretty printing the list of dicts
+        print(json.dumps(results, indent=2))
