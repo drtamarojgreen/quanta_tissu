@@ -382,33 +382,9 @@ void HttpServer::Impl::handle_client(int client_socket) {
     }
     // --- End RBAC Check ---
 
-    size_t content_length = 0;
-    if (req.headers.count("content-length")) {
-        try {
-            content_length = std::stoi(req.headers.at("content-length"));
-        } catch (const std::exception& e) {
-            LOG_WARNING("Could not parse Content-Length header: " + std::string(e.what()));
-        }
-    }
-
     size_t body_start = request_str.find("\r\n\r\n");
     if (body_start != std::string::npos) {
         req.body = request_str.substr(body_start + 4);
-        // The initial recv might not have read the entire body if it's large.
-        // We need to continue reading until we have 'content_length' bytes.
-        while (req.body.length() < content_length) {
-            int bytes_received = recv(client_socket, buffer, 4095, 0);
-            if (bytes_received <= 0) {
-                // Connection closed or error
-                break;
-            }
-            req.body.append(buffer, bytes_received);
-        }
-        // It's possible we read more than the content-length (e.g., pipelined request)
-        // so we truncate the body to the correct length.
-        if (req.body.length() > content_length) {
-            req.body.resize(content_length);
-        }
     }
 
     std::vector<std::string> path_parts;
