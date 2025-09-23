@@ -32,13 +32,23 @@ def generate_with_model(model, tokenizer, prompt, length, method, **kwargs):
     if method == "nucleus" and "top_p" not in kwargs:
         kwargs["top_p"] = 0.9
     prompt_tokens = tokenizer.tokenize(prompt).tolist()
-    generated_tokens = model.sample(
-        prompt_tokens=prompt_tokens,
-        n_new_tokens=length,
-        method=method,
-        tokenizer=tokenizer,  # Pass tokenizer for methods that need it
-        **kwargs
-    )
+
+    if method in ["dynamic_token_revision", "bayesian_word_expansion"]:
+        generated_tokens = model.alg_generator.sample(
+            prompt_tokens=prompt_tokens,
+            n_new_tokens=length,
+            method=method,
+            tokenizer=tokenizer,  # Pass tokenizer for methods that need it
+            **kwargs
+        )
+    else:
+        generated_tokens = model.generator.sample(
+            prompt_tokens=prompt_tokens,
+            n_new_tokens=length,
+            method=method,
+            tokenizer=tokenizer,  # Pass tokenizer for methods that need it
+            **kwargs
+        )
     return tokenizer.detokenize(np.array(generated_tokens))
 
 def run_experimental_sampling_tests(model, tokenizer):

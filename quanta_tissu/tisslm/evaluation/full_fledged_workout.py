@@ -25,6 +25,9 @@ from quanta_tissu.tisslm.evaluation.full_fledged_workout03 import run_experiment
 from quanta_tissu.tisslm.evaluation.full_fledged_workout04 import run_standard_generation_tests, generate_with_model as generate_with_model_04, TEST_CONFIGURATIONS
 from quanta_tissu.tisslm.evaluation.full_fledged_workout05 import run_rule_enforcement_test, generate_with_model as generate_with_model_05
 from quanta_tissu.tisslm.evaluation.full_fledged_workout06 import run_advanced_analysis_tests
+from quanta_tissu.tisslm.evaluation.full_fledged_workout07 import run_advanced_analysis_tests as run_advanced_analysis_tests_07
+from quanta_tissu.tisslm.evaluation.full_fledged_workout08 import run_tissdb_lite_tests
+from quanta_tissu.tisslm.evaluation.full_fledged_workout09 import run_tisslang_parser_tests
 
 # --- Configuration ---
 TEST_TOKENIZER_DIR = os.path.join(project_root, "test_tokenizer")
@@ -84,6 +87,19 @@ def main():
         else:
             full_report.append("\n--- Test 6: Advanced Text Analysis (Grammar, Lexicon, Context) ---")
             full_report.append("  [SKIPPED] Test 6 skipped because Test 4 (Standard Generation) was not run.")
+
+    if args.test == "7" or args.test == "all":
+        if generated_texts: # Only run if generated_texts is available from test 4
+            full_report.extend(run_advanced_analysis_tests_07(generated_texts))
+        else:
+            full_report.append("\n--- Test 7: Advanced Text Analysis (Grammar, Lexicon, Context) ---")
+            full_report.append("  [SKIPPED] Test 7 skipped because Test 4 (Standard Generation) was not run.")
+
+    if args.test == "8" or args.test == "all":
+        full_report.extend(run_tissdb_lite_tests())
+
+    if args.test == "9" or args.test == "all":
+        full_report.extend(run_tisslang_parser_tests())
 
     # --- Final Report ---
     print("\n" + "="*80)

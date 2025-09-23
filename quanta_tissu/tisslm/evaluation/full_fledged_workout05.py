@@ -25,7 +25,7 @@ def generate_with_model(model, tokenizer, prompt, length, method, **kwargs):
     if method == "nucleus" and "top_p" not in kwargs:
         kwargs["top_p"] = 0.9
     prompt_tokens = tokenizer.tokenize(prompt).tolist()
-    generated_tokens = model.sample(
+    generated_tokens = model.generator.sample(
         prompt_tokens=prompt_tokens,
         n_new_tokens=length,
         method=method,

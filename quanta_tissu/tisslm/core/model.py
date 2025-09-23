@@ -102,20 +102,6 @@ class QuantaTissu:
             logger.error(f"Error processing model weights from {path}: {e}", exc_info=True)
             raise ModelProcessingError(f"Failed to process model weights from {path}: {e}") from e
 
-    def forward(self, token_ids, kv_cache=None, start_pos=0, training=True):
-        """
-        Performs a forward pass through the underlying model.
-        Delegates to the internal model instance.
-        """
-        return self.model.forward(token_ids, kv_cache=kv_cache, start_pos=start_pos, training=training)
-
-    def backward(self, d_logits, cache):
-        """
-        Performs a backward pass through the underlying model.
-        Delegates to the internal model instance.
-        """
-        self.model.backward(d_logits, cache)
-
     @property
     def embeddings(self):
         """
@@ -123,42 +109,9 @@ class QuantaTissu:
         """
         return self.model.embeddings
 
-    def sample(self, prompt_tokens, n_new_tokens, **kwargs):
+    def forward(self, token_ids, kv_cache=None, start_pos=0):
         """
-        Generates text by dynamically dispatching to the appropriate generator.
-
-        If experimental parameters like 'query_embedding', 'beam_width', etc.,
-        are present in kwargs, it uses the AlgorithmicGenerator. Otherwise, it uses
-        the standard Generator, which supports sentiment biasing.
-
-        Args:
-            prompt_tokens (list[int]): The initial sequence of token IDs.
-            n_new_tokens (int): The number of new tokens to generate.
-            **kwargs: Additional arguments for the generator, e.g., method, 
-                      temperature, query_embedding, sentiment_bias.
-            
-        Returns:
-            list[int]: The list of newly generated token IDs.
+        Performs a forward pass through the underlying model.
+        Delegates to the internal model instance.
         """
-        # Define keys that are specific to the AlgorithmicGenerator (excluding method name itself)
-        alg_specific_kwargs = ['query_embedding', 'hessian_matrix', 'beam_width', 'tau', 'eta']
-        
-        # Check if the method is one of the algorithmic ones, or if any alg-specific kwargs are present
-        use_algorithmic_generator = kwargs.get('method') in ['dynamic_token_revision', 'bayesian_word_expansion'] or \
-                                    any(key in kwargs for key in alg_specific_kwargs)
-        
-        if use_algorithmic_generator:
-            logger.debug("Dispatching to AlgorithmicGenerator.")
-            return self.alg_generator.sample(
-                prompt_tokens,
-                n_new_tokens,
-                **kwargs
-            )
-        else:
-            logger.debug("Dispatching to standard Generator.")
-            # The standard generator accepts sentiment_bias, which will be in kwargs if provided.
-            return self.generator.sample(
-                prompt_tokens, 
-                n_new_tokens, 
-                **kwargs
-            )
+        return self.model.forward(token_ids, kv_cache, start_pos)
