@@ -7,7 +7,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
 sys.path.insert(0, project_root)
 
-from quanta_tissu.tisslm.core.db.lite_client import TissDBLiteClient
+from quanta_tissu.tisslm.core.lite_client import TissDBLiteClient
 
 def run_tissdb_lite_tests():
     report = ["\n--- Test 8: TissDB-Lite (JavaScript) Integration ---"]
