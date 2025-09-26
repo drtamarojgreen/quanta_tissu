@@ -5,7 +5,8 @@ from datetime import datetime
 
 from .db.client import TissDBClient
 from .embedding.embedder import Embedder
-from .retrieval.strategy import RetrievalStrategy, CosineSimilarityStrategy
+from .retrieval.strategy import RetrievalStrategy
+from .retrieval.semantic import CosineSimilarityStrategy
 from .retrieval.chunking import ChunkingStrategy
 from .model_error_handler import ModelProcessingError, InputValidationError
 from .system_error_handler import DatabaseConnectionError # Import DatabaseConnectionError
