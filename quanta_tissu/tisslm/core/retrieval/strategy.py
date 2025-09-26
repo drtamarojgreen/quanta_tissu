@@ -20,14 +20,7 @@ class RetrievalStrategy(ABC):
         """
         pass
 
-class CosineSimilarityStrategy(RetrievalStrategy):
-    """
-    Calculates similarity using cosine similarity.
-    """
-    def calculate_similarity(self, query_embedding, doc_embeddings, **kwargs):
-        query_norm = np.linalg.norm(query_embedding)
-        doc_norms = np.linalg.norm(doc_embeddings, axis=1)
-        return np.dot(doc_embeddings, query_embedding) / (doc_norms * query_norm)
+
 
 class BM25RetrievalStrategy(RetrievalStrategy):
     """

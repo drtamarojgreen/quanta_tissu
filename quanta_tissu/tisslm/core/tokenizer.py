@@ -16,25 +16,20 @@ class Tokenizer:
     Handles conversion between text and token IDs.
     """
     
-    def __init__(self, tokenizer_path=None):
+    def __init__(self, tokenizer_prefix=None):
         self.bpe_tokenizer = BPETokenizer()
-        if tokenizer_path:
-            tokenizer_prefix = tokenizer_path
-        else:
-            # Construct the path to the trained tokenizer files
-            tokenizer_prefix = os.path.join(os.path.dirname(system_config["model_save_path"]), "trained_tokenizer")
         
-        self.load_successful = False
-        try:
-            self.bpe_tokenizer.load(tokenizer_prefix)
-            self.load_successful = True
-        except FileNotFoundError:
-            print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using tisslm/train_bpe.py.")
-            # On failure, the bpe_tokenizer will retain its default empty vocab and merges,
-            # preventing crashes and allowing basic operations to fail gracefully (e.g., returning empty lists).
-        except Exception as e:
-            print(f"Error loading BPE tokenizer from {tokenizer_prefix}: {e}")
-            # Handle other potential loading errors, e.g., malformed files
+        if tokenizer_prefix:
+            self.load_successful = False
+            try:
+                self.bpe_tokenizer.load(tokenizer_prefix)
+                self.load_successful = True
+            except FileNotFoundError:
+                print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using tisslm/train_bpe.py.")
+            except Exception as e:
+                print(f"Error loading BPE tokenizer from {tokenizer_prefix}: {e}")
+        else:
+            print("Warning: No tokenizer prefix provided. Tokenizer will be initialized empty.")
 
         # Special tokens, assuming they are part of the BPE vocabulary or handled externally
         # For BPE, <unk> and <pad> might be handled implicitly or added during training.

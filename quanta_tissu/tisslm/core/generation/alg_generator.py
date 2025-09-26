@@ -9,7 +9,7 @@ print(f"DEBUG: Loading alg_generator.py from {__file__}")
 
 from ..layers import softmax
 from ..model_error_handler import ConfigurationError
-from ..retrieval.strategy import BayesianSimilarityStrategy # Moved import
+from ..retrieval.semantic import BayesianSimilarityStrategy # Moved import
 
 logger = logging.getLogger(__name__)
 
