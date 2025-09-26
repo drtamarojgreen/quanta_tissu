@@ -1,6 +1,39 @@
+const fs = require('fs');
+const path = require('path');
+
+const DATA_DIR = path.join(__dirname, 'lite_data');
+const DATA_FILE = path.join(DATA_DIR, 'tissdb.json');
+
 class TissDBLite {
     constructor() {
         this.collections = {};
+        this._loadData();
+    }
+
+    _loadData() {
+        if (!fs.existsSync(DATA_DIR)) {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+        }
+        if (fs.existsSync(DATA_FILE)) {
+            try {
+                const data = fs.readFileSync(DATA_FILE, 'utf8');
+                this.collections = JSON.parse(data);
+            } catch (e) {
+                console.error('Error loading TissDBLite data:', e.message);
+                this.collections = {}; // Reset on error
+            }
+        }
+    }
+
+    _saveData() {
+        try {
+            if (!fs.existsSync(DATA_DIR)) {
+                fs.mkdirSync(DATA_DIR, { recursive: true });
+            }
+            fs.writeFileSync(DATA_FILE, JSON.stringify(this.collections, null, 2), 'utf8');
+        } catch (e) {
+            console.error('Error saving TissDBLite data:', e.message);
+        }
     }
 
     /**
@@ -20,6 +53,7 @@ class TissDBLite {
      */
     createCollection(name) {
         this.collections[name] = [];
+        this._saveData();
     }
 
     /**
@@ -39,6 +73,7 @@ class TissDBLite {
             _updatedDate: new Date().toISOString(),
         };
         this.collections[collectionName].push(newItem);
+        this._saveData();
         return newItem;
     }
 
@@ -80,6 +115,7 @@ class TissDBLite {
             _updatedDate: new Date().toISOString(),
         };
         this.collections[collectionName][index] = updatedItem;
+        this._saveData();
         return updatedItem;
     }
 
@@ -119,6 +155,7 @@ class TissDBLite {
             this.collections[collectionName].push(newItem);
             insertedItems.push(newItem);
         }
+        this._saveData();
         return insertedItems;
     }
 

@@ -22,10 +22,10 @@ FINAL_CHECKPOINT_PATH = os.path.join(TEST_MODEL_DIR, "checkpoint_step_50000.npz"
 
 # --- Expanded Test Configurations ---
 KV_CACHE_TEST_SCENARIOS = [
-    {"prompt": "The laws of physics state that", "tokens": 20, "description": "Short physics prompt"},
-    {"prompt": "In the beginning of the universe, there was nothing but darkness and void", "tokens": 50, "description": "Medium cosmology prompt"},
-    {"prompt": "The development of artificial intelligence has progressed rapidly in recent years, with breakthroughs in machine learning, natural language processing, and computer vision leading to", "tokens": 100, "description": "Long AI development prompt"},
-    {"prompt": "Once upon a time in a distant galaxy far from Earth, there lived a civilization of beings who had mastered the art of interstellar travel and communication across vast distances", "tokens": 150, "description": "Extended narrative prompt"},
+    {"prompt": "The laws of physics state that", "tokens": 80, "description": "Short physics prompt"},
+    {"prompt": "In the beginning of the universe, there was nothing but darkness and void", "tokens": 200, "description": "Medium cosmology prompt"},
+    {"prompt": "The development of artificial intelligence has progressed rapidly in recent years, with breakthroughs in machine learning, natural language processing, and computer vision leading to", "tokens": 400, "description": "Long AI development prompt"},
+    {"prompt": "Once upon a time in a distant galaxy far from Earth, there lived a civilization of beings who had mastered the art of interstellar travel and communication across vast distances", "tokens": 600, "description": "Extended narrative prompt"},
 ]
 
 GENERATION_METHODS = [
@@ -80,10 +80,15 @@ def run_single_kv_cache_test(model, tokenizer, prompt, n_new_tokens, method_conf
         elif method_config["method"] == "nucleus":
             temp = method_config["params"].get("temperature", 1.0)
             top_p = method_config["params"].get("top_p", 0.9)
-            probs = softmax(last_logit, temperature=temp)
+
+            probs = softmax(last_logit, temperature=temp)[0]
+
+
             
             # Nucleus sampling
             sorted_indices = np.argsort(probs)[::-1]
+
+
             sorted_probs = probs[sorted_indices]
             cumulative_probs = np.cumsum(sorted_probs)
             cutoff_idx = np.where(cumulative_probs >= top_p)[0][0]
@@ -99,7 +104,6 @@ def run_single_kv_cache_test(model, tokenizer, prompt, n_new_tokens, method_conf
         next_token_array = np.array([[next_token]])
         # The start_pos tells the model to recompute context from scratch
         logits, _ = model.forward(next_token_array, start_pos=len(current_tokens) + i)
-    
     end_time_no_cache = time.time()
     time_no_cache = end_time_no_cache - start_time_no_cache
     
@@ -129,7 +133,7 @@ def run_single_kv_cache_test(model, tokenizer, prompt, n_new_tokens, method_conf
         elif method_config["method"] == "nucleus":
             temp = method_config["params"].get("temperature", 1.0)
             top_p = method_config["params"].get("top_p", 0.9)
-            probs_cache = softmax(last_logit_cache, temperature=temp)
+            probs_cache = softmax(last_logit_cache, temperature=temp)[0]
             
             # Nucleus sampling
             sorted_indices = np.argsort(probs_cache)[::-1]
@@ -259,8 +263,8 @@ def run_kv_cache_test(model, tokenizer):
                 
                 if not test_result['correctness']:
                     report.append(f"      [WARNING] Output mismatch detected!")
-                    report.append(f"        No Cache: '{test_result['generated_text_no_cache'][:50]}...'")
-                    report.append(f"        Cached:   '{test_result['generated_text_cache'][:50]}...'")
+                    report.append(f"        No Cache: '{test_result['generated_text_no_cache']}'")
+                    report.append(f"        Cached:   '{test_result['generated_text_cache']}'")
                 
             except Exception as e:
                 report.append(f"      [ERROR] Test failed: {str(e)}")

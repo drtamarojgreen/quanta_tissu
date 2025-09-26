@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import subprocess
+import time
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..', '..')) # Project root is 4 levels up from here
@@ -13,25 +14,86 @@ logger = logging.getLogger(__name__)
 class TissDBLiteClient:
     """
     A client for interacting with the TissDBLite (JavaScript in-memory DB) via Node.js.
+    Manages a single, long-running Node.js process.
     """
     def __init__(self):
-        self.node_script_path = os.path.join(script_dir, "tissdblite_bridge.js") # tissdblite_bridge.js is now in the same directory
+        self.node_script_path = os.path.join(script_dir, "tissdblite_bridge.js")
         self._ensure_bridge_script_exists()
+        self.process = None
 
-class TissDBLiteClient:
-    """
-    A client for interacting with the TissDBLite (JavaScript in-memory DB) via Node.js.
-    """
-    def __init__(self):
-        self.node_script_path = os.path.join(script_dir, "tissdblite_bridge.js") # tissdblite_bridge.js is now in the same directory
-        self._ensure_bridge_script_exists()
+    def start_process(self):
+        if self.process is None or self.process.poll() is not None:
+            logger.info(f"Starting TissDBLite Node.js process: {self.node_script_path}")
+            self.process = subprocess.Popen(
+                ["node", self.node_script_path],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=project_root
+            )
+            # Give Node.js process a moment to start up
+            time.sleep(0.1)
+            logger.info("TissDBLite Node.js process started.")
+
+    def stop_process(self):
+        if self.process and self.process.poll() is None:
+            logger.info("Stopping TissDBLite Node.js process.")
+            self.process.stdin.close()
+            self.process.wait(timeout=5) # Wait for process to terminate
+            if self.process.poll() is None: # If still running, terminate forcefully
+                self.process.terminate()
+                self.process.wait(timeout=1)
+            if self.process.poll() is None:
+                self.process.kill()
+            self.process = None
+            logger.info("TissDBLite Node.js process stopped.")
+
+    def _execute_node_command(self, command_obj):
+        if self.process is None or self.process.poll() is not None:
+            self.start_process()
+
+        json_command = json.dumps(command_obj)
+        try:
+            self.process.stdin.write(json_command + '\n')
+            self.process.stdin.flush()
+
+            # Read response line by line
+            response_line = self.process.stdout.readline()
+            
+            if response_line:
+                try:
+                    response = json.loads(response_line.strip())
+                    if response.get('status') == 'error':
+                        # Read any remaining stderr output for more context
+                        stderr_output = self.process.stderr.read()
+                        raise DatabaseConnectionError(f"TissDBLite error: {response.get('message')}. Stderr: {stderr_output}")
+                    return response.get('data', True)
+                except json.JSONDecodeError:
+                    stderr_output = self.process.stderr.read()
+                    raise DatabaseConnectionError(f"Invalid JSON response from Node.js: {response_line}. Stderr: {stderr_output}")
+            else:
+                stderr_output = self.process.stderr.read()
+                if stderr_output:
+                    logger.error(f"Node.js script produced empty stdout but had stderr: {stderr_output}")
+                    raise DatabaseConnectionError(f"Empty response from Node.js. Stderr: {stderr_output}")
+                else:
+                    raise DatabaseConnectionError("Empty response from Node.js.")
+
+        except Exception as e:
+            logger.error(f"Error communicating with TissDBLite process: {e}", exc_info=True)
+            self.stop_process() # Stop process on error
+            raise DatabaseConnectionError(f"Error communicating with TissDBLite: {e}") from e
+
+    def __del__(self):
+        self.stop_process()
 
     def _ensure_bridge_script_exists(self):
         # This is a placeholder. In a real scenario, you'd generate or ensure this script is present.
         # For now, we'll create a basic one.
         if not os.path.exists(self.node_script_path):
             bridge_code = """
-const { TissDBLite } = require('../../../../lite/index.js'); // Adjust path as needed
+const { TissDBLite } = require('../../../lite/index.js');
 const db = new TissDBLite();
 
 process.stdin.on('data', (data) => {
@@ -44,6 +106,10 @@ process.stdin.on('data', (data) => {
                 result = { status: 'success', message: 'Collection created.' };
                 break;
             case 'insert':
+                // Ensure collection exists before inserting
+                if (!db.collections[command.collectionName]) {
+                    db.createCollection(command.collectionName);
+                }
                 result = { status: 'success', data: db.insert(command.collectionName, command.item) };
                 break;
             case 'find':
@@ -62,7 +128,7 @@ process.stdin.on('data', (data) => {
             case 'exportCollection':
                 result = { status: 'success', data: db.exportCollection(command.collectionName) };
                 break;
-            case 'deleteDb': // For cleanup, though TissDBLite is in-memory
+            case 'deleteDb':
                 db.collections = {};
                 result = { status: 'success', message: 'In-memory DB cleared.' };
                 break;
@@ -74,11 +140,9 @@ process.stdin.on('data', (data) => {
         process.stderr.write(JSON.stringify({ status: 'error', message: e.message }) + '\n');
     }
 });
-
-process.stdin.on('end', () => {
-    // Optional: perform cleanup or final logging
-});
 """
+            with open(self.node_script_path, "w") as f:
+                f.write(bridge_code)
             with open(self.node_script_path, "w") as f:
                 f.write(bridge_code)
 
@@ -137,7 +201,11 @@ process.stdin.on('end', () => {
                 except json.JSONDecodeError:
                     raise DatabaseConnectionError(f"Invalid JSON response from Node.js: {process.stdout}")
             else:
-                raise DatabaseConnectionError("Empty response from Node.js.")
+                if process.stderr:
+                    logger.error(f"Node.js script produced empty stdout but had stderr: {process.stderr}")
+                    raise DatabaseConnectionError(f"Empty response from Node.js. Stderr: {process.stderr}")
+                else:
+                    raise DatabaseConnectionError("Empty response from Node.js.")
 
         except FileNotFoundError:
             raise DatabaseConnectionError("Node.js executable not found. Please ensure Node.js is installed and in your PATH.")
