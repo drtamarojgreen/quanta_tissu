@@ -5,6 +5,8 @@ import json
 from collections import defaultdict, Counter
 import re
 
+print(f"DEBUG: Loading alg_generator.py from {__file__}")
+
 from ..layers import softmax
 from ..model_error_handler import ConfigurationError
 from ..retrieval.strategy import BayesianSimilarityStrategy # Moved import
@@ -35,6 +37,7 @@ class AlgorithmicGenerator:
                     self.known_words.add(line.strip().lower())
 
     def sample(self, prompt_tokens, n_new_tokens, method="greedy", **kwargs):
+        print(f"DEBUG: AlgorithmicGenerator.sample received method: {method}")
         """Dispatcher for various sampling methods."""
         if method == "dynamic_token_revision":
             return self.dynamic_token_revision_sampling(prompt_tokens, n_new_tokens, **kwargs)
@@ -42,8 +45,19 @@ class AlgorithmicGenerator:
             return self.bayesian_word_expansion_sampling(prompt_tokens, n_new_tokens, **kwargs)
         elif method == "adaptive_sentiment":
             return self.adaptive_sentiment_sampling(prompt_tokens, n_new_tokens, **kwargs)
+        elif method == "explicit_underlying":
+            return self.explicit_underlying_sampling(prompt_tokens, n_new_tokens, **kwargs)
         else:
             return self.iterative_sampling(prompt_tokens, n_new_tokens, method=method, **kwargs)
+
+    def explicit_underlying_sampling(self, prompt_tokens, n_new_tokens, **kwargs):
+        """
+        A new experimental sampling method that explicitly takes an underlying_method
+        and passes it to iterative_sampling.
+        """
+        underlying_method = kwargs.get('underlying_method', 'nucleus')
+        print(f"DEBUG: explicit_underlying_sampling using underlying_method: {underlying_method}")
+        return self.iterative_sampling(prompt_tokens, n_new_tokens, method=underlying_method, **kwargs)
 
     def iterative_sampling(self, prompt_tokens, n_new_tokens, method, **kwargs):
         """Standard iterative sampling loop."""
@@ -215,6 +229,21 @@ class AlgorithmicGenerator:
     def _predict_from_logits(self, logits, method="greedy", **kwargs):
         if logits.ndim > 1:
             logits = np.squeeze(logits)
+
+        # Diagnostic: Print top N logits for greedy method
+        if method == "greedy":
+            top_n = 5
+            top_indices = np.argsort(logits)[::-1][:top_n]
+            top_values = logits[top_indices]
+            
+            # Need tokenizer to convert token IDs to actual tokens
+            tokenizer_instance = kwargs.get('tokenizer')
+            if tokenizer_instance:
+                top_tokens = [tokenizer_instance.get_token(idx) for idx in top_indices]
+                print(f"DEBUG: Top {top_n} logits for greedy method: {list(zip(top_tokens, top_values))}")
+            else:
+                print(f"DEBUG: Top {top_n} logits for greedy method (IDs only): {list(zip(top_indices, top_values))}")
+
         if kwargs.get('past_tokens') and kwargs.get('repetition_penalty', 1.0) != 1.0:
             for token_id in set(kwargs['past_tokens']):
                 if token_id < len(logits):

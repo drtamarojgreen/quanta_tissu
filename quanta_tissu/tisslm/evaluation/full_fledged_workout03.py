@@ -51,13 +51,14 @@ ADAPTIVE_SENTIMENT_TESTS = [
 
 # --- Helper function for text generation ---
 def generate_with_model(model, tokenizer, prompt, length, method, **kwargs):
+    print(f"DEBUG: full_fledged_workout03.generate_with_model received method: {method}")
     """Helper to generate text using model.sample, which uses AlgorithmicGenerator."""
     if method == "nucleus" and "top_p" not in kwargs:
         kwargs["top_p"] = 0.9
     prompt_tokens = tokenizer.tokenize(prompt).tolist()
 
-    if method in ["dynamic_token_revision", "bayesian_word_expansion", "adaptive_sentiment"]:
-        generated_tokens = model.generator.sample(
+    if method in ["dynamic_token_revision", "bayesian_word_expansion", "adaptive_sentiment", "explicit_underlying"]:
+        generated_tokens = model.alg_generator.sample(
             prompt_tokens=prompt_tokens,
             n_new_tokens=length,
             method=method,
@@ -65,7 +66,7 @@ def generate_with_model(model, tokenizer, prompt, length, method, **kwargs):
             **kwargs
         )
     else:
-        generated_tokens = model.generator.sample(
+        generated_tokens = model.alg_generator.sample(
             prompt_tokens=prompt_tokens,
             n_new_tokens=length,
             method=method,
@@ -431,6 +432,22 @@ def run_experimental_sampling_tests(model, tokenizer):
         "adaptive_sentiment": []
     }
     
+    successful_tests = [] # Initialize as an empty list
+    # Tokenizer Diagnostic for 'ould' repetition
+    report.append("\n--- Tokenizer Diagnostic ---")
+    try:
+        ould_token_id = tokenizer.get_token_id('ould')
+        report.append(f'  Token ID for "ould": {ould_token_id}')
+        token_for_id = tokenizer.get_token(ould_token_id)
+        report.append(f'  Token for ID {ould_token_id}: {token_for_id}')
+
+        the_token_id = tokenizer.get_token_id('the')
+        report.append(f'  Token ID for "the": {the_token_id}')
+        token_for_the_id = tokenizer.get_token(the_token_id)
+        report.append(f'  Token for ID {the_token_id}: {token_for_the_id}')
+    except Exception as e:
+        report.append(f"  [ERROR] Tokenizer diagnostic failed: {e}")
+
     # Run Dynamic Token Revision tests
     dtr_report, dtr_results = run_dynamic_token_revision_tests(model, tokenizer)
     report.extend(dtr_report)
@@ -462,7 +479,58 @@ def run_experimental_sampling_tests(model, tokenizer):
         if successful:
             avg_diversity = np.mean([r.get("lexical_diversity", 0) for r in successful])
             avg_time = np.mean([r.get("generation_time", 0) for r in successful])
-            report.append(f"  {method.replace('_', ' ').title()}: {len(successful)}/{len(results)} success, "
-                         f"avg diversity: {avg_diversity:.3f}, avg time: {avg_time:.3f}s")
+            report.append(f"  {method.replace('_', ' ').title()}: {len(successful)}/{len(results)} success, avg diversity: {avg_diversity:.3f}, avg time: {avg_time:.3f}s")
+    # New test for explicit_underlying_sampling
+    report.append("\n  --- Test 3d: Explicit Underlying Sampling ---")
+    report.append("  Running 2 test scenarios\n")
+
+    explicit_scenarios = [
+        {"prompt": "This is a test for", "length": 30, "underlying_method": "greedy"},
+        {"prompt": "Another test for", "length": 50, "underlying_method": "nucleus"},
+    ]
+
+    explicit_successful_tests = [] # Initialize as an empty list for this specific test
+
+    for i, scenario in enumerate(explicit_scenarios):
+        try:
+            report.append(f"    Test {i+1}: underlying_method={scenario['underlying_method']}")
+            report.append(f"    Prompt: '{scenario['prompt']}'")
+            report.append(f"    Length: {scenario['length']}")
+
+            generated_text = generate_with_model(
+                model, tokenizer,
+                prompt=scenario["prompt"],
+                length=scenario["length"],
+                method="explicit_underlying",
+                underlying_method=scenario["underlying_method"]
+            )
+            report.append(f"    Generated: '{generated_text[:70]}...\n")
+            explicit_successful_tests.append(True)
+        except Exception as e:
+            report.append(f"    [ERROR] Explicit Underlying Sampling test {i+1} failed: {e}\n")
+            explicit_successful_tests.append(False)
+
+    # Overall summary
+    report.append(f"\n--- Experimental Sampling Methods Summary ---")
     
+    total_tests = sum(len(results) for results in all_results.values()) + len(explicit_scenarios)
+    successful_tests_count = sum(len([r for r in results if "error" not in r]) for results in all_results.values()) + sum(1 for s in explicit_successful_tests if s)
+    
+    report.append(f"  Total experimental tests: {total_tests}")
+    report.append(f"  Successful tests: {successful_tests_count}")
+    report.append(f"  Overall success rate: {successful_tests_count/total_tests:.1%}" if total_tests > 0 else "  No tests completed")
+    
+    # Method-specific summaries
+    for method, results in all_results.items():
+        successful = [r for r in results if "error" not in r]
+        if successful:
+            avg_diversity = np.mean([r.get("lexical_diversity", 0) for r in successful])
+            avg_time = np.mean([r.get("generation_time", 0) for r in successful])
+            report.append(f"  {method.replace('_', ' ').title()}: {len(successful)}/{len(results)} success, avg diversity: {avg_diversity:.3f}, avg time: {avg_time:.3f}s")
+
+    # Add summary for explicit_underlying_sampling
+    if explicit_successful_tests:
+        successful_explicit = [s for s in explicit_successful_tests if s]
+        report.append(f"  Explicit Underlying Sampling: {len(successful_explicit)}/{len(explicit_scenarios)} success")
+
     return report
