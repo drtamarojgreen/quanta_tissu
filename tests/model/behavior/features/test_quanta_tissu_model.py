@@ -67,19 +67,16 @@ class TestQuantaTissuModel(unittest.TestCase):
         n_new_tokens = 5
         np.random.seed(42) # For deterministic sampling
 
-        # Mock the QuantaTissu model's forward pass to return predictable logits
-        with patch.object(self.model, 'forward') as mock_quanta_tissu_forward:
-            # Simulate logits that always lead to the same next token for greedy
-            # Logits shape: (batch_size, seq_len, vocab_size)
-            # We only care about the last token's logits for generation
-            mock_quanta_tissu_forward.side_effect = [
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock(), MagicMock()), # Logits for last prompt token (to predict first new token)
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock(), MagicMock()), # Logits for first generated token
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock(), MagicMock()), # Logits for second generated token
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock(), MagicMock()), # Logits for third generated token
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock(), MagicMock()), # Logits for fourth generated token
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock(), MagicMock()), # Logits for fifth generated token (dummy)
-            ]
+        # Mock the underlying Model's forward pass to return predictable logits
+        with patch.object(self.model.model, 'forward') as mock_model_forward:
+            # Create a logit array where token '2' is always the most likely
+            logits = np.full((1, 1, self.config["vocab_size"]), -np.inf)
+            logits[0, 0, 2] = 0.9
+            logits[0, 0, 1] = 0.2
+            logits[0, 0, 0] = 0.1
+
+            # The forward pass will be called multiple times, always return the same logits
+            mock_model_forward.return_value = (logits, MagicMock(), MagicMock())
 
             generated_tokens = self.model.sample(self.mock_tokenizer.tokenize(prompt), n_new_tokens, method="greedy")
 

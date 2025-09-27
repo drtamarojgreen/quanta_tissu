@@ -104,34 +104,35 @@ class KnowledgeBase:
         # Check if use_db is explicitly set to True in kwargs and if connected
         use_db_for_retrieval = kwargs.get('use_db', False) and self.connected
 
+        # Consolidate documents from local cache and DB, ensuring no duplicates
+        consolidated_docs = {d['text']: d for d in self._local_document_cache}
+
         if use_db_for_retrieval:
             try:
-                all_docs_data = self.db_client.get_all_documents('knowledge')
-                if all_docs_data:
-                    documents = [doc['text'] for doc in all_docs_data]
-                    doc_embeddings = [np.array(json.loads(doc['embedding'])) for doc in all_docs_data]
-                    document_timestamps = [datetime.fromisoformat(doc['timestamp']) for doc in all_docs_data]
-                    logger.info(f"Retrieved {len(documents)} documents from TissDB.")
+                db_docs_data = self.db_client.get_all_documents('knowledge')
+                if db_docs_data:
+                    logger.info(f"Retrieved {len(db_docs_data)} documents from TissDB.")
+                    for doc_data in db_docs_data:
+                        if doc_data['text'] not in consolidated_docs:
+                            doc_data['embedding'] = np.array(json.loads(doc_data['embedding']))
+                            doc_data['timestamp'] = datetime.fromisoformat(doc_data['timestamp'])
+                            consolidated_docs[doc_data['text']] = doc_data
                 else:
-                    logger.warning("No documents retrieved from TissDB. Using local cache for retrieval.")
+                    logger.warning("No documents retrieved from TissDB.")
             except DatabaseConnectionError as e:
                 logger.warning(f"TissDB retrieval failed: {e}. Using local cache for retrieval.")
             except Exception as e:
                 logger.error(f"Unexpected error during TissDB retrieval: {e}. Using local cache for retrieval.", exc_info=True)
-        
-        # Fallback to local cache if DB retrieval failed or not used
-        if not documents and self._local_document_cache:
-            documents = [d['text'] for d in self._local_document_cache]
-            doc_embeddings = [d['embedding'] for d in self._local_document_cache]
-            # Assuming local cache also stores metadata with timestamp
-            # This part needs refinement if _local_document_cache only stores text and embedding
-            # For now, using current time as a placeholder for local cache documents if no timestamp is available
-            document_timestamps = [datetime.utcnow()] * len(self._local_document_cache)
-            logger.info(f"Using {len(documents)} documents from local cache for retrieval.")
 
-        if not documents:
+        if not consolidated_docs:
             logger.warning("No documents available for retrieval analysis (neither from DB nor local cache). Returning empty list.")
             return [], np.array([])
+
+        doc_list = list(consolidated_docs.values())
+        documents = [d['text'] for d in doc_list]
+        doc_embeddings = [d['embedding'] for d in doc_list]
+        document_timestamps = [d.get('timestamp', datetime.utcnow()) for d in doc_list]
+        logger.info(f"Using {len(documents)} unique documents for retrieval.")
 
         try:
             similarities = strategy.calculate_similarity(query_embedding, doc_embeddings, **kwargs)
