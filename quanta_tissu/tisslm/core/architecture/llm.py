@@ -215,7 +215,7 @@ class Model:
         d_ff = config["d_ff"]
         n_layer = config["n_layer"]
         dropout_p = config.get("dropout_p", 0.0) # Get dropout probability from config, default to 0
-        moe_config = config.get("moe")
+        moe_config = config.get("moe", None)
         self.tie_weights = config.get("tie_weights", False)
         bias = config.get("bias", True)
         use_conv_attention = config.get("use_conv_attention", False)

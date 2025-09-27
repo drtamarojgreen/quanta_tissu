@@ -428,7 +428,7 @@ def main():
 
     # --- Load Tokenizer and Model ---
     try:
-        tokenizer = Tokenizer(tokenizer_path=TOKENIZER_SAVE_PREFIX)
+        tokenizer = Tokenizer(tokenizer_prefix=TOKENIZER_SAVE_PREFIX)
         model_config["vocab_size"] = tokenizer.get_vocab_size()
         # Pass project root to config for file path resolution in AlgorithmicGenerator
         model_config["_project_root"] = project_root

@@ -67,7 +67,7 @@ def run_single_kv_cache_test(model, tokenizer, prompt, n_new_tokens, method_conf
     
     # First forward pass for the prompt
     prompt_array = np.array([current_tokens])
-    logits, _ = model.forward(prompt_array, start_pos=0)
+    logits, _, _ = model.forward(prompt_array, start_pos=0)
     
     for i in range(n_new_tokens):
         # Predict next token from the last logit
@@ -103,7 +103,7 @@ def run_single_kv_cache_test(model, tokenizer, prompt, n_new_tokens, method_conf
         # Prepare for next iteration: input is just the new token
         next_token_array = np.array([[next_token]])
         # The start_pos tells the model to recompute context from scratch
-        logits, _ = model.forward(next_token_array, start_pos=len(current_tokens) + i)
+        logits, _, _ = model.forward(next_token_array, start_pos=len(current_tokens) + i)
     end_time_no_cache = time.time()
     time_no_cache = end_time_no_cache - start_time_no_cache
     
@@ -120,7 +120,7 @@ def run_single_kv_cache_test(model, tokenizer, prompt, n_new_tokens, method_conf
     
     # First forward pass for the prompt, populating the cache
     prompt_array_cache = np.array([current_tokens_cache])
-    logits_cache, _ = model.forward(prompt_array_cache, kv_cache=kv_cache, start_pos=0)
+    logits_cache, _, _ = model.forward(prompt_array_cache, kv_cache=kv_cache, start_pos=0)
     
     for i in range(n_new_tokens):
         # Predict next token from the last logit
@@ -151,7 +151,7 @@ def run_single_kv_cache_test(model, tokenizer, prompt, n_new_tokens, method_conf
         # Prepare for next iteration: input is the new token, but now we pass the cache
         next_token_array_cache = np.array([[next_token_cache]])
         # The start_pos and cache tell the model to append to the existing context
-        logits_cache, _ = model.forward(
+        logits_cache, _, _ = model.forward(
             next_token_array_cache,
             kv_cache=kv_cache,
             start_pos=len(current_tokens_cache) + i

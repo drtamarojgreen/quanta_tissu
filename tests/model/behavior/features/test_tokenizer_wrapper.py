@@ -124,7 +124,7 @@ class TestTokenizerWrapper(unittest.TestCase):
         with patch('builtins.print') as mock_print:
             tokenizer = Tokenizer()
             mock_print.assert_called_with(unittest.mock.ANY) # Check if print was called
-            self.assertIsNone(tokenizer.bpe_tokenizer.vocab) # Should be empty or None if loading failed
+            self.assertEqual(len(tokenizer.bpe_tokenizer.vocab), 0) # Vocab should be empty if loading failed
 
 class TestEmbedder(unittest.TestCase):
 
