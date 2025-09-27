@@ -50,7 +50,8 @@ class TestFullTrainingIntegration(unittest.TestCase):
             "weight_decay": 0.0,
             "num_epochs": 2, # Small number of epochs for quick test
             "batch_size": 2,
-            "model_save_path": self.model_save_path
+            "model_save_path": self.model_save_path,
+            "dropout_p": 0.1 # Changed from 'dropout' to 'dropout_p'
         }
 
         # Mock Tokenizer to return predictable token IDs

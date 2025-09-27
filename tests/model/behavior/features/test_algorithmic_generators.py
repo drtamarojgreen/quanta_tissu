@@ -12,7 +12,7 @@ sys.path.insert(0, project_root)
 from quanta_tissu.tisslm.core.generation.alg_generator import AlgorithmicGenerator
 from quanta_tissu.tisslm.core.model import QuantaTissu
 from quanta_tissu.tisslm.core.tokenizer import Tokenizer
-from quanta_tissu.tisslm.core.retrieval.strategy import BayesianSimilarityStrategy
+from quanta_tissu.tisslm.core.retrieval.semantic import BayesianSimilarityStrategy
 from quanta_tissu.tisslm.core.model_error_handler import ConfigurationError
 
 class TestAlgorithmicGenerators(unittest.TestCase):
