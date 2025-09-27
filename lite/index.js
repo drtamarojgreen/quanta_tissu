@@ -1,5 +1,9 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const DATA_DIR = path.join(__dirname, 'lite_data');
 const DATA_FILE = path.join(DATA_DIR, 'tissdb.json');
