@@ -96,12 +96,13 @@ class TestTissLangParser(unittest.TestCase):
     def test_parse_setup(self):
         parser = TissLangParser()
         script = '''
-        SETUP {
+        SETUP "Initial Setup" {
             RUN "pip install -r requirements.txt"
         }
         '''
         expected_ast = [{
             'type': 'SETUP',
+            'description': 'Initial Setup',
             'commands': [{'type': 'RUN', 'command': 'pip install -r requirements.txt'}]
         }]
         ast = parser.parse(script)

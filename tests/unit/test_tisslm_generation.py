@@ -198,5 +198,212 @@ class TestTextGeneration(unittest.TestCase):
                 top_p=None
             )
 
+    def test_beam_search_generation(self):
+        prompt = "Beam"
+        length = 5
+        expected_generated_text = prompt + " generated text"
+
+        result = generate_text(
+            model=self.mock_model,
+            tokenizer=self.mock_tokenizer,
+            prompt=prompt,
+            length=length,
+            method="beam_search",
+            temperature=1.0,
+            top_k=None,
+            top_p=None
+        )
+
+        self.assertEqual(result, expected_generated_text)
+        self.mock_model.sample.assert_called_once()
+        _, call_kwargs = self.mock_model.sample.call_args
+        self.assertEqual(call_kwargs['method'], "beam_search")
+
+    def test_contrastive_search_generation(self):
+        prompt = "Contrastive"
+        length = 5
+        expected_generated_text = prompt + " generated text"
+
+        result = generate_text(
+            model=self.mock_model,
+            tokenizer=self.mock_tokenizer,
+            prompt=prompt,
+            length=length,
+            method="contrastive_search",
+            temperature=1.0,
+            top_k=None,
+            top_p=None
+        )
+
+        self.assertEqual(result, expected_generated_text)
+        self.mock_model.sample.assert_called_once()
+        _, call_kwargs = self.mock_model.sample.call_args
+        self.assertEqual(call_kwargs['method'], "contrastive_search")
+
+    def test_mirostat_sampling_generation(self):
+        prompt = "Mirostat"
+        length = 5
+        expected_generated_text = prompt + " generated text"
+
+        result = generate_text(
+            model=self.mock_model,
+            tokenizer=self.mock_tokenizer,
+            prompt=prompt,
+            length=length,
+            method="mirostat_sampling",
+            temperature=1.0,
+            top_k=None,
+            top_p=None
+        )
+
+        self.assertEqual(result, expected_generated_text)
+        self.mock_model.sample.assert_called_once()
+        _, call_kwargs = self.mock_model.sample.call_args
+        self.assertEqual(call_kwargs['method'], "mirostat_sampling")
+
+    def test_top_a_sampling_generation(self):
+        prompt = "Top-A"
+        length = 5
+        expected_generated_text = prompt + " generated text"
+
+        result = generate_text(
+            model=self.mock_model,
+            tokenizer=self.mock_tokenizer,
+            prompt=prompt,
+            length=length,
+            method="top_a",
+            temperature=1.0,
+            top_k=None,
+            top_p=None
+        )
+
+        self.assertEqual(result, expected_generated_text)
+        self.mock_model.sample.assert_called_once()
+        _, call_kwargs = self.mock_model.sample.call_args
+        self.assertEqual(call_kwargs['method'], "top_a")
+
+    def test_bias_token_id_and_strength(self):
+        prompt = "Bias"
+        length = 5
+        bias_token_id = 100
+        bias_strength = 0.5
+        expected_generated_text = prompt + " generated text"
+
+        result = generate_text(
+            model=self.mock_model,
+            tokenizer=self.mock_tokenizer,
+            prompt=prompt,
+            length=length,
+            method="greedy",
+            temperature=1.0,
+            top_k=None,
+            top_p=None,
+            bias_token_id=bias_token_id,
+            bias_strength=bias_strength
+        )
+
+        self.assertEqual(result, expected_generated_text)
+        self.mock_model.sample.assert_called_once()
+        _, call_kwargs = self.mock_model.sample.call_args
+        self.assertEqual(call_kwargs['bias_token_id'], bias_token_id)
+        self.assertEqual(call_kwargs['bias_strength'], bias_strength)
+
+    def test_repetition_penalty_edge_cases(self):
+        prompt = "Edge Case Repetition"
+        length = 5
+
+        # Test with repetition_penalty = 0 (should effectively prevent any repetition)
+        generate_text(
+            model=self.mock_model,
+            tokenizer=self.mock_tokenizer,
+            prompt=prompt,
+            length=length,
+            method="greedy",
+            temperature=1.0,
+            top_k=None,
+            top_p=None,
+            repetition_penalty=0.0
+        )
+        self.mock_model.sample.assert_called_with(
+            np.array([1, 2, 3]),
+            n_new_tokens=length,
+            method="greedy",
+            temperature=1.0,
+            top_k=None,
+            top_p=None,
+            repetition_penalty=0.0,
+            bias_token_id=None,
+            bias_strength=0.0
+        )
+        self.mock_model.sample.reset_mock()
+
+        # Test with a very high repetition_penalty (should strongly discourage repetition)
+        generate_text(
+            model=self.mock_model,
+            tokenizer=self.mock_tokenizer,
+            prompt=prompt,
+            length=length,
+            method="greedy",
+            temperature=1.0,
+            top_k=None,
+            top_p=None,
+            repetition_penalty=100.0
+        )
+        self.mock_model.sample.assert_called_with(
+            np.array([1, 2, 3]),
+            n_new_tokens=length,
+            method="greedy",
+            temperature=1.0,
+            top_k=None,
+            top_p=None,
+            repetition_penalty=100.0,
+            bias_token_id=None,
+            bias_strength=0.0
+        )
+        self.mock_model.sample.reset_mock()
+
+        # Test with temperature = 0 (should be equivalent to greedy)
+        generate_text(
+            model=self.mock_model,
+            tokenizer=self.mock_tokenizer,
+            prompt=prompt,
+            length=length,
+            method="greedy",
+            temperature=0.0
+        )
+        self.mock_model.sample.assert_called_with(
+            np.array([1, 2, 3]),
+            n_new_tokens=length,
+            method="greedy",
+            temperature=0.0,
+            top_k=None,
+            top_p=None,
+            repetition_penalty=1.0,
+            bias_token_id=None,
+            bias_strength=0.0
+        )
+        self.mock_model.sample.reset_mock()
+
+        # Test with a very high temperature (should make probabilities more uniform)
+        generate_text(
+            model=self.mock_model,
+            tokenizer=self.mock_tokenizer,
+            prompt=prompt,
+            length=length,
+            method="greedy",
+            temperature=100.0
+        )
+        self.mock_model.sample.assert_called_with(
+            np.array([1, 2, 3]),
+            n_new_tokens=length,
+            method="greedy",
+            temperature=100.0,
+            top_k=None,
+            top_p=None,
+            repetition_penalty=1.0,
+            bias_token_id=None,
+            bias_strength=0.0
+        )
+
 if __name__ == '__main__':
     unittest.main()

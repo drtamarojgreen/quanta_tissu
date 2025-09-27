@@ -100,12 +100,28 @@ class Tokenizer:
         # BPE tokenizer decodes IDs to bytes, then to string.
         return self.bpe_tokenizer.decode([token_id])
 
+import json # Added import
+
 # Maintain backward compatibility with existing function-based interface
 _global_tokenizer_instance = None
 def _get_global_tokenizer():
     global _global_tokenizer_instance
     if _global_tokenizer_instance is None:
-        _global_tokenizer_instance = Tokenizer()
+        # Load paths from configuration file
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+        config_path = os.path.join(project_root, 'quanta_tissu', 'configurations', 'paths.json')
+        try:
+            with open(config_path, 'r') as f:
+                paths_config = json.load(f)
+        except FileNotFoundError:
+            print(f"Error: Configuration file not found at {config_path}. Cannot initialize global tokenizer.")
+            raise
+
+        tokenizer_dir = os.path.join(project_root, paths_config.get("tokenizer_dir"))
+        tokenizer_filename_prefix = paths_config.get("tokenizer_filename_prefix")
+        full_tokenizer_prefix = os.path.join(tokenizer_dir, tokenizer_filename_prefix)
+
+        _global_tokenizer_instance = Tokenizer(tokenizer_prefix=full_tokenizer_prefix)
     return _global_tokenizer_instance
 
 

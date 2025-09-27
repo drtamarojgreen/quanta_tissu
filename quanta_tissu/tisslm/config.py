@@ -8,7 +8,7 @@ system_config = {
     "_project_root": _project_root, # Added for easier access in run_training.py
     "model_save_path": os.path.join(_project_root, "models", "quanta_tissu.npz"),
     "logs_dir": os.path.join(_project_root, "logs"),
-    "bpe_tokenizer_prefix": os.path.join(_project_root, "models", "trained_tokenizer"),
+    "bpe_tokenizer_prefix": os.path.join(_project_root, "models", "tokenizers", "revised_tokenizer"),
 }
 
 # --- Tokenizer Configuration ---

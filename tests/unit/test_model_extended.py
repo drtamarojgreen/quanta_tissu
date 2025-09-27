@@ -201,6 +201,84 @@ class TestModelExtended(unittest.TestCase):
 
             np.testing.assert_allclose(passed_probs, expected_probs, rtol=1e-5)
 
+    def test_moe_architecture(self):
+        """Test that MoE is correctly configured when specified in the config."""
+        moe_config = {
+            "n_embd": 64,
+            "vocab_size": 1000,
+            "n_head": 4,
+            "d_ff": 128,
+            "n_layer": 2,
+            "dropout_p": 0.1,
+            "tie_weights": False,
+            "bias": True,
+            "use_conv_attention": False,
+            "kernel_size": 3,
+            "moe": {"num_experts": 4, "top_k": 2}
+        }
+        model = QuantaTissu(moe_config)
+        # Assuming the FFN in TransformerBlock is replaced by MoE when moe_config is present
+        # This requires inspecting the internal structure of the model
+        from quanta_tissu.tisslm.core.layers import MoE
+        self.assertIsInstance(model.model.transformer_blocks[0].ffn, MoE)
+        self.assertEqual(model.model.transformer_blocks[0].ffn.num_experts, 4)
+        self.assertEqual(model.model.transformer_blocks[0].ffn.top_k, 2)
+
+    def test_shared_input_output_embeddings(self):
+        """Test that input and output embeddings are tied when tie_weights is True."""
+        config_tied = {
+            "n_embd": 64,
+            "vocab_size": 1000,
+            "n_head": 4,
+            "d_ff": 128,
+            "n_layer": 2,
+            "dropout_p": 0.1,
+            "tie_weights": True, # Set tie_weights to True
+            "bias": True,
+            "use_conv_attention": False,
+            "kernel_size": 3
+        }
+        model_tied = QuantaTissu(config_tied)
+        self.assertIs(model_tied.model.embeddings, model_tied.model.output_proj, "Input and output embeddings should be the same object when tied.")
+
+    def test_no_bias_layernorm(self):
+        """Test that LayerNorm layers are initialized without bias when bias is False in config."""
+        config_no_bias = {
+            "n_embd": 64,
+            "vocab_size": 1000,
+            "n_head": 4,
+            "d_ff": 128,
+            "n_layer": 2,
+            "dropout_p": 0.1,
+            "tie_weights": False,
+            "bias": False, # Set bias to False
+            "use_conv_attention": False,
+            "kernel_size": 3
+        }
+        model_no_bias = QuantaTissu(config_no_bias)
+        # Check a LayerNorm instance within a transformer block
+        from quanta_tissu.tisslm.core.layers import LayerNorm
+        self.assertIsInstance(model_no_bias.model.transformer_blocks[0].ln1, LayerNorm)
+        self.assertIsNone(model_no_bias.model.transformer_blocks[0].ln1.beta, "LayerNorm beta should be None when bias is False.")
+
+    def test_depthwise_separable_convolutions(self):
+        """Test that ConvTransformerBlock is used when use_conv_attention is True."""
+        config_conv_attn = {
+            "n_embd": 64,
+            "vocab_size": 1000,
+            "n_head": 4,
+            "d_ff": 128,
+            "n_layer": 2,
+            "dropout_p": 0.1,
+            "tie_weights": False,
+            "bias": True,
+            "use_conv_attention": True, # Set use_conv_attention to True
+            "kernel_size": 3
+        }
+        model_conv_attn = QuantaTissu(config_conv_attn)
+        # Check that the transformer blocks are instances of ConvTransformerBlock
+        from quanta_tissu.tisslm.core.architecture.llm import ConvTransformerBlock
+        self.assertIsInstance(model_conv_attn.model.transformer_blocks[0], ConvTransformerBlock)
 
 if __name__ == '__main__':
     unittest.main()

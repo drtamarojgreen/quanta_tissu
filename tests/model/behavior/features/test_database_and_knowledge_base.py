@@ -4,6 +4,9 @@ import os
 import shutil
 import requests
 from unittest.mock import MagicMock, patch
+import logging # Added import
+
+logger = logging.getLogger(__name__) # Create logger instance
 
 # Adjust path to import modules from the project root
 import sys
@@ -13,7 +16,7 @@ sys.path.insert(0, project_root)
 from quanta_tissu.tisslm.core.db.client import TissDBClient
 from quanta_tissu.tisslm.core.knowledge_base import KnowledgeBase
 from quanta_tissu.tisslm.core.embedding.embedder import Embedder
-from quanta_tissu.tisslm.core.retrieval.strategy import CosineSimilarityStrategy
+from quanta_tissu.tisslm.core.retrieval.semantic import CosineSimilarityStrategy
 from quanta_tissu.tisslm.core.model_error_handler import ModelProcessingError
 from quanta_tissu.tisslm.core.system_error_handler import DatabaseConnectionError
 
@@ -28,9 +31,16 @@ class TestTissDBClient(unittest.TestCase):
         
         # Ensure the database is clean before tests
         try:
-            requests.delete(f"http://{cls.db_host}:{cls.db_port}/{cls.db_name}")
-        except requests.exceptions.RequestException:
-            pass # Ignore if DB doesn't exist
+            logger.debug(f"Attempting to delete database {cls.db_name} before tests.")
+            response = requests.delete(f"http://{cls.db_host}:{cls.db_port}/{cls.db_name}")
+            if response.status_code == 200:
+                logger.debug(f"Database {cls.db_name} deleted successfully.")
+            elif response.status_code == 404:
+                logger.debug(f"Database {cls.db_name} not found, no need to delete.")
+            else:
+                response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Failed to delete database {cls.db_name} before tests: {e}. Proceeding anyway.")
 
     @classmethod
     def tearDownClass(cls):
@@ -84,9 +94,16 @@ class TestKnowledgeBase(unittest.TestCase):
         
         # Ensure the database is clean before tests
         try:
-            requests.delete(f"http://{cls.db_host}:{cls.db_port}/{cls.db_name}")
-        except requests.exceptions.RequestException:
-            pass # Ignore if DB doesn't exist
+            logger.debug(f"Attempting to delete database {cls.db_name} before tests.")
+            response = requests.delete(f"http://{cls.db_host}:{cls.db_port}/{cls.db_name}")
+            if response.status_code == 200:
+                logger.debug(f"Database {cls.db_name} deleted successfully.")
+            elif response.status_code == 404:
+                logger.debug(f"Database {cls.db_name} not found, no need to delete.")
+            else:
+                response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Failed to delete database {cls.db_name} before tests: {e}. Proceeding anyway.")
 
         # Mock tokenizer for Embedder
         cls.mock_tokenizer = MagicMock()

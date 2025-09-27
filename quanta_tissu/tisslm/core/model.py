@@ -14,6 +14,7 @@ from .tokenizer import tokenize
 from .parameter import Parameter
 from .model_error_handler import TissModelError, ModelProcessingError
 from .system_error_handler import TissSystemError, DatabaseConnectionError
+from .db.client import TissDBClient # Added import
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class QuantaTissu:
             raise
 
         # Instantiate the tokenizer
-        tokenizer_dir = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')), paths_config.get("tokenizer_dir"))
+        tokenizer_dir = os.path.join(project_root, paths_config.get("tokenizer_dir"))
         tokenizer_filename_prefix = paths_config.get("tokenizer_filename_prefix")
         full_tokenizer_prefix = os.path.join(tokenizer_dir, tokenizer_filename_prefix)
         self.tokenizer = Tokenizer(tokenizer_prefix=full_tokenizer_prefix)
