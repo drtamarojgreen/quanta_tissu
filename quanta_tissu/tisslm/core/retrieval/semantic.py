@@ -42,15 +42,21 @@ class CNNSimilarityStrategy(RetrievalStrategy):
 
     def calculate_similarity(self, query_embedding, doc_embeddings, **kwargs):
         doc_embeddings_np = np.array(doc_embeddings)
-        
-        # Apply convolution (dot product with filters)
+
+        # Extract features from query embedding
+        query_features = np.dot(query_embedding, self.filters.T)
+        query_activated = np.maximum(0, query_features)
+        query_score = np.dot(query_activated, self.dense_weights)
+
+        # Extract features from document embeddings
         convolved_docs = np.dot(doc_embeddings_np, self.filters.T)
-
-        # Apply activation (ReLU)
         activated_docs = np.maximum(0, convolved_docs)
+        doc_scores = np.dot(activated_docs, self.dense_weights)
 
-        # Apply dense layer directly to activated features
-        similarities = np.dot(activated_docs, self.dense_weights)
+        # Calculate similarity as the difference between query score and doc scores
+        # A smaller difference means higher similarity
+        similarities = 1.0 - np.abs(query_score - doc_scores) / (np.max(doc_scores) - np.min(doc_scores) + 1e-6) # Normalize difference
+        similarities = np.clip(similarities, 0, 1) # Ensure similarities are between 0 and 1
         
         return similarities
 

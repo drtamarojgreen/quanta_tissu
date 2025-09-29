@@ -12,6 +12,8 @@ class GenerationConfig:
     top_p: Optional[float] = None
     top_a: float = 0.0
     repetition_penalty: float = 1.0
+    bias_token_id: Optional[int] = None
+    bias_strength: float = 0.0
     eos_id: Optional[int] = None
     no_repeat_ngram_size: int = 0
     logit_bias: Optional[Dict[int, float]] = None

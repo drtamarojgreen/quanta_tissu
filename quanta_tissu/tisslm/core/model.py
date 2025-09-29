@@ -1,15 +1,20 @@
 import numpy as np
 import os
 import logging
+import json # Added import
 
 from .architecture.llm import Model
 from .generation.generator import Generator
 from .generation.alg_generator import AlgorithmicGenerator
+from .generation.config import GenerationConfig # Added import
 from .knowledge_base import KnowledgeBase
+from .tokenizer import Tokenizer
+from .embedding.embedder import Embedder
 from .tokenizer import tokenize
 from .parameter import Parameter
 from .model_error_handler import TissModelError, ModelProcessingError
 from .system_error_handler import TissSystemError, DatabaseConnectionError
+from .db.client import TissDBClient # Added import
 
 logger = logging.getLogger(__name__)
 
@@ -24,19 +29,35 @@ class QuantaTissu:
     def __init__(self, config, db_host='127.0.0.1', db_port=8080, use_db=False):
         self.config = config
 
+        # Load paths from configuration file
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+        config_path = os.path.join(project_root, 'quanta_tissu', 'configurations', 'paths.json')
+        try:
+            with open(config_path, 'r') as f:
+                paths_config = json.load(f)
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found at {config_path}")
+            raise
+
+        # Instantiate the tokenizer
+        tokenizer_dir = os.path.join(project_root, paths_config.get("tokenizer_dir"))
+        tokenizer_filename_prefix = paths_config.get("tokenizer_filename_prefix")
+        full_tokenizer_prefix = os.path.join(tokenizer_dir, tokenizer_filename_prefix)
+        self.tokenizer = Tokenizer(tokenizer_prefix=full_tokenizer_prefix)
+
         # Instantiate the core model architecture
         self.model = Model(config)
 
         # Instantiate the generator
-        self.generator = Generator(self.model)
+        self.generator = Generator(self.model, self.tokenizer)
         self.alg_generator = AlgorithmicGenerator(self.model, self.config)
 
         self.knowledge_base = None
         if use_db:
             try:
                 logger.info(f"Initializing KnowledgeBase with TissDB connection to {db_host}:{db_port}")
-                # Note: KnowledgeBase might need refactoring if it depends on model embeddings directly
-                self.knowledge_base = KnowledgeBase(self.model.embeddings.value, tokenize, db_host=db_host, db_port=db_port)
+                self.embedder = Embedder(self.tokenizer, self.model.embeddings.value) # Instantiate the embedder
+                self.knowledge_base = KnowledgeBase(self.embedder, db_client=TissDBClient(db_host=db_host, db_port=db_port))
             except DatabaseConnectionError as e:
                 raise TissSystemError(f"Failed to connect to database: {e}") from e
 
@@ -115,3 +136,33 @@ class QuantaTissu:
         Delegates to the internal model instance.
         """
         return self.model.forward(token_ids, kv_cache, start_pos)
+
+    def backward(self, d_logits, model_cache):
+        """
+        Performs the backward pass through the underlying model.
+        Delegates to the internal model instance.
+        """
+        return self.model.backward(d_logits, model_cache)
+
+    def sample(self, prompt_token_ids, n_new_tokens, **kwargs):
+        """
+        Delegates to the internal generator to sample new tokens.
+        """
+        # Create a GenerationConfig object from kwargs
+        config = GenerationConfig(
+            method=kwargs.get('method', 'greedy'),
+            temperature=kwargs.get('temperature', 1.0),
+            top_k=kwargs.get('top_k'),
+            top_p=kwargs.get('top_p'),
+            repetition_penalty=kwargs.get('repetition_penalty', 1.0),
+            bias_token_id=kwargs.get('bias_token_id'),
+            bias_strength=kwargs.get('bias_strength'),
+            eos_id=kwargs.get('eos_id'),
+            suppress_eos=kwargs.get('suppress_eos', False),
+            no_repeat_ngram_size=kwargs.get('no_repeat_ngram_size', 0),
+            logit_bias=kwargs.get('logit_bias')
+        )
+        generated_output, _ = self.generator.sample([prompt_token_ids], n_new_tokens, config, **kwargs)
+        if not generated_output:
+            return []
+        return generated_output[0]
