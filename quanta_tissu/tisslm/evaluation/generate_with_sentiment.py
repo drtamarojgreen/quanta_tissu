@@ -77,7 +77,7 @@ def main():
 
     # --- Load Tokenizer and Model ---
     print("--- Loading tokenizer and model ---")
-    tokenizer = Tokenizer(tokenizer_path=TOKENIZER_SAVE_PREFIX)
+    tokenizer = Tokenizer(tokenizer_prefix=TOKENIZER_SAVE_PREFIX)
     model_config["vocab_size"] = tokenizer.get_vocab_size()
     model = QuantaTissu(model_config)
     model.load_weights(FINAL_CHECKPOINT_PATH)
