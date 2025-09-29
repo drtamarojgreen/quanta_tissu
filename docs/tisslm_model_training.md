@@ -78,6 +78,66 @@ These parameters, found in the `train_model` function call, control the specific
     -   **Default**: `1000`
     -   **Usage**: Checkpoints are saved to the `SAVE_DIR` with the format `checkpoint_step_{step}.pt`. This is crucial for resuming training or using intermediate models.
 
+## Directory Structure for Training
+
+The training script operates on two main directories: the source corpus directory (`CORPUS_PATH`) and the destination save directory (`SAVE_DIR`). Understanding this structure is key to managing your training data and artifacts.
+
+### Example Setup
+
+Let's assume you have a project folder named `my_tisslm_project` and you run the training from the root of the repository. You want to train on a collection of Shakespeare's plays and save the output to a folder named `training_output_shakespeare`.
+
+1.  **Corpus Directory (`CORPUS_PATH`)**: This is where your raw text files live.
+
+    You would first create a `corpus` directory and place your `.txt` files inside it. The script defaults to looking for a directory named `corpus` in the current working directory.
+
+    **Structure:**
+    ```
+    ./
+    ├── corpus/
+    │   ├── hamlet.txt
+    │   ├── macbeth.txt
+    │   └── romeo_and_juliet.txt
+    └── quanta_tissu/
+        └── ... (rest of the codebase)
+    ```
+
+    In the script, the parameter `CORPUS_PATH = "./corpus"` points to this directory. The script will automatically find and concatenate all `.txt` files within this path.
+
+2.  **Save Directory (`SAVE_DIR`)**: This is where all the training outputs (tokenizer and model files) will be stored.
+
+    By default, the script is configured with `SAVE_DIR = "./training_output"`. The script will create this directory if it doesn't exist.
+
+    **Initial State (before running):**
+    ```
+    ./
+    ├── corpus/
+    │   ├── hamlet.txt
+    │   ├── macbeth.txt
+    │   └── romeo_and_juliet.txt
+    └── quanta_tissu/
+        └── ... (rest of the codebase)
+    ```
+
+    **Final State (after running):**
+    ```
+    ./
+    ├── corpus/
+    │   ├── hamlet.txt
+    │   ├── macbeth.txt
+    │   └── romeo_and_juliet.txt
+    ├── training_output/
+    │   ├── tokenizer/
+    │   │   ├── merges.txt
+    │   │   └── vocab.json
+    │   ├── checkpoint_step_1000.pt
+    │   ├── checkpoint_step_2000.pt
+    │   └── final_model.pt
+    └── quanta_tissu/
+        └── ... (rest of the codebase)
+    ```
+
+    This structure ensures a clean separation between your source data and the generated model artifacts, making it easy to manage multiple training runs simply by changing the `SAVE_DIR` variable for each run.
+
 ## Output Files
 
 After running the script, the `SAVE_DIR` will contain the following:
