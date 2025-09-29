@@ -163,7 +163,7 @@ def run_rag_and_self_update_test(model, tokenizer):
         report.append("  Testing the ability of the KB to learn from interactions...\n")
 
         # Manually add the new knowledge to the database
-        new_doc_id = f"doc_{{doc_counter}}"
+        new_doc_id = f"doc_{doc_counter}"
         document_text = f"Query: {user_query}\nResponse: {final_answer}"
         embedding = embedder.embed(document_text)
         report.append(f"  Type of new_embedding: {type(embedding)}\n")

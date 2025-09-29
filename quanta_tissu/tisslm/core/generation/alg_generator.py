@@ -64,7 +64,7 @@ class AlgorithmicGenerator:
         generated_tokens = []
         current_tokens = [int(t) for t in prompt_tokens]
         prompt_array = np.array([current_tokens])
-        logits, _ = self.model.forward(prompt_array, start_pos=0)
+        logits, _, _ = self.model.forward(prompt_array, start_pos=0)
 
         for _ in range(n_new_tokens):
             last_logit = logits[:, -1, :]
@@ -73,7 +73,7 @@ class AlgorithmicGenerator:
             generated_tokens.append(next_token)
             current_tokens.append(next_token)
             next_token_array = np.array([[next_token]])
-            logits, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
+            logits, _, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
         return generated_tokens
 
     def dynamic_token_revision_sampling(self, prompt_tokens, n_new_tokens, **kwargs):
@@ -85,7 +85,7 @@ class AlgorithmicGenerator:
         generated_tokens = []
         current_tokens = [int(t) for t in prompt_tokens]
         prompt_array = np.array([current_tokens])
-        logits, _ = self.model.forward(prompt_array, start_pos=0)
+        logits, _, _ = self.model.forward(prompt_array, start_pos=0)
 
         for i in range(n_new_tokens):
             last_logit = logits[:, -1, :]
@@ -97,7 +97,7 @@ class AlgorithmicGenerator:
             if (i + 1) % save_interval == 0:
                 self._save_session_tokens_to_temp_file()
             next_token_array = np.array([[next_token]])
-            logits, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
+            logits, _, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
         self._save_session_tokens_to_temp_file()
         return generated_tokens
 
@@ -123,7 +123,7 @@ class AlgorithmicGenerator:
         generated_tokens = []
         current_tokens = [int(t) for t in prompt_tokens]
         prompt_array = np.array([current_tokens])
-        logits, _ = self.model.forward(prompt_array, start_pos=0)
+        logits, _, _ = self.model.forward(prompt_array, start_pos=0)
         for _ in range(n_new_tokens):
             last_logit = logits[:, -1, :]
             next_token, probs = self._predict_from_logits(
@@ -147,7 +147,7 @@ class AlgorithmicGenerator:
                     except IOError as e:
                         logger.error(f"Could not write to {self.wordlist_path}: {e}")
             next_token_array = np.array([[next_token]])
-            logits, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
+            logits, _, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
         return generated_tokens
 
     def adaptive_sentiment_sampling(self, prompt_tokens, n_new_tokens, **kwargs):
@@ -167,7 +167,7 @@ class AlgorithmicGenerator:
         generated_tokens = []
         current_tokens = [int(t) for t in prompt_tokens]
         prompt_array = np.array([current_tokens])
-        logits, _ = self.model.forward(prompt_array, start_pos=0)
+        logits, _, _ = self.model.forward(prompt_array, start_pos=0)
 
         current_sentiment_bias = sentiment_analyzer.get_sentiment_bias(target_sentiment, target_strength)
 
@@ -223,7 +223,7 @@ class AlgorithmicGenerator:
                 logger.debug(f"Adapted sentiment bias. New strength: {target_strength:.2f}")
 
             next_token_array = np.array([[next_token]])
-            logits, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
+            logits, _, _ = self.model.forward(next_token_array, start_pos=len(current_tokens) - 1)
         return generated_tokens
 
     def _predict_from_logits(self, logits, method="greedy", **kwargs):

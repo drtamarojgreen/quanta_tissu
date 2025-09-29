@@ -77,7 +77,13 @@ class TestFullTrainingIntegration(unittest.TestCase):
         # Configure mocks
         mock_system_config.__getitem__.side_effect = lambda key: {'model_save_path': self.config["model_save_path"]}[key]
         mock_tokenizer_system_config.__getitem__.side_effect = lambda key: {'model_save_path': self.config["model_save_path"]}[key]
+
+        # Configure model_config to handle both __getitem__ and get
+        def model_config_side_effect(key, default=None):
+            return self.config.get(key, default)
+
         mock_model_config.__getitem__.side_effect = lambda key: self.config[key]
+        mock_model_config.get.side_effect = lambda key, default: self.config.get(key, default) # Added for get method
         mock_training_config.__getitem__.side_effect = lambda key: self.config[key]
         mock_tokenizer_config.__getitem__.side_effect = lambda key: self.config[key]
 
