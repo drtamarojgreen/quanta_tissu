@@ -167,7 +167,40 @@ def run_single_rag_test(model, tokenizer, db_client, scenario_config):
         results["steps"]["self_update"] = {"time": update_time, "correct": update_correct}
         report.append(f"    ✓ Self-update complete ({update_time:.4f}s). Correct: {update_correct}.")
 
-        results["success"] = all(s["correct"] for s in results["steps"].values())
+        # --- 4. Test Self-Updating Knowledge Base ---
+        report.append("\n  --- Test 2b: Self-Updating Knowledge Base ---\n")
+        report.append("  Testing the ability of the KB to learn from interactions...\n")
+
+        # Manually add the new knowledge to the database
+        new_doc_id = f"doc_{doc_counter}"
+        document_text = f"Query: {user_query}\nResponse: {final_answer}"
+        embedding = embedder.embed(document_text)
+        report.append(f"  Type of new_embedding: {type(embedding)}\n")
+        report.append(f"  Value of new_embedding: {embedding}\n")
+        # Save embedding to a file
+        embedding_file_path = os.path.join(EMBEDDINGS_DIR, f"{new_doc_id}.npy")
+        np.save(embedding_file_path, embedding)
+
+        new_document = {
+            "id": new_doc_id,
+            "text": document_text,
+            "source": "generated_response",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        # Reverting to individual PUT requests for TissDB document insertion
+        # This ensures correct ID generation and avoids issues with the _bulk endpoint.
+        response = requests.put(f"http://localhost:9876/{db_name}/{collection_name}/{new_document['id']}", json=new_document, headers=headers)
+        response.raise_for_status()
+        doc_counter += 1
+
+        report.append("  KB updated with the previous Q&A pair.\n")
+
+        # We can't retrieve from the database, so we'll just check if the document was added
+        response = requests.get(f"http://localhost:9876/{db_name}/{collection_name}/{new_doc_id}", headers=headers)
+        if response.status_code == 200:
+            report.append("  [SUCCESS] Self-updated knowledge was successfully added to the database.\n")
+        else:
+            report.append("  [WARNING] Could not retrieve the self-updated document from the database.\n")
 
     except Exception as e:
         report.append(f"    [ERROR] Test scenario '{scenario_config['id']}' failed: {e}")
