@@ -114,6 +114,17 @@ class TestKnowledgeBase(unittest.TestCase):
         cls.model_embeddings_value = np.random.randn(256, cls.embedding_dim)
         cls.embedder = Embedder(cls.mock_tokenizer, cls.model_embeddings_value)
 
+        # Mock embedder.embed to return specific embeddings for test cases
+        cls.embedder.embed.side_effect = lambda text: {
+            "Document one for local cache.": np.array([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+            "Document two for local cache.": np.array([0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+            "Document for DB fallback.": np.array([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+            "Document one": np.array([1.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]), # Query for doc1
+            "Document for DB": np.array([0.0, 0.0, 1.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]), # Query for DB doc
+            "What is the capital of France?": np.array([0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+            "Paris.": np.array([0.0, 0.0, 0.0, 0.0, 1.0, 0.1, 0.0, 0.0, 0.0, 0.0]),
+        }.get(text, np.random.rand(cls.embedding_dim))
+
     @classmethod
     def tearDownClass(cls):
         # Clean up the database after tests
