@@ -2,9 +2,10 @@ import numpy as np
 from .layers import softmax
 
 class CrossEntropyLoss:
-    def __init__(self):
+    def __init__(self, smoothing=0.0):
         self.cache = {}
         self.d_inputs = None # Initialize d_inputs
+        self.smoothing = smoothing
 
     def forward(self, logits, targets):
         """

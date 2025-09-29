@@ -29,6 +29,9 @@ class Generator:
         Generates sequences of tokens for a batch of prompts.
         Returns a tuple of (generated_tokens_list, attention_weights_history).
         """
+        if not prompt_tokens_list or all(p.size == 0 for p in prompt_tokens_list):
+            return [], [] # Return empty generated tokens and attention history
+
         batch_size = len(prompt_tokens_list)
         max_len = max(len(p) for p in prompt_tokens_list)
         

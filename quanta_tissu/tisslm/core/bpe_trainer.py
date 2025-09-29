@@ -158,12 +158,12 @@ class BPETokenizer:
 
                 # Slice the potential character's bytes and try to decode.
                 char_bytes = all_bytes[i : i + num_bytes]
-                text_parts.append(char_bytes.decode("utf-8"))
+                text_parts.append(char_bytes.decode("utf-8", errors='replace'))
                 i += num_bytes # Move past the decoded character.
 
             except UnicodeDecodeError:
-                # If a decode error occurs even with the length check, 
-                # it means the continuation bytes were invalid. Skip the starting byte and retry.
+                # This block should ideally not be reached if errors='replace' is used,
+                # but keeping it for robustness or if other issues arise.
                 i += 1
         
         return "".join(text_parts)

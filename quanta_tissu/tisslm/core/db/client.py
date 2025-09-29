@@ -76,6 +76,7 @@ class TissDBClient:
             if doc_id is None:
                 doc_id = str(uuid.uuid4()) # Generate a unique ID
 
+            logger.debug(f"Sending document to {collection}/{doc_id}: Type={type(document)}, Content={document}")
             response = requests.put(f"{self.db_url}/{collection}/{doc_id}", json=document, headers=headers)
             logger.info(f"add_document: Status Code: {response.status_code}, Response Text: {response.text}")
             response.raise_for_status()

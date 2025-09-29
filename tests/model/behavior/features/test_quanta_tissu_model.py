@@ -38,7 +38,7 @@ class TestQuantaTissuModel(unittest.TestCase):
         input_tokens = np.array([[10, 20, 30, 40]]) # Batch=1, Seq_len=4
         
         # Perform forward pass
-        logits, model_cache = self.model.forward(input_tokens)
+        logits, model_cache, _ = self.model.forward(input_tokens)
 
         # Assert output shape
         self.assertEqual(logits.shape, (1, 4, self.config["vocab_size"])) # Batch, Seq_len, Vocab_size
@@ -49,7 +49,7 @@ class TestQuantaTissuModel(unittest.TestCase):
         input_tokens = np.array([[10, 20, 30, 40]]) # Batch=1, Seq_len=4
 
         # Perform forward pass to get cache
-        logits, model_cache = self.model.forward(input_tokens)
+        logits, model_cache, _ = self.model.forward(input_tokens)
 
         # Create dummy gradients for logits
         d_logits = np.random.randn(*logits.shape)
@@ -65,27 +65,24 @@ class TestQuantaTissuModel(unittest.TestCase):
     def test_sample_greedy(self):
         prompt = "hello"
         n_new_tokens = 5
+        np.random.seed(42) # For deterministic sampling
 
-        # Mock the underlying LLM model's forward pass to return predictable logits
-        with patch.object(self.model.model, 'forward') as mock_llm_forward:
-            # Simulate logits that always lead to the same next token for greedy
-            # Logits shape: (batch_size, seq_len, vocab_size)
-            # We only care about the last token's logits for generation
-            mock_llm_forward.side_effect = [
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock()), # Logits for last prompt token (to predict first new token)
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock()), # Logits for first generated token
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock()), # Logits for second generated token
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock()), # Logits for third generated token
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock()), # Logits for fourth generated token
-                (np.array([[[0.1, 0.2, 0.9, 0.0, 0.0]]]), MagicMock()), # Logits for fifth generated token (dummy)
-            ]
+        # Mock the underlying Model's forward pass to return predictable logits
+        with patch.object(self.model.model, 'forward') as mock_model_forward:
+            # Create a logit array where token '2' is always the most likely
+            logits = np.full((1, 1, self.config["vocab_size"]), -np.inf)
+            logits[0, 0, 2] = 0.9
+            logits[0, 0, 1] = 0.2
+            logits[0, 0, 0] = 0.1
+
+            # The forward pass will be called multiple times, always return the same logits
+            mock_model_forward.return_value = (logits, MagicMock(), MagicMock())
 
             generated_tokens = self.model.sample(self.mock_tokenizer.tokenize(prompt), n_new_tokens, method="greedy")
-            generated_text = self.mock_tokenizer.detokenize(generated_tokens)
 
             self.assertEqual(len(generated_tokens), n_new_tokens)
             # The token with highest logit (0.9) is index 2
-            self.assertEqual(generated_text, "\x02\x02\x02\x02\x02") # chr(2) = ''
+            self.assertEqual(generated_tokens, [2, 2, 2, 2, 2])
 
     def test_sample_top_k(self):
         prompt = "test"
@@ -93,17 +90,16 @@ class TestQuantaTissuModel(unittest.TestCase):
         top_k = 2
         np.random.seed(42) # For deterministic sampling
 
-        with patch.object(self.model.model, 'forward') as mock_llm_forward:
+        with patch.object(self.model, 'forward') as mock_quanta_tissu_forward:
             # Simulate logits where top-k sampling can be tested
-            mock_llm_forward.side_effect = [
-                (np.array([[[0.1, 0.8, 0.2, 0.7, 0.0]]]), MagicMock()), # Logits for last prompt token
-                (np.array([[[0.9, 0.1, 0.0, 0.0, 0.0]]]), MagicMock()), # Logits for first generated token
-                (np.array([[[0.0, 0.0, 0.0, 0.5, 0.5]]]), MagicMock()), # Logits for second generated token
-                (np.array([[[0.0, 0.0, 0.0, 0.0, 0.0]]]), MagicMock()), # Dummy for third generated token
+            mock_quanta_tissu_forward.side_effect = [
+                (np.array([[[0.1, 0.8, 0.2, 0.7, 0.0]]]), MagicMock(), MagicMock()), # Logits for last prompt token
+                (np.array([[[0.9, 0.1, 0.0, 0.0, 0.0]]]), MagicMock(), MagicMock()), # Logits for first generated token
+                (np.array([[[0.0, 0.0, 0.0, 0.5, 0.5]]]), MagicMock(), MagicMock()), # Logits for second generated token
+                (np.array([[[0.0, 0.0, 0.0, 0.0, 0.0]]]), MagicMock(), MagicMock()), # Dummy for third generated token
             ]
 
             generated_tokens = self.model.sample(self.mock_tokenizer.tokenize(prompt), n_new_tokens, method="top_k", top_k=top_k)
-            generated_text = self.mock_tokenizer.detokenize(generated_tokens)
 
             self.assertEqual(len(generated_tokens), n_new_tokens)
             # With seed 42, and top_k=2 for [0.1, 0.8, 0.2, 0.7, 0.0] (indices 1, 3 are top 2)
@@ -114,22 +110,21 @@ class TestQuantaTissuModel(unittest.TestCase):
             # np.random.choice with seed 42 on [0, 1] with normalized probs will pick 0 (0.9)
             # For third token: [0.0, 0.0, 0.0, 0.5, 0.5] -> top_k: [0.5, 0.5] (indices 3, 4)
             # np.random.choice with seed 42 on [3, 4] with normalized probs will pick 3 (0.5)
-            self.assertEqual(generated_text, "\x01\x01\x04") # chr(1), chr(1), chr(4)
-
+            self.assertEqual(generated_tokens, [1, 0, 3])
     def test_sample_nucleus(self):
         prompt = "prompt"
         n_new_tokens = 4
         top_p = 0.9
         np.random.seed(42) # For deterministic sampling
 
-        with patch.object(self.model.model, 'forward') as mock_llm_forward:
+        with patch.object(self.model, 'forward') as mock_quanta_tissu_forward:
             # Simulate logits for nucleus sampling
-            mock_llm_forward.side_effect = [
-                (np.array([[[0.05, 0.1, 0.7, 0.1, 0.05]]]), MagicMock()), # Logits for last prompt token
-                (np.array([[[0.8, 0.1, 0.05, 0.05, 0.0]]]), MagicMock()), # Logits for first generated token
-                (np.array([[[0.01, 0.01, 0.9, 0.04, 0.04]]]), MagicMock()), # Logits for second generated token
-                (np.array([[[0.0, 0.0, 0.0, 0.95, 0.05]]]), MagicMock()), # Logits for third generated token
-                (np.array([[[0.0, 0.0, 0.0, 0.0, 0.0]]]), MagicMock()), # Dummy for fourth generated token
+            mock_quanta_tissu_forward.side_effect = [
+                (np.array([[[0.05, 0.1, 0.7, 0.1, 0.05]]]), MagicMock(), MagicMock()), # Logits for last prompt token
+                (np.array([[[0.8, 0.1, 0.05, 0.05, 0.0]]]), MagicMock(), MagicMock()), # Logits for first generated token
+                (np.array([[[0.01, 0.01, 0.9, 0.04, 0.04]]]), MagicMock(), MagicMock()), # Logits for second generated token
+                (np.array([[[0.0, 0.0, 0.0, 0.95, 0.05]]]), MagicMock(), MagicMock()), # Logits for third generated token
+                (np.array([[[0.0, 0.0, 0.0, 0.0, 0.0]]]), MagicMock(), MagicMock()), # Dummy for fourth generated token
             ]
 
             generated_tokens = self.model.sample(self.mock_tokenizer.tokenize(prompt), n_new_tokens, method="nucleus", top_p=top_p)

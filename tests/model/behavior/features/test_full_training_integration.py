@@ -50,7 +50,8 @@ class TestFullTrainingIntegration(unittest.TestCase):
             "weight_decay": 0.0,
             "num_epochs": 2, # Small number of epochs for quick test
             "batch_size": 2,
-            "model_save_path": self.model_save_path
+            "model_save_path": self.model_save_path,
+            "dropout_p": 0.1 # Changed from 'dropout' to 'dropout_p'
         }
 
         # Mock Tokenizer to return predictable token IDs
@@ -76,7 +77,14 @@ class TestFullTrainingIntegration(unittest.TestCase):
         # Configure mocks
         mock_system_config.__getitem__.side_effect = lambda key: {'model_save_path': self.config["model_save_path"]}[key]
         mock_tokenizer_system_config.__getitem__.side_effect = lambda key: {'model_save_path': self.config["model_save_path"]}[key]
+
+        # Configure model_config to handle both __getitem__ and get
+        def model_config_side_effect(key, default=None):
+            return self.config.get(key, default)
+
         mock_model_config.__getitem__.side_effect = lambda key: self.config[key]
+        mock_model_config.get.side_effect = model_config_side_effect
+
         mock_training_config.__getitem__.side_effect = lambda key: self.config[key]
         mock_tokenizer_config.__getitem__.side_effect = lambda key: self.config[key]
 

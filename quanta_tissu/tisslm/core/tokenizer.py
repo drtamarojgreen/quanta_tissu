@@ -16,34 +16,43 @@ class Tokenizer:
     Handles conversion between text and token IDs.
     """
     
-    def __init__(self, tokenizer_path=None):
+    def __init__(self, tokenizer_prefix=None):
         self.bpe_tokenizer = BPETokenizer()
-        if tokenizer_path:
-            tokenizer_prefix = tokenizer_path
-        else:
-            # Construct the path to the trained tokenizer files
-            tokenizer_prefix = os.path.join(os.path.dirname(system_config["model_save_path"]), "trained_tokenizer")
-        
-        self.load_successful = False
-        try:
-            self.bpe_tokenizer.load(tokenizer_prefix)
-            self.load_successful = True
-        except FileNotFoundError:
-            print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using tisslm/train_bpe.py.")
-            # On failure, the bpe_tokenizer will retain its default empty vocab and merges,
-            # preventing crashes and allowing basic operations to fail gracefully (e.g., returning empty lists).
-        except Exception as e:
-            print(f"Error loading BPE tokenizer from {tokenizer_prefix}: {e}")
-            # Handle other potential loading errors, e.g., malformed files
 
-        # Special tokens, assuming they are part of the BPE vocabulary or handled externally
-        # For BPE, <unk> and <pad> might be handled implicitly or added during training.
-        # We'll assume they are present in the BPE vocab for now.
+        if tokenizer_prefix is None:
+            try:
+                model_path = system_config["model_save_path"]
+                model_dir = os.path.dirname(model_path)
+                tokenizer_prefix = os.path.join(model_dir, "trained_tokenizer")
+            except KeyError:
+                print("Warning: 'model_save_path' not in system_config. Tokenizer will be initialized empty.")
+                tokenizer_prefix = None
+            except Exception as e:
+                print(f"Warning: Could not determine tokenizer path from config. Error: {e}")
+                tokenizer_prefix = None
+
+        self.load_successful = False
+        if tokenizer_prefix:
+            try:
+                self.bpe_tokenizer.load(tokenizer_prefix)
+                self.load_successful = True
+            except FileNotFoundError:
+                print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using tisslm/train_bpe.py.")
+                self.bpe_tokenizer.vocab = None
+            except Exception as e:
+                print(f"Error loading BPE tokenizer from {tokenizer_prefix}: {e}")
+                self.bpe_tokenizer.vocab = None
+        else:
+            print("Warning: No tokenizer prefix provided. Tokenizer will be initialized empty.")
+
         self.unk_token = "<unk>"
         self.pad_token = "<pad>"
-        # These might need to be mapped to actual BPE token IDs if they are not directly bytes
-        self.unk_token_id = self.bpe_tokenizer.encode(self.unk_token)[0] if self.bpe_tokenizer.encode(self.unk_token) else 0 # Fallback
-        self.pad_token_id = self.bpe_tokenizer.encode(self.pad_token)[0] if self.bpe_tokenizer.encode(self.pad_token) else 1 # Fallback
+        if self.load_successful and self.bpe_tokenizer.vocab:
+            self.unk_token_id = self.bpe_tokenizer.encode(self.unk_token)[0] if self.bpe_tokenizer.encode(self.unk_token) else 0
+            self.pad_token_id = self.bpe_tokenizer.encode(self.pad_token)[0] if self.bpe_tokenizer.encode(self.pad_token) else 1
+        else:
+            self.unk_token_id = 0
+            self.pad_token_id = 1
 
     def tokenize(self, text: str) -> np.ndarray:
         """
@@ -105,12 +114,28 @@ class Tokenizer:
         # BPE tokenizer decodes IDs to bytes, then to string.
         return self.bpe_tokenizer.decode([token_id])
 
+import json # Added import
+
 # Maintain backward compatibility with existing function-based interface
 _global_tokenizer_instance = None
 def _get_global_tokenizer():
     global _global_tokenizer_instance
     if _global_tokenizer_instance is None:
-        _global_tokenizer_instance = Tokenizer()
+        # Load paths from configuration file
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+        config_path = os.path.join(project_root, 'quanta_tissu', 'configurations', 'paths.json')
+        try:
+            with open(config_path, 'r') as f:
+                paths_config = json.load(f)
+        except FileNotFoundError:
+            print(f"Error: Configuration file not found at {config_path}. Cannot initialize global tokenizer.")
+            raise
+
+        tokenizer_dir = os.path.join(project_root, paths_config.get("tokenizer_dir"))
+        tokenizer_filename_prefix = paths_config.get("tokenizer_filename_prefix")
+        full_tokenizer_prefix = os.path.join(tokenizer_dir, tokenizer_filename_prefix)
+
+        _global_tokenizer_instance = Tokenizer(tokenizer_prefix=full_tokenizer_prefix)
     return _global_tokenizer_instance
 
 
