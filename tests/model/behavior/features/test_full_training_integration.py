@@ -83,8 +83,7 @@ class TestFullTrainingIntegration(unittest.TestCase):
             return self.config.get(key, default)
 
         mock_model_config.__getitem__.side_effect = lambda key: self.config[key]
-        mock_model_config.get.side_effect = model_config_side_effect
-
+        mock_model_config.get.side_effect = lambda key, default: self.config.get(key, default) # Added for get method
         mock_training_config.__getitem__.side_effect = lambda key: self.config[key]
         mock_tokenizer_config.__getitem__.side_effect = lambda key: self.config[key]
 

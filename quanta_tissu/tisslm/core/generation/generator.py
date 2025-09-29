@@ -143,6 +143,7 @@ class Generator:
 
         if config.method == "greedy":
             next_token = np.argmax(probs).item()
+            logger.debug(f"_predict_from_logits (greedy): next_token={next_token}")
 
         elif config.method == "top_k":
             if config.top_k is None:
