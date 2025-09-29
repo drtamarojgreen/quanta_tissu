@@ -107,7 +107,7 @@ def train_model_step():
     print("\n--- Step 2: Training Model ---")
     os.makedirs(TEST_MODEL_DIR, exist_ok=True)
 
-    tokenizer = Tokenizer(tokenizer_path=TOKENIZER_SAVE_PREFIX)
+    tokenizer = Tokenizer(tokenizer_prefix=TOKENIZER_SAVE_PREFIX)
     model_config["vocab_size"] = tokenizer.get_vocab_size()
     
     token_ids = load_corpus(TEST_CORPUS_DIR, tokenizer)
@@ -144,7 +144,7 @@ def generate_text_step():
     if not os.path.exists(final_checkpoint_path):
         raise FileNotFoundError(f"Final checkpoint not found at {final_checkpoint_path}")
 
-    tokenizer = Tokenizer(tokenizer_path=TOKENIZER_SAVE_PREFIX)
+    tokenizer = Tokenizer(tokenizer_prefix=TOKENIZER_SAVE_PREFIX)
     model_config["vocab_size"] = tokenizer.get_vocab_size()
     model = QuantaTissu(model_config)
     model.load_weights(final_checkpoint_path)

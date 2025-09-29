@@ -114,7 +114,7 @@ def main():
     # --- Load Model and Tokenizer ---
     try:
         print("Loading tokenizer...")
-        tokenizer = Tokenizer(tokenizer_path=TOKENIZER_SAVE_PREFIX)
+        tokenizer = Tokenizer(tokenizer_prefix=TOKENIZER_SAVE_PREFIX)
         model_config["vocab_size"] = tokenizer.get_vocab_size()
 
         print("Loading model...")
