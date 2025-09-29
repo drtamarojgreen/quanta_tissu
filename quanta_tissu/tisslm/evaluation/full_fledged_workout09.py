@@ -30,7 +30,7 @@ def run_tisslang_parser_tests():
         },
         {
             "name": "IF-ELSE block",
-            "script": "IF condition == true\n  LOG \"Condition is true\"\nELSE\n  LOG \"Condition is false\"\n}",
+            "script": "STEP \"Test\" {\nIF condition == true\n  LOG \"Condition is true\"\nELSE\n  LOG \"Condition is false\"\n}",
             "expected_type": "IF_ELSE",
             "expected_condition": "condition == true",
             "expected_then_len": 1,
@@ -38,14 +38,14 @@ def run_tisslang_parser_tests():
         },
         {
             "name": "WRITE command (heredoc)",
-            "script": "WRITE file.txt <<EOF\nHello World\nThis is a test.\nEOF\n",
+            "script": "STEP \"Test\" {\nWRITE file.txt <<EOF\nHello World\nThis is a test.\nEOF\n}",
             "expected_type": "WRITE",
             "expected_path": "file.txt",
             "expected_content_start": "Hello World"
         },
         {
             "name": "PROMPT_AGENT command",
-            "script": "PROMPT_AGENT \"Summarize this text\" -> summary_var",
+            "script": "STEP \"Test\" {\nPROMPT_AGENT \"Summarize this text\" -> summary_var\n}",
             "expected_type": "PROMPT_AGENT",
             "expected_prompt": "Summarize this text",
             "expected_variable": "summary_var"
