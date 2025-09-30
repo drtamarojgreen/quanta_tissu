@@ -1,5 +1,5 @@
-#include "../db/tissdb_client.h"
-#include "../retrieval/retrieval_strategy.h"
+#include "../../../quanta_tissu/tisslm/program/db/tissdb_client.h"
+#include "../../../quanta_tissu/tisslm/program/retrieval/retrieval_strategy.h"
 #include <iostream>
 #include <cassert>
 #include <vector>
@@ -206,6 +206,65 @@ void test_multiple_documents() {
         
     } catch (const std::exception& e) {
         results.record_fail("Multiple documents", e.what());
+    }
+}
+
+void test_document_search() {
+    std::cout << "\n=== Testing Document Search ===" << std::endl;
+    
+    try {
+        TissDBClient client("127.0.0.1", 9876, "test_cpp_db");
+        std::vector<std::string> collections = {"search_docs"};
+        client.ensure_db_setup(collections);
+        
+        // Add sample documents
+        Document doc1;
+        doc1.set_field("title", "Mars Mission Overview");
+        doc1.set_field("content", "The first manned mission to Mars, named 'Ares 1', is scheduled for 2035.");
+        client.add_document("search_docs", doc1, "doc_mars");
+
+        Document doc2;
+        doc2.set_field("title", "Moon Landing History");
+        doc2.set_field("content", "The Apollo 11 mission landed humans on the Moon in 1969.");
+        client.add_document("search_docs", doc2, "doc_moon");
+
+        Document doc3;
+        doc3.set_field("title", "Future Space Exploration");
+        doc3.set_field("content", "Plans for future space exploration include missions to Jupiter's moons.");
+        client.add_document("search_docs", doc3, "doc_jupiter");
+        
+        // Search for documents containing "Mars"
+        std::string query_json = "{\"query\": \"Mars\"}";
+        std::vector<Document> search_results = client.search_documents("search_docs", query_json);
+        
+        if (search_results.size() == 1 && search_results[0].get_field("title") == "Mars Mission Overview") {
+            results.record_pass("Document search for 'Mars'");
+        } else {
+            results.record_fail("Document search for 'Mars'", "Unexpected search results or count");
+        }
+
+        // Search for documents containing "Moon"
+        query_json = "{\"query\": \"Moon\"}";
+        search_results = client.search_documents("search_docs", query_json);
+
+        if (search_results.size() == 1 && search_results[0].get_field("title") == "Moon Landing History") {
+            results.record_pass("Document search for 'Moon'");
+        } else {
+            results.record_fail("Document search for 'Moon'", "Unexpected search results or count for 'Moon'");
+        }
+
+        // Search for documents containing "exploration" (should find two)
+        query_json = "{\"query\": \"exploration\"}";
+        search_results = client.search_documents("search_docs", query_json);
+
+        if (search_results.size() == 2) { // Assuming both Mars and Jupiter docs contain "exploration" implicitly or explicitly
+            results.record_pass("Document search for 'exploration'");
+        } else {
+            results.record_fail("Document search for 'exploration'", "Expected 2 documents, got " + std::to_string(search_results.size()));
+        }
+        
+    } catch (const std::exception& e) {
+        results.record_fail("Document search", e.what());
     }
 }
 
@@ -446,6 +505,7 @@ int main() {
     test_document_crud();
     test_feedback_collection();
     test_multiple_documents();
+    test_document_search();
     
     // Retrieval Strategy Tests
     test_cosine_similarity();

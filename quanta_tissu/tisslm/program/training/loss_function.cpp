@@ -6,24 +6,26 @@ namespace TissDB {
 namespace TissLM {
 namespace Core {
 
+using namespace TissNum;
+
 Matrix CrossEntropyLoss::softmax(const Matrix& input) {
     Matrix output = input;
     for (int r = 0; r < output.rows(); ++r) {
         float max_val = -std::numeric_limits<float>::infinity();
         for (int c = 0; c < output.cols(); ++c) {
-            if (output.get(r, c) > max_val) {
-                max_val = output.get(r, c);
+            if (output(r, c) > max_val) {
+                max_val = output(r, c);
             }
         }
 
         float sum_exp = 0.0f;
         for (int c = 0; c < output.cols(); ++c) {
-            output.set(r, c, std::exp(output.get(r, c) - max_val));
-            sum_exp += output.get(r, c);
+            output(r, c) = std::exp(output(r, c) - max_val);
+            sum_exp += output(r, c);
         }
 
         for (int c = 0; c < output.cols(); ++c) {
-            output.set(r, c, output.get(r, c) / sum_exp);
+            output(r, c) = output(r, c) / sum_exp;
         }
     }
     return output;
@@ -42,8 +44,8 @@ float CrossEntropyLoss::compute_loss(const Matrix& predictions, const Matrix& ta
     for (int r = 0; r < num_samples; ++r) {
         for (int c = 0; c < predictions.cols(); ++c) {
             // Only sum if target is 1 (one-hot encoding)
-            if (targets.get(r, c) > 0.5f) { // Assuming targets are 0 or 1
-                loss -= targets.get(r, c) * std::log(softmax_predictions.get(r, c) + std::numeric_limits<float>::epsilon());
+            if (targets(r, c) > 0.5f) { // Assuming targets are 0 or 1
+                loss -= targets(r, c) * std::log(softmax_predictions(r, c) + std::numeric_limits<float>::epsilon());
             }
         }
     }

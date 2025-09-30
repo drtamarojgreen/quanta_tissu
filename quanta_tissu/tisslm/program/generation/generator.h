@@ -1,9 +1,9 @@
 #ifndef TISSLM_GENERATOR_H
 #define TISSLM_GENERATOR_H
 
-#include "../../core/model_interface.h"
+#include "core/model_interface.h"
 #include "generation_config.h"
-#nclude <memory>
+#include <memory>
 #include <vector>
 #include <string>
 
@@ -15,17 +15,17 @@ class Generator {
 public:
     Generator(
         std::shared_ptr<Model> model,
-        const GenerationConfig& config
+        const Generation::GenerationConfig& config
     );
 
     std::vector<int> generate(const std::vector<int>& prompt_tokens, int max_new_tokens);
 
+    // Helper for sampling
+    int sample_token(const TissNum::Matrix& logits);
+
 private:
     std::shared_ptr<Model> model_;
-    GenerationConfig config_;
-
-    // Helper for sampling
-    int sample_token(const Matrix& logits);
+    Generation::GenerationConfig config_;
 };
 
 } // namespace Core

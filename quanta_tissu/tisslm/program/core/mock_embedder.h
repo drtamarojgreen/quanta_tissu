@@ -14,7 +14,7 @@ namespace Core {
 class MockEmbedder {
 public:
     MockEmbedder(size_t embedding_dim = 128);
-    Matrix embed(const std::string& text);
+    TissNum::Matrix embed(const std::string& text);
 
 private:
     size_t embedding_dim_;

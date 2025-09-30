@@ -80,7 +80,7 @@ struct GenerationConfig {
     /**
      * Create top-k sampling config
      */
-    static GenerationConfig top_k(int k, float temp = 1.0f) {
+    static GenerationConfig with_top_k(int k, float temp = 1.0f) {
         GenerationConfig config;
         config.method = "top_k";
         config.top_k = k;

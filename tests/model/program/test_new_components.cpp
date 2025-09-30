@@ -1,5 +1,5 @@
-#include "embedding.h"
-#include "positionalencoding.h"
+#include "../../../quanta_tissu/tisslm/program/core/embedding.h"
+#include "../../../quanta_tissu/tisslm/program/core/positionalencoding.h"
 #include <iostream>
 #include <vector>
 #include <iomanip>

@@ -2,6 +2,7 @@
 
 #include "matrix.h"
 #include "parameter.h"
+#include <optional>
 
 namespace TissNum {
 
@@ -27,10 +28,10 @@ private:
     Parameter w_o_;
 
     // LoRA parameters for Query and Value projections
-    Parameter w_q_lora_a_;
-    Parameter w_q_lora_b_;
-    Parameter w_v_lora_a_;
-    Parameter w_v_lora_b_;
+    std::optional<Parameter> w_q_lora_a_;
+    std::optional<Parameter> w_q_lora_b_;
+    std::optional<Parameter> w_v_lora_a_;
+    std::optional<Parameter> w_v_lora_b_;
 
     // Cache for backward pass
     Matrix cached_q_;

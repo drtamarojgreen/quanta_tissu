@@ -4,18 +4,19 @@ project(TissLMTests)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find libcurl (required for HTTP client)
-find_package(CURL REQUIRED)
+
 
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/core) # Include core components
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/training) # Include training components
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/generation) # Include generation components
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/tokenizer) # Include tokenizer components
-include_directories(${CURL_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/core)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/training)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/generation)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/tokenizer)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/db)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/retrieval)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/rules)
 
-# Core components library
+
 add_library(tisslm_core
     ../../../quanta_tissu/tisslm/program/core/matrix.cpp
     ../../../quanta_tissu/tisslm/program/core/parameter.cpp
@@ -27,7 +28,13 @@ add_library(tisslm_core
     ../../../quanta_tissu/tisslm/program/core/positionalencoding.cpp
     ../../../quanta_tissu/tisslm/program/core/embedding.cpp
     ../../../quanta_tissu/tisslm/program/core/transformer_model.cpp
+    ../../../quanta_tissu/tisslm/program/db/tissdb_client.cpp
+    ../../../quanta_tissu/tisslm/program/db/http_client.cpp
 )
+
+if(WIN32)
+    target_link_libraries(tisslm_core ws2_32)
+endif()
 
 # Training components library
 add_library(tisslm_training
@@ -50,11 +57,14 @@ add_library(tisslm_rules
     ../../../quanta_tissu/tisslm/program/rules/rule_enforcer.cpp
 )
 
-# Database client library
-add_library(tissdb_client 
+# Database client library (standalone executable)
+add_executable(tissdb_client_exe
     ../../../quanta_tissu/tisslm/program/db/tissdb_client.cpp
 )
-target_link_libraries(tissdb_client ${CURL_LIBRARIES})
+
+if(WIN32)
+    target_link_libraries(tissdb_client_exe ws2_32)
+endif()
 
 # Retrieval strategies library
 add_library(retrieval_strategies
@@ -67,9 +77,8 @@ add_executable(test_db_and_retrieval
 )
 
 target_link_libraries(test_db_and_retrieval
-    tissdb_client
     retrieval_strategies
-    ${CURL_LIBRARIES}
+    tisslm_core
 )
 
 add_executable(test_new_components
@@ -134,7 +143,6 @@ target_link_libraries(rag_self_update_test
     tisslm_core
     tisslm_generation
     tisslm_tokenizer
-    tissdb_client
 )
 
 add_executable(experimental_sampling_test
@@ -287,7 +295,7 @@ add_executable(tissdb_lite_integration_test
     tissdb_lite_integration_test.cpp
 )
 target_link_libraries(tissdb_lite_integration_test
-    tissdb_client
+    tisslm_core
 )
 
 add_test(NAME TissDBLiteIntegrationTests
@@ -318,5 +326,4 @@ set_tests_properties(AdvancedSamplingTests PROPERTIES
 # Print build information
 message(STATUS "Building TissLM Tests")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
-message(STATUS "  CURL Include: ${CURL_INCLUDE_DIRS}")
-message(STATUS "  CURL Libraries: ${CURL_LIBRARIES}")
+

@@ -1,7 +1,7 @@
-#include "../../quanta_tissu/tisslm/program/core/transformer_model.h"
-#include "../../quanta_tissu/tisslm/program/generation/generator.h"
-#include "../../quanta_tissu/tisslm/program/generation/generation_config.h"
-#include "../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
+#include "../../../quanta_tissu/tisslm/program/core/transformer_model.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generator.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generation_config.h"
+#include "../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -57,14 +57,14 @@ void run_cpp_full_fledged_workout() {
     int max_new_tokens = 10;
 
     for (const auto& params_map : generation_params) {
-        GenerationConfig config;
+        Generation::GenerationConfig config;
         if (params_map.count("temperature")) config.temperature = params_map.at("temperature");
         if (params_map.count("top_k")) config.top_k = static_cast<int>(params_map.at("top_k"));
-        config.eos_token_id = 0; // Assuming 0 is EOS for dummy tokenizer
+        config.eos_ids.push_back(0); // Assuming 0 is EOS for dummy tokenizer
 
         Generator generator(model, config);
 
-        std::cout << "\n  Testing with params: Temp=" << config.temperature << ", TopK=" << config.top_k << std::endl;
+        std::cout << "\n  Testing with params: Temp=" << config.temperature << ", TopK=" << config.top_k.value_or(-1) << std::endl;
 
         for (const std::string& prompt_text : prompts) {
             std::vector<int> prompt_tokens = tokenizer.encode(prompt_text);

@@ -1,6 +1,6 @@
-#include "../../quanta_tissu/tisslm/program/core/transformer_model.h"
-#include "../../quanta_tissu/tisslm/program/generation/generator.h"
-#include "../../quanta_tissu/tisslm/program/generation/generation_config.h"
+#include "../../../quanta_tissu/tisslm/program/core/transformer_model.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generator.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generation_config.h"
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -79,8 +79,8 @@ void test_generator() {
     int lora_rank = 0; // Test Generator without LoRA for simplicity
 
     std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, dropout_rate, lora_rank);
-    GenerationConfig config;
-    config.eos_token_id = 50; // Example EOS token ID
+    Generation::GenerationConfig config;
+    config.eos_ids.push_back(50); // Example EOS token ID
 
     Generator generator(model, config);
 

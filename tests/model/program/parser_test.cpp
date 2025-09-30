@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 #include <cassert>
-#include "../../../../tisslm/compiler/parser.h"
+#include "../../../quanta_tissu/tisslm/compiler/parser.h"
 
 // Helper function to print test names
 void test_case(const std::string& name) {

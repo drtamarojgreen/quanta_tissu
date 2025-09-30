@@ -217,6 +217,25 @@ Matrix Matrix::operator/(float scalar) const {
     return result;
 }
 
+Matrix Matrix::element_wise_product(const Matrix& other) const {
+    return (*this) * other;
+}
+
+Matrix Matrix::element_wise_division(const Matrix& other) const {
+    return (*this) / other;
+}
+
+Matrix Matrix::element_wise_sqrt() const {
+    Matrix result(rows_, cols_);
+    for (size_t i = 0; i < data_.size(); ++i) {
+        if (data_[i] < 0.0f) {
+            throw std::invalid_argument("Cannot take square root of negative number in element_wise_sqrt.");
+        }
+        result.data_[i] = std::sqrt(data_[i]);
+    }
+    return result;
+}
+
 Matrix Matrix::concatenate(const Matrix& a, const Matrix& b, int axis) {
     if (axis == 0) { // Concatenate along rows
         if (a.cols_ != b.cols_) {

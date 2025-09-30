@@ -13,9 +13,9 @@ namespace Core {
 class Model {
 public:
     virtual ~Model() = default;
-    virtual Matrix forward(const Matrix& input) = 0;
-    virtual Matrix backward(const Matrix& grad_output) = 0;
-    virtual std::vector<std::shared_ptr<Parameter>> get_parameters() = 0;
+    virtual TissNum::Matrix forward(const TissNum::Matrix& input) = 0;
+    virtual TissNum::Matrix backward(const TissNum::Matrix& grad_output) = 0;
+    virtual std::vector<std::shared_ptr<TissNum::Parameter>> get_parameters() = 0;
 };
 
 } // namespace Core
