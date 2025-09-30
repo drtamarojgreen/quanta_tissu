@@ -28,6 +28,7 @@ add_library(tisslm_core
     ../../../quanta_tissu/tisslm/program/core/positionalencoding.cpp
     ../../../quanta_tissu/tisslm/program/core/embedding.cpp
     ../../../quanta_tissu/tisslm/program/core/transformer_model.cpp
+    ../../../quanta_tissu/tisslm/program/core/mock_embedder.cpp
     ../../../quanta_tissu/tisslm/program/db/tissdb_client.cpp
     ../../../quanta_tissu/tisslm/program/db/http_client.cpp
 )
@@ -56,15 +57,6 @@ add_library(tisslm_tokenizer
 add_library(tisslm_rules
     ../../../quanta_tissu/tisslm/program/rules/rule_enforcer.cpp
 )
-
-# Database client library (standalone executable)
-add_executable(tissdb_client_exe
-    ../../../quanta_tissu/tisslm/program/db/tissdb_client.cpp
-)
-
-if(WIN32)
-    target_link_libraries(tissdb_client_exe ws2_32)
-endif()
 
 # Retrieval strategies library
 add_library(retrieval_strategies
@@ -326,4 +318,3 @@ set_tests_properties(AdvancedSamplingTests PROPERTIES
 # Print build information
 message(STATUS "Building TissLM Tests")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
-
