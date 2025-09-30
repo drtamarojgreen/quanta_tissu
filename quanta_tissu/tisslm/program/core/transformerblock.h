@@ -4,6 +4,7 @@
 #include "feedforward.h"
 #include "layernorm.h"
 #include "dropout.h"
+#include <optional>
 
 namespace TissNum {
 

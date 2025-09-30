@@ -4,11 +4,14 @@ namespace TissDB {
 namespace TissLM {
 namespace Core {
 
+using namespace TissNum;
+
 TransformerModel::TransformerModel(int vocab_size, int max_seq_len, int embed_dim, int num_heads, int num_layers, float dropout_rate, int lora_rank)
     : embedding_layer_(vocab_size, embed_dim),
       positional_encoding_layer_(max_seq_len, embed_dim),
-      output_weight_(embed_dim, vocab_size, true), // Output layer weight
-      output_bias_(1, vocab_size, true), // Output layer bias
+      final_layer_norm_(embed_dim),
+      output_weight_(TissNum::Matrix::random(embed_dim, vocab_size), "output_weight"), // Output layer weight
+      output_bias_(TissNum::Matrix::zeros(1, vocab_size), "output_bias"), // Output layer bias
       vocab_size_(vocab_size),
       embed_dim_(embed_dim),
       num_layers_(num_layers)
@@ -20,7 +23,12 @@ TransformerModel::TransformerModel(int vocab_size, int max_seq_len, int embed_di
 
 Matrix TransformerModel::forward(const Matrix& input_tokens) {
     // 1. Embedding layer
-    embedded_input_ = embedding_layer_.forward(input_tokens);
+    std::vector<size_t> token_ids(input_tokens.cols());
+    for (size_t i = 0; i < input_tokens.cols(); ++i) {
+        token_ids[i] = static_cast<size_t>(input_tokens(0, i));
+    }
+    cached_token_ids_ = token_ids; // Store for backward pass
+    embedded_input_ = embedding_layer_.forward(token_ids);
 
     // 2. Positional Encoding
     Matrix x = positional_encoding_layer_.forward(embedded_input_);
@@ -37,7 +45,7 @@ Matrix TransformerModel::forward(const Matrix& input_tokens) {
     // x is (batch_size * seq_len, embed_dim)
     // output_weight_ is (embed_dim, vocab_size)
     // output_bias_ is (1, vocab_size)
-    Matrix output = x.matmul(output_weight_.value) + output_bias_.value;
+    TissNum::Matrix output = TissNum::Matrix::matmul(x, output_weight_.value()) + output_bias_.value();
 
     return output;
 }
@@ -49,7 +57,11 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
     }
 
     // 1. Embedding layer
-    Matrix x = embedding_layer_.forward(input_tokens);
+    std::vector<size_t> token_ids_inference(input_tokens.cols());
+    for (size_t i = 0; i < input_tokens.cols(); ++i) {
+        token_ids_inference[i] = static_cast<size_t>(input_tokens(0, i));
+    }
+    TissNum::Matrix x = embedding_layer_.forward(token_ids_inference);
 
     // 2. Positional Encoding
     // For inference, input_tokens is typically a single token, so its position is past_kv_cache[0].first.cols()
@@ -76,7 +88,7 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
     }
 
     // 4. Output Linear Layer
-    Matrix output = x.matmul(output_weight_.value) + output_bias_.value;
+    TissNum::Matrix output = TissNum::Matrix::matmul(x, output_weight_.value()) + output_bias_.value();
 
     return output;
 }
@@ -88,18 +100,18 @@ Matrix TransformerModel::backward(const Matrix& grad_output) {
     // output_weight_ is (embed_dim, vocab_size)
 
     // Gradient for output_bias_
-    output_bias_.grad = grad_output.sum(0); // Sum along rows to get (1, vocab_size)
+    output_bias_.grad() = grad_output.sum(0); // Sum along rows to get (1, vocab_size)
 
     // Gradient for output_weight_
-    Matrix x_transpose = transformer_block_outputs_.back().transpose();
-    output_weight_.grad = x_transpose.matmul(grad_output);
+    TissNum::Matrix x_transpose = transformer_block_outputs_.back().transpose();
+    output_weight_.grad() = TissNum::Matrix::matmul(x_transpose, grad_output);
 
     // Gradient propagated back to the input of the output layer (x)
-    Matrix grad_x = grad_output.matmul(output_weight_.value.transpose());
+    TissNum::Matrix grad_x = TissNum::Matrix::matmul(grad_output, output_weight_.value().transpose());
 
     // 2. Backward through Transformer Blocks (in reverse order)
     for (int i = num_layers_ - 1; i >= 0; --i) {
-        grad_x = transformer_blocks_[i].backward(grad_x);
+        grad_x = transformer_blocks_[i].backward(grad_x, transformer_block_outputs_[i]);
     }
 
     // 3. Backward through Positional Encoding (no gradients for positional encoding itself)
@@ -107,22 +119,24 @@ Matrix TransformerModel::backward(const Matrix& grad_output) {
     Matrix grad_embedded_input = grad_x;
 
     // 4. Backward through Embedding layer
-    Matrix grad_input_tokens = embedding_layer_.backward(grad_embedded_input);
+    embedding_layer_.backward(grad_embedded_input, cached_token_ids_);
 
-    return grad_input_tokens; // This would be gradients for the input token IDs, typically not used directly
+    return TissNum::Matrix(); // Gradients for input tokens are not typically propagated further
 }
 
 std::vector<std::shared_ptr<Parameter>> TransformerModel::get_parameters() {
     std::vector<std::shared_ptr<Parameter>> params;
 
     // Embedding layer parameters
-    auto embed_params = embedding_layer_.get_parameters();
-    params.insert(params.end(), embed_params.begin(), embed_params.end());
+    for (auto& p : embedding_layer_.parameters()) {
+        params.push_back(std::make_shared<Parameter>(*p));
+    }
 
     // Transformer block parameters
     for (auto& block : transformer_blocks_) {
-        auto block_params = block.get_parameters();
-        params.insert(params.end(), block_params.begin(), block_params.end());
+        for (auto& p : block.parameters()) {
+            params.push_back(std::make_shared<Parameter>(*p));
+        }
     }
 
     // Output layer parameters

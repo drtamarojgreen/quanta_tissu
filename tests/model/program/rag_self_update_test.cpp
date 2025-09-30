@@ -1,9 +1,9 @@
-#include "../../quanta_tissu/tisslm/program/db/tissdb_client.h"
-#include "../../quanta_tissu/tisslm/program/core/transformer_model.h"
-#include "../../quanta_tissu/tisslm/program/generation/generator.h"
-#include "../../quanta_tissu/tisslm/program/generation/generation_config.h"
-#include "../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
-#include "../../quanta_tissu/tisslm/program/core/mock_embedder.h"
+#include "../../../quanta_tissu/tisslm/program/db/tissdb_client.h"
+#include "../../../quanta_tissu/tisslm/program/core/transformer_model.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generator.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generation_config.h"
+#include "../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
+#include "../../../quanta_tissu/tisslm/program/core/mock_embedder.h"
 
 #include <iostream>
 #include <vector>
@@ -16,20 +16,49 @@
 #include <iomanip>
 
 using namespace TissDB;
+#include <set>
+
+// Helper to convert std::vector<float> to JSON array string
+std::string vector_to_json_array(const std::vector<float>& vec) {
+    std::string json = "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        json += std::to_string(vec[i]);
+        if (i < vec.size() - 1) {
+            json += ",";
+        }
+    }
+    json += "]";
+    return json;
+}
+
+// Helper to convert JSON array string to std::vector<float>
+std::vector<float> json_array_to_vector(const std::string& json_str) {
+    std::vector<float> vec;
+    if (json_str.empty() || json_str == "[]") {
+        return vec;
+    }
+    // Remove brackets
+    std::string content = json_str.substr(1, json_str.length() - 2);
+    std::string::size_type prev_pos = 0, pos = 0;
+    while ((pos = content.find(',', prev_pos)) != std::string::npos) {
+        vec.push_back(std::stof(content.substr(prev_pos, pos - prev_pos)));
+        prev_pos = pos + 1;
+    }
+    vec.push_back(std::stof(content.substr(prev_pos, std::string::npos)));
+    return vec;
+}
+
 using namespace TissDB::TissLM::Core;
 using namespace TissNum;
 
-// Helper for text generation (simplified, using greedy for now)
-std::string generate_with_model(
-    std::shared_ptr<TransformerModel> model,
-    Tokenizer& tokenizer,
-    const std::string& prompt,
-    int length,
-    const GenerationConfig& config
-) {
-    std::vector<int> prompt_tokens = tokenizer.encode(prompt);
+const std::string evaluator_prompt = "Based on the context, evaluate the following query: ";
+const std::string final_prompt = "Based on the context, answer the following query: ";
+
+// Helper function to generate text with the model
+std::string generate_with_model(std::shared_ptr<TissDB::TissLM::Core::TransformerModel> model, Tokenizer& tokenizer, const std::string& prompt, int generation_length, const Generation::GenerationConfig& config) {
     Generator generator(model, config);
-    std::vector<int> generated_tokens = generator.generate(prompt_tokens, length);
+    std::vector<int> prompt_tokens = tokenizer.encode(prompt);
+    std::vector<int> generated_tokens = generator.generate(prompt_tokens, generation_length);
     return tokenizer.decode(generated_tokens);
 }
 
@@ -69,7 +98,7 @@ RAGTestResult run_single_rag_test(
             Matrix embedding_matrix = embedder.embed(content);
             // Convert Matrix to vector<float> for storage (simplified)
             std::vector<float> embedding(embedding_matrix.cols());
-            for(int c=0; c<embedding_matrix.cols(); ++c) embedding[c] = embedding_matrix.get(0,c);
+            for(int c=0; c<embedding_matrix.cols(); ++c) embedding[c] = embedding_matrix(0,c);
 
             Document doc;
             doc.set_field("id", doc_id);
@@ -108,12 +137,12 @@ RAGTestResult run_single_rag_test(
         results.retrieval_correct = (actual_retrieved_ids == expected_retrieval_ids);
 
         // Evaluation (Sanitize context)
-        GenerationConfig eval_gen_config = GenerationConfig::greedy();
+        Generation::GenerationConfig eval_gen_config = Generation::GenerationConfig::greedy();
         std::string evaluator_prompt = "User Query: \"" + scenario_config.at("query") + "\"\n\nRetrieved Context:\n---" + retrieved_context_str + "\n---\n\nExtract verified facts relevant to the query.";
         std::string sanitized_context = generate_with_model(model, tokenizer, evaluator_prompt, 60, eval_gen_config);
 
         // Generation
-        GenerationConfig final_gen_config = GenerationConfig::greedy();
+        Generation::GenerationConfig final_gen_config = Generation::GenerationConfig::greedy();
         std::string final_prompt = "Information: \"" + sanitized_context + "\"\n\nQuestion: \"" + scenario_config.at("query") + "\"\n\nAnswer:";
         std::string final_answer = generate_with_model(model, tokenizer, final_prompt, 50, final_gen_config);
         results.final_answer = final_answer;

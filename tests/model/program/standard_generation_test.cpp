@@ -1,7 +1,7 @@
-#include "../../quanta_tissu/tisslm/program/core/transformer_model.h"
-#include "../../quanta_tissu/tisslm/program/generation/generator.h"
-#include "../../quanta_tissu/tisslm/program/generation/generation_config.h"
-#include "../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
+#include "../../../quanta_tissu/tisslm/program/core/transformer_model.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generator.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generation_config.h"
+#include "../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -12,6 +12,7 @@
 #include <chrono>
 #include <iomanip>
 #include <numeric>
+#include <set> // For std::set
 
 using namespace TissDB::TissLM::Core;
 using namespace TissNum;
@@ -23,6 +24,14 @@ void print_tokens_int(const std::vector<int>& tokens, const std::string& prefix 
         std::cout << token << " ";
     }
     std::cout << std::endl;
+}
+
+// Helper function to generate text with the model
+std::string generate_with_model(std::shared_ptr<TissDB::TissLM::Core::TransformerModel> model, Tokenizer& tokenizer, const std::string& prompt, int generation_length, const Generation::GenerationConfig& config) {
+    Generator generator(model, config);
+    std::vector<int> prompt_tokens = tokenizer.encode(prompt);
+    std::vector<int> generated_tokens = generator.generate(prompt_tokens, generation_length);
+    return tokenizer.decode(generated_tokens);
 }
 
 // Helper for text analysis (simplified)
@@ -101,26 +110,26 @@ void run_standard_generation_evaluation() {
         std::string prompt;
         std::string method;
         int length;
-        GenerationConfig gen_config;
+        Generation::GenerationConfig gen_config;
     };
 
     std::vector<TestConfig> test_configurations = {
         // Greedy Method (baseline)
-        {"The definition of science is", "greedy", 60, GenerationConfig::greedy()},
+        {"The definition of science is", "greedy", 60, Generation::GenerationConfig::greedy()},
 
         // Nucleus Sampling: Temperature variations
-        {"The future of space exploration involves", "nucleus", 70, GenerationConfig::nucleus(0.9f, 0.5f)},
-        {"The future of space exploration involves", "nucleus", 70, GenerationConfig::nucleus(0.9f, 0.8f)},
-        {"The future of space exploration involves", "nucleus", 70, GenerationConfig::nucleus(0.9f, 1.2f)},
+        {"The future of space exploration involves", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 0.5f)},
+        {"The future of space exploration involves", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 0.8f)},
+        {"The future of space exploration involves", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 1.2f)},
 
         // Nucleus Sampling: Top-p variations
-        {"A novel is a work of fiction that", "nucleus", 80, GenerationConfig::nucleus(0.7f, 0.8f)},
-        {"A novel is a work of fiction that", "nucleus", 80, GenerationConfig::nucleus(0.9f, 0.8f)},
-        {"A novel is a work of fiction that", "nucleus", 80, GenerationConfig::nucleus(0.99f, 0.8f)},
+        {"A novel is a work of fiction that", "nucleus", 80, Generation::GenerationConfig::nucleus(0.7f, 0.8f)},
+        {"A novel is a work of fiction that", "nucleus", 80, Generation::GenerationConfig::nucleus(0.9f, 0.8f)},
+        {"A novel is a work of fiction that", "nucleus", 80, Generation::GenerationConfig::nucleus(0.99f, 0.8f)},
 
         // Different prompt types
-        {"To build a successful startup, one must first", "nucleus", 90, GenerationConfig::nucleus(0.9f, 0.9f)},
-        {"Once upon a time, in a land of dragons and magic,", "nucleus", 100, GenerationConfig::nucleus(0.95f, 0.85f)},
+        {"To build a successful startup, one must first", "nucleus", 90, Generation::GenerationConfig::nucleus(0.9f, 0.9f)},
+        {"Once upon a time, in a land of dragons and magic,", "nucleus", 100, Generation::GenerationConfig::nucleus(0.95f, 0.85f)},
     };
 
     std::vector<GenerationAnalysis> all_results;

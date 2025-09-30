@@ -1,4 +1,5 @@
 #include "generator.h"
+#include "core/transformer_model.h" // For static_cast to TransformerModel
 #include <random>
 #include <algorithm>
 #include <limits>
@@ -7,49 +8,101 @@ namespace TissDB {
 namespace TissLM {
 namespace Core {
 
+using namespace TissNum;
+
 Generator::Generator(
     std::shared_ptr<Model> model,
-    const GenerationConfig& config
+    const Generation::GenerationConfig& config
 ) : model_(model), config_(config) {
 }
 
-int Generator::sample_token(const Matrix& logits) {
+std::vector<int> Generator::generate(const std::vector<int>& prompt_tokens, int max_new_tokens) {
+    std::vector<int> generated_sequence = prompt_tokens;
+    std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>> kv_cache;
+
+    auto transformer_model = static_cast<TransformerModel*>(model_.get());
+
+    // Use forward_inference to process the prompt and build the initial KV cache
+    if (!prompt_tokens.empty()) {
+        TissNum::Matrix prompt_matrix(1, prompt_tokens.size());
+        for (size_t i = 0; i < prompt_tokens.size(); ++i) {
+            prompt_matrix(0, i) = static_cast<float>(prompt_tokens[i]);
+        }
+        std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>> new_kv_cache;
+        // We don't need the logits for the prompt, just the cache
+        transformer_model->forward_inference(prompt_matrix, kv_cache, new_kv_cache);
+        kv_cache = new_kv_cache;
+    }
+
+    int current_token = -1;
+    if (!generated_sequence.empty()) {
+        current_token = generated_sequence.back();
+    }
+
+    for (int i = 0; i < max_new_tokens; ++i) {
+        TissNum::Matrix input_token(1, 1);
+        input_token(0, 0) = static_cast<float>(current_token);
+
+        std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>> new_kv_cache;
+        TissNum::Matrix logits = transformer_model->forward_inference(input_token, kv_cache, new_kv_cache);
+        kv_cache = new_kv_cache;
+
+        // Get the logits for the last token
+        TissNum::Matrix last_token_logits(1, logits.cols());
+        for(size_t c = 0; c < logits.cols(); ++c) {
+            last_token_logits(0, c) = logits(logits.rows() - 1, c);
+        }
+
+        int next_token = sample_token(last_token_logits);
+
+        if (config_.eos_ids.size() > 0 && std::find(config_.eos_ids.begin(), config_.eos_ids.end(), next_token) != config_.eos_ids.end()) {
+            break; // End of sequence token found
+        }
+
+        generated_sequence.push_back(next_token);
+        current_token = next_token;
+    }
+
+    return generated_sequence;
+}
+
+int Generator::sample_token(const TissNum::Matrix& logits) {
     // Apply temperature if configured
-    Matrix processed_logits = logits; // Assuming logits is (1, vocab_size)
+    TissNum::Matrix processed_logits = logits; // Assuming logits is (1, vocab_size)
     if (config_.temperature > 0.0f) {
         processed_logits = processed_logits / config_.temperature;
     }
 
     // Softmax function (re-implemented here for clarity, could be a shared utility)
-    auto softmax = [](const Matrix& input) -> Matrix {
-        Matrix output(input.rows(), input.cols());
+    auto softmax = [](const TissNum::Matrix& input) -> TissNum::Matrix {
+        TissNum::Matrix output(input.rows(), input.cols());
         for (int r = 0; r < input.rows(); ++r) {
             float max_val = -std::numeric_limits<float>::infinity();
             for (int c = 0; c < input.cols(); ++c) {
-                if (input.get(r, c) > max_val) {
-                    max_val = input.get(r, c);
+                if (input(r, c) > max_val) {
+                    max_val = input(r, c);
                 }
             }
 
             float sum_exp = 0.0f;
             for (int c = 0; c < input.cols(); ++c) {
-                output.set(r, c, std::exp(input.get(r, c) - max_val));
-                sum_exp += output.get(r, c);
+                output(r, c) = std::exp(input(r, c) - max_val);
+                sum_exp += output(r, c);
             }
 
             for (int c = 0; c < input.cols(); ++c) {
-                output.set(r, c, output.get(r, c) / sum_exp);
+                output(r, c) = output(r, c) / sum_exp;
             }
         }
         return output;
     };
 
-    Matrix probabilities = softmax(processed_logits);
+    TissNum::Matrix probabilities = softmax(processed_logits);
 
     // Collect all token probabilities and their indices
     std::vector<std::pair<float, int>> token_probs;
     for (int c = 0; c < probabilities.cols(); ++c) {
-        token_probs.push_back({probabilities.get(0, c), c});
+        token_probs.push_back({probabilities(0, c), c});
     }
 
     // Sort by probability in descending order
@@ -114,3 +167,8 @@ int Generator::sample_token(const Matrix& logits) {
         int sampled_index = d(gen);
         return token_probs[sampled_index].second;
     }
+}
+
+} // namespace Core
+} // namespace TissLM
+} // namespace TissDB

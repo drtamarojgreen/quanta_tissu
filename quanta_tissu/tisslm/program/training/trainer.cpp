@@ -1,6 +1,7 @@
 #include "trainer.h"
 #include <random>
 #include <chrono>
+#include <algorithm> // For std::shuffle
 
 namespace TissDB {
 namespace TissLM {
@@ -14,8 +15,8 @@ Trainer::Trainer(
 }
 
 void Trainer::train(
-    const std::vector<Matrix>& train_data,
-    const std::vector<Matrix>& train_labels,
+    const std::vector<TissNum::Matrix>& train_data,
+    const std::vector<TissNum::Matrix>& train_labels,
     int epochs,
     int batch_size
 ) {
@@ -46,35 +47,35 @@ void Trainer::train(
             // This part needs to be adapted based on actual data structure
             // For now, let's assume a simple concatenation for batching
             // This is a placeholder and might need more sophisticated batching logic
-            Matrix batch_input(current_batch_size, train_data[0].cols());
-            Matrix batch_target(current_batch_size, train_labels[0].cols());
+            TissNum::Matrix batch_input(current_batch_size, train_data[0].cols());
+            TissNum::Matrix batch_target(current_batch_size, train_labels[0].cols());
 
             for (int i = 0; i < current_batch_size; ++i) {
                 int sample_idx = indices[batch_start + i];
                 // Copy row by row
                 for (int col = 0; col < train_data[sample_idx].cols(); ++col) {
-                    batch_input.set(i, col, train_data[sample_idx].get(0, col));
+                    batch_input(i, col) = train_data[sample_idx](0, col);
                 }
                 for (int col = 0; col < train_labels[sample_idx].cols(); ++col) {
-                    batch_target.set(i, col, train_labels[sample_idx].get(0, col));
+                    batch_target(i, col) = train_labels[sample_idx](0, col);
                 }
             }
 
             // Forward pass
-            Matrix predictions = model_->forward(batch_input);
+            TissNum::Matrix predictions = model_->forward(batch_input);
 
             // Compute loss
             float loss = loss_function_->compute_loss(predictions, batch_target);
             epoch_loss += loss;
 
             // Compute gradient of loss w.r.t. predictions
-            Matrix grad_loss = loss_function_->compute_gradient(predictions, batch_target);
+            TissNum::Matrix grad_loss = loss_function_->compute_gradient(predictions, batch_target);
 
             // Backward pass
             model_->backward(grad_loss);
 
             // Update parameters
-            std::vector<std::shared_ptr<Parameter>> params = model_->get_parameters();
+            std::vector<std::shared_ptr<TissNum::Parameter>> params = model_->get_parameters();
             optimizer_->update(params);
         }
         std::cout << "Epoch " << epoch + 1 << ", Loss: " << epoch_loss / num_batches << std::endl;

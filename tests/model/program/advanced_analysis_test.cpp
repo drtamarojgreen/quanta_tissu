@@ -1,7 +1,7 @@
-#include "../../quanta_tissu/tisslm/program/core/transformer_model.h"
-#include "../../quanta_tissu/tisslm/program/generation/generator.h"
-#include "../../quanta_tissu/tisslm/program/generation/generation_config.h"
-#include "../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
+#include "../../../quanta_tissu/tisslm/program/core/transformer_model.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generator.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generation_config.h"
+#include "../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -89,7 +89,7 @@ void run_advanced_analysis_evaluation() {
         "Artificial intelligence is transforming the world. Machine learning is a subset of AI."
     };
     int generation_length = 20;
-    GenerationConfig gen_config = GenerationConfig::greedy();
+    Generation::GenerationConfig gen_config = Generation::GenerationConfig::greedy();
 
     std::vector<std::string> generated_texts;
     for (const std::string& prompt : prompts) {

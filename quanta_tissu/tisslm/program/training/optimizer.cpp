@@ -5,6 +5,8 @@ namespace TissDB {
 namespace TissLM {
 namespace Core {
 
+using namespace TissNum;
+
 Adam::Adam(float learning_rate, float beta1, float beta2, float epsilon)
     : learning_rate_(learning_rate), beta1_(beta1), beta2_(beta2), epsilon_(epsilon) {
 }
@@ -19,17 +21,14 @@ void Adam::update(std::vector<std::shared_ptr<Parameter>>& parameters) {
         m_.resize(parameters.size());
         v_.resize(parameters.size());
         for (size_t i = 0; i < parameters.size(); ++i) {
-            m_[i] = Matrix(parameters[i]->value.rows(), parameters[i]->value.cols(), 0.0f);
-            v_[i] = Matrix(parameters[i]->value.rows(), parameters[i]->value.cols(), 0.0f);
+            m_[i] = Matrix(parameters[i]->value().rows(), parameters[i]->value().cols());
+            v_[i] = Matrix(parameters[i]->value().rows(), parameters[i]->value().cols());
         }
     }
 
     for (size_t i = 0; i < parameters.size(); ++i) {
-        if (!parameters[i]->grad.has_value()) {
-            // Skip parameters that don't have gradients
-            continue;
-        }
-        const Matrix& grad = parameters[i]->grad.value();
+        // Gradients are always present for parameters in this model
+        const Matrix& grad = parameters[i]->grad();
 
         // Update biased first moment estimate
         m_[i] = (m_[i] * beta1_) + (grad * (1.0f - beta1_));
@@ -44,7 +43,7 @@ void Adam::update(std::vector<std::shared_ptr<Parameter>>& parameters) {
         Matrix v_hat = v_[i] / bias_correction2;
 
         // Update parameters
-        parameters[i]->value = parameters[i]->value - (m_hat * learning_rate_).element_wise_division(v_hat.element_wise_sqrt() + epsilon_);
+        parameters[i]->value() = parameters[i]->value() - (m_hat * learning_rate_).element_wise_division(v_hat.element_wise_sqrt() + epsilon_);
     }
 }
 

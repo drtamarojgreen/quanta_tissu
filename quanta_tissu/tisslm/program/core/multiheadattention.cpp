@@ -1,6 +1,7 @@
 #include "multiheadattention.h"
 #include <cmath>
 #include <numeric>
+#include <optional>
 
 namespace TissNum {
 
@@ -42,10 +43,10 @@ MultiHeadAttention::MultiHeadAttention(size_t d_model, size_t num_heads, int lor
         throw std::invalid_argument("d_model must be divisible by num_heads");
     }
     if (use_lora_) {
-        w_q_lora_a_ = Parameter(Matrix::random(d_model, lora_rank), name + ".wq.lora_a");
-        w_q_lora_b_ = Parameter(Matrix::zeros(lora_rank, d_model), name + ".wq.lora_b");
-        w_v_lora_a_ = Parameter(Matrix::random(d_model, lora_rank), name + ".wv.lora_a");
-        w_v_lora_b_ = Parameter(Matrix::zeros(lora_rank, d_model), name + ".wv.lora_b");
+        w_q_lora_a_ = std::make_optional(Parameter(Matrix::random(d_model, lora_rank), name + ".wq.lora_a"));
+        w_q_lora_b_ = std::make_optional(Parameter(Matrix::zeros(lora_rank, d_model), name + ".wq.lora_b"));
+        w_v_lora_a_ = std::make_optional(Parameter(Matrix::random(d_model, lora_rank), name + ".wv.lora_a"));
+        w_v_lora_b_ = std::make_optional(Parameter(Matrix::zeros(lora_rank, d_model), name + ".wv.lora_b"));
     }
 }
 
@@ -92,8 +93,8 @@ Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const
     Matrix v = Matrix::matmul(current_v, w_v_.value());
 
     if (use_lora_) {
-        q = q + Matrix::matmul(Matrix::matmul(q_in, w_q_lora_a_.value()), w_q_lora_b_.value());
-        v = v + Matrix::matmul(Matrix::matmul(current_v, w_v_lora_a_.value()), w_v_lora_b_.value());
+        q = q + Matrix::matmul(Matrix::matmul(q_in, w_q_lora_a_.value().value()), w_q_lora_b_.value().value());
+        v = v + Matrix::matmul(Matrix::matmul(current_v, w_v_lora_a_.value().value()), w_v_lora_b_.value().value());
     }
 
     // Reshape for multi-head attention (simplified - actual reshape is more complex)
@@ -134,10 +135,10 @@ Matrix MultiHeadAttention::backward(const Matrix& d_out, const Matrix& cache) {
 
     if (use_lora_) {
         // Placeholders for LoRA gradients
-        w_q_lora_a_.grad = Matrix::zeros(d_model_, lora_rank_);
-        w_q_lora_b_.grad = Matrix::zeros(lora_rank_, d_model_);
-        w_v_lora_a_.grad = Matrix::zeros(d_model_, lora_rank_);
-        w_v_lora_b_.grad = Matrix::zeros(lora_rank_, d_model_);
+        if (w_q_lora_a_.has_value()) w_q_lora_a_->grad() = Matrix::zeros(d_model_, lora_rank_);
+        if (w_q_lora_b_.has_value()) w_q_lora_b_->grad() = Matrix::zeros(lora_rank_, d_model_);
+        if (w_v_lora_a_.has_value()) w_v_lora_a_->grad() = Matrix::zeros(d_model_, lora_rank_);
+        if (w_v_lora_b_.has_value()) w_v_lora_b_->grad() = Matrix::zeros(lora_rank_, d_model_);
     }
 
     return d_scaled_attention_output; // Placeholder for dx
@@ -146,10 +147,10 @@ Matrix MultiHeadAttention::backward(const Matrix& d_out, const Matrix& cache) {
 std::vector<Parameter*> MultiHeadAttention::parameters() {
     std::vector<Parameter*> params = {&w_q_, &w_k_, &w_v_, &w_o_};
     if (use_lora_) {
-        params.push_back(&w_q_lora_a_);
-        params.push_back(&w_q_lora_b_);
-        params.push_back(&w_v_lora_a_);
-        params.push_back(&w_v_lora_b_);
+        if (w_q_lora_a_.has_value()) params.push_back(&w_q_lora_a_.value());
+        if (w_q_lora_b_.has_value()) params.push_back(&w_q_lora_b_.value());
+        if (w_v_lora_a_.has_value()) params.push_back(&w_v_lora_a_.value());
+        if (w_v_lora_b_.has_value()) params.push_back(&w_v_lora_b_.value());
     }
     return params;
 }

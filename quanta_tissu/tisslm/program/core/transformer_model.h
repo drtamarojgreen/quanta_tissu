@@ -6,6 +6,7 @@
 #include "positionalencoding.h"
 #include "transformerblock.h"
 #include "parameter.h" // For output layer parameters
+#include <optional>
 
 #include <vector>
 #include <memory>
@@ -18,27 +19,30 @@ class TransformerModel : public Model {
 public:
     TransformerModel(int vocab_size, int max_seq_len, int embed_dim, int num_heads, int num_layers, float dropout_rate, int lora_rank = 0);
 
-    Matrix forward(const Matrix& input_tokens) override; // input_tokens would be a batch of token IDs
-    Matrix forward_inference(const Matrix& input_tokens, const std::vector<std::pair<Matrix, Matrix>>& past_kv_cache, std::vector<std::pair<Matrix, Matrix>>& new_kv_cache);
-    Matrix backward(const Matrix& grad_output) override;
-    std::vector<std::shared_ptr<Parameter>> get_parameters() override;
+    TissNum::Matrix forward(const TissNum::Matrix& input_tokens) override; // input_tokens would be a batch of token IDs
+    TissNum::Matrix forward_inference(const TissNum::Matrix& input_tokens, const std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>>& past_kv_cache, std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>>& new_kv_cache);
+    TissNum::Matrix backward(const TissNum::Matrix& grad_output) override;
+    std::vector<std::shared_ptr<TissNum::Parameter>> get_parameters() override;
 
 private:
-    Embedding embedding_layer_;
-    PositionalEncoding positional_encoding_layer_;
-    std::vector<TransformerBlock> transformer_blocks_;
+    TissNum::Embedding embedding_layer_;
+    TissNum::PositionalEncoding positional_encoding_layer_;
+    std::vector<TissNum::TransformerBlock> transformer_blocks_;
+    TissNum::LayerNorm final_layer_norm_;
     
     // Output linear layer
-    Parameter output_weight_;
-    Parameter output_bias_;
+    TissNum::Parameter output_weight_;
+    TissNum::Parameter output_bias_;
 
     int vocab_size_;
     int embed_dim_;
     int num_layers_;
 
     // Store intermediate activations for backward pass
-    Matrix embedded_input_;
-    std::vector<Matrix> transformer_block_outputs_;
+    TissNum::Matrix embedded_input_;
+    std::vector<TissNum::Matrix> transformer_block_outputs_;
+    TissNum::Matrix final_layer_norm_output_; // Store output of final layer norm
+    std::vector<size_t> cached_token_ids_; // Store token IDs for backward pass
 };
 
 } // namespace Core

@@ -1,8 +1,8 @@
-#include "../../quanta_tissu/tisslm/program/core/transformer_model.h"
-#include "../../quanta_tissu/tisslm/program/generation/generator.h"
-#include "../../quanta_tissu/tisslm/program/generation/generation_config.h"
-#include "../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
-#include "../../quanta_tissu/tisslm/program/rules/rule_enforcer.h"
+#include "../../../quanta_tissu/tisslm/program/core/transformer_model.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generator.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generation_config.h"
+#include "../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
+#include "../../../quanta_tissu/tisslm/program/rules/rule_enforcer.h"
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -92,6 +92,13 @@ TextQualityAnalysis analyze_text_quality(const std::string& text) {
     return analysis;
 }
 
+std::string generate_with_model(std::shared_ptr<TissDB::TissLM::Core::TransformerModel> model, Tokenizer& tokenizer, const std::string& prompt, int generation_length, const Generation::GenerationConfig& config) {
+    Generator generator(model, config);
+    std::vector<int> prompt_tokens = tokenizer.encode(prompt);
+    std::vector<int> generated_tokens = generator.generate(prompt_tokens, generation_length);
+    return tokenizer.decode(generated_tokens);
+}
+
 void run_rule_enforcement_evaluation() {
     std::cout << "=== Running Rule Enforcement Evaluation (C++) ===" << std::endl;
 
@@ -162,11 +169,11 @@ void run_rule_enforcement_evaluation() {
         "Artificial intelligence will"
     };
     int generation_length = 30;
-    GenerationConfig gen_config = GenerationConfig::nucleus(0.9f, 0.8f);
+    Generation::GenerationConfig gen_config = Generation::GenerationConfig::nucleus(0.9f, 0.8f);
 
     for (const std::string& prompt : generation_prompts) {
         std::cout << "\n  Prompt: \"" << prompt << "\"" << std::endl;
-        Generator generator(model, gen_config);
+        // Generator generator(model, gen_config);
         std::string generated_text = generate_with_model(model, tokenizer, prompt, generation_length, gen_config);
         TextQualityAnalysis original_gen_analysis = analyze_text_quality(generated_text);
 

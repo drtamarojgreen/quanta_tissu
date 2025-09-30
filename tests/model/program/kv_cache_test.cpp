@@ -1,7 +1,7 @@
-#include "../../quanta_tissu/tisslm/program/core/transformer_model.h"
-#include "../../quanta_tissu/tisslm/program/generation/generator.h"
-#include "../../quanta_tissu/tisslm/program/generation/generation_config.h"
-#include "../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
+#include "../../../quanta_tissu/tisslm/program/core/transformer_model.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generator.h"
+#include "../../../quanta_tissu/tisslm/program/generation/generation_config.h"
+#include "../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -30,19 +30,19 @@ Matrix softmax_cpp(const Matrix& input) {
     for (int r = 0; r < input.rows(); ++r) {
         float max_val = -std::numeric_limits<float>::infinity();
         for (int c = 0; c < input.cols(); ++c) {
-            if (input.get(r, c) > max_val) {
-                max_val = input.get(r, c);
+            if (input(r, c) > max_val) {
+                max_val = input(r, c);
             }
         }
 
         float sum_exp = 0.0f;
         for (int c = 0; c < input.cols(); ++c) {
-            output.set(r, c, std::exp(input.get(r, c) - max_val));
-            sum_exp += output.get(r, c);
+            output(r, c) = std::exp(input(r, c) - max_val);
+            sum_exp += output(r, c);
         }
 
         for (int c = 0; c < input.cols(); ++c) {
-            output.set(r, c, output.get(r, c) / sum_exp);
+            output(r, c) = output(r, c) / sum_exp;
         }
     }
     return output;
@@ -54,8 +54,8 @@ int sample_token_greedy(const Matrix& logits) {
     int sampled_token = -1;
 
     for (int c = 0; c < logits.cols(); ++c) {
-        if (logits.get(0, c) > max_logit) {
-            max_logit = logits.get(0, c);
+        if (logits(0, c) > max_logit) {
+            max_logit = logits(0, c);
             sampled_token = c;
         }
     }
@@ -80,12 +80,12 @@ KVCacheTestResult run_single_kv_cache_test(
     Tokenizer& tokenizer,
     const std::string& prompt,
     int n_new_tokens,
-    const GenerationConfig& config
+    const Generation::GenerationConfig& config
 ) {
     KVCacheTestResult results;
     results.prompt = prompt;
     results.n_new_tokens = n_new_tokens;
-    results.method = (config.top_k <= 1) ? "greedy" : "top_k";
+    results.method = (config.top_k.value_or(0) <= 1) ? "greedy" : "top_k";
 
     // --- 1. Baseline Generation (No Cache) ---
     auto start_time_no_cache = std::chrono::high_resolution_clock::now();
@@ -96,7 +96,7 @@ KVCacheTestResult run_single_kv_cache_test(
     for (int i = 0; i < n_new_tokens; ++i) {
         Matrix input_token_matrix(1, current_tokens_no_cache.size());
         for(size_t j=0; j<current_tokens_no_cache.size(); ++j) {
-            input_token_matrix.set(0, j, static_cast<float>(current_tokens_no_cache[j]));
+            input_token_matrix(0, j) = static_cast<float>(current_tokens_no_cache[j]);
         }
         
         Matrix logits = model->forward(input_token_matrix);
@@ -117,7 +117,7 @@ KVCacheTestResult run_single_kv_cache_test(
     // Process prompt tokens to initialize KV cache
     for (size_t i = 0; i < generated_tokens_cache_ids.size(); ++i) {
         Matrix input_token(1, 1);
-        input_token.set(0, 0, static_cast<float>(generated_tokens_cache_ids[i]));
+        input_token(0, 0) = static_cast<float>(generated_tokens_cache_ids[i]);
 
         std::vector<std::pair<Matrix, Matrix>> new_kv_cache_for_step;
         model->forward_inference(input_token, kv_cache, new_kv_cache_for_step);
@@ -128,7 +128,7 @@ KVCacheTestResult run_single_kv_cache_test(
     Generator generator(model, config);
     for (int i = 0; i < n_new_tokens; ++i) {
         Matrix input_token(1, 1);
-        input_token.set(0, 0, static_cast<float>(generated_tokens_cache_ids.back()));
+        input_token(0, 0) = static_cast<float>(generated_tokens_cache_ids.back());
 
         std::vector<std::pair<Matrix, Matrix>> new_kv_cache_for_step;
         Matrix logits = model->forward_inference(input_token, kv_cache, new_kv_cache_for_step);
@@ -173,9 +173,9 @@ void run_kv_cache_evaluation() {
         {"The development of artificial intelligence has progressed rapidly in recent years, with breakthroughs in machine learning, natural language processing, and computer vision leading to", 400, "Long AI development prompt"},
     };
 
-    std::vector<GenerationConfig> generation_methods = {
-        GenerationConfig::greedy(),
-        GenerationConfig::top_k(10, 1.0f) // Top-k with temperature 1.0
+    std::vector<Generation::GenerationConfig> generation_methods = {
+        Generation::GenerationConfig::greedy(),
+        Generation::GenerationConfig::with_top_k(10, 1.0f) // Top-k with temperature 1.0
     };
 
     std::vector<KVCacheTestResult> all_results;
@@ -190,7 +190,7 @@ void run_kv_cache_evaluation() {
         std::cout << "    Tokens to generate: " << tokens_to_generate << std::endl;
 
         for (const auto& method_config : generation_methods) {
-            std::cout << "    Method: " << ((method_config.top_k <= 1) ? "greedy" : "top_k") << " (TopK: " << method_config.top_k << ", Temp: " << method_config.temperature << ")" << std::endl;
+            std::cout << "    Method: " << ((method_config.top_k.value_or(0) <= 1) ? "greedy" : "top_k") << " (TopK: " << method_config.top_k.value_or(-1) << ", Temp: " << method_config.temperature << ")" << std::endl;
             
             try {
                 KVCacheTestResult result = run_single_kv_cache_test(model, tokenizer, prompt, tokens_to_generate, method_config);

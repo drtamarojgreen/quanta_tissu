@@ -43,6 +43,9 @@ public:
     Matrix sum(int axis) const;
 
     // Element-wise operations
+    Matrix element_wise_product(const Matrix& other) const;
+    Matrix element_wise_division(const Matrix& other) const;
+    Matrix element_wise_sqrt() const;
     Matrix operator+(const Matrix& other) const;
     Matrix operator-(const Matrix& other) const;
     Matrix operator*(const Matrix& other) const; // Element-wise multiplication

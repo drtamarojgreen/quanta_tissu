@@ -1,7 +1,7 @@
 #ifndef TISSLM_TRAINER_H
 #define TISSLM_TRAINER_H
 
-#include "../../core/model_interface.h"
+#include "core/model_interface.h"
 #include "optimizer.h"
 #include "loss_function.h"
 
@@ -22,8 +22,8 @@ public:
     );
 
     void train(
-        const std::vector<Matrix>& train_data,
-        const std::vector<Matrix>& train_labels,
+        const std::vector<TissNum::Matrix>& train_data,
+        const std::vector<TissNum::Matrix>& train_labels,
         int epochs,
         int batch_size
     );
