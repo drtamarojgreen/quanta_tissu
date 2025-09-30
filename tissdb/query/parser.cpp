@@ -8,6 +8,7 @@
 #include <sstream>
 #include <iomanip>
 #include <chrono>
+#include <ctime>
 
 namespace TissDB {
 namespace Query {
@@ -86,7 +87,12 @@ std::optional<Timestamp> try_parse_timestamp(const std::string& s) {
 
     // Convert to time_t and then to system_clock::time_point
     tm.tm_isdst = 0; // Assuming UTC, no DST
-    time_t time = timegm(&tm);
+    time_t time;
+    #ifdef _WIN32
+        time = _mkgmtime(&tm);
+    #else
+        time = timegm(&tm);
+    #endif
     if (time == -1) {
         return std::nullopt;
     }
