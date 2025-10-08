@@ -40,6 +40,7 @@ public:
     Matrix mean(int axis) const;
     Matrix variance(int axis, const Matrix& mean) const;
     static Matrix sqrt(const Matrix& m);
+    static Matrix pow(const Matrix& m, float exponent);
     Matrix sum(int axis) const;
 
     // Element-wise operations
@@ -56,6 +57,10 @@ public:
     Matrix operator-(float scalar) const;
     Matrix operator*(float scalar) const;
     Matrix operator/(float scalar) const;
+
+    // Friend functions for scalar operations
+    friend Matrix operator*(float scalar, const Matrix& m);
+    friend Matrix operator/(float scalar, const Matrix& m);
 
     // Matrix multiplication
     static Matrix matmul(const Matrix& a, const Matrix& b);

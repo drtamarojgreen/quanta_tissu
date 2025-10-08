@@ -148,9 +148,29 @@ Matrix Matrix::variance(int axis, const Matrix& mean) const {
 }
 
 Matrix Matrix::sqrt(const Matrix& m) {
-    Matrix result(m.rows_, m.cols_);
+    Matrix result(m.rows(), m.cols());
     for (size_t i = 0; i < m.data_.size(); ++i) {
         result.data_[i] = std::sqrt(m.data_[i]);
+    }
+    return result;
+}
+
+Matrix Matrix::pow(const Matrix& m, float exponent) {
+    Matrix result(m.rows(), m.cols());
+    for (size_t i = 0; i < m.data_.size(); ++i) {
+        result.data_[i] = std::pow(m.data_[i], exponent);
+    }
+    return result;
+}
+
+Matrix operator*(float scalar, const Matrix& m) {
+    return m * scalar;
+}
+
+Matrix operator/(float scalar, const Matrix& m) {
+    Matrix result(m.rows(), m.cols());
+    for (size_t i = 0; i < m.data_.size(); ++i) {
+        result.data_[i] = scalar / m.data_[i];
     }
     return result;
 }

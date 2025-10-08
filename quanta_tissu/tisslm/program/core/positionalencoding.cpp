@@ -32,9 +32,8 @@ Matrix PositionalEncoding::forward(const Matrix& x, size_t start_pos) {
     // In a full implementation, this would handle batched inputs
     
     size_t seq_len = x.rows();
-    size_t d_model = x.cols();
     
-    if (d_model != d_model_) {
+    if (x.cols() != d_model_) {
         throw std::runtime_error("Input dimension mismatch in PositionalEncoding");
     }
     
@@ -43,11 +42,11 @@ Matrix PositionalEncoding::forward(const Matrix& x, size_t start_pos) {
     }
     
     // Create output matrix
-    Matrix output(seq_len, d_model);
+    Matrix output(seq_len, d_model_);
     
     // Add positional encoding to input
     for (size_t i = 0; i < seq_len; ++i) {
-        for (size_t j = 0; j < d_model; ++j) {
+        for (size_t j = 0; j < d_model_; ++j) {
             output(i, j) = x(i, j) + pe_(start_pos + i, j);
         }
     }
