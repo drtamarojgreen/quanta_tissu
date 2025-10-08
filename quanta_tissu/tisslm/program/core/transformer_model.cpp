@@ -8,7 +8,7 @@ using namespace TissNum;
 
 TransformerModel::TransformerModel(int vocab_size, int max_seq_len, int embed_dim, int num_heads, int num_layers, float dropout_rate, int lora_rank)
     : embedding_layer_(vocab_size, embed_dim),
-      positional_encoding_layer_(max_seq_len, embed_dim),
+      positional_encoding_layer_(embed_dim, max_seq_len),
       final_layer_norm_(embed_dim),
       output_weight_(TissNum::Matrix::random(embed_dim, vocab_size), "output_weight"), // Output layer weight
       output_bias_(TissNum::Matrix::zeros(1, vocab_size), "output_bias"), // Output layer bias

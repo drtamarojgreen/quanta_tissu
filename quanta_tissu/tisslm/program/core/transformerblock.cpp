@@ -33,13 +33,8 @@ Matrix TransformerBlock::forward(const Matrix& x, const Matrix& mask, std::optio
 }
 
 Matrix TransformerBlock::backward(const Matrix& d_out, const Matrix& cache) {
-    // This is a highly simplified backward pass.
-    // A full implementation would require storing more intermediate values in the cache
-    // and backpropagating through each layer correctly.
-    // For now, this is a placeholder.
-
     // Backpropagate through ln2
-    Matrix dx_norm2 = ln2_.backward(d_out, Matrix()); // Placeholder cache
+    Matrix dx_norm2 = ln2_.backward(d_out, cached_x_for_ffn_);
 
     // Backpropagate through addition (x_norm1 + ffn_out)
     Matrix d_ffn_out = dx_norm2;
@@ -49,10 +44,10 @@ Matrix TransformerBlock::backward(const Matrix& d_out, const Matrix& cache) {
     d_ffn_out = dropout2_.backward(d_ffn_out);
 
     // Backpropagate through ffn
-    dx_norm1_from_ffn = dx_norm1_from_ffn + ffn_.backward(d_ffn_out, Matrix()); // Placeholder cache
+    dx_norm1_from_ffn = dx_norm1_from_ffn + ffn_.backward(d_ffn_out, cached_x_for_ln1_);
 
     // Backpropagate through ln1
-    Matrix dx_plus_attn = ln1_.backward(dx_norm1_from_ffn, Matrix()); // Placeholder cache
+    Matrix dx_plus_attn = ln1_.backward(dx_norm1_from_ffn, cached_x_for_ln1_);
 
     // Backpropagate through addition (x + attn_out)
     Matrix d_attn_out = dx_plus_attn;
@@ -62,7 +57,7 @@ Matrix TransformerBlock::backward(const Matrix& d_out, const Matrix& cache) {
     d_attn_out = dropout1_.backward(d_attn_out);
 
     // Backpropagate through mha
-    dx_from_attn = dx_from_attn + mha_.backward(d_attn_out, Matrix()); // Placeholder cache
+    dx_from_attn = dx_from_attn + mha_.backward(d_attn_out, cache);
 
     return dx_from_attn;
 }

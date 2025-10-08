@@ -60,7 +60,15 @@ Matrix CrossEntropyLoss::compute_gradient(const Matrix& predictions, const Matri
 
     Matrix softmax_predictions = softmax(predictions);
     // Gradient of Cross-Entropy loss after softmax is (softmax_predictions - targets)
-    return softmax_predictions - targets;
+    Matrix dense_targets = Matrix::zeros(targets.rows(), targets.cols());
+    for (int i = 0; i < targets.rows(); ++i) {
+        for (int j = 0; j < targets.cols(); ++j) {
+            if (targets(i, j) == 1.0f) {
+                dense_targets(i, j) = 1.0f;
+            }
+        }
+    }
+    return softmax_predictions - dense_targets;
 }
 
 } // namespace Core
