@@ -26,7 +26,9 @@ void run_cpp_full_fledged_workout() {
     std::cout << "=== Running C++ Full-Fledged Workout ===" << std::endl;
 
     // --- 1. Setup Model and Tokenizer ---
-    int vocab_size = 100;
+    // Dummy tokenizer (assuming dummy_vocab.json and dummy_merges.txt are available)
+    Tokenizer tokenizer("dummy");
+    int vocab_size = tokenizer.get_vocab_size();
     int max_seq_len = 50;
     int embed_dim = 32;
     int num_heads = 4;
@@ -35,9 +37,6 @@ void run_cpp_full_fledged_workout() {
     int lora_rank = 4; // Test with LoRA enabled
 
     std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, dropout_rate, lora_rank);
-    
-    // Dummy tokenizer (assuming dummy_vocab.json and dummy_merges.txt are available)
-    Tokenizer tokenizer("dummy");
 
     std::cout << "  Model and Tokenizer initialized." << std::endl;
 
