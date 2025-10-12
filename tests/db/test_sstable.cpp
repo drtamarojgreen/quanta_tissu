@@ -38,7 +38,7 @@ TEST_CASE(SSTableWriteAndFind) {
 
     ASSERT_FALSE(sstable.find("non_existent").has_value());
 
-    std::filesystem::remove_all(data_dir);
+    // std::filesystem::remove_all(data_dir);
 }
 
 TEST_CASE(SSTableFindWithIndex) {

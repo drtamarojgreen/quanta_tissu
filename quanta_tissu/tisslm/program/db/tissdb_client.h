@@ -6,22 +6,11 @@
 #include <map>
 #include <memory>
 
+#include "../../../../tissdb/common/document.h"
+
 namespace TissDB {
 
 class HttpClient;
-
-struct Document {
-    std::string id;
-    std::map<std::string, std::string> fields;
-
-    Document() = default;
-    Document(const std::string& doc_id) : id(doc_id) {}
-
-    void set_field(const std::string& key, const std::string& value);
-    std::string get_field(const std::string& key) const;
-    std::string to_json() const;
-    static Document from_json(const std::string& json_str);
-};
 
 class TissDBClient {
 public:
