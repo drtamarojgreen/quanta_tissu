@@ -1,3 +1,4 @@
+#include <cstdint>
 #pragma once
 
 #include <cstddef>
@@ -27,6 +28,9 @@ struct Date {
     bool operator==(const Date& other) const {
         return year == other.year && month == other.month && day == other.day;
     }
+    bool operator!=(const Date& other) const {
+        return !(*this == other);
+    }
      bool operator<(const Date& other) const {
         if (year < other.year) return true;
         if (year > other.year) return false;
@@ -43,6 +47,9 @@ struct Time {
 
      bool operator==(const Time& other) const {
         return hour == other.hour && minute == other.minute && second == other.second;
+    }
+    bool operator!=(const Time& other) const {
+        return !(*this == other);
     }
     bool operator<(const Time& other) const {
         if (hour < other.hour) return true;

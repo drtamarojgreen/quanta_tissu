@@ -10,7 +10,7 @@ def get_headers(context):
         headers['X-Transaction-ID'] = str(context['transaction_id'])
     if 'auth_token' in context:
         headers['Authorization'] = f"Bearer {context['auth_token']}"
-    print(f"DEBUG: Generated headers: {headers}")
+
     return headers
 
 def register_steps(runner):

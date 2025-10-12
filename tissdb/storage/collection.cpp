@@ -89,7 +89,7 @@ std::vector<std::string> Collection::find_by_index(const std::vector<std::string
 }
 
 void Collection::put(const std::string& key, const Document& doc) {
-    LOG_DEBUG("PUT key: " + key);
+
 
     // =================================================================
     // Schema Validation & Constraint Checking

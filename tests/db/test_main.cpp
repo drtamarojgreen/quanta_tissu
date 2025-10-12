@@ -1,3 +1,4 @@
+#include <cstdint>
 #include "test_framework.h"
 
 // Include individual test files here
@@ -18,6 +19,8 @@
 #include "test_transactions.cpp"
 #include "test_stddev.cpp"
 #include "test_query_executor.cpp"
+
+#include "test_tissdb_client.cpp"
 
 // Tissu Sinew Client Library Tests
 #include "../test_tissu_sinew.cpp"

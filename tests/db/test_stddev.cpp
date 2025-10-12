@@ -12,14 +12,16 @@ class MockLSMTreeForStdDev : public TissDB::Storage::LSMTree {
 public:
     MockLSMTreeForStdDev() : TissDB::Storage::LSMTree() {}
 
-    void create_collection(const std::string& name, const TissDB::Schema& schema = {}) override {
+    void create_collection(const std::string& name, const TissDB::Schema& schema, bool is_recovery = false) override {
         // Mock implementation, can be empty if not needed for the test logic
         (void)name;
         (void)schema;
+        (void)is_recovery;
     }
 
-    void put(const std::string& collection_name, const std::string& key, const TissDB::Document& doc, TissDB::Transactions::TransactionID tid = -1) override {
+    void put(const std::string& collection_name, const std::string& key, const TissDB::Document& doc, TissDB::Transactions::TransactionID tid = -1, bool is_recovery = false) override {
         (void)tid; // Unused in mock
+        (void)is_recovery; // Unused in mock
         mock_data_[collection_name][key] = doc;
     }
 
@@ -50,16 +52,16 @@ TEST_CASE(ExecutorAggregateStdDev) {
     mock_lsm_tree.create_collection("data", {});
 
     // Setup initial data
-    mock_lsm_tree.put("data", "1", TissDB::Document{"1", {{"value", 10.0}}});
-    mock_lsm_tree.put("data", "2", TissDB::Document{"2", {{"value", 20.0}}});
-    mock_lsm_tree.put("data", "3", TissDB::Document{"3", {{"value", 30.0}}});
+    mock_lsm_tree.put("data", "1", TissDB::Document{"1", {TissDB::Element{"value", 10.0}}});
+    mock_lsm_tree.put("data", "2", TissDB::Document{"2", {TissDB::Element{"value", 20.0}}});
+    mock_lsm_tree.put("data", "3", TissDB::Document{"3", {TissDB::Element{"value", 30.0}}});
 
     TissDB::Query::Parser parser;
     TissDB::Query::Executor executor(mock_lsm_tree);
 
     // Execute the query
     TissDB::Query::AST ast = parser.parse("SELECT STDDEV(value) FROM data");
-    TissDB::Query::QueryResult result = executor.execute(ast);
+    TissDB::Query::QueryResult result = executor.execute(ast, {});
 
     // Verify the results
     ASSERT_EQ(1, result.size());

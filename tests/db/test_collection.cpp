@@ -1,13 +1,17 @@
 #include "test_framework.h"
+#include "../../tissdb/storage/lsm_tree.h"
 #include "../../tissdb/storage/collection.h"
 #include "../../tissdb/common/document.h"
 
 TEST_CASE(CollectionPutGet) {
-    TissDB::Storage::Collection collection;
+    TissDB::Storage::LSMTree lsm_tree;
+    TissDB::Storage::Collection collection(&lsm_tree, "test_collection");
 
     TissDB::Document doc1;
     doc1.id = "doc1";
-    TissDB::Element elem1; elem1.key = "name"; elem1.value = std::string("Alice");
+    TissDB::Element elem1;
+    elem1.key = "name";
+    elem1.value = std::string("Alice");
     doc1.elements.push_back(elem1);
 
     collection.put("doc1", doc1);
@@ -21,7 +25,9 @@ TEST_CASE(CollectionPutGet) {
     // Update document
     TissDB::Document doc1_updated;
     doc1_updated.id = "doc1";
-    TissDB::Element elem1_updated; elem1_updated.key = "name"; elem1_updated.value = std::string("Bob");
+    TissDB::Element elem1_updated;
+    elem1_updated.key = "name";
+    elem1_updated.value = std::string("Bob");
     doc1_updated.elements.push_back(elem1_updated);
     collection.put("doc1", doc1_updated);
 
@@ -32,11 +38,14 @@ TEST_CASE(CollectionPutGet) {
 }
 
 TEST_CASE(CollectionDelete) {
-    TissDB::Storage::Collection collection;
+    TissDB::Storage::LSMTree lsm_tree;
+    TissDB::Storage::Collection collection(&lsm_tree, "test_collection");
 
     TissDB::Document doc1;
     doc1.id = "doc1";
-    TissDB::Element elem1; elem1.key = "name"; elem1.value = std::string("Alice");
+    TissDB::Element elem1;
+    elem1.key = "name";
+    elem1.value = std::string("Alice");
     doc1.elements.push_back(elem1);
 
     collection.put("doc1", doc1);
@@ -52,16 +61,21 @@ TEST_CASE(CollectionDelete) {
 }
 
 TEST_CASE(CollectionScan) {
-    TissDB::Storage::Collection collection;
+    TissDB::Storage::LSMTree lsm_tree;
+    TissDB::Storage::Collection collection(&lsm_tree, "test_collection");
 
     TissDB::Document doc1;
     doc1.id = "doc1";
-    TissDB::Element elem1; elem1.key = "name"; elem1.value = std::string("Alice");
+    TissDB::Element elem1;
+    elem1.key = "name";
+    elem1.value = std::string("Alice");
     doc1.elements.push_back(elem1);
 
     TissDB::Document doc2;
     doc2.id = "doc2";
-    TissDB::Element elem2; elem2.key = "name"; elem2.value = std::string("Bob");
+    TissDB::Element elem2;
+    elem2.key = "name";
+    elem2.value = std::string("Bob");
     doc2.elements.push_back(elem2);
 
     collection.put("doc1", doc1);

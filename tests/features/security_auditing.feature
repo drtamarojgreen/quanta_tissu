@@ -15,5 +15,6 @@ Feature: Security - Auditing
 
   Scenario: A successful critical action is audited
     Given a user with a valid "admin" token
+    And a collection named "a_collection_to_delete" exists
     When I delete the collection "a_collection_to_delete"
     Then the audit log should contain an event with type "CollectionDelete"

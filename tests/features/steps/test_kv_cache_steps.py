@@ -5,9 +5,7 @@ import os
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from quanta_tissu.tisslm.core.model import QuantaTissu
-from quanta_tissu.tisslm.config import model_config
-from quanta_tissu.tisslm.core.tokenizer import Tokenizer
+from quanta_tissu.tisslm.core.generation.config import GenerationConfig
 
 def register_steps(runner):
     @runner.step(r'^Given a model and tokenizer$')
@@ -22,10 +20,11 @@ def register_steps(runner):
     def generate_with_cache(context, prompt, n_new_tokens):
         n_new_tokens = int(n_new_tokens)
         prompt_tokens = context['tokenizer'].tokenize(prompt)
+        config = GenerationConfig(method="greedy")
         cached_generated_ids = context['model'].generator.sample(
             prompt_tokens,
             n_new_tokens=n_new_tokens,
-            method="greedy"
+            config=config
         )
         context['cached_generated_ids'] = cached_generated_ids
         context['prompt'] = prompt
@@ -36,11 +35,11 @@ def register_steps(runner):
         prompt = context['prompt']
         n_new_tokens = context['n_new_tokens']
         prompt_tokens = context['tokenizer'].tokenize(prompt)
+        config = GenerationConfig(method="greedy", use_kv_cache=False) # Explicitly disable KV cache
         non_cached_generated_ids = context['model'].generator.sample(
             prompt_tokens,
             n_new_tokens=n_new_tokens,
-            method="greedy",
-            use_kv_cache=False # Explicitly disable KV cache
+            config=config
         )
         context['non_cached_generated_ids'] = non_cached_generated_ids
 

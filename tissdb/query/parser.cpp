@@ -594,7 +594,7 @@ Expression Parser::parse_expression(int precedence) {
 }
 
 Expression Parser::parse_primary_expression() {
-    if (peek().type == Token::Type::KEYWORD && (peek().value == "DATE" || peek().value == "TIME")) {
+    if (peek().type == Token::Type::KEYWORD && (peek().value == "DATE" || peek().value == "TIME" || peek().value == "DATETIME")) {
         std::string keyword = consume().value; // consume the keyword
         auto token = consume();
         if (token.type != Token::Type::STRING_LITERAL) {
