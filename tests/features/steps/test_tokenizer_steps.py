@@ -1,9 +1,13 @@
+import os
 from quanta_tissu.tisslm.core.tokenizer import Tokenizer
 
 def register_steps(runner):
     @runner.step(r'^Given a tokenizer$')
     def context(context):
-        context['tokenizer'] = Tokenizer()
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
+        tokenizer_prefix = os.path.join(project_root, "test_tokenizer", "test_tokenizer")
+        context['tokenizer'] = Tokenizer(tokenizer_prefix=tokenizer_prefix)
 
     @runner.step(r'^When I tokenize the string "(.*)"$')
     def tokenize_string(context, string):

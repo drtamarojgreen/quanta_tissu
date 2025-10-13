@@ -34,7 +34,8 @@ def register_steps(runner):
     @runner.step(r'^(?:When|And) I retrieve documents for the query "(.*)"$')
     def retrieve_documents(context, query_text):
         context['last_query'] = query_text # Save for feedback step
-        context['retrieved_docs'] = context['knowledge_base'].retrieve(query_text)
+        retrieved_docs, _ = context['knowledge_base'].retrieve(query_text)
+        context['retrieved_docs'] = retrieved_docs
 
     @runner.step(r'^Then the retrieved documents should contain "(.*)"$')
     def check_retrieved_documents(context, expected_document):
@@ -60,7 +61,7 @@ def register_steps(runner):
 
     @runner.step(r'^Then the knowledge base should contain "(.*)"$')
     def check_knowledge_base_content(context, expected_content):
-        retrieved_docs = context['knowledge_base'].retrieve(expected_content)
+        retrieved_docs, _ = context['knowledge_base'].retrieve(expected_content)
         assert any(expected_content in doc for doc in retrieved_docs), f"Did not find '{expected_content}' in knowledge base after self-update."
 
     @runner.step(r'^(?:When|And) I self-update from interaction with query "(.*)" generated response "(.*)" and no user correction$')
