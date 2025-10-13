@@ -62,10 +62,10 @@ void LSMTree::recover() {
                 del(entry.collection_name, entry.document_id, -1, true);
                 break;
             case LogEntryType::CREATE_COLLECTION:
-                try {
+                if (!collections_.count(entry.collection_name)) {
                     create_collection(entry.collection_name, {}, true);
-                } catch (const std::runtime_error& e) {
-                    LOG_WARNING("During WAL replay, could not create collection '" + entry.collection_name + "': " + e.what());
+                } else {
+                    LOG_WARNING("Recovery: Attempted to re-create collection '" + entry.collection_name + "' which already exists. Skipping.");
                 }
                 break;
             case LogEntryType::TXN_COMMIT:

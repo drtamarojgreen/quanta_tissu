@@ -67,7 +67,7 @@ def main():
         raise FileNotFoundError(f"Final checkpoint not found at {FINAL_CHECKPOINT_PATH}. Please run the training script first.")
 
     try:
-        tokenizer = Tokenizer(tokenizer_path=TOKENIZER_SAVE_PREFIX)
+        tokenizer = Tokenizer(tokenizer_prefix=TOKENIZER_SAVE_PREFIX)
     except FileNotFoundError:
         raise FileNotFoundError(f"Tokenizer not found at {TOKENIZER_SAVE_PREFIX}. Please run the training script first.")
 

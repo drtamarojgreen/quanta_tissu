@@ -24,7 +24,10 @@ def register_steps(runner):
         headers = get_headers(context)
 
         # Ensure a clean slate. These requests now require authentication.
-        requests.delete(f"{BASE_URL}/{context['db_name']}", headers=headers)
+        # Make the initial delete resilient to the DB not existing.
+        delete_response = requests.delete(f"{BASE_URL}/{context['db_name']}", headers=headers)
+        assert delete_response.status_code in [200, 204, 404], f"Initial DB cleanup failed. Status: {delete_response.status_code}"
+
         response = requests.put(f"{BASE_URL}/{context['db_name']}", headers=headers)
         assert response.status_code in [201, 200, 409], f"Failed to create database. Status: {response.status_code}, Body: {response.text}"
 
