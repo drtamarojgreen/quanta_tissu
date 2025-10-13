@@ -44,20 +44,6 @@ std::vector<Document> JoinAlgorithms::nestedLoopJoin(
     return result;
 }
 
-// Helper to convert a Value to a string for hashing
-std::string value_to_string(const Value& val) {
-    if (const auto* s = std::get_if<std::string>(&val)) {
-        return *s;
-    }
-    if (const auto* n = std::get_if<double>(&val)) {
-        return std::to_string(*n);
-    }
-    if (const auto* b = std::get_if<bool>(&val)) {
-        return *b ? "true" : "false";
-    }
-    // Other types are not supported as join keys for this implementation.
-    return "";
-}
 
 
 // Implementation for Hash Join
