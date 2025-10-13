@@ -33,8 +33,11 @@ add_library(tisslm_core
     ../../../quanta_tissu/tisslm/program/core/mock_embedder.cpp
     ../../../quanta_tissu/tisslm/program/db/tissdb_client.cpp
     ../../../quanta_tissu/tisslm/program/db/http_client.cpp
+<<<<<<< HEAD
+=======
     ../../../tissdb/json/json.cpp
     ../../../tissdb/common/document.cpp
+>>>>>>> e72c5ea98e23e69a621ac711e1bc76496d6d3f0e
 )
 
 if(WIN32)

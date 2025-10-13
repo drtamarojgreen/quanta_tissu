@@ -324,86 +324,70 @@ std::string BTree<Key, Value, Order>::read_string(std::istream& is) {
 
 template<typename Key, typename Value, int Order>
 void BTree<Key, Value, Order>::dump(std::ostream& os) {
-    if (!os) return;
-    dump_node(os, root_.get());
-}
-
-template<typename Key, typename Value, int Order>
-void BTree<Key, Value, Order>::load(std::istream& is) {
-    if (!is) return;
-    root_ = load_node(is);
-}
-
-template<typename Key, typename Value, int Order>
-void BTree<Key, Value, Order>::dump_node(std::ostream& os, const BTreeNode* node) {
-    if (!node) return;
-    os.write(reinterpret_cast<const char*>(&node->is_leaf), sizeof(node->is_leaf));
-    size_t key_count = node->keys.size();
-    os.write(reinterpret_cast<const char*>(&key_count), sizeof(key_count));
-
-    for (const auto& key : node->keys) {
-        if constexpr (std::is_same_v<Key, std::string>) {
-            write_string(os, key);
-        } else {
-            os.write(reinterpret_cast<const char*>(&key), sizeof(key));
-        }
+    if (root_) {
+        dump_recursive(root_.get(), os);
     }
-    if (node->is_leaf) {
-        for (const auto& value : node->values) {
-            if constexpr (std::is_same_v<Value, std::string>) {
-                write_string(os, value);
-            } else {
-                os.write(reinterpret_cast<const char*>(&value), sizeof(value));
-            }
-        }
+}
+
+template<typename Key, typename Value, int Order>
+void BTree<Key, Value, Order>::dump_recursive(BTreeNode* node, std::ostream& os) {
+    os.write(reinterpret_cast<const char*>(&node->is_leaf), sizeof(node->is_leaf));
+    size_t num_keys = node->keys.size();
+    os.write(reinterpret_cast<const char*>(&num_keys), sizeof(num_keys));
+    for (const auto& key : node->keys) {
+        size_t key_len = key.size();
+        os.write(reinterpret_cast<const char*>(&key_len), sizeof(key_len));
+        os.write(key.data(), key_len);
+    }
+    for (const auto& value : node->values) {
+        size_t val_len = value.size();
+        os.write(reinterpret_cast<const char*>(&val_len), sizeof(val_len));
+        os.write(value.data(), val_len);
     }
 
     if (!node->is_leaf) {
         for (const auto& child : node->children) {
-            dump_node(os, child.get());
+            dump_recursive(child.get(), os);
         }
     }
 }
 
 template<typename Key, typename Value, int Order>
-std::unique_ptr<typename BTree<Key, Value, Order>::BTreeNode> BTree<Key, Value, Order>::load_node(std::istream& is) {
-    bool is_leaf;
-    is.read(reinterpret_cast<char*>(&is_leaf), sizeof(is_leaf));
-    if (!is) return nullptr;
+void BTree<Key, Value, Order>::load(std::istream& is) {
+    if (is.peek() != EOF) {
+        root_ = load_recursive(is);
+    }
+}
 
-    auto node = std::make_unique<BTreeNode>(is_leaf);
-    size_t key_count;
-    is.read(reinterpret_cast<char*>(&key_count), sizeof(key_count));
-
-    node->keys.resize(key_count);
-    for (size_t i = 0; i < key_count; ++i) {
-        if constexpr (std::is_same_v<Key, std::string>) {
-            node->keys[i] = read_string(is);
-        } else {
-            is.read(reinterpret_cast<char*>(&node->keys[i]), sizeof(Key));
-        }
+template<typename Key, typename Value, int Order>
+std::unique_ptr<typename BTree<Key, Value, Order>::BTreeNode> BTree<Key, Value, Order>::load_recursive(std::istream& is) {
+    auto node = std::make_unique<BTreeNode>();
+    is.read(reinterpret_cast<char*>(&node->is_leaf), sizeof(node->is_leaf));
+    size_t num_keys;
+    is.read(reinterpret_cast<char*>(&num_keys), sizeof(num_keys));
+    node->keys.resize(num_keys);
+    node->values.resize(num_keys);
+    for (size_t i = 0; i < num_keys; ++i) {
+        size_t key_len;
+        is.read(reinterpret_cast<char*>(&key_len), sizeof(key_len));
+        node->keys[i].resize(key_len);
+        is.read(&node->keys[i][0], key_len);
+    }
+    for (size_t i = 0; i < num_keys; ++i) {
+        size_t val_len;
+        is.read(reinterpret_cast<char*>(&val_len), sizeof(val_len));
+        node->values[i].resize(val_len);
+        is.read(&node->values[i][0], val_len);
     }
 
-    if (is_leaf) {
-        node->values.resize(key_count);
-        for (size_t i = 0; i < key_count; ++i) {
-            if constexpr (std::is_same_v<Value, std::string>) {
-                node->values[i] = read_string(is);
-            } else {
-                is.read(reinterpret_cast<char*>(&node->values[i]), sizeof(Value));
-            }
-        }
-    }
-
-    if (!is_leaf) {
-        node->children.resize(key_count + 1);
-        for (size_t i = 0; i < key_count + 1; ++i) {
-            node->children[i] = load_node(is);
+    if (!node->is_leaf) {
+        node->children.resize(num_keys + 1);
+        for (size_t i = 0; i < num_keys + 1; ++i) {
+            node->children[i] = load_recursive(is);
         }
     }
     return node;
 }
-
 
 // Explicit template instantiation
 template class BTree<std::string, std::string>;

@@ -9,12 +9,13 @@
 #include <iomanip>
 #include <chrono>
 #include <ctime>
+#include <ctime>
 
 namespace TissDB {
 namespace Query {
 
-namespace {
 // Helper to parse YYYY-MM-DD
+namespace {
 std::optional<Date> parse_date_string(const std::string& s) {
     Date d;
     int year, month, day;
