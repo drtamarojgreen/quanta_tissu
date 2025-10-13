@@ -62,6 +62,8 @@ private:
     std::unique_ptr<BTreeNode> load_node(std::istream& is);
     void write_string(std::ostream& os, const std::string& s);
     std::string read_string(std::istream& is);
+    void dump_recursive(BTreeNode* node, std::ostream& os);
+    std::unique_ptr<BTreeNode> load_recursive(std::istream& is);
 
     // Iteration helper
 public:

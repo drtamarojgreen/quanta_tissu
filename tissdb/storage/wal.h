@@ -9,6 +9,7 @@
 
 #include "../common/document.h"
 #include "../common/checksum.h"
+#include "transaction_manager.h"
 
 namespace TissDB {
 namespace Storage {
