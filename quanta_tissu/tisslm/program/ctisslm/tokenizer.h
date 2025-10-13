@@ -41,7 +41,7 @@ public:
     // Regex for splitting text into words and punctuation, similar to GPT-2.
     // This needs to be a static member or a global constant if used outside the class.
     // For now, defined here for direct use in encode.
-    const std::regex BPE_SPLIT_PATTERN = std::regex(R"('(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)", std::regex::ECMAScript | std::regex::optimize);
+    const std::regex BPE_SPLIT_PATTERN = std::regex(R"('(?:[sdmt]|ll|ve|re)| ?[a-zA-Z]+| ?[0-9]+| ?[^\sa-zA-Z0-9]+|\s+(?!\S)|\s+)", std::regex::ECMAScript | std::regex::optimize);
 
     std::vector<int> _encode_chunk(const std::vector<unsigned char>& text_bytes) {
         std::vector<int> ids;

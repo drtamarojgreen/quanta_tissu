@@ -18,7 +18,7 @@ public:
 
 private:
     // Placeholder for Layer Normalization
-    Eigen::MatrixXf layer_norm(const Eigen::MatrixXf& input);
+    Eigen::MatrixXf layer_norm(const Eigen::MatrixXf& input, const Eigen::VectorXf& gamma, const Eigen::VectorXf& beta);
 
     ModelConfig config_;
     std::unique_ptr<MultiHeadAttention> attention_;

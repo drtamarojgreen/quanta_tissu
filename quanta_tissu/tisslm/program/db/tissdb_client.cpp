@@ -1,4 +1,5 @@
 #include "tissdb_client.h"
+#include "../../../../tissdb/json/json.h"
 #include "http_client.h"
 #include <iostream>
 #include <string>
@@ -10,70 +11,52 @@
 
 namespace TissDB {
 
-// Document implementation (from tissdb_client.h)
-std::string Document::to_json() const {
-    std::string json = "{";
-    json += "\"id\":\"" + id + "\",";
-    json += "\"fields\":{";
-    bool first = true;
-    for (const auto& pair : fields) {
-        if (!first) {
-            json += ",";
+TissDB::Document from_json(const std::string& json_str) {
+    TissDB::Json::JsonValue json = TissDB::Json::JsonValue::parse(json_str);
+    TissDB::Document doc;
+    doc.id = json.as_object().at("id").as_string();
+    const auto& elements = json.as_object().at("elements").as_object();
+    for (const auto& pair : elements) {
+        TissDB::Element elem;
+        elem.key = pair.first;
+        const auto& val = pair.second;
+        if (val.is_null()) {
+            elem.value = nullptr;
+        } else if (val.is_string()) {
+            elem.value = val.as_string();
+        } else if (val.is_number()) {
+            elem.value = val.as_number();
+        } else if (val.is_bool()) {
+            elem.value = val.as_bool();
         }
-        json += "\"" + pair.first + "\":\"" + pair.second + "\"";
-        first = false;
+        doc.elements.push_back(elem);
     }
-    json += "}}";
-    return json;
-}
-
-Document Document::from_json(const std::string& json_str) {
-    Document doc;
-    size_t id_pos = json_str.find("\"id\":");
-    if (id_pos != std::string::npos) {
-        size_t start = json_str.find('"', id_pos + 5) + 1;
-        size_t end = json_str.find('"', start);
-        doc.id = json_str.substr(start, end - start);
-    }
-
-    size_t fields_pos = json_str.find("\"fields\":{");
-    if (fields_pos != std::string::npos) {
-        size_t start = fields_pos + 10;
-        size_t end = json_str.rfind('}');
-        std::string fields_str = json_str.substr(start, end - start);
-
-        size_t current_pos = 0;
-        while (current_pos < fields_str.length()) {
-            size_t key_start = fields_str.find('"', current_pos) + 1;
-            size_t key_end = fields_str.find('"', key_start);
-            std::string key = fields_str.substr(key_start, key_end - key_start);
-
-            size_t value_start = fields_str.find('"', key_end + 2) + 1;
-            size_t value_end = fields_str.find('"', value_start);
-            std::string value = fields_str.substr(value_start, value_end - value_start);
-
-            doc.fields[key] = value;
-
-            current_pos = value_end + 1;
-            if (current_pos < fields_str.length() && fields_str[current_pos] == ',') {
-                current_pos++;
-            }
-        }
-    }
-
     return doc;
 }
 
-void Document::set_field(const std::string& key, const std::string& value) {
-    fields[key] = value;
-}
-
-std::string Document::get_field(const std::string& key) const {
-    auto it = fields.find(key);
-    if (it != fields.end()) {
-        return it->second;
+std::string to_json(const TissDB::Document& doc) {
+    TissDB::Json::JsonObject obj;
+    obj["id"] = doc.id;
+    TissDB::Json::JsonObject elements;
+    for (const auto& elem : doc.elements) {
+        elements[elem.key] = std::visit([](auto&& arg) -> TissDB::Json::JsonValue {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, std::nullptr_t>) {
+                return TissDB::Json::JsonValue(nullptr);
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                return TissDB::Json::JsonValue(arg);
+            } else if constexpr (std::is_same_v<T, double>) {
+                return TissDB::Json::JsonValue(arg);
+            } else if constexpr (std::is_same_v<T, bool>) {
+                return TissDB::Json::JsonValue(arg);
+            } else {
+                // Handle other types as needed
+                return TissDB::Json::JsonValue(nullptr);
+            }
+        }, elem.value);
     }
-    return "";
+    obj["elements"] = elements;
+    return TissDB::Json::JsonValue(obj).serialize();
 }
 
 TissDBClient::TissDBClient(const std::string& host, int port, const std::string& db_name)
@@ -93,7 +76,7 @@ bool TissDBClient::ensure_db_setup(const std::vector<std::string>& collections) 
 
 std::string TissDBClient::add_document(const std::string& collection, const TissDB::Document& document, const std::string& doc_id) {
     std::string url = db_url_ + "/collection/" + collection + "/document";
-    std::string doc_json = document.to_json();
+    std::string doc_json = to_json(document);
     // In a real scenario, http_client_->post(url, doc_json) would be called
     // For now, just return a dummy ID
     return "dummy_id";
@@ -101,11 +84,8 @@ std::string TissDBClient::add_document(const std::string& collection, const Tiss
 
 TissDB::Document TissDBClient::get_document(const std::string& collection, const std::string& doc_id) {
     std::string url = db_url_ + "/collection/" + collection + "/document/" + doc_id;
-    // In a real scenario, http_client_->get(url) would be called
-    // For now, return a dummy document
-    TissDB::Document doc(doc_id);
-    doc.set_field("content", "Dummy content for " + doc_id);
-    return doc;
+    std::string response_json = http_client_->get(url);
+    return from_json(response_json);
 }
 
 std::map<std::string, std::string> TissDBClient::get_stats() {
@@ -117,11 +97,27 @@ std::string TissDBClient::add_feedback(const TissDB::Document& feedback_data) {
 }
 
 bool TissDBClient::test_connection() {
-    return true; // Dummy connection test
+    try {
+        // Make a GET request to the base URL.
+        // If the request is successful, the connection is considered valid.
+        http_client_->get(base_url_);
+        return true;
+    } catch (const HttpClientException& e) {
+        // If an exception is thrown, the connection is considered invalid.
+        std::cerr << "Connection test failed: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 std::vector<TissDB::Document> TissDBClient::search_documents(const std::string& collection, const std::string& query_json) {
-    return {}; // Dummy search results
+    std::string url = db_url_ + "/collection/" + collection + "/_search";
+    std::string response_json = http_client_->post(url, query_json);
+    TissDB::Json::JsonValue json = TissDB::Json::JsonValue::parse(response_json);
+    std::vector<TissDB::Document> docs;
+    for (const auto& val : json.as_array()) {
+        docs.push_back(from_json(val.serialize()));
+    }
+    return docs;
 }
 
 } // namespace TissDB

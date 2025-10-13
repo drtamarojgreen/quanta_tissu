@@ -51,7 +51,7 @@ public:
     Matrix operator-(const Matrix& other) const;
     Matrix operator*(const Matrix& other) const; // Element-wise multiplication
     Matrix operator/(const Matrix& other) const; // Element-wise division
-
+    
     // Scalar operations
     Matrix operator+(float scalar) const;
     Matrix operator-(float scalar) const;

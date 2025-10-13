@@ -2,8 +2,8 @@ import json
 from quanta_tissu.tisslm.parser.tisslang_parser import TissLangParser, TissLangParserError
 
 def register_steps(runner):
-    @runner.step('Given I have a {language} script with content')
-    def given_a_script_with_content(context, language):
+    @runner.step(r'Given I have a TissLang script with content:')
+    def given_a_script_with_content(context):
         """
         Handles both TissLang and TissLM scripts provided as multiline docstrings.
         Example:

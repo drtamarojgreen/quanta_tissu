@@ -15,6 +15,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/pro
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/db)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/retrieval)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/rules)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../tissdb/json)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../tissdb/common)
 
 
 add_library(tisslm_core
@@ -31,6 +33,11 @@ add_library(tisslm_core
     ../../../quanta_tissu/tisslm/program/core/mock_embedder.cpp
     ../../../quanta_tissu/tisslm/program/db/tissdb_client.cpp
     ../../../quanta_tissu/tisslm/program/db/http_client.cpp
+<<<<<<< HEAD
+=======
+    ../../../tissdb/json/json.cpp
+    ../../../tissdb/common/document.cpp
+>>>>>>> e72c5ea98e23e69a621ac711e1bc76496d6d3f0e
 )
 
 if(WIN32)
@@ -169,7 +176,7 @@ target_link_libraries(rule_enforcement_test
 enable_testing()
 
 # Add tests
-add_test(NAME DatabaseAndRetrievalTests
+add_test(NAME DatabaseAndRetrievalTests 
          COMMAND test_db_and_retrieval)
 
 add_test(NAME NewComponentsTests
