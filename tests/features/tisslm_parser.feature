@@ -1,8 +1,8 @@
 Feature: TissLM Parser
 
   Scenario: Parse a simple TissLM script
-    Given I have a TissLM script with content
-     """
+    Given I have a TissLang script with content:
+      """
       STEP "Log Hello" {
         LOG "Hello, TissLM!"
       }

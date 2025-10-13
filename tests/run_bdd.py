@@ -1,5 +1,5 @@
 import os
-from test_bdd import parse_feature_file, run_bdd_scenarios
+from .test_bdd import parse_feature_file, run_bdd_scenarios
 
 def main():
     # Construct the path to the feature file relative to this script

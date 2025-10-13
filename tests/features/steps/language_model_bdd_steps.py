@@ -176,8 +176,7 @@ def register_steps(runner):
         response = requests.put(f"{context['db_url']}/{db_name}/{collection_name}/{doc_id}", json=document, headers={"Authorization": f"Bearer {context['db_token']}"})
         assert response.status_code in [200, 201]
 
-    @runner.step(r'^I generate (\d+) tokens from the prompt "([^"]*)" with a "([^"]*)" sentiment of strength ([\d\.]+)
-)
+    @runner.step(r'^I generate (\d+) tokens from the prompt "([^"]*)" with a "([^"]*)" sentiment of strength ([\d\.]+)')
     def when_generate_with_sentiment(context, length, prompt, sentiment, strength):
         model, tokenizer, analyzer = context['model'], context['tokenizer'], context['sentiment_analyzer']
         context['generated_text'] = generate_text_helper(
@@ -234,41 +233,6 @@ def register_steps(runner):
         analysis = analyzer.analyze_sentiment_of_text(context['generated_text'])
         dominant_sentiment = max(analysis, key=analysis.get)
         assert dominant_sentiment == sentiment
-
-)
-    def when_generate_with_sentiment(context, length, prompt, sentiment, strength):
-        model, tokenizer, analyzer = context['model'], context['tokenizer'], context['sentiment_analyzer']
-        context['generated_text'] = generate_text_helper(
-            model, tokenizer, prompt, length,
-            method="adaptive_sentiment",
-            sentiment_analyzer=analyzer,
-            target_sentiment=sentiment,
-            target_strength=strength
-        )
-
-    # --- Then Steps ---
-
-    @runner.step(r"^the generated text with and without the cache should be identical$")
-    def then_cache_correctness(context):
-        assert context['no_cache_text'] == context['cache_text'], "Generated text with and without KV cache should be identical"
-
-    @runner.step(r"^the generation with the KV cache should be faster than without it$")
-    def then_cache_performance(context):
-        assert context['cache_time'] < context['no_cache_time'], "Generation with KV cache should be faster than without it"
-
-    @runner.step(r"^the generated text should not be empty$")
-    def then_text_not_empty(context):
-        assert context['generated_text'] is not None
-        assert len(context['generated_text'].strip()) > 0
-
-    @runner.step(r"^the generated text should contain a plausible number of words based on the token length$")
-    def then_text_plausible_length(context):
-        word_count = len(context['generated_text'].split())
-        assert word_count > 5
-
-    @runner.step(r"^the cleaned text should be different from the raw generated text$")
-    def then_text_is_cleaned(context):
-        assert context['raw_text'] != context['cleaned_text']
 
     @runner.step(r'^the cleaned text should not contain "([^"]*)"$')
     def then_cleaned_text_obeys_rules(context, prohibited_phrase):

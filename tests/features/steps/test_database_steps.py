@@ -70,6 +70,16 @@ def register_steps(runner):
         response = requests.delete(f"{BASE_URL}/{context['db_name']}/{collection_name}", headers=headers)
         assert response.status_code in [204, 404]
 
+    @runner.step(r'I delete all documents from "(.*)"')
+    def delete_all_documents_from_collection(context, collection_name):
+        headers = get_headers(context)
+        response = requests.get(f"{BASE_URL}/{context['db_name']}/{collection_name}", headers=headers)
+        if response.status_code == 200:
+            for doc in response.json():
+                doc_id = doc['id']
+                delete_response = requests.delete(f"{BASE_URL}/{context['db_name']}/{collection_name}/{doc_id}", headers=headers)
+                assert delete_response.status_code == 204
+
     @runner.step(r'a document with ID "(.*)" and content (.*) in "(.*)"')
     def create_document_with_content(context, doc_id, content, collection_name):
         headers = get_headers(context)

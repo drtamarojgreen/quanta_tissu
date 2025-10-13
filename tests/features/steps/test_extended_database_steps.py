@@ -1,5 +1,6 @@
 import requests
 import json
+import re
 
 BASE_URL = "http://localhost:9876"
 
@@ -10,9 +11,6 @@ def get_headers(context):
     return headers
 
 def register_steps(runner):
-
-<<<<<<< HEAD
-=======
     @runner.step(r'When I execute the TissQL query "(.*)"')
     def execute_tissql_query_from_string(context, query_string):
         # Extracts the collection name from the query, assuming "FROM [collection_name]"
@@ -104,7 +102,6 @@ def register_steps(runner):
             if key in doc and doc[key] == value:
                 assert False, f"Found unexpected document with '{key}' = '{value}'"
 
->>>>>>> main
     @runner.step(r'^Then the query result should be empty$')
     def query_result_should_be_empty(context):
         assert isinstance(context['query_result'], list), f"Query result is not a list: {context['query_result']}"
