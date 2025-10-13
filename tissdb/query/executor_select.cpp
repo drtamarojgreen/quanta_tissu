@@ -224,13 +224,18 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
     // --- Filtering ---
     std::vector<Document> filtered_docs;
     if (select_stmt.where_clause) {
+        // Always filter the documents if a WHERE clause exists.
+        // `all_docs` contains either the full scan or the index results,
+        // both of which need to be filtered by the full WHERE clause.
         for (const auto& doc : all_docs) {
             if (evaluate_expression(*select_stmt.where_clause, doc, params)) {
                 filtered_docs.push_back(doc);
             }
         }
+        result_docs = filtered_docs;
     } else {
-        filtered_docs = all_docs;
+        // No WHERE clause, so all retrieved documents are the result.
+        result_docs = all_docs;
     }
 
     // --- Aggregation and Grouping ---
@@ -242,7 +247,7 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
         // --- GROUP BY flow ---
         if (!select_stmt.group_by_clause.empty()) {
             std::map<std::string, std::vector<Document>> grouped_docs;
-            for (const auto& doc : filtered_docs) {
+            for (const auto& doc : result_docs) { // Use result_docs which contains the filtered set
                 std::stringstream group_key_ss;
                 for (size_t i = 0; i < select_stmt.group_by_clause.size(); ++i) {
                     const auto& field_name = select_stmt.group_by_clause[i];

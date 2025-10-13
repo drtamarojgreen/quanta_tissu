@@ -180,8 +180,16 @@ std::optional<std::shared_ptr<Document>> Collection::get(const std::string& key)
         // The key is not in the collection at all.
         return std::nullopt;
     }
-    // The key is in the collection. The value could be a document or a tombstone (nullptr).
-    return it->second;
+
+    if (!it->second) {
+        // It's a tombstone, return the nullptr.
+        return it->second;
+    }
+
+    // It's a valid document. Create a copy to populate the ID and return an independent object.
+    auto doc_copy = std::make_shared<Document>(*it->second);
+    doc_copy->id = key;
+    return doc_copy;
 }
 
 const std::map<std::string, std::shared_ptr<Document>>& Collection::get_all() const {
