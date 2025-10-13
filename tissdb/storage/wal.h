@@ -9,8 +9,6 @@
 
 #include "../common/document.h"
 #include "../common/checksum.h"
-#include "../common/operation.h"
-
 
 namespace TissDB {
 namespace Storage {
@@ -29,8 +27,10 @@ enum class LogEntryType : uint8_t {
 struct LogEntry {
     LogEntryType type;
     int transaction_id = -1;
-    std::string collection_name;
+    std::string collection_name; // Which collection this entry belongs to.
     std::string document_id;
+    // For PUT operations, the full document is stored.
+    // For DELETE, only the document_id and collection_name are needed.
     Document doc;
     std::vector<TissDB::Transactions::Operation> operations;
     std::optional<std::vector<uint8_t>> schema_data;

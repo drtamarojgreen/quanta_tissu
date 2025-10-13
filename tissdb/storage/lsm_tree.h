@@ -9,7 +9,7 @@
 #include "collection.h"
 #include "transaction_manager.h"
 #include "../common/schema.h"
-#include "wal.h"
+#include "transaction_manager.h"
 
 namespace TissDB {
 namespace Storage {
@@ -22,10 +22,6 @@ public:
     LSMTree(const std::string& path);
     ~LSMTree();
 
-    WriteAheadLog& get_wal() { return *wal_; }
-
-    // Recovery
-    void recover();
 
     // Collection management
     virtual void create_collection(const std::string& name, const TissDB::Schema& schema, bool is_recovery = false);
@@ -51,6 +47,7 @@ public:
     // Helper to get a collection, throws if not found
     Collection& get_collection(const std::string& name);
     const Collection& get_collection(const std::string& name) const;
+    const std::string& get_path() const;
 
     bool has_index(const std::string& collection_name, const std::vector<std::string>& field_names);
     std::vector<std::vector<std::string>> get_available_indexes(const std::string& collection_name) const;
@@ -62,7 +59,6 @@ private:
 
     std::map<std::string, std::unique_ptr<Collection>> collections_;
     std::string path_;
-    std::unique_ptr<WriteAheadLog> wal_;
     Transactions::TransactionManager transaction_manager_;
 };
 

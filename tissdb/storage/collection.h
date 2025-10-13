@@ -10,6 +10,8 @@
 #include "../common/document.h"
 #include "../common/schema.h"
 #include "indexer.h"
+#include "memtable.h"
+#include "indexer.h"
 
 namespace TissDB {
 namespace Storage {
@@ -18,7 +20,7 @@ class LSMTree; // Forward declaration
 
 // A Collection is an in-memory sorted data structure that holds all documents for a single collection.
 // It is managed by the Database class.
-class Collection {
+class Collection : public Memtable {
 public:
     Collection(LSMTree* parent_db, const std::string& path = "");
     Collection(const std::string& path, LSMTree* parent_db);
@@ -61,16 +63,11 @@ public:
     std::vector<std::string> find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const;
 
 private:
-    // We use a sorted map to store documents in memory. The key is the document ID.
-    // A shared_ptr to a Document allows us to distinguish between:
-    // 1. Key not present -> map::find() returns end()
-    // 2. Key present with a document -> non-null shared_ptr
-    // 3. Key present but deleted -> null shared_ptr (tombstone)
-    std::map<std::string, std::shared_ptr<Document>> data;
-    size_t estimated_size;
+    std::string name_;
     TissDB::Schema schema_;
     Indexer indexer_;
     LSMTree* parent_db_; // Pointer to the parent database
+    std::unique_ptr<Indexer> indexer_;
     std::string path_;
 };
 

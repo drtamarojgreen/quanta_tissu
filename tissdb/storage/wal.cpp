@@ -46,36 +46,16 @@ void WriteAheadLog::append(const LogEntry& entry) {
 
     bsb.write(entry.type);
     bsb.write(entry.transaction_id);
+    bsb.write_string(entry.collection_name);
+    bsb.write_string(entry.document_id); // For collection ops, this can be empty
 
-    switch (entry.type) {
-        case LogEntryType::PUT:
-            bsb.write_string(entry.collection_name);
-            bsb.write_string(entry.document_id);
-            bsb.write_bytes(TissDB::serialize(entry.doc));
-            break;
-        case LogEntryType::DELETE:
-            bsb.write_string(entry.collection_name);
-            bsb.write_string(entry.document_id);
-            break;
-        case LogEntryType::TXN_COMMIT: {
-            bsb.write(static_cast<uint64_t>(entry.operations.size()));
-            for (const auto& op : entry.operations) {
-                bsb.write(op.type);
-                bsb.write_string(op.collection_name);
-                bsb.write_string(op.key);
-                if (op.type == TissDB::Transactions::OperationType::PUT) {
-                    bsb.write_bytes(TissDB::serialize(op.doc));
-                }
-            }
-            break;
-        }
-        case LogEntryType::TXN_ABORT:
-            // Only type and TID are needed.
-            break;
-        case LogEntryType::CREATE_COLLECTION:
-        case LogEntryType::DELETE_COLLECTION:
-            bsb.write_string(entry.collection_name);
-            break;
+    if (entry.type == LogEntryType::PUT) {
+        std::vector<uint8_t> doc_bytes = TissDB::serialize(entry.doc);
+        bsb.write_bytes(doc_bytes);
+    } else {
+        // For DELETE, CREATE_COLLECTION, DELETE_COLLECTION, no doc is needed.
+        size_t zero_len = 0;
+        bsb.write(zero_len);
     }
 
     std::string buffer_str = buffer_stream.str();
@@ -141,38 +121,14 @@ std::vector<LogEntry> WriteAheadLog::recover() {
             BinaryStreamBuffer entry_bsb(entry_stream);
             entry_bsb.read(entry.type);
             entry_bsb.read(entry.transaction_id);
+            entry.collection_name = entry_bsb.read_string();
+            entry.document_id = entry_bsb.read_string();
 
-            switch (entry.type) {
-                case LogEntryType::PUT:
-                    entry.collection_name = entry_bsb.read_string();
-                    entry.document_id = entry_bsb.read_string();
-                    entry.doc = TissDB::deserialize(entry_bsb.read_bytes());
-                    break;
-                case LogEntryType::DELETE:
-                    entry.collection_name = entry_bsb.read_string();
-                    entry.document_id = entry_bsb.read_string();
-                    break;
-                case LogEntryType::TXN_COMMIT: {
-                    uint64_t op_count;
-                    entry_bsb.read(op_count);
-                    for (uint64_t i = 0; i < op_count; ++i) {
-                        TissDB::Transactions::Operation op;
-                        entry_bsb.read(op.type);
-                        op.collection_name = entry_bsb.read_string();
-                        op.key = entry_bsb.read_string();
-                        if (op.type == TissDB::Transactions::OperationType::PUT) {
-                            op.doc = TissDB::deserialize(entry_bsb.read_bytes());
-                        }
-                        entry.operations.push_back(op);
-                    }
-                    break;
-                }
-                case LogEntryType::TXN_ABORT:
-                    break; // No more data to read
-                case LogEntryType::CREATE_COLLECTION:
-                case LogEntryType::DELETE_COLLECTION:
-                    entry.collection_name = entry_bsb.read_string();
-                    break;
+            if (entry.type == LogEntryType::PUT) {
+                entry.doc = TissDB::deserialize(entry_bsb.read_bytes());
+            } else {
+                entry_bsb.read_bytes(); // Consume the empty bytes
+                entry.doc = Document{};
             }
             recovered_entries.push_back(entry);
 

@@ -1,9 +1,11 @@
 #include "collection.h"
 #include "../common/log.h"
 #include "../common/serialization.h" // For calculating document size accurately
+#include "sstable.h" // For loading from disk
 #include <stdexcept> // For std::runtime_error
 #include <algorithm> // For std::find_if
 #include "lsm_tree.h" // For LSMTree pointer
+#include <filesystem>
 #include "../query/executor_common.h" // For value_to_string
 
 // Helper function to get a value from a document
@@ -133,6 +135,7 @@ void Collection::put(const std::string& key, const Document& doc) {
     if (it != data.end() && it->second) {
         indexer_.remove_from_indexes(key, *it->second);
         old_value_size = TissDB::serialize(*(it->second)).size();
+            indexer_->remove_from_indexes(key, *it->second);
     } else {
         estimated_size += key.size();
     }
@@ -151,6 +154,7 @@ void Collection::put(const std::string& key, const Document& doc) {
 
     // Insert the new document into the map.
     data[key] = new_doc_ptr;
+    indexer_->update_indexes(key, *new_doc_ptr);
 }
 
 bool Collection::del(const std::string& key) {
@@ -163,6 +167,7 @@ bool Collection::del(const std::string& key) {
 
     // Document exists, so we proceed with deletion.
     size_t old_value_size = TissDB::serialize(*(it->second)).size();
+            indexer_->remove_from_indexes(key, *it->second);
     estimated_size -= old_value_size;
 
     // Remove the document from all indexes before marking it as deleted.
@@ -192,18 +197,8 @@ std::optional<std::shared_ptr<Document>> Collection::get(const std::string& key)
     return doc_copy;
 }
 
-const std::map<std::string, std::shared_ptr<Document>>& Collection::get_all() const {
-    return data;
-}
-
-void Collection::clear() {
-    data.clear();
-    estimated_size = 0;
-}
-
-
-size_t Collection::approximate_size() const {
-    return estimated_size;
+std::vector<std::string> Collection::find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const {
+    return indexer_->find_by_index(field_names, values);
 }
 
 std::vector<Document> Collection::scan() const {
@@ -222,6 +217,12 @@ std::vector<Document> Collection::scan() const {
         }
     }
     return documents;
+bool Collection::has_index(const std::vector<std::string>& field_names) const {
+    return indexer_->has_index(field_names);
+}
+
+std::vector<std::vector<std::string>> Collection::get_available_indexes() const {
+    return indexer_->get_available_indexes();
 }
 
 
