@@ -92,7 +92,7 @@ class TestQuantaTissuModel(unittest.TestCase):
         seq_len = 10
         token_ids = np.random.randint(0, self.config['vocab_size'], size=(batch_size, seq_len))
 
-        logits, _ = self.model.forward(token_ids)
+        logits, _, _ = self.model.forward(token_ids)
 
         expected_shape = (batch_size, seq_len, self.config['vocab_size'])
         self.assertEqual(logits.shape, expected_shape, "Output shape of the forward pass is incorrect.")
@@ -151,6 +151,45 @@ class TestQuantaTissuModel(unittest.TestCase):
         with self.assertRaises(ValueError):
             QuantaTissu(config)
 
+    @patch('os.path.exists')
+    @patch('numpy.load')
+    def test_load_weights_legacy_format(self, mock_np_load, mock_path_exists):
+        """Tests successful weight loading from a legacy checkpoint format."""
+        mock_path_exists.return_value = True
+
+        # Create mock weights in legacy format
+        mock_legacy_weights = {
+            'param_0': np.random.rand(64, 100).astype(np.float32), # Example legacy param
+            'param_1': np.random.rand(100, 64).astype(np.float32)
+        }
+        mock_np_load.return_value = mock_legacy_weights
+
+        # Temporarily adjust model config to match legacy param count if needed
+        original_n_layer = self.config['n_layer']
+        self.config['n_layer'] = 1 # Simplify for this test
+        model_legacy = QuantaTissu(self.config)
+        self.config['n_layer'] = original_n_layer # Restore
+
+        model_legacy.load_weights('legacy_path.npz')
+
+        # Verify that numpy.load was called with the correct path
+        mock_np_load.assert_called_once_with('legacy_path.npz', allow_pickle=True)
+
+        # Basic check: ensure some parameters were updated
+        # Verify that the values of the model's parameters have changed from their initial random state
+        initial_param_values = {p.name: p.value.copy() for p in model_legacy.parameters()}
+        model_legacy.load_weights('legacy_path.npz')
+
+        # Verify that numpy.load was called with the correct path
+        mock_np_load.assert_called_once_with('legacy_path.npz', allow_pickle=True)
+
+        # Check if at least one parameter's value has changed
+        updated_count = 0
+        for i, param in enumerate(model_legacy.parameters()):
+            if i < len(param_keys) and param.value.shape == mock_legacy_weights[param_keys[i]].shape:
+                if not np.array_equal(param.value, initial_param_values[param.name]):
+                    updated_count += 1
+        self.assertGreater(updated_count, 0, "No parameters were updated from legacy weights.")
 
 if __name__ == '__main__':
     unittest.main()

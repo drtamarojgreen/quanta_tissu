@@ -110,7 +110,7 @@ class BDDRunner:
             })
             return False, True
 
-    def is_server_running(self, host='127.0.0.1', port=8080):
+    def is_server_running(self, host='127.0.0.1', port=9876):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.connect((host, port))
@@ -204,7 +204,9 @@ class BDDRunner:
                 test_update_delete_steps,
                 test_select_queries_steps,
                 test_common_steps,
-                test_security_steps
+                test_security_steps,
+                test_insert_steps,
+                test_datetime_steps
             )
             # Import the new nexus_flow steps
             from tests.nexus_flow import test_nexus_flow_bdd
@@ -225,6 +227,8 @@ class BDDRunner:
                 test_select_queries_steps,
                 test_common_steps,
                 test_security_steps,
+                test_insert_steps,
+                test_datetime_steps,
                 # Add the new nexus_flow module to the list
                 test_nexus_flow_bdd
             ]:
@@ -265,7 +269,15 @@ class BDDRunner:
                         self.report_data['scenarios_failed'] += 1
                         continue
 
-                    scenario_steps_and_tables = self._parse_scenario_steps(lines[1:])
+                    scenario_lines = scenario_block.strip().splitlines()
+                    if not scenario_lines:
+                        continue
+
+                    scenario_title = scenario_lines[0]
+                    print(f"  Scenario: {scenario_title}")
+                    sys.stdout.flush()
+
+                    scenario_steps_and_tables = self._parse_scenario_steps(scenario_lines[1:])
                     for step_line, table in scenario_steps_and_tables:
                         if not scenario_success:
                             print(f"    Skipping step due to previous failure: {step_line}")

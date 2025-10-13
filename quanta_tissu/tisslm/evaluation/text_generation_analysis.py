@@ -75,3 +75,84 @@ def compare_generation_strategies(model, tokenizer, prompt: str, length: int = 5
 # You can add more functions for specific analysis, e.g.,
 # - analyze_repetition(text)
 # - calculate_coherence_score(text)
+
+
+def main():
+    """
+    Main function to demonstrate the text generation analysis capabilities.
+    When run as a script, this will load a model and tokenizer, then generate
+    and analyze text based on a sample prompt.
+    """
+    import os
+    import sys
+
+    # --- Setup Project Root ---
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    # --- Imports ---
+    from quanta_tissu.tisslm.core.model import QuantaTissu
+    from quanta_tissu.tisslm.core.tokenizer import Tokenizer
+    from quanta_tissu.tisslm.config import model_config
+
+    # --- Configuration ---
+    TEST_TOKENIZER_DIR = os.path.join(project_root, "test_tokenizer")
+    TEST_MODEL_DIR = os.path.join(project_root, "test_model")
+    TOKENIZER_SAVE_PREFIX = os.path.join(TEST_TOKENIZER_DIR, "test_tokenizer")
+    FINAL_CHECKPOINT_PATH = os.path.join(TEST_MODEL_DIR, "checkpoint_step_50000.npz")
+
+    # --- Logging ---
+    # Use a basic logger for demonstration purposes
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    print("="*80)
+    print("Running Text Generation Analysis Demonstration")
+    print("="*80)
+
+    # --- Load Model and Tokenizer ---
+    try:
+        print("Loading tokenizer...")
+        tokenizer = Tokenizer(tokenizer_path=TOKENIZER_SAVE_PREFIX)
+        model_config["vocab_size"] = tokenizer.get_vocab_size()
+
+        print("Loading model...")
+        model = QuantaTissu(model_config)
+        model.load_weights(FINAL_CHECKPOINT_PATH)
+        print("Model and tokenizer loaded successfully.")
+    except Exception as e:
+        print(f"FATAL: Could not load model or tokenizer. {e}")
+        print("Please ensure that a test model and tokenizer exist.")
+        sys.exit(1)
+
+    # --- Define Sample Prompt ---
+    prompt = "In a world where algorithms write symphonies,"
+
+    # --- Run Analysis ---
+    print(f"\n--- Running analyze_generated_text ---")
+    analyze_generated_text(
+        model,
+        tokenizer,
+        prompt=prompt,
+        num_samples=2,
+        length=30,
+        temperature=0.8
+    )
+
+    # --- Run Comparison ---
+    print(f"\n--- Running compare_generation_strategies ---")
+    compare_generation_strategies(
+        model,
+        tokenizer,
+        prompt=prompt,
+        length=30
+    )
+
+    print("\n" + "="*80)
+    print("Demonstration Complete.")
+    print("="*80)
+
+
+if __name__ == "__main__":
+    main()

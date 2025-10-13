@@ -14,6 +14,7 @@ enum class FieldType {
     Date,
     Time,
     DateTime,
+    Timestamp,
     Binary,
     Object, // For nested objects
     Array   // For arrays of elements

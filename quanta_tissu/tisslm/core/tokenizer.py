@@ -16,25 +16,20 @@ class Tokenizer:
     Handles conversion between text and token IDs.
     """
     
-    def __init__(self, tokenizer_path=None):
+    def __init__(self, tokenizer_prefix=None):
         self.bpe_tokenizer = BPETokenizer()
-        if tokenizer_path:
-            tokenizer_prefix = tokenizer_path
-        else:
-            # Construct the path to the trained tokenizer files
-            tokenizer_prefix = os.path.join(os.path.dirname(system_config["model_save_path"]), "trained_tokenizer")
         
-        try:
-            self.bpe_tokenizer.load(tokenizer_prefix)
-        except FileNotFoundError:
-            print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using tisslm/train_bpe.py.")
-            # Fallback to a minimal tokenizer or raise an error, depending on desired behavior
-            # For now, we'll proceed with an empty tokenizer, which will likely cause errors later.
-            # A more robust solution would be to train a default one or exit.
-        except Exception as e:
-            print(f"Error loading BPE tokenizer from {tokenizer_prefix}: {e}")
-            # Handle other potential loading errors, e.g., malformed files
-            # For now, we'll proceed with an empty tokenizer, which will likely cause errors later.
+        if tokenizer_prefix:
+            self.load_successful = False
+            try:
+                self.bpe_tokenizer.load(tokenizer_prefix)
+                self.load_successful = True
+            except FileNotFoundError:
+                print(f"Warning: BPE tokenizer files not found at {tokenizer_prefix}. Please train the tokenizer first using tisslm/train_bpe.py.")
+            except Exception as e:
+                print(f"Error loading BPE tokenizer from {tokenizer_prefix}: {e}")
+        else:
+            print("Warning: No tokenizer prefix provided. Tokenizer will be initialized empty.")
 
         # Special tokens, assuming they are part of the BPE vocabulary or handled externally
         # For BPE, <unk> and <pad> might be handled implicitly or added during training.
@@ -73,10 +68,8 @@ class Tokenizer:
             Reconstructed text string
         """
         if not isinstance(token_ids, np.ndarray):
-            t
-        # Decode the entire sequence of token IDs at once.
-        # This is generally more efficient and handles subword stitching correctly.
-        text = self.bpe_tokenizer.decode(token_ids.tolist())
+            raise TypeError("Input must be a NumPy array")
+
         # Decode tokens to a list of strings
         decoded_tokens = [self.bpe_tokenizer.decode([token_id]) for token_id in token_ids.tolist()]
         
@@ -107,12 +100,28 @@ class Tokenizer:
         # BPE tokenizer decodes IDs to bytes, then to string.
         return self.bpe_tokenizer.decode([token_id])
 
+import json # Added import
+
 # Maintain backward compatibility with existing function-based interface
 _global_tokenizer_instance = None
 def _get_global_tokenizer():
     global _global_tokenizer_instance
     if _global_tokenizer_instance is None:
-        _global_tokenizer_instance = Tokenizer()
+        # Load paths from configuration file
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+        config_path = os.path.join(project_root, 'quanta_tissu', 'configurations', 'paths.json')
+        try:
+            with open(config_path, 'r') as f:
+                paths_config = json.load(f)
+        except FileNotFoundError:
+            print(f"Error: Configuration file not found at {config_path}. Cannot initialize global tokenizer.")
+            raise
+
+        tokenizer_dir = os.path.join(project_root, paths_config.get("tokenizer_dir"))
+        tokenizer_filename_prefix = paths_config.get("tokenizer_filename_prefix")
+        full_tokenizer_prefix = os.path.join(tokenizer_dir, tokenizer_filename_prefix)
+
+        _global_tokenizer_instance = Tokenizer(tokenizer_prefix=full_tokenizer_prefix)
     return _global_tokenizer_instance
 
 

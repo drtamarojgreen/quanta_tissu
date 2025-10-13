@@ -97,12 +97,19 @@ class Trainer:
         x, x_norm, mean, var, gamma, beta, eps = \
             cache['x'], cache['x_norm'], cache['mean'], cache['var'], cache['gamma'], cache['beta'], cache['eps']
 
-        D = x.shape[-1]
+        D = x.shape[-1] # Number of features
+
+        # Gradients for beta and gamma
         beta.grad += d_out.sum(axis=(0, 1))
         gamma.grad += (d_out * x_norm).sum(axis=(0, 1))
 
+        # Gradient for x_norm
         dx_norm = d_out * gamma.value
+
+        # Gradient for variance
         dvar = np.sum(dx_norm * (x - mean) * -0.5 * (var + eps)**(-1.5), axis=-1, keepdims=True)
+
+        # Gradient for mean
         dmean = np.sum(dx_norm * -1 / np.sqrt(var + eps), axis=-1, keepdims=True) - 2 * dvar * np.sum(x - mean, axis=-1, keepdims=True) / D
         return (dx_norm / np.sqrt(var + eps)) + (dvar * 2 * (x - mean) / D) + (dmean / D)
 

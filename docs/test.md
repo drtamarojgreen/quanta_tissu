@@ -70,7 +70,7 @@ As a user, I want to be able to manage documents in TissDB via the REST API.
 As a C++ developer, I want to reliably connect to TissDB.
 
 **Scenario**: Successfully connect and run a PING command
-**Given** a TissDB server running on "127.0.0.1" at port 8080
+**Given** a TissDB server running on "127.0.0.1" at port 9876
 **When** I use the C++ connector to run the "PING" command
 **Then** the connector should successfully return "PONG"
 

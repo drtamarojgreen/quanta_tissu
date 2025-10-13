@@ -6,6 +6,7 @@ from ..core.data import Dataset, load_corpus
 from ..core.model import QuantaTissu
 from ..core.loss import CrossEntropyLoss
 from ..core.optimizer import AdamW
+from ..core.tokenizer import Tokenizer
 
 
 def train():
@@ -14,7 +15,8 @@ def train():
     """
     # 1. Load the data
     corpus_path = os.path.join(os.path.dirname(__file__), '..', '..', 'corpus')
-    tokenized_data = load_corpus(corpus_path)
+    tokenizer = Tokenizer()
+    tokenized_data = load_corpus(corpus_path, tokenizer)
 
     print(f"Corpus loaded and tokenized. Number of tokens: {len(tokenized_data)}")
 
@@ -33,14 +35,14 @@ def train():
     for epoch in range(training_config["num_epochs"]):
         for i, (x, y) in enumerate(dataset):
             # Forward pass
-            logits = model.forward(x)
+            logits, cache = model.forward(x)
 
             # Compute loss
             loss = loss_fn.forward(logits, y)
 
             # Backward pass
             loss_fn.backward()
-            model.backward(loss_fn.d_inputs)
+            model.backward(loss_fn.d_inputs, cache)
 
             # Update weights
             optimizer.step()

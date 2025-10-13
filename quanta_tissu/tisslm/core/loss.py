@@ -2,13 +2,14 @@ import numpy as np
 from .layers import softmax
 
 class CrossEntropyLoss:
-    def __init__(self):
+    def __init__(self, smoothing=0.0):
         self.cache = {}
         self.d_inputs = None # Initialize d_inputs
+        self.smoothing = smoothing
 
     def forward(self, logits, targets):
         """
-        Computes the cross-entropy loss.
+        Computes the cross-entropy loss with label smoothing.
 
         Args:
             logits: Model output of shape (batch_size, seq_len, vocab_size).
@@ -22,18 +23,25 @@ class CrossEntropyLoss:
         # Calculate probabilities
         probs = softmax(logits)
 
-        # Get the probabilities corresponding to the target tokens
-        target_probs = probs[np.arange(batch_size)[:, None], np.arange(seq_len), targets]
+        # Create one-hot encoded targets
+        one_hot_targets = np.zeros_like(probs)
+        one_hot_targets[np.arange(batch_size)[:, None], np.arange(seq_len), targets] = 1
 
-        # Calculate negative log-likelihood
-        log_probs = -np.log(target_probs + 1e-9) # Add epsilon for stability
-
-        # Calculate the mean loss
-        loss = np.mean(log_probs)
+        # Create smoothed targets
+        if self.smoothing > 0.0:
+            smooth_dist = np.full_like(probs, self.smoothing / (vocab_size - 1))
+            smooth_dist[np.arange(batch_size)[:, None], np.arange(seq_len), targets] = 1 - self.smoothing
+            one_hot_targets = smooth_dist
+        
+        # Calculate cross-entropy loss
+        log_probs = -np.log(probs + 1e-9)
+        loss = np.sum(one_hot_targets * log_probs) / (batch_size * seq_len)
 
         # Cache for backward pass
         self.cache['probs'] = probs
         self.cache['targets'] = targets
+        self.cache['one_hot_targets'] = one_hot_targets
+
 
         return loss
 
@@ -42,14 +50,11 @@ class CrossEntropyLoss:
         Computes the gradient of the loss with respect to the logits.
         """
         probs = self.cache['probs']
-        targets = self.cache['targets']
+        one_hot_targets = self.cache['one_hot_targets']
         batch_size, seq_len, vocab_size = probs.shape
 
-        # The gradient is (probs - y), where y is one-hot encoded targets
-        d_logits = probs.copy()
-
-        # Subtract 1 from the scores of the correct classes
-        d_logits[np.arange(batch_size)[:, None], np.arange(seq_len), targets] -= 1
+        # The gradient is (probs - smoothed_targets)
+        d_logits = probs - one_hot_targets
 
         # Normalize the gradient by the total number of elements (batch_size * seq_len)
         d_logits /= (batch_size * seq_len)

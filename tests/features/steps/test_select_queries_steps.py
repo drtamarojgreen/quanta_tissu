@@ -16,7 +16,8 @@ def register_steps(runner):
 
     @runner.step(r'^When I execute the TissQL query "(.*)"$')
     def execute_tissql_query_from_string(context, query_string):
-        match = re.search(r'(?:FROM|UPDATE|INSERT INTO)\s+(\w+)', query_string, re.IGNORECASE)
+        # This regex now handles INSERT with an optional INTO clause.
+        match = re.search(r'(?:FROM|UPDATE|INSERT(?: INTO)?)\s+([a-zA-Z0-9_]+)', query_string, re.IGNORECASE)
         if not match:
             assert match, f"Could not find collection name in query: {query_string}"
 
@@ -117,8 +118,10 @@ def register_steps(runner):
             if key in doc and doc[key] == value:
                 assert False, f"Found unexpected document with '{key}' = '{value}'"
 
-    @runner.step(r'^the documents should be in the following order for the key "([^"]*)": (.*)$')
+    @runner.step(r'the documents should be in the following order for the key "([^"]*)": (.*)')
     def documents_should_be_in_order(context, key, order_str):
-        expected_order = json.loads(order_str.replace("'", '"'))
+        # The order_str is a string representation of a list, e.g., '["a", "b", "c"]'
+        # We need to parse it into a Python list.
+        expected_order = json.loads(order_str)
         actual_order = [doc.get(key) for doc in context['query_result']]
         assert actual_order == expected_order, f"Documents are not in the expected order. Expected {expected_order}, but got {actual_order}"

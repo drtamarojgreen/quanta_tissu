@@ -5,6 +5,7 @@ from .setup import handle_setup_command
 from .step import handle_step_command
 from .errors import TissLangParserError
 from .value_parser import parse_value
+from .if_command_handler import handle_if_command, handle_else_command
 
 
 class TissLangParser:
@@ -59,7 +60,7 @@ class TissLangParser:
 
     def _parse_line(self, line: str):
         """Processes a single line of the script based on the current state."""
-        if _PATTERNS['EMPTY'].match(line):
+        if not line.strip():
             return
         if self._state == "IN_WRITE":
             self._handle_write_block(line)
@@ -71,6 +72,19 @@ class TissLangParser:
             else:
                  self.ast.append({'type': 'COMMENT', 'text': line.strip()})
             return
+
+        directive_match = _PATTERNS['DIRECTIVE'].match(line)
+        if directive_match:
+            name = directive_match.group(1)
+            value_str = directive_match.group(2)
+            value = parse_value(value_str)
+            node = {'type': 'DIRECTIVE', 'name': name, 'value': value}
+            if self._current_block is not None:
+                self._current_block.append(node)
+            else:
+                self.ast.append(node)
+            return
+
         if self._state == "IDLE":
             self._handle_idle_state(line)
         elif self._state == "IN_STEP":
@@ -79,21 +93,19 @@ class TissLangParser:
             self._handle_in_choose_state(line)
         elif self._state == "AFTER_TRY":
             self._handle_after_try_state(line)
+        elif self._state == "AFTER_IF":
+            self._handle_after_if_state(line)
         else:
             raise TissLangParserError(f"Invalid parser state: {self._state}", self._line_number)
 
     def _handle_idle_state(self, line: str):
         """Handles parsing when in the top-level 'IDLE' state."""
+        if not line.strip():
+            return
+
         task_match = _PATTERNS['TASK'].match(line)
         if task_match:
             self.ast.append({'type': 'TASK', 'description': task_match.group(1)})
-            return
-        step_node = handle_step_command(line, self.ast, self._line_number)
-        if step_node:
-            self._state_stack.append(self._state)
-            self._block_stack.append(self._current_block)
-            self._state = "IN_STEP"
-            self._current_block = step_node['commands']
             return
         setup_node = handle_setup_command(line, self.ast, self._line_number)
         if setup_node:
@@ -102,6 +114,13 @@ class TissLangParser:
             self._state = "IN_STEP"
             self._current_block = setup_node['commands']
             return
+        step_node = handle_step_command(line, self.ast, self._line_number)
+        if step_node:
+            self._state_stack.append(self._state)
+            self._block_stack.append(self._current_block)
+            self._state = "IN_STEP"
+            self._current_block = step_node['commands']
+            return
         raise TissLangParserError(f"Unexpected command. Expected TASK, STEP, or SETUP.", self._line_number)
 
     def _handle_in_step_state(self, line: str):
@@ -109,6 +128,16 @@ class TissLangParser:
         if _PATTERNS['BLOCK_END'].match(line):
             self._state = self._state_stack.pop()
             self._current_block = self._block_stack.pop()
+            return
+
+        if_node = handle_if_command(line, self._current_block, self._line_number)
+        if if_node:
+            self._state_stack.append(self._state)
+            self._block_stack.append(self._current_block)
+            self._state_stack.append("AFTER_IF")
+            self._block_stack.append(if_node)
+            self._state = "IN_STEP"
+            self._current_block = if_node['then_block']
             return
 
         run_match = _PATTERNS['RUN'].match(line)
@@ -246,6 +275,24 @@ class TissLangParser:
         # If it's not a CATCH block, it's an implicit end of the try.
         self._state_stack.pop() # Pop AFTER_TRY
         self._block_stack.pop() # Pop the TRY_CATCH node
+        self._parse_line(line) # Re-parse the line in the previous state.
+
+    def _handle_after_if_state(self, line: str):
+        """Handles parsing after an 'IF' block's 'THEN' clause, expecting an 'ELSE' or another command."""
+        if_node = self._block_stack[-1]
+        else_node = handle_else_command(line, self._block_stack[-2], self._line_number)
+
+        if else_node:
+            self._state = "IN_STEP"
+            self._current_block = else_node['else_block']
+            # We are now in the ELSE block, so we pop the 'AFTER_IF' state and the IF node.
+            self._state_stack.pop() # Pop AFTER_IF
+            self._block_stack.pop() # Pop the IF node
+            return
+
+        # If it's not an ELSE block, it's an implicit end of the IF.
+        self._state_stack.pop() # Pop AFTER_IF
+        self._block_stack.pop() # Pop the IF node
         self._parse_line(line) # Re-parse the line in the previous state.
 
     def _handle_write_block(self, line: str):
