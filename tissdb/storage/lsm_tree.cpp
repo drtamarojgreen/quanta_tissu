@@ -3,6 +3,10 @@
 #include "../common/serialization.h"
 #include "../crypto/kms.h"
 #include <stdexcept>
+#include <filesystem>
+#include <set>
+#include "wal.h" // For LogEntry, LogEntryType
+#include "../query/executor_common.h" // For value_to_string
 
 namespace TissDB {
 namespace Storage {
@@ -10,7 +14,6 @@ namespace Storage {
 namespace {
 // This is a placeholder for a proper dependency injection mechanism.
 TissDB::Crypto::KeyManagementSystem& get_kms_instance() {
-    // This master key should be loaded from a secure configuration or vault, not hardcoded.
     static TissDB::Crypto::Key master_key = {
         0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
         0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10
@@ -19,10 +22,6 @@ TissDB::Crypto::KeyManagementSystem& get_kms_instance() {
     return instance;
 }
 } // anonymous namespace
-
-void replay_log_entry(LSMTree* tree, const LogEntry& entry);
-
-LSMTree::LSMTree() : path_(""), transaction_manager_(*this) {}
 
 LSMTree::LSMTree(const std::string& path) : path_(path), transaction_manager_(*this) {
     std::filesystem::path db_path(path_);
@@ -45,14 +44,12 @@ void LSMTree::recover() {
     auto log_entries = wal_->recover();
     std::set<Transactions::TransactionID> aborted_tids;
 
-    // First pass: find aborted transactions
     for (const auto& entry : log_entries) {
         if (entry.type == LogEntryType::TXN_ABORT) {
             aborted_tids.insert(entry.transaction_id);
         }
     }
 
-    // Second pass: replay committed entries
     for (const auto& entry : log_entries) {
         switch (entry.type) {
             case LogEntryType::PUT:
@@ -80,7 +77,6 @@ void LSMTree::recover() {
                 }
                 break;
             default:
-                // Other types like ABORT, DELETE_COLLECTION etc. are ignored during replay
                 break;
         }
     }
@@ -98,12 +94,12 @@ void LSMTree::create_collection(const std::string& name, const TissDB::Schema& s
         LogEntry entry;
         entry.type = LogEntryType::CREATE_COLLECTION;
         entry.collection_name = name;
-        // Note: Schema is not persisted in the WAL.
         wal_->append(entry);
     }
 
     LOG_INFO("Creating collection: " + name);
-    std::string collection_path = (std::filesystem::path(path_) / name).string();
+    std::filesystem::path db_path(path_);
+    std::string collection_path = (db_path / name).string();
     if (!std::filesystem::exists(collection_path)) {
         std::filesystem::create_directories(collection_path);
     }
@@ -118,12 +114,8 @@ void LSMTree::delete_collection(const std::string& name) {
         throw std::runtime_error("Collection does not exist: " + name);
     }
 
-    // --- Cryptographic Shredding ---
-    // By deleting the Data Encryption Key, the data in the SSTables becomes
-    // permanently unrecoverable, even if the files were to be recovered later.
     LOG_INFO("Shredding encryption key for collection: " + name);
     get_kms_instance().delete_dek(name);
-    // --- End Cryptographic Shredding ---
 
     LogEntry entry;
     entry.type = LogEntryType::DELETE_COLLECTION;
@@ -133,16 +125,15 @@ void LSMTree::delete_collection(const std::string& name) {
     LOG_INFO("Deleting collection: " + name);
     collections_.erase(name);
 
-    // Also delete the directory from disk
     try {
-        std::string collection_path = (std::filesystem::path(path_) / name).string();
+        std::filesystem::path db_path(path_);
+        std::string collection_path = (db_path / name).string();
         if (std::filesystem::exists(collection_path)) {
             std::filesystem::remove_all(collection_path);
             LOG_INFO("Removed collection data directory: " + collection_path);
         }
     } catch (const std::filesystem::filesystem_error& e) {
         LOG_ERROR("Error deleting collection directory: " + std::string(e.what()));
-        // Don't re-throw, as the collection is already gone from memory and WAL.
     }
 }
 
@@ -166,15 +157,6 @@ void LSMTree::put(const std::string& collection_name, const std::string& key, co
             entry.doc = doc;
             wal_->append(entry);
         }
-
-        try {
-            Collection& collection = get_collection(collection_name);
-            collection.put(key, doc);
-        } catch (const std::runtime_error& e) {
-            // Collection not found, ignore.
-            // The WAL entry is still written, which is acceptable.
-        }
-
         Collection& collection = get_collection(collection_name);
         collection.put(key, doc);
     }
@@ -184,7 +166,6 @@ std::optional<std::shared_ptr<Document>> LSMTree::get(const std::string& collect
     if (tid != -1) {
         const auto* transaction = transaction_manager_.get_transaction(tid);
         if (transaction) {
-            // Iterate backwards to find the most recent operation for this key
             const auto& operations = transaction->get_operations();
             for (auto it = operations.rbegin(); it != operations.rend(); ++it) {
                 if (it->collection_name == collection_name && it->key == key) {
@@ -199,12 +180,10 @@ std::optional<std::shared_ptr<Document>> LSMTree::get(const std::string& collect
         }
     }
 
-    // If not in transaction or transaction doesn't exist, get from main storage
     try {
         Collection& collection = get_collection(collection_name);
         return collection.get(key);
     } catch (const std::runtime_error& e) {
-        // Collection not found
         return std::nullopt;
     }
 }
@@ -220,16 +199,14 @@ std::vector<Document> LSMTree::get_many(const std::string& collection_name, cons
             }
         }
     } catch (const std::runtime_error& e) {
-        // Collection not found, return empty vector
     }
     return result_docs;
 }
 
-
 bool LSMTree::del(const std::string& collection_name, const std::string& key, Transactions::TransactionID tid, bool is_recovery) {
     if (tid != -1) {
         transaction_manager_.add_delete_operation(tid, collection_name, key);
-        return true; // Assume success for transactional deletes for now
+        return true;
     } else {
         if (!is_recovery) {
             LogEntry entry;
@@ -238,12 +215,10 @@ bool LSMTree::del(const std::string& collection_name, const std::string& key, Tr
             entry.document_id = key;
             wal_->append(entry);
         }
-
         try {
             Collection& collection = get_collection(collection_name);
             return collection.del(key);
         } catch (const std::runtime_error& e) {
-            // Collection not found
             return false;
         }
     }
@@ -254,8 +229,7 @@ std::vector<Document> LSMTree::scan(const std::string& collection_name) {
         Collection& collection = get_collection(collection_name);
         return collection.scan();
     } catch (const std::runtime_error& e) {
-        // Collection not found
-        return {}; // Return empty vector if collection not found
+        return {};
     }
 }
 
@@ -289,19 +263,14 @@ void LSMTree::create_index(const std::string& collection_name, const std::vector
     }
 }
 
-std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::string& field_name, const std::string& value) {
+std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::vector<Value>& values) {
     try {
         const Collection& collection = get_collection(collection_name);
-        return collection.find_by_index(field_name, value);
-    } catch (const std::runtime_error& e) {
-        return {};
-    }
-}
-
-std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::vector<std::string>& values) {
-    try {
-        const Collection& collection = get_collection(collection_name);
-        return collection.find_by_index(field_names, values);
+        std::vector<std::string> string_values;
+        for(const auto& v : values) {
+            string_values.push_back(TissDB::Query::value_to_string(v));
+        }
+        return collection.find_by_index(field_names, string_values);
     } catch (const std::runtime_error& e) {
         return {};
     }
@@ -338,14 +307,6 @@ std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::
 }
 
 void LSMTree::shutdown() {
-    for (auto const& [name, collection] : collections_) {
-        collection->shutdown();
-std::vector<std::vector<std::string>> LSMTree::get_available_indexes(const std::string& /*collection_name*/) const {
-    // Placeholder: Implement available indexes logic
-    return {};
-}
-
-void LSMTree::shutdown() {
     LOG_INFO("Shutting down database at: " + path_);
     save_collections();
     if (wal_) {
@@ -359,14 +320,12 @@ void LSMTree::load_collections() {
     if (!fs::exists(path_) || !fs::is_directory(path_)) {
         return;
     }
-
     for (const auto& entry : fs::directory_iterator(path_)) {
         if (entry.is_directory()) {
             std::string collection_name = entry.path().filename().string();
             if (collections_.find(collection_name) == collections_.end()) {
                 LOG_INFO("Discovered and loading collection: " + collection_name);
                 std::string collection_path = entry.path().string();
-                // Use the constructor that takes a path
                 collections_[collection_name] = std::make_unique<Collection>(collection_path, this);
             }
         }
@@ -379,37 +338,6 @@ void LSMTree::save_collections() {
         collection->save_indexes();
     }
     LOG_INFO("Finished saving all collection indexes.");
-}
-
-void replay_log_entry(LSMTree* tree, const LogEntry& entry) {
-    switch (entry.type) {
-        case LogEntryType::CREATE_COLLECTION:
-            try {
-                // NOTE: The schema is not persisted in the WAL. Using an empty schema for recovery.
-                tree->create_collection(entry.collection_name, TissDB::Schema({}));
-            } catch (const std::runtime_error& e) {
-                // It's possible the collection already exists if the log has duplicate entries.
-                LOG_WARNING("During WAL replay, could not create collection '" + entry.collection_name + "': " + e.what());
-            }
-            break;
-        case LogEntryType::DELETE_COLLECTION:
-            try {
-                tree->delete_collection(entry.collection_name);
-            } catch (const std::runtime_error& e) {
-                LOG_WARNING("During WAL replay, could not delete collection '" + entry.collection_name + "': " + e.what());
-            }
-            break;
-        case LogEntryType::PUT:
-            tree->put(entry.collection_name, entry.document_id, entry.doc);
-            break;
-        case LogEntryType::DELETE:
-            tree->del(entry.collection_name, entry.document_id);
-            break;
-        case LogEntryType::TXN_COMMIT:
-        case LogEntryType::TXN_ABORT:
-            // Transaction replay logic is not yet implemented.
-            break;
-    }
 }
 
 } // namespace Storage

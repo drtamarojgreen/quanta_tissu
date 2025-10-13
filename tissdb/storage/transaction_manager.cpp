@@ -37,12 +37,7 @@ bool TransactionManager::rollback_transaction(TransactionID tid) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = transactions_.find(tid);
     if (it == transactions_.end() || it->second->get_state() != Transaction::State::ACTIVE) {
-<<<<<<< HEAD
-         // It's okay to roll back a non-existent or already-completed transaction.
-        return;
-=======
         return true; // Idempotent
->>>>>>> main
     }
     it->second->set_state(Transaction::State::ABORTED);
     transactions_.erase(it);
