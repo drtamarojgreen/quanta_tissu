@@ -1,21 +1,42 @@
 import requests
 import json
 from typing import List, Dict, Any
+import re
 
-BASE_URL = "http://localhost:8080"
+BASE_URL = "http://localhost:9876"
 DB_NAME = "testdb" # Use a consistent test database
+
+def get_headers(context):
+    headers = {}
+    if 'auth_token' in context:
+        headers['Authorization'] = f"Bearer {context['auth_token']}"
+    return headers
 
 def register_steps(runner):
 
-    @runner.step(r'^I create the following documents in "(.*)":$')
-    def create_multiple_documents(context, collection_name, table):
-        # This step seems to be defined with a Behave-style table, but the custom
-        # runner doesn't support it directly. We'll assume the table is a list of strings.
-        # This step will likely need adjustment depending on how the runner passes the table.
-        # For now, this is a placeholder. The logic in other files is more robust.
-        pass
+    @runner.step(r'^When I execute the TissQL query "(.*)"$')
+    def execute_tissql_query_from_string(context, query_string):
+        # This regex now handles INSERT with an optional INTO clause.
+        match = re.search(r'(?:FROM|UPDATE|INSERT(?: INTO)?)\s+([a-zA-Z0-9_]+)', query_string, re.IGNORECASE)
+        if not match:
+            assert match, f"Could not find collection name in query: {query_string}"
 
-    @runner.step(r'^the query result should have (\d+) documents$')
+        collection_name = match.group(1) if match else '_default'
+        db_name = context.get('db_name', 'testdb')
+        data = {"query": query_string}
+        headers = get_headers(context)
+
+        requests.put(f"{BASE_URL}/{db_name}", headers=headers)
+        if match:
+            requests.put(f"{BASE_URL}/{db_name}/{collection_name}", headers=headers)
+
+        response = requests.post(f"{BASE_URL}/{db_name}/{collection_name}/_query", json=data, headers=headers)
+
+        assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+        context['query_result'] = response.json()
+
+
+    @runner.step(r'^Then the query result should have (\d+) documents?$')
     def result_should_have_n_documents(context, num_docs):
         num_docs = int(num_docs)
         result = context.get('query_result')
@@ -29,7 +50,7 @@ def register_steps(runner):
         for doc in result:
             if doc.get(key) == value:
                 return
-        assert False, f"No document found with '{key}' = '{value}'"
+        assert False, f"No document found with '{key}' = '{value}' in {context['query_result']}"
 
     @runner.step(r'^the query result should contain a document with "(.*)" = (.*)$')
     def result_should_contain_doc_with_kv_numeric(context, key, value):
@@ -41,9 +62,10 @@ def register_steps(runner):
             num_value = float(value)
 
         for doc in result:
-            if doc.get(key) == num_value:
+            if doc.get(key) == num_value or str(doc.get(key)) == str(num_value):
                 return
-        assert False, f"No document found with '{key}' = {num_value}"
+        assert False, f"No document found with '{key}' = {num_value} in {context['query_result']}"
+
 
     @runner.step(r'^each document in the result should have the fields (.*)$')
     def each_doc_should_have_fields(context, fields_str: str):
@@ -80,12 +102,26 @@ def register_steps(runner):
             num_value2 = float(value2)
 
         for doc in result:
-            if doc.get(key1) == value1 and doc.get(key2) == num_value2:
+            if doc.get(key1) == value1 and (doc.get(key2) == num_value2 or str(doc.get(key2)) == str(num_value2)):
                 return
-        assert False, f"No document found with '{key1}' = '{value1}' and '{key2}' = {num_value2}"
+        assert False, f"No document found with '{key1}' = '{value1}' and '{key2}' = {num_value2} in {context['query_result']}"
 
-    @runner.step(r'^the query result should be empty$')
+    @runner.step(r'^Then the query result should be empty$')
     def result_should_be_empty(context):
         result = context.get('query_result')
         assert result is not None, "Query result not found in context"
         assert len(result) == 0, f"Expected empty result, but found {len(result)} documents"
+
+    @runner.step(r'^the query result should not contain a document with "([^"]*)" = "([^"]*)"$')
+    def query_result_not_contains_doc_with_kv_string(context, key, value):
+        for doc in context['query_result']:
+            if key in doc and doc[key] == value:
+                assert False, f"Found unexpected document with '{key}' = '{value}'"
+
+    @runner.step(r'the documents should be in the following order for the key "([^"]*)": (.*)')
+    def documents_should_be_in_order(context, key, order_str):
+        # The order_str is a string representation of a list, e.g., '["a", "b", "c"]'
+        # We need to parse it into a Python list.
+        expected_order = json.loads(order_str)
+        actual_order = [doc.get(key) for doc in context['query_result']]
+        assert actual_order == expected_order, f"Documents are not in the expected order. Expected {expected_order}, but got {actual_order}"

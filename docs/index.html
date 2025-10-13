@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantaTissu Project</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="images/tissdb_logo1.jpg" alt="QuantaTissu Logo">
+                <h3>QuantaTissu</h3>
+            </div>
+            <nav>
+                <h4>On This Page</h4>
+                <ul>
+                    <li><a href="#intro">Introduction</a></li>
+                    <li><a href="#quantatissu-model">QuantaTissu LLM</a></li>
+                    <li><a href="#tisslang">TissLang</a></li>
+                    <li><a href="#tissdb">TissDB</a></li>
+                    <li><a href="#tissu-sinew">Tissu Sinew</a></li>
+                    <li><a href="#ecology">Ecological Awareness</a></li>
+                </ul>
+            </nav>
+            <nav>
+                <h4>Project Documents</h4>
+                <ul>
+                    <li><a href="overview.md">Project Overview</a></li>
+                    <li><a href="roadmap.md">Development Roadmap</a></li>
+                    <li><a href="enhancements.md">Enhancements List</a></li>
+                    <li><a href="api_spec.yml">API Specification</a></li>
+                    <li><a href="tissdb_api_guide.md">TissDB API Guide</a></li>
+                    <li><a href="TissLang_plan.md">TissLang Plan</a></li>
+                    <li><a href="test.md">Test Plan</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="content">
+            <header>
+                <h1>QuantaTissu Project</h1>
+                <p style="font-style: italic;">A multi-faceted project to build an autonomous AI software engineering agent from scratch.</p>
+            </header>
+
+            <section id="intro">
+                <h2>Introduction</h2>
+                <p>QuantaTissu is a project centered around building an autonomous AI software engineering agent. It is comprised of several key components built from the ground up to be both an educational tool and the foundation for a sophisticated coding assistant.</p>
+                <p>The project includes:</p>
+                <ul>
+                    <li><b>QuantaTissu:</b> A transformer-based language model serving as the agent's core reasoning engine.</li>
+                    <li><b>TissLang:</b> A declarative language for orchestrating the agent's actions in a structured manner.</li>
+                    <li><b>TissDB:</b> A high-performance NoSQL database for persistence.</li>
+                    <li><b>Tissu Sinew:</b> A native C++ connector for TissDB.</li>
+                </ul>
+            </section>
+
+            <section id="quantatissu-model">
+                <h2>The QuantaTissu Language Model</h2>
+                <p>QuantaTissu is a decoder-only transformer model built in Python with NumPy. It features a full training and inference pipeline with modern, efficient components.</p>
+                <p><b>Implemented Features:</b></p>
+                <ul>
+                    <li><b>Architecture:</b> A configurable N-layer transformer with multi-head self-attention and causal masking.</li>
+                    <li><b>Tokenization:</b> A trainable Byte-Pair Encoding (BPE) subword tokenizer.</li>
+                    <li><b>Inference:</b> Supports batched inference, KV Caching for speed, and advanced sampling methods (greedy, top-k, nucleus).</li>
+                    <li><b>Training:</b> A full pipeline with an Adam optimizer, cross-entropy loss, learning rate scheduling, and model checkpointing.</li>
+                </ul>
+                <p>Future work will focus on architectural upgrades like SwiGLU and RoPE, and advanced techniques like quantization and LoRA for fine-tuning.</p>
+            </section>
+
+            <section id="tisslang">
+                <h2>TissLang: The Agentic Language</h2>
+                <p>TissLang is a structured, human-readable language designed to direct the agent's actions safely and predictably. It includes a parser and an execution engine to interpret scripts.</p>
+                <p><b>Implemented Features:</b></p>
+                <ul>
+                    <li><b>Core Syntax:</b> `TASK` and `STEP` blocks to define and organize workflows.</li>
+                    <li><b>Commands:</b> `WRITE` (to files), `RUN` (shell commands), and `READ` (file content).</li>
+                    <li><b>Assertions:</b> `ASSERT` to verify command outcomes, such as exit codes and stdout content.</li>
+                </ul>
+                <p>Future plans include adding control flow constructs like `IF/ELSE` and enabling the agent to generate its own TissLang scripts as plans for human review.</p>
+            </section>
+
+            <section id="tissdb">
+                <h2>TissDB: A High-Performance NoSQL Database</h2>
+                <p>TissDB is a lightweight NoSQL database built in C++ with an LSM-Tree storage engine, a JSON-like document model, and a SQL-like query language (TissQL). It ensures durability with a Write-Ahead Log (WAL) and provides a RESTful API for interaction.</p>
+                <p><b>Limitations and Future Work:</b></p>
+                <p>TissDB is under active development. Current limitations include being primarily in-memory (relying on WAL replay on startup), non-persistent B-Tree indexes, and incomplete ACID transaction support. Future work will focus on improving persistence and transactionality.</p>
+            </section>
+
+            <section id="tissu-sinew">
+                <h2>Tissu Sinew: C++ Connector for TissDB</h2>
+                <p>Tissu Sinew is the official C++ connector for TissDB. It provides a high-performance, modern C++ interface designed for safety and ease of use. Key features include a thread-safe connection pool, RAII-based session and transaction management to prevent resource leaks, and a clear exception hierarchy for robust error handling.</p>
+            </section>
+
+            <section id="ecology">
+                <h2>Ecological Awareness</h2>
+                <p>A core principle of the project is to promote sustainable AI development through a three-pronged strategy:</p>
+                <ol>
+                    <li><b>Model Efficiency:</b> Optimizing the model for lower energy consumption.</li>
+                    <li><b>Green Code Generation:</b> Training the agent to recognize and suggest energy-efficient code.</li>
+                    <li><b>Impact Transparency:</b> Building tools in TissLang to estimate the carbon footprint of code changes.</li>
+                </ol>
+            </section>
+        </main>
+    </div>
+    <script src="js/script.js"></script>
+</body>
+</html>

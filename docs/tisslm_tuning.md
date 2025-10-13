@@ -13,7 +13,7 @@ This guide covers three main areas of tuning:
 
 Before training the TissLM model, you need a tokenizer that converts raw text into a sequence of token IDs. TissLM uses a Byte-Pair Encoding (BPE) tokenizer. The quality and size of the tokenizer's vocabulary can significantly impact the model's performance.
 
-The tokenizer is trained using the `quanta_tissu/tisslm/train_bpe.py` script.
+The tokenizer is trained using the `quanta_tissu/tisslm/core/train_bpe.py` script.
 
 ### Key Parameters
 
@@ -29,14 +29,14 @@ You can control the tokenizer training process using the following command-line 
 
 ### How to Train a New Tokenizer
 
-To train a new tokenizer, run the `train_bpe.py` script from the project root directory with your desired parameters.
+To train a new tokenizer, run the `train_bpe.py` script (located in the `core` directory) from the project root directory with your desired parameters.
 
 **Example:**
 
 Let's say you have a new corpus file named `my_corpus.txt` and you want to train a tokenizer with a vocabulary size of 2048.
 
 ```bash
-python quanta_tissu/tisslm/train_bpe.py \
+python -m quanta_tissu.tisslm.core.train_bpe \
     --corpus_path /path/to/my_corpus.txt \
     --vocab_size 2048 \
     --save_prefix models/my_new_tokenizer
@@ -128,7 +128,7 @@ There are two primary ways to change the hyperparameters for a training run:
 
 ### Running the Training Script
 
-The main script for training the model is `quanta_tissu/tisslm/run_training.py`.
+The main script for training the model is `quanta_tissu/tisslm/core/run_training.py`.
 
 **Key Command-Line Arguments:**
 
@@ -151,7 +151,7 @@ Imagine you want to run an experiment with a higher learning rate and a larger b
 You would run the following command from the project's root directory:
 
 ```bash
-python quanta_tissu/tisslm/run_training.py \
+python -m quanta_tissu.tisslm.core.run_training \
     --lr 3e-4 \
     --batch_size 4 \
     --epochs 10 \
@@ -161,10 +161,10 @@ python quanta_tissu/tisslm/run_training.py \
     --save_every 50
 ```
 
-python quanta_tissu/tisslm/run_training.py --lr 3e-4 --batch_size 4 --epochs 10 --warmup_steps 10 --max_grad_norm 1.0 --checkpoint_dir ./checkpoints/checkpoint_step_168300 --save_every 50
+python -m quanta_tissu.tisslm.core.run_training --lr 3e-4 --batch_size 4 --epochs 10 --warmup_steps 10 --max_grad_norm 1.0 --checkpoint_dir ./checkpoints/checkpoint_step_168300 --save_every 50
 
 
-python run_training.py --lr 3e-4 --batch_size 4 --epochs 10 --warmup_steps 10 --max_grad_norm 1.0 --checkpoint_dir ./checkpoints/checkpoint_step_168300 --save_every 50
+python -m quanta_tissu.tisslm.core.run_training --lr 3e-4 --batch_size 4 --epochs 10 --warmup_steps 10 --max_grad_norm 1.0 --checkpoint_dir ./checkpoints/checkpoint_step_168300 --save_every 50
 
 This command starts a new training run that:
 *   Uses a learning rate of `3e-4`.

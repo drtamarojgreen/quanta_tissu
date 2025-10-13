@@ -1,7 +1,10 @@
 openapi: 3.0.3
 info:
-  title: TissDB Business Intelligence Service API
-  description: API for managing reports and alerts within the TissDB BI Suite.
+  title: TissDB API
+  description: |-
+    The official RESTful API for TissDB.
+    This API provides endpoints for core database operations (CRUD, transactions, schema management)
+    as well as planned features for a Business Intelligence (BI) and Reporting service.
   version: 1.0.0
 servers:
   - url: http://tissdb.internal:8080/
@@ -268,7 +271,15 @@ paths:
               properties:
                 query:
                   type: string
-                  example: "SELECT id, name FROM users WHERE age > 30"
+                  description: "The TissQL query string. Use `?` for parameterized values."
+                  example: "SELECT id, name FROM users WHERE age > ?"
+                params:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+                  description: "An array of values to substitute for the `?` placeholders."
+                  example: [30]
       responses:
         '200':
           description: Query results.
@@ -298,7 +309,14 @@ paths:
               properties:
                 field:
                   type: string
+                  description: "A single field to index."
                   example: "user_id"
+                fields:
+                  type: array
+                  items:
+                    type: string
+                  description: "A list of fields for a composite index."
+                  example: ["last_name", "first_name"]
       responses:
         '200':
           description: Index created.

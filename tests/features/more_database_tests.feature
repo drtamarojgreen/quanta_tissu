@@ -8,9 +8,9 @@ Feature: TissDB Advanced Database Operations
       | doc1 | {"name": "First Document", "value": 1}  |
       | doc2 | {"name": "Second Document", "value": 2} |
       | doc3 | {"name": "Third Document", "value": 3}  |
-    Then the document with ID "doc1" in "batch_collection" should have content {"name": "First Document", "value": 1}
-    And the document with ID "doc2" in "batch_collection" should have content {"name": "Second Document", "value": 2}
-    And the document with ID "doc3" in "batch_collection" should have content {"name": "Third Document", "value": 3}
+    Then the document with ID "doc1" in "batch_collection" should have content '{"name": "First Document", "value": 1}'
+    And the document with ID "doc2" in "batch_collection" should have content '{"name": "Second Document", "value": 2}'
+    And the document with ID "doc3" in "batch_collection" should have content '{"name": "Third Document", "value": 3}'
     And I delete the collection "batch_collection"
 
   Scenario: List all documents in a collection

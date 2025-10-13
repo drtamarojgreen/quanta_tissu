@@ -8,7 +8,6 @@ import datetime
 import traceback
 import socket
 import argparse
-import requests
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -68,37 +67,48 @@ class BDDRunner:
         return steps
 
     def _execute_step(self, context, step_line, table, feature_name, scenario_title):
-        step_found = False
         self.report_data['steps_run'] += 1
+
+        found_steps = []
         for pattern, func in self.steps:
             match = pattern.search(step_line)
             if match:
-                print(f"    Executing step: {step_line}")
+                found_steps.append((pattern.pattern, func, match))
+
+        if not found_steps:
+            if step_line.startswith(('Given', 'When', 'Then', 'And', 'But')):
+                print(f"    WARNING - No step definition found for line: {step_line}")
                 sys.stdout.flush()
-                try:
-                    args = list(match.groups())
-                    if table:
-                        args.append(table)
-                    func(context, *args)
-                    self.report_data['steps_passed'] += 1
-                except Exception as e:
-                    tb = traceback.format_exc()
-                    print(f"      ERROR executing step: {e}\n{tb}")
-                    sys.stdout.flush()
-                    self.report_data['steps_failed'] += 1
-                    self.report_data['step_failures'].append({
-                        'feature': feature_name,
-                        'scenario': scenario_title,
-                        'step': step_line,
-                        'traceback': tb
-                    })
-                    return False, True # Returns (success, found)
-                step_found = True
-                break
-        if not step_found and step_line.startswith(('Given', 'When', 'Then', 'And', 'But')):
-            print(f"    WARNING - No step definition found for line: {step_line}")
+            return True, False
+
+        # Sort by length of regex pattern to find the most specific match
+        found_steps.sort(key=lambda x: len(x[0]), reverse=True)
+
+        best_match = found_steps[0]
+        _, func, match = best_match
+
+        print(f"    Executing step: {step_line}")
+        sys.stdout.flush()
+
+        try:
+            args = list(match.groups())
+            if table:
+                args.append(table)
+            func(context, *args)
+            self.report_data['steps_passed'] += 1
+            return True, True
+        except Exception as e:
+            tb = traceback.format_exc()
+            print(f"      ERROR executing step: {e}\n{tb}")
             sys.stdout.flush()
-        return True, step_found
+            self.report_data['steps_failed'] += 1
+            self.report_data['step_failures'].append({
+                'feature': feature_name,
+                'scenario': scenario_title,
+                'step': step_line,
+                'traceback': tb
+            })
+            return False, True
 
     def is_server_running(self, host='127.0.0.1', port=8080):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -135,24 +145,12 @@ class BDDRunner:
                 sys.stdout.flush()
                 return
 
-            print("BDD Runner: Attempting to build the database...")
+            print("BDD Runner: Compilation disabled.")
             sys.stdout.flush()
-            try:
-                subprocess.run(['make', '-C', os.path.join(base_path, 'tissdb')], check=True)
-                if not os.path.exists(db_path):
-                    error_msg = "Build completed but executable still not found."
-                    self.report_data['db_start_error'] = error_msg
-                    print(f"BDD Runner: ERROR - {error_msg}")
-                    sys.stdout.flush()
-                    return
-                print("BDD Runner: Build successful, continuing...")
-                sys.stdout.flush()
-            except (subprocess.CalledProcessError, FileNotFoundError) as e:
-                error_msg = f"Failed to build database: {e}"
-                self.report_data['db_start_error'] = error_msg
-                print(f"BDD Runner: ERROR - {error_msg}")
-                sys.stdout.flush()
-                return
+            error_msg = "Compilation is disabled, cannot build database."
+            self.report_data['db_start_error'] = error_msg
+            self.report_data['compilation_skipped'] = True
+            return
 
         try:
             self.db_process = subprocess.Popen([db_path])
@@ -184,7 +182,10 @@ class BDDRunner:
         try:
             self.start_db()
 
-            feature_files = glob.glob(os.path.join(self.features_path, '*.feature'))
+            if os.path.isfile(self.features_path):
+                feature_files = [self.features_path]
+            else:
+                feature_files = glob.glob(os.path.join(self.features_path, '*.feature'))
             print(f"BDD Runner: Found feature files: {feature_files}")
             sys.stdout.flush()
 
@@ -192,12 +193,18 @@ class BDDRunner:
                                               test_generate_steps, test_knowledge_base_steps, test_database_steps,
                                               test_more_database_steps, test_extended_database_steps, test_parser_steps,
                                               test_model_integration_steps, test_integration_steps, test_update_delete_steps,
-                                              test_select_queries_steps, test_common_steps)
+                                              test_select_queries_steps, test_common_steps, test_security_steps, test_datetime_steps,
+                                              test_block_steps, test_tissu_sinew_steps, test_cllm_steps, test_ctisslm_steps)
+            # Import the new nexus_flow steps
+            from tests.nexus_flow import test_nexus_flow_bdd
+
             for module in [test_kv_cache_steps, test_tokenizer_steps, test_predict_steps,
                            test_generate_steps, test_knowledge_base_steps, test_database_steps,
                            test_more_database_steps, test_extended_database_steps, test_parser_steps,
                            test_model_integration_steps, test_integration_steps, test_update_delete_steps,
-                           test_select_queries_steps, test_common_steps]:
+                           test_select_queries_steps, test_common_steps, test_security_steps,
+                           # Add the new nexus_flow module to the list
+                           test_nexus_flow_bdd, test_datetime_steps, test_block_steps, test_tissu_sinew_steps, test_cllm_steps, test_ctisslm_steps]:
                 module.register_steps(self)
             print("BDD Runner: All steps registered.")
             sys.stdout.flush()
@@ -270,9 +277,18 @@ class BDDRunner:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='BDD Test Runner')
+    parser.add_argument('--feature', type=str, help='Run a single feature file.')
     parser.add_argument('--summary', action='store_true', help='Generate a summary report.')
     args = parser.parse_args()
 
     features_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'features')
+    if args.feature:
+        # If the provided path is a file that exists, use it directly.
+        # Otherwise, assume it's a file within the default features directory.
+        if os.path.isfile(args.feature):
+            features_path = args.feature
+        else:
+            features_path = os.path.join(features_path, args.feature)
+
     runner = BDDRunner(features_path, summary=args.summary)
     runner.run()

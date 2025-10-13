@@ -13,7 +13,7 @@ namespace Query {
 
 // Represents a token from the query string
 struct Token {
-    enum class Type { IDENTIFIER, KEYWORD, NUMERIC_LITERAL, STRING_LITERAL, OPERATOR, EOI };
+    enum class Type { IDENTIFIER, KEYWORD, NUMERIC_LITERAL, STRING_LITERAL, OPERATOR, PARAM_PLACEHOLDER, EOI };
     Type type;
     std::string value;
 };
@@ -26,6 +26,7 @@ public:
 private:
     std::vector<Token> tokens;
     size_t pos = 0;
+    size_t param_index = 0;
 
     // Tokenizer
     std::vector<Token> tokenize(const std::string& query_string);
@@ -47,6 +48,7 @@ private:
     std::optional<JoinClause> parse_join_clause(); // Added for JOIN: JOIN collection ON condition
     std::optional<UnionClause> parse_union_clause(); // Added for UNION: SELECT ... UNION [ALL] SELECT ...
     std::optional<DrilldownClause> parse_drilldown_clause(); // Added for WITH DRILLDOWN
+    AggregateFunction parse_aggregate_function();
 
     Expression parse_expression(int precedence = 0);
     Expression parse_primary_expression();
@@ -55,6 +57,7 @@ private:
     Token peek();
     Token consume();
     void expect(Token::Type type, const std::string& value = "");
+    std::optional<Timestamp> try_parse_timestamp(const std::string& literal);
 };
 
 } // namespace Query

@@ -160,11 +160,11 @@ This phase focuses on long-term goals to modernize the model's architecture.
             - [ ] Replace all instances of `torch.nn.LayerNorm` with the custom `RMSNorm` module in the model definition.
             - [ ] Verify that the `epsilon` value is appropriately chosen to prevent division by zero.
 - [ ] **Advanced Tokenization**: Implement a subword-based tokenizer like BPE (Byte-Pair Encoding) to replace the current simple word-based tokenizer.
-    - **Conceptualization**: A method to break down words into smaller, frequently occurring subword units, enabling better handling of out-of-vocabulary words and reducing vocabulary size.
     - **Programmatic Implementations**:
-        - [ ] Use a library like `tokenizers` (Hugging Face) to train a BPE tokenizer on a large text corpus.
-        - [ ] Implement `encode(text: str)` and `decode(token_ids: List[int])` methods for the new tokenizer.
-        - [ ] Update the data loading pipeline to use the BPE tokenizer for converting text to token IDs and vice-versa.
+        - [x] Use a library like `tokenizers` (Hugging Face) to train a BPE tokenizer on a large text corpus.
+        - [x] Create a `train_tokenizer.py` script to handle the training and saving of the tokenizer.
+        - [x] Implement `encode(text: str)` and `decode(token_ids: List[int])` methods for the new tokenizer.
+        - [x] Update the data loading pipeline (`data.py` and `run_training.py`) to use the BPE tokenizer.
 
 ## Phase 5: Tooling and Developer Experience
 

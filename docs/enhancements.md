@@ -9,11 +9,11 @@ Status Key: `[Not Started]` `[In Progress]` `[Done]`
 ### 1.1. Architectural Improvements
 -   **[Done] Multiple Transformer Blocks**: Generalize the model to allow stacking `N` transformer blocks, creating a deeper and more powerful model. This should be a configurable hyperparameter.
 -   **[Done] Causal Attention Mask**: Implement and apply a causal (look-ahead) mask in the attention mechanism. This is crucial for correct autoregressive behavior during training and efficient inference.
--   **[Not Started] Dropout Layers**: Add dropout layers after embeddings, attention, and feed-forward layers for regularization to prevent overfitting.
+-   **[Done] Dropout Layers**: Add dropout layers after embeddings, attention, and feed-forward layers for regularization to prevent overfitting.
 -   **[Done] Hyperparameter Configuration**: Centralize all model hyperparameters (e.g., `d_model`, `num_heads`, `d_ff`, `n_layers`, `vocab_size`) into a configuration object or file (e.g., `config.py` or a YAML file).
--   **[Not Started] Modern Feed-Forward Networks (SwiGLU)**: Replace the standard ReLU-based FFN with a more modern Gated Linear Unit variant like SwiGLU, which is used in models like Llama.
--   **[Not Started] Alternative Normalization (RMSNorm)**: Implement RMSNorm as a simpler and often faster alternative to standard Layer Normalization.
--   **[Not Started] Alternative Positional Encodings (RoPE)**: Replace sinusoidal positional encodings with a more modern approach like Rotary Positional Embeddings (RoPE).
+-   **[Done] Modern Feed-Forward Networks (SwiGLU)**: Replace the standard ReLU-based FFN with a more modern Gated Linear Unit variant like SwiGLU, which is used in models like Llama.
+-   **[Done] Alternative Normalization (RMSNorm)**: Implement RMSNorm as a simpler and often faster alternative to standard Layer Normalization.
+-   **[Done] Alternative Positional Encodings (RoPE)**: Replace sinusoidal positional encodings with a more modern approach like Rotary Positional Embeddings (RoPE).
 
 ### 1.2. Inference and Sampling
 -   **[Done] Batched Inference**: The model's forward pass already accepts a batch of prompts simultaneously.
@@ -21,7 +21,7 @@ Status Key: `[Not Started]` `[In Progress]` `[Done]`
     -   **Temperature Scaling**: Add a `temperature` parameter to the final softmax to control output randomness.
     -   **Top-k Sampling**: Select the next token from the `k` most likely candidates.
     -   **Nucleus Sampling (Top-p)**: Select from the smallest set of tokens whose cumulative probability exceeds a threshold `p`.
--   **[Not Started] KV Caching**: During generative inference, cache the Key (K) and Value (V) matrices from the attention layers for previous tokens. This avoids redundant computation and dramatically speeds up the generation of long sequences.
+-   **[Done] KV Caching**: During generative inference, cache the Key (K) and Value (V) matrices from the attention layers for previous tokens. This avoids redundant computation and dramatically speeds up the generation of long sequences.
 
 ## 2. Training
 
@@ -59,7 +59,7 @@ Status Key: `[Not Started]` `[In Progress]` `[Done]`
 
 -   **[Done] Comprehensive Unit Tests**: Implement the unit tests outlined in `docs/test.md` to cover edge cases and verify mathematical correctness.
 -   **[Done] Integration Tests**: Add tests that verify the end-to-end workflow, from tokenizing a prompt to detokenizing the final output.
--   **[Done] BDD Test Implementation**: Implement the BDD scenarios from `docs/test.md` using a framework like `pytest-bdd`.
+-   **[Done] BDD Test Implementation**: Implement the BDD scenarios from `docs/test.md` using a BDD framework.
 
 ## 6. Deployment and Interoperability
 
