@@ -107,7 +107,7 @@ std::vector<int> Tokenizer::bpe_encode(const std::vector<unsigned char>& bytes) 
 
 
 std::vector<int> Tokenizer::encode(const std::string& text) {
-    std::regex bpe_regex(R"('s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)");
+    std::regex bpe_regex(R"('s|'t|'re|'ve|'m|'ll|'d| ?[A-Za-z]+| ?[0-9]+| ?[^\sA-Za-z0-9]+|\s+(?!\S)|\s+)");
     std::vector<int> all_ids;
 
     auto words_begin = std::sregex_iterator(text.begin(), text.end(), bpe_regex);

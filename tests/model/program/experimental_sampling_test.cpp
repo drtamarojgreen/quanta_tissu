@@ -38,6 +38,7 @@ void run_experimental_sampling_evaluation() {
     int lora_rank = 0; // Disable LoRA for this test for simplicity
 
     std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, dropout_rate, lora_rank);
+    Tokenizer tokenizer("../dummy"); // Assuming dummy_vocab.json and dummy_merges.txt
 
     std::cout << "  Model and Tokenizer initialized." << std::endl;
 

@@ -51,9 +51,33 @@ bool float_equals(float a, float b, float epsilon = 0.0001f) {
     return std::abs(a - b) < epsilon;
 }
 
-// ============================================================================
+// Helper function to get a field from a document
+std::string get_field(const TissDB::Document& doc, const std::string& key) {
+    for (const auto& element : doc.elements) {
+        if (element.key == key) {
+            if (std::holds_alternative<std::string>(element.value)) {
+                return std::get<std::string>(element.value);
+            }
+        }
+    }
+    return "";
+}
+
+// Helper function to set a field in a document
+void set_field(TissDB::Document& doc, const std::string& key, const std::string& value) {
+    for (auto& element : doc.elements) {
+        if (element.key == key) {
+            element.value = value;
+            return;
+        }
+    }
+    doc.elements.push_back({key, value});
+}
+
+
+// ============================================================================ 
 // Database Tests
-// ============================================================================
+// ============================================================================ 
 
 void test_db_connection() {
     std::cout << "\n=== Testing Database Connection ===" << std::endl;
@@ -98,9 +122,9 @@ void test_document_crud() {
         
         // Create
         Document doc;
-        doc.set_field("title", "Test Document");
-        doc.set_field("content", "This is test content");
-        doc.set_field("author", "Unit Test");
+        set_field(doc, "title", "Test Document");
+        set_field(doc, "content", "This is test content");
+        set_field(doc, "author", "Unit Test");
         
         std::string doc_id = client.add_document("test_docs", doc);
         
@@ -115,9 +139,9 @@ void test_document_crud() {
         try {
             Document retrieved = client.get_document("test_docs", doc_id);
             
-            if (retrieved.get_field("title") == "Test Document" &&
-                retrieved.get_field("content") == "This is test content" &&
-                retrieved.get_field("author") == "Unit Test") {
+            if (get_field(retrieved, "title") == "Test Document" &&
+                get_field(retrieved, "content") == "This is test content" &&
+                get_field(retrieved, "author") == "Unit Test") {
                 results.record_pass("Document retrieval");
             } else {
                 results.record_fail("Document retrieval", "Retrieved data doesn't match");
@@ -140,10 +164,10 @@ void test_feedback_collection() {
         client.ensure_db_setup(collections);
         
         Document feedback;
-        feedback.set_field("rating", "5");
-        feedback.set_field("comment", "Excellent system!");
-        feedback.set_field("user", "test_user");
-        feedback.set_field("feature", "retrieval");
+        set_field(feedback, "rating", "5");
+        set_field(feedback, "comment", "Excellent system!");
+        set_field(feedback, "user", "test_user");
+        set_field(feedback, "feature", "retrieval");
         
         std::string feedback_id = client.add_feedback(feedback);
         
@@ -170,9 +194,9 @@ void test_multiple_documents() {
         // Add multiple documents
         for (int i = 0; i < 5; ++i) {
             Document doc;
-            doc.set_field("title", "Document " + std::to_string(i));
-            doc.set_field("content", "Content for document " + std::to_string(i));
-            doc.set_field("index", std::to_string(i));
+            set_field(doc, "title", "Document " + std::to_string(i));
+            set_field(doc, "content", "Content for document " + std::to_string(i));
+            set_field(doc, "index", std::to_string(i));
             
             std::string doc_id = client.add_document("test_docs", doc);
             doc_ids.push_back(doc_id);
@@ -189,7 +213,7 @@ void test_multiple_documents() {
         for (size_t i = 0; i < doc_ids.size(); ++i) {
             try {
                 Document retrieved = client.get_document("test_docs", doc_ids[i]);
-                if (retrieved.get_field("index") == std::to_string(i)) {
+                if (get_field(retrieved, "index") == std::to_string(i)) {
                     verified++;
                 }
             } catch (...) {
@@ -219,25 +243,25 @@ void test_document_search() {
         
         // Add sample documents
         Document doc1;
-        doc1.set_field("title", "Mars Mission Overview");
-        doc1.set_field("content", "The first manned mission to Mars, named 'Ares 1', is scheduled for 2035.");
+        set_field(doc1, "title", "Mars Mission Overview");
+        set_field(doc1, "content", "The first manned mission to Mars, named 'Ares 1', is scheduled for 2035.");
         client.add_document("search_docs", doc1, "doc_mars");
 
         Document doc2;
-        doc2.set_field("title", "Moon Landing History");
-        doc2.set_field("content", "The Apollo 11 mission landed humans on the Moon in 1969.");
+        set_field(doc2, "title", "Moon Landing History");
+        set_field(doc2, "content", "The Apollo 11 mission landed humans on the Moon in 1969.");
         client.add_document("search_docs", doc2, "doc_moon");
 
         Document doc3;
-        doc3.set_field("title", "Future Space Exploration");
-        doc3.set_field("content", "Plans for future space exploration include missions to Jupiter's moons.");
+        set_field(doc3, "title", "Future Space Exploration");
+        set_field(doc3, "content", "Plans for future space exploration include missions to Jupiter's moons.");
         client.add_document("search_docs", doc3, "doc_jupiter");
         
         // Search for documents containing "Mars"
         std::string query_json = "{\"query\": \"Mars\"}";
         std::vector<Document> search_results = client.search_documents("search_docs", query_json);
         
-        if (search_results.size() == 1 && search_results[0].get_field("title") == "Mars Mission Overview") {
+        if (search_results.size() == 1 && get_field(search_results[0], "title") == "Mars Mission Overview") {
             results.record_pass("Document search for 'Mars'");
         } else {
             results.record_fail("Document search for 'Mars'", "Unexpected search results or count");
@@ -247,7 +271,7 @@ void test_document_search() {
         query_json = "{\"query\": \"Moon\"}";
         search_results = client.search_documents("search_docs", query_json);
 
-        if (search_results.size() == 1 && search_results[0].get_field("title") == "Moon Landing History") {
+        if (search_results.size() == 1 && get_field(search_results[0], "title") == "Moon Landing History") {
             results.record_pass("Document search for 'Moon'");
         } else {
             results.record_fail("Document search for 'Moon'", "Unexpected search results or count for 'Moon'");
@@ -268,9 +292,9 @@ void test_document_search() {
     }
 }
 
-// ============================================================================
+// ============================================================================ 
 // Retrieval Strategy Tests
-// ============================================================================
+// ============================================================================ 
 
 void test_cosine_similarity() {
     std::cout << "\n=== Testing Cosine Similarity Strategy ===" << std::endl;
@@ -419,9 +443,9 @@ void test_hybrid_strategy() {
     }
 }
 
-// ============================================================================
+// ============================================================================ 
 // Integration Tests
-// ============================================================================
+// ============================================================================ 
 
 void test_db_with_embeddings() {
     std::cout << "\n=== Testing Database with Embeddings ===" << std::endl;
@@ -435,9 +459,9 @@ void test_db_with_embeddings() {
         std::vector<std::string> doc_ids;
         for (int i = 0; i < 3; ++i) {
             Document doc;
-            doc.set_field("text", "Document " + std::to_string(i));
-            doc.set_field("embedding_dim", "3");
-            doc.set_field("has_embedding", "true");
+            set_field(doc, "text", "Document " + std::to_string(i));
+            set_field(doc, "embedding_dim", "3");
+            set_field(doc, "has_embedding", "true");
             
             std::string doc_id = client.add_document("embeddings", doc);
             doc_ids.push_back(doc_id);
@@ -489,9 +513,9 @@ void test_retrieval_pipeline() {
     }
 }
 
-// ============================================================================
+// ============================================================================ 
 // Main Test Runner
-// ============================================================================
+// ============================================================================ 
 
 int main() {
     std::cout << std::string(60, '=') << std::endl;
