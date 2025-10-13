@@ -23,7 +23,8 @@ class Indexer {
 public:
     Indexer() = default;
 
-    void create_index(const std::vector<std::string>& field_names, bool is_unique = false, IndexType type = IndexType::String);
+    void create_index(const std::vector<std::string>& field_names, bool is_unique = false);
+    void create_timestamp_index(const std::vector<std::string>& field_names, bool is_unique = false);
     bool has_index(const std::vector<std::string>& field_names) const;
     void update_indexes(const std::string& document_id, const Document& doc);
     void remove_from_indexes(const std::string& document_id, const Document& doc);
@@ -44,10 +45,14 @@ private:
     // The B+ tree maps a composite key (e.g., "Smith\0John") to a string
     // containing a JSON array of document IDs (e.g., "[\"doc1\", \"doc2\"]").
     std::map<std::string, std::shared_ptr<BTree<std::string, std::string>>> indexes_;
+<<<<<<< HEAD
 
     // Specialized B-Tree for timestamp indexes.
     std::map<std::string, std::shared_ptr<BTree<int64_t, std::string>>> timestamp_indexes_;
 
+=======
+    std::map<std::string, std::shared_ptr<BTree<int64_t, std::string>>> timestamp_indexes_;
+>>>>>>> feat/timestamp-object
     // Maps an index name to the list of fields it covers.
     std::map<std::string, std::vector<std::string>> index_fields_;
     // Maps an index name to its type.
