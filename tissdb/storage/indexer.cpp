@@ -319,9 +319,19 @@ std::vector<std::string> Indexer::find_by_index(const std::string& index_name, c
     return {};
 }
 
-std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const {
-    if (field_names.size() != values.size()) {
+// This overload was also missing.
+std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& field_names, const std::vector<Value>& values) const {
+     if (field_names.size() != values.size()) {
         return {}; // Or throw an error
+    }
+    std::vector<std::string> string_values;
+    for(const auto& v : values) {
+        if(std::holds_alternative<std::string>(v)) {
+            string_values.push_back(std::get<std::string>(v));
+        } else {
+            // Or handle other types appropriately
+            return {};
+        }
     }
 
     std::string index_name = get_index_name(field_names);
@@ -331,9 +341,9 @@ std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& 
     }
 
     std::stringstream key_ss;
-    for (size_t i = 0; i < values.size(); ++i) {
-        key_ss << values[i];
-        if (i < values.size() - 1) {
+    for (size_t i = 0; i < string_values.size(); ++i) {
+        key_ss << string_values[i];
+        if (i < string_values.size() - 1) {
             key_ss << '\0';
         }
     }
@@ -354,24 +364,6 @@ std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& 
     }
 
     return {};
-}
-
-
-// This overload was also missing.
-std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& field_names, const std::vector<Value>& values) const {
-     if (field_names.size() != values.size()) {
-        return {}; // Or throw an error
-    }
-    std::vector<std::string> string_values;
-    for(const auto& v : values) {
-        if(std::holds_alternative<std::string>(v)) {
-            string_values.push_back(std::get<std::string>(v));
-        } else {
-            // Or handle other types appropriately
-            return {};
-        }
-    }
-    return find_by_index(field_names, string_values);
 }
 
 std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& field_names) const {
