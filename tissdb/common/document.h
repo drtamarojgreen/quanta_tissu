@@ -64,10 +64,18 @@ struct Timestamp {
     bool operator<(const Timestamp& other) const {
         return microseconds_since_epoch_utc < other.microseconds_since_epoch_utc;
     }
-    bool operator!=(const Timestamp& other) const { return !(*this == other); }
-    bool operator>(const Timestamp& other) const { return other < *this; }
-    bool operator<=(const Timestamp& other) const { return !(other < *this); }
-    bool operator>=(const Timestamp& other) const { return !(*this < other); }
+    bool operator!=(const Timestamp& other) const {
+        return microseconds_since_epoch_utc != other.microseconds_since_epoch_utc;
+    }
+    bool operator<=(const Timestamp& other) const {
+        return microseconds_since_epoch_utc <= other.microseconds_since_epoch_utc;
+    }
+    bool operator>(const Timestamp& other) const {
+        return microseconds_since_epoch_utc > other.microseconds_since_epoch_utc;
+    }
+    bool operator>=(const Timestamp& other) const {
+        return microseconds_since_epoch_utc >= other.microseconds_since_epoch_utc;
+    }
 };
 
 using DateTime = std::chrono::time_point<std::chrono::system_clock>;
@@ -80,6 +88,7 @@ using Value = std::variant<
     Boolean,
     Date,
     Time,
+    DateTime,
     Timestamp,
     BinaryData,
     std::vector<Element>,

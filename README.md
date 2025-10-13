@@ -113,3 +113,15 @@ Usage instructions for each component can be found in their respective directori
 
 *   **To train the Python LLM:** `python quanta_tissu/tisslm/legacylm/train.py`
 *   **To run TissDB:** `make && ./tissdb` (from within the `tissdb` directory)
+
+
+To build on Linux:
+
+g++ -std=c++17 -Wall -Wextra -g -march=native -Itissdb -Iquanta_tissu/tisslm/program -I. tissdb/main.cpp tissdb/api/http_server.cpp tissdb/audit/audit_logger.cpp tissdb/auth/rbac.cpp tissdb/auth/token_manager.cpp tissdb/common/binary_stream_buffer.cpp tissdb/common/checksum.cpp tissdb/common/document.cpp tissdb/common/schema_validator.cpp tissdb/common/serialization.cpp tissdb/crypto/kms.cpp tissdb/json/json.cpp tissdb/query/executor.cpp tissdb/query/executor_common.cpp tissdb/query/executor_delete.cpp tissdb/query/executor_insert.cpp tissdb/query/executor_select.cpp tissdb/query/executor_update.cpp tissdb/query/join_algorithms.cpp tissdb/query/parser.cpp tissdb/storage/collection.cpp tissdb/storage/database_manager.cpp tissdb/storage/indexer.cpp tissdb/storage/lsm_tree.cpp tissdb/storage/memtable.cpp tissdb/storage/native_b_tree.cpp tissdb/storage/sstable.cpp tissdb/storage/transaction_manager.cpp tissdb/storage/wal.cpp quanta_tissu/tisslm/program/ddl_parser.cpp quanta_tissu/tisslm/program/schema_manager.cpp quanta_tissu/tisslm/program/tissu_sinew.cpp tests/db/http_client.cpp -latomic -o tissdb
+
+To build on Windows:
+
+g++ -std=c++17 -Wall -Wextra -g -march=native -Itissdb -Iquanta_tissu\tisslm\program -I. tissdb\main.cpp tissdb\api\http_server.cpp tissdb\audit\audit_logger.cpp tissdb\auth\rbac.cpp tissdb\auth\token_manager.cpp tissdb\common\binary_stream_buffer.cpp tissdb\common\checksum.cpp tissdb\common\document.cpp tissdb\common\schema_validator.cpp tissdb\common\serialization.cpp tissdb\crypto\kms.cpp tissdb\json\json.cpp tissdb\query\executor.cpp tissdb\query\executor_common.cpp tissdb\query\executor_delete.cpp tissdb\query\executor_insert.cpp tissdb\query\executor_select.cpp tissdb\query\executor_update.cpp tissdb\query\join_algorithms.cpp tissdb\query\parser.cpp tissdb\storage\collection.cpp tissdb\storage\database_manager.cpp tissdb\storage\indexer.cpp tissdb\storage\lsm_tree.cpp tissdb\storage\memtable.cpp tissdb\storage\native_b_tree.cpp tissdb\storage\sstable.cpp tissdb\storage\transaction_manager.cpp tissdb\storage\wal.cpp quanta_tissu\tisslm\program\ddl_parser.cpp quanta_tissu\tisslm\program\schema_manager.cpp quanta_tissu\tisslm\program\tissu_sinew.cpp tests\db\http_client.cpp -latomic -o tissdb.exe
+
+
+

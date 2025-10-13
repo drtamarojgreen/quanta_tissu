@@ -57,6 +57,7 @@ private:
     Token peek();
     Token consume();
     void expect(Token::Type type, const std::string& value = "");
+    std::optional<Timestamp> try_parse_timestamp(const std::string& literal);
 };
 
 } // namespace Query

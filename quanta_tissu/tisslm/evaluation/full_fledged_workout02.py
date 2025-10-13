@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import requests
@@ -36,11 +37,11 @@ class MockEmbedder:
 
 # --- Helper function for text generation (needed for evaluator_prompt and final_prompt) ---
 def generate_with_model(model, tokenizer, prompt, length, method, **kwargs):
-    """Helper to generate text using model.sample, which uses AlgorithmicGenerator."""
+    """Helper to generate text using model.alg_generator.sample."""
     if method == "nucleus" and "top_p" not in kwargs:
         kwargs["top_p"] = 0.9
     prompt_tokens = tokenizer.tokenize(prompt).tolist()
-    generated_tokens = model.sample(
+    generated_tokens = model.alg_generator.sample(
         prompt_tokens=prompt_tokens,
         n_new_tokens=length,
         method=method,
@@ -76,10 +77,12 @@ def run_rag_and_self_update_test(model, tokenizer):
         requests.delete(f"http://localhost:9876/{db_name}", headers=headers)
 
         # Ensure the database and collection exist
-        response = requests.put(f"http://localhost:9876/{db_name}", headers=headers, json={{}})
+        headers_with_json = headers.copy()
+        headers_with_json['Content-Type'] = 'application/json'
+        response = requests.put(f"http://localhost:9876/{db_name}", headers=headers_with_json, data=json.dumps({}))
         if response.status_code not in [200, 201, 409]:
             response.raise_for_status()
-        response = requests.put(f"http://localhost:9876/{db_name}/{collection_name}", headers=headers, json={{}})
+        response = requests.put(f"http://localhost:9876/{db_name}/{collection_name}", headers=headers_with_json, data=json.dumps({}))
         if response.status_code not in [200, 201, 409]:
             response.raise_for_status()
 
@@ -160,7 +163,7 @@ def run_rag_and_self_update_test(model, tokenizer):
         report.append("  Testing the ability of the KB to learn from interactions...\n")
 
         # Manually add the new knowledge to the database
-        new_doc_id = f"doc_{{doc_counter}}"
+        new_doc_id = f"doc_{doc_counter}"
         document_text = f"Query: {user_query}\nResponse: {final_answer}"
         embedding = embedder.embed(document_text)
         report.append(f"  Type of new_embedding: {type(embedding)}\n")

@@ -8,7 +8,7 @@ system_config = {
     "_project_root": _project_root, # Added for easier access in run_training.py
     "model_save_path": os.path.join(_project_root, "models", "quanta_tissu.npz"),
     "logs_dir": os.path.join(_project_root, "logs"),
-    "bpe_tokenizer_prefix": os.path.join(_project_root, "models", "trained_tokenizer"),
+    "bpe_tokenizer_prefix": os.path.join(_project_root, "models", "tokenizers", "revised_tokenizer"),
 }
 
 # --- Tokenizer Configuration ---
@@ -47,6 +47,7 @@ model_config = {
     "vocab_size": 8000,  # Will be set dynamically in run_training.py
     "block_size": tokenizer_config["max_len"], # Max sequence length for the model's internal processing.
     "layer_norm_eps": 1e-6, # Epsilon for Layer Normalization to prevent division by zero.
+    "dropout_rate": 0.1,  # The dropout rate for regularization.
     # Max length for positional encodings, tied to tokenizer's max length.
     "positional_encoding_max_len": tokenizer_config["max_len"],
 }

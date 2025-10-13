@@ -5,6 +5,12 @@ import numpy as np
 from collections import defaultdict
 import subprocess
 
+# ANSI color codes
+GREEN = '\033[92m'
+RED = '\033[91m'
+YELLOW = '\033[93m'
+RESET = '\033[0m'
+
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -68,25 +74,25 @@ def run_bdd_scenarios(features):
                         for func in funcs:
                             try:
                                 func(context, *match.groups())
-                                print(f"    - {step_text} [PASSED]")
+                                print(f"{GREEN}    - {step_text} [PASSED]{RESET}")
                                 found_step = True
                                 break
                             except Exception as e:
-                                print(f"    - {step_text} [FAILED]")
-                                print(f"      Error: {e}")
+                                print(f"{RED}    - {step_text} [FAILED]{RESET}")
+                                print(f"{RED}      Error: {e}{RESET}")
                                 scenario_success = False
                                 break
                     if found_step or not scenario_success:
                         break
                 if not found_step:
-                    print(f"    - {step_text} [SKIPPED] (No matching step implementation)")
+                    print(f"{YELLOW}    - {step_text} [SKIPPED] (No matching step implementation){RESET}")
                     scenario_success = False
                 if not scenario_success:
                     break
             if scenario_success:
-                print("  Scenario: PASSED")
+                print(f"{GREEN}  Scenario: PASSED{RESET}")
             else:
-                print("  Scenario: FAILED")
+                print(f"{RED}  Scenario: FAILED{RESET}")
                 overall_success = False
             print()
     return overall_success

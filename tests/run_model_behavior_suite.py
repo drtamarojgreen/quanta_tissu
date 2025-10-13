@@ -3,8 +3,8 @@ import os
 import sys
 
 # Add project root to path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-# sys.path.insert(0, project_root) # This might not be needed if we change CWD
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, project_root) # Ensure project root is in sys.path
 
 def run_all_model_behavior_tests():
     # Store original CWD
@@ -12,7 +12,7 @@ def run_all_model_behavior_tests():
     # Change CWD to project_root
     os.chdir(project_root)
 
-    features_dir = os.path.join('tests', 'model', 'behavior', 'features') # Relative path now
+    features_dir = os.path.join('tests', 'model', 'behavior', 'features') # Relative path now, but relative to the actual project root
     suite = unittest.TestSuite()
     loader = unittest.TestLoader()
 

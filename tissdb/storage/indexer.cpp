@@ -19,6 +19,7 @@ std::string Indexer::get_index_name(const std::vector<std::string>& field_names)
     return ss.str();
 }
 
+<<<<<<< HEAD
 void Indexer::create_index(const std::vector<std::string>& field_names, IndexType type, bool is_unique) {
     std::string index_name = get_index_name(field_names);
     if (indexes_.find(index_name) == indexes_.end()) {
@@ -30,11 +31,34 @@ void Indexer::create_index(const std::vector<std::string>& field_names, IndexTyp
         index_fields_[index_name] = field_names;
         index_types_[index_name] = type;
         index_uniqueness_[index_name] = is_unique;
+=======
+void Indexer::create_index(const std::vector<std::string>& field_names, bool is_unique, IndexType type) {
+    std::string index_name = get_index_name(field_names);
+    if (indexes_.count(index_name) || timestamp_indexes_.count(index_name)) {
+        return; // Index already exists
+>>>>>>> main
     }
+
+    if (type == IndexType::Timestamp) {
+        if (field_names.size() != 1) {
+            throw std::runtime_error("Timestamp indexes must be on a single field.");
+        }
+        if (is_unique) {
+            throw std::runtime_error("Unique timestamp indexes are not supported.");
+        }
+        timestamp_indexes_[index_name] = std::make_shared<BTree<int64_t, std::string>>();
+    } else {
+        indexes_[index_name] = std::make_shared<BTree<std::string, std::string>>();
+    }
+
+    index_fields_[index_name] = field_names;
+    index_uniqueness_[index_name] = is_unique;
+    index_types_[index_name] = type;
 }
 
 bool Indexer::has_index(const std::vector<std::string>& field_names) const {
-    return indexes_.count(get_index_name(field_names)) > 0;
+    std::string index_name = get_index_name(field_names);
+    return index_types_.count(index_name) > 0;
 }
 
 // Private helper to get a composite key from a document
@@ -73,56 +97,82 @@ void Indexer::update_indexes(const std::string& document_id, const Document& doc
         auto index_type = index_types_.at(index_name);
         auto& btree_variant = indexes_.at(index_name);
 
-        if (index_type == IndexType::TIMESTAMP) {
-            if (field_names.size() != 1) continue;
-            const auto& field_name = field_names[0];
-            const Value* value = nullptr;
+        auto it = index_types_.find(index_name);
+        if (it == index_types_.end()) continue;
+
+        IndexType type = it->second;
+
+        if (type == IndexType::Timestamp) {
+            if (field_names.size() != 1) continue; // Should be enforced by create_index
+            const std::string& field_name = field_names[0];
+
+            int64_t key = 0;
+            bool field_found = false;
             for (const auto& elem : doc.elements) {
                 if (elem.key == field_name) {
-                    value = &elem.value;
+                    if (const auto* ts_val = std::get_if<Timestamp>(&elem.value)) {
+                        key = ts_val->microseconds_since_epoch_utc;
+                        field_found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!field_found) continue;
+
+            auto& btree = timestamp_indexes_[index_name];
+            auto existing_json_str_opt = btree->find(key);
+            Json::JsonArray doc_ids_array;
+            if (existing_json_str_opt.has_value()) {
+                try {
+                    doc_ids_array = Json::JsonValue::parse(existing_json_str_opt.value()).as_array();
+                } catch (...) { /* Ignore parse error */ }
+            }
+
+            bool already_exists = false;
+            for (const auto& id_val : doc_ids_array) {
+                if (id_val.as_string() == document_id) {
+                    already_exists = true;
                     break;
                 }
             }
-            if (value && std::holds_alternative<Timestamp>(*value)) {
-                int64_t key = std::get<Timestamp>(*value).microseconds_since_epoch_utc;
-                auto& btree = *std::get<std::shared_ptr<BTree<int64_t, std::string>>>(btree_variant);
+            if (already_exists) continue;
 
-                auto existing_json_str_opt = btree.find(key);
-                bool is_unique = index_uniqueness_.count(index_name) && index_uniqueness_.at(index_name);
-                Json::JsonArray doc_ids_array;
-                if (existing_json_str_opt.has_value()) {
-                    try { doc_ids_array = Json::JsonValue::parse(existing_json_str_opt.value()).as_array(); } catch (...) { /* Ignore */ }
-                }
-                bool already_exists = false;
-                for (const auto& id_val : doc_ids_array) {
-                    if (id_val.as_string() == document_id) { already_exists = true; break; }
-                }
-                if (!already_exists) {
-                    if (is_unique && !doc_ids_array.empty()) { throw std::runtime_error("Uniqueness constraint violated for index '" + index_name + "'"); }
-                    doc_ids_array.push_back(Json::JsonValue(document_id));
-                    btree.insert(key, Json::JsonValue(doc_ids_array).serialize());
-                }
-            }
-        } else {
+            doc_ids_array.push_back(Json::JsonValue(document_id));
+            btree->insert(key, Json::JsonValue(doc_ids_array).serialize());
+
+        } else { // It's a regular string-based index
             std::string key = get_composite_key(field_names, doc);
-            if (key.empty()) continue;
-            auto& btree = *std::get<std::shared_ptr<BTree<std::string, std::string>>>(btree_variant);
+            if (key.empty()) {
+                continue;
+            }
 
-            auto existing_json_str_opt = btree.find(key);
+            auto& btree = indexes_[index_name];
+            auto existing_json_str_opt = btree->find(key);
             bool is_unique = index_uniqueness_.count(index_name) && index_uniqueness_.at(index_name);
+
             Json::JsonArray doc_ids_array;
             if (existing_json_str_opt.has_value()) {
-                try { doc_ids_array = Json::JsonValue::parse(existing_json_str_opt.value()).as_array(); } catch (...) { /* Ignore */ }
+                try {
+                    doc_ids_array = Json::JsonValue::parse(existing_json_str_opt.value()).as_array();
+                } catch (...) { /* Ignore parse error */ }
             }
+
             bool already_exists = false;
             for (const auto& id_val : doc_ids_array) {
-                if (id_val.as_string() == document_id) { already_exists = true; break; }
+                if (id_val.as_string() == document_id) {
+                    already_exists = true;
+                    break;
+                }
             }
-            if (!already_exists) {
-                if (is_unique && !doc_ids_array.empty()) { throw std::runtime_error("Uniqueness constraint violated for index '" + index_name + "'"); }
-                doc_ids_array.push_back(Json::JsonValue(document_id));
-                btree.insert(key, Json::JsonValue(doc_ids_array).serialize());
+            if (already_exists) continue;
+
+            if (is_unique && !doc_ids_array.empty()) {
+                throw std::runtime_error("Uniqueness constraint violated for index '" + index_name + "'");
             }
+
+            doc_ids_array.push_back(Json::JsonValue(document_id));
+            btree->insert(key, Json::JsonValue(doc_ids_array).serialize());
         }
     }
 }
@@ -134,54 +184,82 @@ void Indexer::remove_from_indexes(const std::string& document_id, const Document
         auto index_type = index_types_.at(index_name);
         auto& btree_variant = indexes_.at(index_name);
 
-        if (index_type == IndexType::TIMESTAMP) {
+        auto it = index_types_.find(index_name);
+        if (it == index_types_.end()) continue;
+
+        IndexType type = it->second;
+
+        if (type == IndexType::Timestamp) {
             if (field_names.size() != 1) continue;
-            const auto& field_name = field_names[0];
-            const Value* value = nullptr;
+            const std::string& field_name = field_names[0];
+
+            int64_t key = 0;
+            bool field_found = false;
             for (const auto& elem : doc.elements) {
                 if (elem.key == field_name) {
-                    value = &elem.value;
-                    break;
-                }
-            }
-            if (value && std::holds_alternative<Timestamp>(*value)) {
-                int64_t key = std::get<Timestamp>(*value).microseconds_since_epoch_utc;
-                auto& btree = *std::get<std::shared_ptr<BTree<int64_t, std::string>>>(btree_variant);
-                auto existing_json_str_opt = btree.find(key);
-                if (existing_json_str_opt.has_value()) {
-                    Json::JsonArray new_doc_ids_array;
-                    bool found = false;
-                    try {
-                        Json::JsonArray old_doc_ids_array = Json::JsonValue::parse(existing_json_str_opt.value()).as_array();
-                        for (const auto& id_val : old_doc_ids_array) {
-                            if (id_val.as_string() != document_id) new_doc_ids_array.push_back(id_val);
-                            else found = true;
-                        }
-                    } catch (...) { continue; }
-                    if (found) {
-                        if (new_doc_ids_array.empty()) btree.erase(key);
-                        else btree.insert(key, Json::JsonValue(new_doc_ids_array).serialize());
+                    if (const auto* ts_val = std::get_if<Timestamp>(&elem.value)) {
+                        key = ts_val->microseconds_since_epoch_utc;
+                        field_found = true;
+                        break;
                     }
                 }
             }
-        } else {
-            std::string key = get_composite_key(field_names, doc);
-            if (key.empty()) continue;
-            auto& btree = *std::get<std::shared_ptr<BTree<std::string, std::string>>>(btree_variant);
-            auto existing_json_str_opt = btree.find(key);
+
+            if (!field_found) continue;
+
+            auto& btree = timestamp_indexes_[index_name];
+            auto existing_json_str_opt = btree->find(key);
             if (existing_json_str_opt.has_value()) {
                 Json::JsonArray new_doc_ids_array;
                 bool found = false;
                 try {
                     Json::JsonArray old_doc_ids_array = Json::JsonValue::parse(existing_json_str_opt.value()).as_array();
                     for (const auto& id_val : old_doc_ids_array) {
-                        if (id_val.as_string() != document_id) new_doc_ids_array.push_back(id_val);
-                        else found = true;
+                        if (id_val.as_string() != document_id) {
+                            new_doc_ids_array.push_back(id_val);
+                        } else {
+                            found = true;
+                        }
                     }
                 } catch (...) { continue; }
+
                 if (found) {
-                    if (new_doc_ids_array.empty()) btree.erase(key);
-                    else btree.insert(key, Json::JsonValue(new_doc_ids_array).serialize());
+                    if (new_doc_ids_array.empty()) {
+                        btree->erase(key);
+                    } else {
+                        btree->insert(key, Json::JsonValue(new_doc_ids_array).serialize());
+                    }
+                }
+            }
+        } else { // It's a regular string-based index
+            std::string key = get_composite_key(field_names, doc);
+            if (key.empty()) {
+                continue;
+            }
+
+            auto& btree = indexes_[index_name];
+            auto existing_json_str_opt = btree->find(key);
+
+            if (existing_json_str_opt.has_value()) {
+                Json::JsonArray new_doc_ids_array;
+                bool found = false;
+                try {
+                    Json::JsonArray old_doc_ids_array = Json::JsonValue::parse(existing_json_str_opt.value()).as_array();
+                    for (const auto& id_val : old_doc_ids_array) {
+                        if (id_val.as_string() != document_id) {
+                            new_doc_ids_array.push_back(id_val);
+                        } else {
+                            found = true;
+                        }
+                    }
+                } catch (...) { continue; }
+
+                if (found) {
+                    if (new_doc_ids_array.empty()) {
+                        btree->erase(key);
+                    } else {
+                        btree->insert(key, Json::JsonValue(new_doc_ids_array).serialize());
+                    }
                 }
             }
         }
@@ -311,6 +389,31 @@ std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& 
     });
 
     return all_doc_ids;
+}
+
+std::vector<std::string> Indexer::find_by_timestamp_range(const std::string& index_name, int64_t start_key, int64_t end_key) const {
+    auto it = timestamp_indexes_.find(index_name);
+    if (it == timestamp_indexes_.end()) {
+        return {};
+    }
+
+    const auto& btree = it->second;
+    auto results = btree->find_range(start_key, end_key);
+
+    std::vector<std::string> doc_ids;
+    for (const auto& pair : results) {
+        try {
+            Json::JsonArray ids_array = Json::JsonValue::parse(pair.second).as_array();
+            for (const auto& id_val : ids_array) {
+                doc_ids.push_back(id_val.as_string());
+            }
+        } catch (...) { /* Ignore malformed JSON */ }
+    }
+    // Remove duplicates
+    std::sort(doc_ids.begin(), doc_ids.end());
+    doc_ids.erase(std::unique(doc_ids.begin(), doc_ids.end()), doc_ids.end());
+
+    return doc_ids;
 }
 
 void Indexer::save_indexes(const std::string& data_dir) {
