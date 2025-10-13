@@ -5,12 +5,14 @@
 #include <variant>
 #include <optional>
 #include <memory>
+#include "../common/document.h"
 
 namespace TissDB {
 namespace Query {
 
 // Represents a literal value in a query
-using Literal = std::variant<std::string, double>;
+struct Null {};
+using Literal = std::variant<std::string, double, bool, Null, Date, Time, DateTime, Timestamp>;
 
 // Forward-declare recursive types
 struct BinaryExpression;
@@ -21,8 +23,14 @@ struct Identifier {
     std::string name;
 };
 
+// Represents a parameter placeholder '?' in a query.
+struct ParameterExpression {
+    // The zero-based index of the parameter in the parameter list.
+    size_t index;
+};
+
 // The Expression variant represents any kind of expression in the WHERE clause
-using Expression = std::variant<Identifier, Literal, std::shared_ptr<BinaryExpression>, std::shared_ptr<LogicalExpression>>;
+using Expression = std::variant<Identifier, Literal, ParameterExpression, std::shared_ptr<BinaryExpression>, std::shared_ptr<LogicalExpression>>;
 
 // Represents a binary expression (e.g., field = 'value', price > 100)
 struct BinaryExpression {
@@ -38,10 +46,20 @@ struct LogicalExpression {
     Expression right;
 };
 
+// Represents the type of an aggregate function
+enum class AggregateType {
+    COUNT,
+    AVG,
+    SUM,
+    MIN,
+    MAX
+};
+
 // Represents an aggregate function call
 struct AggregateFunction {
-    std::string function_name;
-    std::string field_name;
+    AggregateType type;
+    // The field to aggregate on. nullopt represents '*' for COUNT(*).
+    std::optional<std::string> field_name;
 };
 
 // Forward declarations for recursive structures

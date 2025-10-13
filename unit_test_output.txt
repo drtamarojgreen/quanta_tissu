@@ -1,0 +1,813 @@
+BDD Runner: Script started.
+======================================================================
+Running tests...
+======================================================================
+PASS: test_layers.test_feed_forward
+PASS: test_layers.test_layer_norm
+PASS: test_layers.test_layer_norm_zero_variance
+PASS: test_layers.test_multi_head_attention
+PASS: test_layers.test_multi_head_attention_constructor_fail
+PASS: test_layers.test_scaled_dot_product_attention
+PASS: test_layers.test_softmax
+PASS: test_layers.test_softmax_invalid_temperature
+PASS: test_layers.test_softmax_with_temperature
+PASS: test_migration_tool.test_docs_to_xml
+PASS: test_migration_tool.test_xml_conversion_empty
+PASS: test_migration_tool.test_xml_to_docs
+----------------------------------------------------------------------
+Running BDD tests...
+BDD Runner: Starting database at /app/tissdb/tissdb
+TissDB starting...
+  - Data directory: tissdb_data
+  - Listening on port: 8080
+Server has started successfully.
+Press Ctrl+C to exit.
+BDD Runner: Found feature files: ['/app/tests/features/knowledge_base.feature', '/app/tests/features/kv_cache.feature', '/app/tests/features/select_queries.feature', '/app/tests/features/generate.feature', '/app/tests/features/extended_database_tests.feature', '/app/tests/features/database.feature', '/app/tests/features/integration.feature', '/app/tests/features/predict.feature', '/app/tests/features/more_database_tests.feature', '/app/tests/features/tokenizer.feature', '/app/tests/features/update_delete_queries.feature']
+BDD Runner: All steps registered.
+Running feature: knowledge_base.feature
+  Running Scenario: Adding and retrieving a document
+    Executing step: Given a knowledge base with a model and tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+Database and collection setup complete.
+    Executing step: When I add the document "The quick brown fox jumps over the lazy dog."
+      ERROR executing step: index 84 is out of bounds for axis 0 with size 0
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_knowledge_base_steps.py", line 20, in add_document
+    context['knowledge_base'].add_document(document_text)
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 68, in add_document
+    embedding = self._embed_text(text)
+                ^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 61, in _embed_text
+    embeddings = self.model_embeddings.value[token_ids]
+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+IndexError: index 84 is out of bounds for axis 0 with size 0
+
+    Skipping step due to previous failure: And I retrieve documents for the query "quick fox"
+    Skipping step due to previous failure: Then the retrieved documents should contain "The quick brown fox jumps over the lazy dog."
+  Running Scenario: Adding feedback to a document
+    Executing step: Given a knowledge base with a model and tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+Database and collection setup complete.
+    Executing step: And I add the document "This is a test document."
+      ERROR executing step: index 84 is out of bounds for axis 0 with size 0
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_knowledge_base_steps.py", line 20, in add_document
+    context['knowledge_base'].add_document(document_text)
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 68, in add_document
+    embedding = self._embed_text(text)
+                ^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 61, in _embed_text
+    embeddings = self.model_embeddings.value[token_ids]
+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+IndexError: index 84 is out of bounds for axis 0 with size 0
+
+    Skipping step due to previous failure: When I retrieve documents for the query "test"
+    Skipping step due to previous failure: And I add feedback with score 5 and text "Very relevant" for the retrieved documents
+    Skipping step due to previous failure: Then the knowledge base stats should show 1 feedback entry
+  Running Scenario: Self-updating from interaction with user correction
+    Executing step: Given a knowledge base with a model and tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+Database and collection setup complete.
+    Executing step: When I self-update from interaction with query "What is the capital of France?" generated response "London" and user correction "Paris"
+      ERROR executing step: index 81 is out of bounds for axis 0 with size 0
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_knowledge_base_steps.py", line 48, in self_update_with_correction
+    context['knowledge_base'].self_update_from_interaction(query, generated_response, user_correction)
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 149, in self_update_from_interaction
+    self.add_document(document_text, metadata=metadata)
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 68, in add_document
+    embedding = self._embed_text(text)
+                ^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 61, in _embed_text
+    embeddings = self.model_embeddings.value[token_ids]
+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+IndexError: index 81 is out of bounds for axis 0 with size 0
+
+    Skipping step due to previous failure: Then the knowledge base should contain "Query: What is the capital of France? Correct Answer: Paris"
+  Running Scenario: Self-updating from interaction without user correction
+    Executing step: Given a knowledge base with a model and tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+Database and collection setup complete.
+    Executing step: When I self-update from interaction with query "What is the capital of France?" generated response "Paris" and no user correction
+      ERROR executing step: index 81 is out of bounds for axis 0 with size 0
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_knowledge_base_steps.py", line 60, in self_update_no_correction
+    context['knowledge_base'].self_update_from_interaction(query, generated_response)
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 149, in self_update_from_interaction
+    self.add_document(document_text, metadata=metadata)
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 68, in add_document
+    embedding = self._embed_text(text)
+                ^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 61, in _embed_text
+    embeddings = self.model_embeddings.value[token_ids]
+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+IndexError: index 81 is out of bounds for axis 0 with size 0
+
+    Skipping step due to previous failure: Then the knowledge base should contain "Query: What is the capital of France? Response: Paris"
+  Running Scenario: Getting knowledge base statistics
+    Executing step: Given a knowledge base with a model and tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+Database and collection setup complete.
+    Executing step: When I add the document "Document 1"
+      ERROR executing step: index 68 is out of bounds for axis 0 with size 0
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_knowledge_base_steps.py", line 20, in add_document
+    context['knowledge_base'].add_document(document_text)
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 68, in add_document
+    embedding = self._embed_text(text)
+                ^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/knowledge_base.py", line 61, in _embed_text
+    embeddings = self.model_embeddings.value[token_ids]
+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+IndexError: index 68 is out of bounds for axis 0 with size 0
+
+    Skipping step due to previous failure: And I add the document "Document 2"
+    Skipping step due to previous failure: And I retrieve documents for the query "Document 1"
+    Skipping step due to previous failure: Then the knowledge base stats should show 2 total documents
+    Skipping step due to previous failure: And the knowledge base stats should show 1 total access
+Running feature: kv_cache.feature
+  Running Scenario: Generating with KV cache produces the same output as generating without it
+    Executing step: Given a model and tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+    Executing step: When I generate text with a prompt "hello" and 5 new tokens using the KV cache
+      ERROR executing step: index 104 is out of bounds for axis 0 with size 0
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_kv_cache_steps.py", line 25, in generate_with_cache
+    cached_generated_ids = context['model'].generate(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/model.py", line 304, in generate
+    prompt_logits = self.forward(prompt_token_ids, kv_cache=kv_cache, start_pos=0)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/model.py", line 128, in forward
+    x = self.embeddings.value[token_ids]
+        ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+IndexError: index 104 is out of bounds for axis 0 with size 0
+
+    Skipping step due to previous failure: And I generate text with the same prompt and new tokens without the KV cache
+    Skipping step due to previous failure: Then the generated tokens should be the same
+Running feature: select_queries.feature
+  Running Scenario: Select all data from a collection
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "SELECT * FROM products"
+      ERROR executing step: Query failed: 500, Server error: Collection not found: _query
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_select_queries_steps.py", line 34, in execute_tissql_query_from_string
+    assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Query failed: 500, Server error: Collection not found: _query
+
+    Skipping scenario due to background failure.
+  Running Scenario: Select specific fields from a collection
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "SELECT * FROM products"
+      ERROR executing step: Query failed: 500, Server error: Collection not found: _query
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_select_queries_steps.py", line 34, in execute_tissql_query_from_string
+    assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Query failed: 500, Server error: Collection not found: _query
+
+    Skipping scenario due to background failure.
+  Running Scenario: Filter data with a WHERE clause
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "SELECT * FROM products"
+      ERROR executing step: Query failed: 500, Server error: Collection not found: _query
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_select_queries_steps.py", line 34, in execute_tissql_query_from_string
+    assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Query failed: 500, Server error: Collection not found: _query
+
+    Skipping scenario due to background failure.
+  Running Scenario: Select specific fields with a WHERE clause
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "SELECT * FROM products"
+      ERROR executing step: Query failed: 500, Server error: Collection not found: _query
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_select_queries_steps.py", line 34, in execute_tissql_query_from_string
+    assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Query failed: 500, Server error: Collection not found: _query
+
+    Skipping scenario due to background failure.
+  Running Scenario: Complex query with multiple conditions
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "SELECT * FROM products"
+      ERROR executing step: Query failed: 500, Server error: Collection not found: _query
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_select_queries_steps.py", line 34, in execute_tissql_query_from_string
+    assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Query failed: 500, Server error: Collection not found: _query
+
+    Skipping scenario due to background failure.
+  Running Scenario: Query with no results
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "SELECT * FROM products"
+      ERROR executing step: Query failed: 500, Server error: Collection not found: _query
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_select_queries_steps.py", line 34, in execute_tissql_query_from_string
+    assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Query failed: 500, Server error: Collection not found: _query
+
+    Skipping scenario due to background failure.
+  Running Scenario: Sort by a numeric field in ascending order
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "SELECT * FROM products"
+      ERROR executing step: Query failed: 500, Server error: Collection not found: _query
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_select_queries_steps.py", line 34, in execute_tissql_query_from_string
+    assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Query failed: 500, Server error: Collection not found: _query
+
+    Skipping scenario due to background failure.
+  Running Scenario: Sort by a numeric field in descending order
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "SELECT * FROM products"
+      ERROR executing step: Query failed: 500, Server error: Collection not found: _query
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_select_queries_steps.py", line 34, in execute_tissql_query_from_string
+    assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Query failed: 500, Server error: Collection not found: _query
+
+    Skipping scenario due to background failure.
+  Running Scenario: Sort by a string field
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "SELECT * FROM products"
+      ERROR executing step: Query failed: 500, Server error: Collection not found: _query
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_select_queries_steps.py", line 34, in execute_tissql_query_from_string
+    assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Query failed: 500, Server error: Collection not found: _query
+
+    Skipping scenario due to background failure.
+  Running Scenario: Sort by multiple fields
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "SELECT * FROM products"
+      ERROR executing step: Query failed: 500, Server error: Collection not found: _query
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_select_queries_steps.py", line 34, in execute_tissql_query_from_string
+    assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Query failed: 500, Server error: Collection not found: _query
+
+    Skipping scenario due to background failure.
+Running feature: generate.feature
+  Running Scenario: Generating text with a prompt using greedy decoding
+    Executing step: Given a model and tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+    Executing step: When I generate 5 new tokens with the prompt "hello" using the "greedy" method
+      ERROR executing step: index 104 is out of bounds for axis 0 with size 0
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_generate_steps.py", line 19, in generate_tokens
+    generated_ids = context['model'].generate(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/model.py", line 304, in generate
+    prompt_logits = self.forward(prompt_token_ids, kv_cache=kv_cache, start_pos=0)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/model.py", line 128, in forward
+    x = self.embeddings.value[token_ids]
+        ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+IndexError: index 104 is out of bounds for axis 0 with size 0
+
+    Skipping step due to previous failure: Then the generated tokens should be a list of 5 integers
+  Running Scenario: Generating text with a prompt using sampling
+    Executing step: Given a model and tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+    Executing step: When I generate 5 new tokens with the prompt "hello" using the "sampling" method
+      ERROR executing step: index 104 is out of bounds for axis 0 with size 0
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_generate_steps.py", line 19, in generate_tokens
+    generated_ids = context['model'].generate(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/model.py", line 304, in generate
+    prompt_logits = self.forward(prompt_token_ids, kv_cache=kv_cache, start_pos=0)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/model.py", line 128, in forward
+    x = self.embeddings.value[token_ids]
+        ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+IndexError: index 104 is out of bounds for axis 0 with size 0
+
+    Skipping step due to previous failure: Then the generated tokens should be a list of 5 integers
+Running feature: extended_database_tests.feature
+  Running Scenario: Handle various data types in documents
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "data_types_collection" exists
+    Executing step: When I create a document with ID "doc_types" and content '{"string": "hello", "integer": 123, "float": 45.67, "boolean": true, "null_value": null, "array": [1, "two", false], "nested_object": {"key": "value"}}' in "data_types_collection"
+    Executing step: Then the document with ID "doc_types" in "data_types_collection" should have content '{"string": "hello", "integer": 123, "float": 45.67, "boolean": true, "null_value": null, "array": [1, "two", false], "nested_object": {"key": "value"}}'
+      ERROR executing step: Mismatch for key 'array': expected '[1, 'two', False]', got 'None'
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 94, in document_should_have_content
+    assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Mismatch for key 'array': expected '[1, 'two', False]', got 'None'
+
+    Skipping step due to previous failure: And I delete the collection "data_types_collection"
+  Running Scenario: Query with OR predicate
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "or_query_collection" exists
+    Executing step: And a document with ID "item1" and content {"category": "A", "value": 10} in "or_query_collection"
+    Executing step: And a document with ID "item2" and content {"category": "B", "value": 20} in "or_query_collection"
+    Executing step: And a document with ID "item3" and content {"category": "C", "value": 30} in "or_query_collection"
+    Executing step: When I execute the TissQL query "SELECT category FROM or_query_collection WHERE category = 'A' OR category = 'C'" on "or_query_collection"
+    Executing step: Then the query result should contain "A"
+      ERROR executing step: Expected value 'A' not found in query result: []
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 130, in query_result_should_contain
+    assert found, f"Expected value '{expected_value}' not found in query result: {context['query_result']}"
+           ^^^^^
+AssertionError: Expected value 'A' not found in query result: []
+
+    Skipping step due to previous failure: And the query result should contain "C"
+    Skipping step due to previous failure: And the query result should not contain "B"
+    Skipping step due to previous failure: And I delete the collection "or_query_collection"
+  Running Scenario: Query with no matching results
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "no_results_collection" exists
+    Executing step: And a document with ID "data1" and content {"value": 100} in "no_results_collection"
+    Executing step: When I execute the TissQL query "SELECT value FROM no_results_collection WHERE value < 50" on "no_results_collection"
+    Executing step: Then the query result should be empty
+    Executing step: And I delete the collection "no_results_collection"
+Running feature: database.feature
+  Running Scenario: Create and delete a collection
+    Executing step: Given a running TissDB instance
+    Executing step: When I create a collection named "my_test_collection"
+    Executing step: Then the collection "my_test_collection" should exist
+    Executing step: When I delete the collection "my_test_collection"
+    Executing step: Then the collection "my_test_collection" should not exist
+  Running Scenario: Create, retrieve, update, and delete a document
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "documents_collection" exists
+    Executing step: When I create a document with ID "doc1" and content '{"name": "Test Document", "value": 123}' in "documents_collection"
+    Executing step: Then the document with ID "doc1" in "documents_collection" should have content '{"name": "Test Document", "value": 123}'
+    Executing step: When I update the document with ID "doc1" with content '{"name": "Updated Document", "value": 456}' in "documents_collection"
+    Executing step: Then the document with ID "doc1" in "documents_collection" should have content '{"name": "Updated Document", "value": 456}'
+    Executing step: When I delete the document with ID "doc1" from "documents_collection"
+    Executing step: Then the document with ID "doc1" in "documents_collection" should not exist
+    Executing step: And I delete the collection "documents_collection"
+  Running Scenario: Execute TissQL query
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "query_collection" exists
+    Executing step: And a document with ID "doc_a" and content {"item": "apple", "price": 1.0} in "query_collection"
+    Executing step: And a document with ID "doc_b" and content {"item": "banana", "price": 0.5} in "query_collection"
+    Executing step: When I execute the TissQL query "SELECT item FROM query_collection WHERE price > 0.7" on "query_collection"
+    Executing step: Then the query result should contain "apple"
+      ERROR executing step: Expected value 'apple' not found in query result: []
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 130, in query_result_should_contain
+    assert found, f"Expected value '{expected_value}' not found in query result: {context['query_result']}"
+           ^^^^^
+AssertionError: Expected value 'apple' not found in query result: []
+
+    Skipping step due to previous failure: And the query result should not contain "banana"
+    Skipping step due to previous failure: And I delete the collection "query_collection"
+  Running Scenario: Basic transaction operations
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "transaction_collection" exists
+    Executing step: When I begin a transaction
+    Executing step: And I create a document with ID "tx_doc" and content {"status": "pending"} in "transaction_collection"
+    Executing step: And I commit the transaction
+    Executing step: Then the document with ID "tx_doc" in "transaction_collection" should have content {"status": "pending"}
+    Executing step: And I delete the collection "transaction_collection"
+  Running Scenario: Rollback transaction
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "rollback_collection" exists
+    Executing step: When I begin a transaction
+    Executing step: And I create a document with ID "rb_doc" and content {"status": "temp"} in "rollback_collection"
+    Executing step: And I rollback the transaction
+    Executing step: Then the document with ID "rb_doc" in "rollback_collection" should not exist
+    Executing step: And I delete the collection "rollback_collection"
+Running feature: integration.feature
+  Running Scenario: TissLM KnowledgeBase retrieves context from TissDB for a user prompt
+    Executing step: Given a running TissDB instance
+    WARNING - No step definition found for line: And a TissDB collection named "knowledge_articles" is available for TissLM
+    Executing step: And the "knowledge_articles" collection contains a document with ID "lsm_doc" and content {"title": "LSM Tree", "body": "A Log-Structured Merge-Tree is a data structure designed for efficient writes."}
+      ERROR executing step:
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_integration_steps.py", line 20, in and_collection_contains_document
+    assert response.status_code == 200
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+
+    Skipping step due to previous failure: And the "knowledge_articles" collection contains a document with ID "b_tree_doc" and content {"title": "B-Tree", "body": "A B-Tree is a self-balancing tree data structure that maintains sorted data."}
+    Skipping step due to previous failure: When the TissLM receives a user prompt "Tell me about LSM Trees"
+    Skipping step due to previous failure: And the TissLM KnowledgeBase formulates a TissQL query "SELECT body FROM knowledge_articles WHERE title = 'LSM Tree'"
+    Skipping step due to previous failure: And the KnowledgeBase executes the query against the "knowledge_articles" collection
+    Skipping step due to previous failure: Then the query result for the KnowledgeBase should contain "A Log-Structured Merge-Tree is a data structure designed for efficient writes."
+    Skipping step due to previous failure: And the query result for the KnowledgeBase should not contain "A B-Tree is a self-balancing tree data structure that maintains sorted data."
+  Running Scenario: TissLM generates an augmented prompt using retrieved context
+    Executing step: Given a user prompt "What is a Log-Structured Merge-Tree?"
+    Executing step: And a retrieved context from TissDB: "A Log-Structured Merge-Tree (LSM-Tree) is a data structure with performance characteristics that make it attractive for write-heavy workloads."
+    Executing step: When the TissLM augments the prompt with the retrieved context
+    Executing step: Then the final prompt sent to the language model should be "context: {A Log-Structured Merge-Tree (LSM-Tree) is a data structure with performance characteristics that make it attractive for write-heavy workloads.} question: {What is a Log-Structured Merge-Tree?}"
+  Running Scenario: Sinew C++ client interaction pattern with TissDB
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "cpp_app_data" exists
+    Executing step: When a simulated Sinew client creates a document with ID "sinew_doc" and content {"source": "C++ App", "value": 42} in "cpp_app_data"
+    Executing step: Then the document with ID "sinew_doc" in "cpp_app_data" should have content {"source": "C++ App", "value": 42}
+    Executing step: When a simulated Sinew client deletes the document with ID "sinew_doc" from "cpp_app_data"
+    Executing step: Then the document with ID "sinew_doc" in "cpp_app_data" should not exist
+    Executing step: And I delete the collection "cpp_app_data"
+Running feature: predict.feature
+  Running Scenario: Predicting the next token
+    Executing step: Given a model and tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+    Executing step: When I predict the next token for the prompt "hello"
+      ERROR executing step: index 104 is out of bounds for axis 0 with size 0
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_predict_steps.py", line 19, in predict_next_token
+    next_token_id = context['model'].predict(token_ids_np, method="greedy")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/model.py", line 336, in predict
+    logits = self.forward(token_ids)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/quanta_tissu/tisslm/core/model.py", line 128, in forward
+    x = self.embeddings.value[token_ids]
+        ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+IndexError: index 104 is out of bounds for axis 0 with size 0
+
+    Skipping step due to previous failure: Then the next token should be a valid token id
+Running feature: more_database_tests.feature
+  Running Scenario: Batch document insertion
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "batch_collection" exists
+    Executing step: And I insert the following documents into "batch_collection":
+    Executing step: Then the document with ID "doc1" in "batch_collection" should have content '{"name": "First Document", "value": 1}'
+    Executing step: And the document with ID "doc2" in "batch_collection" should have content '{"name": "Second Document", "value": 2}'
+    Executing step: And the document with ID "doc3" in "batch_collection" should have content '{"name": "Third Document", "value": 3}'
+    Executing step: And I delete the collection "batch_collection"
+  Running Scenario: List all documents in a collection
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "list_collection" exists
+    Executing step: And a document with ID "doc_a" and content {"item": "apple"} in "list_collection"
+    Executing step: And a document with ID "doc_b" and content {"item": "banana"} in "list_collection"
+    Executing step: When I list all documents in "list_collection"
+      ERROR executing step:
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_more_database_steps.py", line 32, in list_all_documents
+    assert response.status_code == 200
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+
+    Skipping step due to previous failure: Then the document list should contain "doc_a"
+    Skipping step due to previous failure: And the document list should contain "doc_b"
+    Skipping step due to previous failure: And I delete the collection "list_collection"
+  Running Scenario: Query with multiple predicates
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "multi_predicate_query" exists
+    Executing step: And a document with ID "q_doc1" and content {"name": "Alice", "age": 30, "city": "New York"} in "multi_predicate_query"
+    Executing step: And a document with ID "q_doc2" and content {"name": "Bob", "age": 25, "city": "Los Angeles"} in "multi_predicate_query"
+    Executing step: And a document with ID "q_doc3" and content {"name": "Charlie", "age": 30, "city": "New York"} in "multi_predicate_query"
+    Executing step: When I execute the TissQL query "SELECT name FROM multi_predicate_query WHERE age = 30 AND city = 'New York'" on "multi_predicate_query"
+    Executing step: Then the query result should contain "Alice"
+      ERROR executing step: Expected value 'Alice' not found in query result: []
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 130, in query_result_should_contain
+    assert found, f"Expected value '{expected_value}' not found in query result: {context['query_result']}"
+           ^^^^^
+AssertionError: Expected value 'Alice' not found in query result: []
+
+    Skipping step due to previous failure: And the query result should contain "Charlie"
+    Skipping step due to previous failure: And the query result should not contain "Bob"
+    Skipping step due to previous failure: And I delete the collection "multi_predicate_query"
+  Running Scenario: Attempt to create a collection that already exists
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "existing_collection" exists
+    Executing step: When I attempt to create a collection named "existing_collection"
+    Executing step: Then the operation should be successful with status code 200
+    Executing step: And I delete the collection "existing_collection"
+  Running Scenario: Attempt to delete a non-existent document
+    Executing step: Given a running TissDB instance
+    Executing step: And a collection named "no_such_doc_collection" exists
+    Executing step: When I attempt to delete the document with ID "non_existent_doc" from "no_such_doc_collection"
+    Executing step: Then the operation should fail with status code 404
+    Executing step: And I delete the collection "no_such_doc_collection"
+Running feature: tokenizer.feature
+  Running Scenario: Tokenizing and detokenizing a simple string should result in the original string
+    Executing step: Given a tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+    Executing step: When I tokenize the string "hello world"
+    Executing step: And I detokenize the tokens
+    Executing step: Then the resulting string should be "hello world"
+      ERROR executing step:
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_tokenizer_steps.py", line 18, in compare_strings
+    assert context['detokenized_string'] == expected_string
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+
+  Running Scenario: Tokenizing an empty string
+    Executing step: Given a tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+    Executing step: When I tokenize the string ""
+    Executing step: Then the result should be an empty list of tokens
+  Running Scenario: Tokenizing and detokenizing a string with special characters
+    Executing step: Given a tokenizer
+Warning: BPE tokenizer files not found at /app/models/trained_tokenizer. Please train the tokenizer first using tisslm/train_bpe.py.
+    Executing step: When I tokenize the string "hello, world! 123? <test>"
+    Executing step: And I detokenize the tokens
+    Executing step: Then the resulting string should be "hello, world! 123? <test>"
+      ERROR executing step:
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_tokenizer_steps.py", line 18, in compare_strings
+    assert context['detokenized_string'] == expected_string
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+
+Running feature: update_delete_queries.feature
+  Running Scenario: Update a single document using a WHERE clause
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "UPDATE products SET price = 1250 WHERE name = 'Laptop'" on "products"
+    Executing step: Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 1250}
+      ERROR executing step: Mismatch for key 'price': expected '1250', got '1200'
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 94, in document_should_have_content
+    assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Mismatch for key 'price': expected '1250', got '1200'
+
+    Skipping scenario due to background failure.
+  Running Scenario: Update multiple documents using a WHERE clause
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "UPDATE products SET price = 1250 WHERE name = 'Laptop'" on "products"
+    Executing step: Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 1250}
+      ERROR executing step: Mismatch for key 'price': expected '1250', got '1200'
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 94, in document_should_have_content
+    assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Mismatch for key 'price': expected '1250', got '1200'
+
+    Skipping scenario due to background failure.
+  Running Scenario: Update with a WHERE clause that matches no documents
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "UPDATE products SET price = 1250 WHERE name = 'Laptop'" on "products"
+    Executing step: Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 1250}
+      ERROR executing step: Mismatch for key 'price': expected '1250', got '1200'
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 94, in document_should_have_content
+    assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Mismatch for key 'price': expected '1250', got '1200'
+
+    Skipping scenario due to background failure.
+  Running Scenario: Delete a single document using a WHERE clause
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "UPDATE products SET price = 1250 WHERE name = 'Laptop'" on "products"
+    Executing step: Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 1250}
+      ERROR executing step: Mismatch for key 'price': expected '1250', got '1200'
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 94, in document_should_have_content
+    assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Mismatch for key 'price': expected '1250', got '1200'
+
+    Skipping scenario due to background failure.
+  Running Scenario: Delete multiple documents using a WHERE clause
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "UPDATE products SET price = 1250 WHERE name = 'Laptop'" on "products"
+    Executing step: Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 1250}
+      ERROR executing step: Mismatch for key 'price': expected '1250', got '1200'
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 94, in document_should_have_content
+    assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Mismatch for key 'price': expected '1250', got '1200'
+
+    Skipping scenario due to background failure.
+  Running Scenario: Delete with a WHERE clause that matches no documents
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "UPDATE products SET price = 1250 WHERE name = 'Laptop'" on "products"
+    Executing step: Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 1250}
+      ERROR executing step: Mismatch for key 'price': expected '1250', got '1200'
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 94, in document_should_have_content
+    assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Mismatch for key 'price': expected '1250', got '1200'
+
+    Skipping scenario due to background failure.
+  Running Scenario: Update with subtraction
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "UPDATE products SET price = 1250 WHERE name = 'Laptop'" on "products"
+    Executing step: Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 1250}
+      ERROR executing step: Mismatch for key 'price': expected '1250', got '1200'
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 94, in document_should_have_content
+    assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Mismatch for key 'price': expected '1250', got '1200'
+
+    Skipping scenario due to background failure.
+  Running Scenario: Update with multiplication
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "UPDATE products SET price = 1250 WHERE name = 'Laptop'" on "products"
+    Executing step: Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 1250}
+      ERROR executing step: Mismatch for key 'price': expected '1250', got '1200'
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 94, in document_should_have_content
+    assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Mismatch for key 'price': expected '1250', got '1200'
+
+    Skipping scenario due to background failure.
+  Running Scenario: Update with division
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "UPDATE products SET price = 1250 WHERE name = 'Laptop'" on "products"
+    Executing step: Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 1250}
+      ERROR executing step: Mismatch for key 'price': expected '1250', got '1200'
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 94, in document_should_have_content
+    assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Mismatch for key 'price': expected '1250', got '1200'
+
+    Skipping scenario due to background failure.
+  Running Scenario: Update multiple fields with expressions
+    Executing Background:
+    Executing step: Given a running TissDB instance
+    Executing step: When I delete the collection "products"
+    Executing step: And a collection named "products" exists
+    Executing step: And I insert the following documents into "products":
+    Executing step: When I execute the TissQL query "UPDATE products SET price = 1250 WHERE name = 'Laptop'" on "products"
+    Executing step: Then the document with ID "prod1" in "products" should have content {"name": "Laptop", "category": "Electronics", "price": 1250}
+      ERROR executing step: Mismatch for key 'price': expected '1250', got '1200'
+Traceback (most recent call last):
+  File "/app/tests/bdd_runner.py", line 98, in _execute_step
+    func(context, *args)
+  File "/app/tests/features/steps/test_database_steps.py", line 94, in document_should_have_content
+    assert actual_content[key] == value, f"Mismatch for key '{key}': expected '{value}', got '{actual_content[key]}'"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Mismatch for key 'price': expected '1250', got '1200'
+
+    Skipping scenario due to background failure.
+BDD Runner: Stopping database.
+
+Caught signal 15. Shutting down...
+Stopping server...
+Shutting down database manager...
+Shutdown complete.
+BDD tests: FAILED
+----------------------------------------------------------------------
+
+--- FAILED TESTS SUMMARY ---
+
+[FAIL] BDD tests
+  Error: One or more BDD scenarios failed.
+----------------------------------------------------------------------
+Ran 13 tests in 3.7528s
+
+Result: 12 passed, 1 failed
+======================================================================

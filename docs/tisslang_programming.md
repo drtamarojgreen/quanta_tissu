@@ -266,7 +266,7 @@ PYTHON
     }
 
     STEP "Run unit tests" {
-        RUN "pytest ./tests/test_utils.py"
+        RUN "python3 ./tests/run_tests.py"
     }
 
     STEP "Verify test success" {
@@ -320,3 +320,51 @@ The following features are part of the TissLang roadmap and are not yet implemen
 
 - **`IF / ELSE`**: Conditional execution of command blocks.
 - **`PAUSE`**: A general-purpose command to pause execution and wait for human input. This is less structured than `REQUEST_REVIEW`.
+
+
+# TissLang IDE Native Implementation
+
+This document outlines the refactoring process undertaken to remove the dependency on the Qt GUI framework from the TissLang IDE, replacing it with a native terminal-based interface using the `ncurses` library.
+
+## 1. Goal
+
+The primary objective was to refactor the C++ IDE application located in `quanta_tissu/tisslm/program/c/` to eliminate all dependencies on the Qt framework, thereby creating a lightweight, native, terminal-based editor.
+
+## 2. Core Component Refactoring
+
+The core graphical components of the application were rewritten to use `ncurses` for rendering and input handling.
+
+### `main.cpp`
+The application's entry point was modified to initialize and terminate the `ncurses` screen, replacing the `QApplication` loop.
+
+### `MainWindow.h` & `MainWindow.cpp`
+- The `MainWindow` class was stripped of its `QMainWindow` inheritance.
+- All Qt-specific headers, signals, slots, and UI element members (menus, actions, status bar) were removed.
+- The class was redesigned to manage the main `ncurses` windows: a menu bar, a status bar, and a main editor window.
+- A `run()` method was implemented to contain the main application loop, handling input and dispatching draw calls.
+
+### `TissEditor.h` & `TissEditor.cpp`
+- The `TissEditor` class, formerly a `QPlainTextEdit` subclass, was converted into a plain C++ class.
+- It now manages an `ncurses` window (`WINDOW*`) and a text buffer (`std::vector<std::string>`).
+- Methods for handling user input (`handle_input`) and drawing the text buffer to the screen (`draw`) were implemented to provide basic text editing functionality within the terminal.
+
+## 3. Feature Removal and Rationale
+
+Several features were deeply integrated with the Qt framework and were removed to achieve the goal of a Qt-free application. Re-implementing them natively was deemed out of scope for the initial refactoring, especially under a no-compile/no-test mandate.
+
+- **`SearchDialog`**: This Qt-based dialog was removed. Native search functionality would be implemented via a command-line interface in the status bar.
+- **`TissSyntaxHighlighter`**: This feature relied on Qt's text formatting engine. It was removed as native `ncurses` highlighting requires a complex, language-specific parser.
+- **`TissLinter`**: The linter's logic was built on Qt's data structures (`QString`, `QMap`, etc.). Both the library and its command-line interface (`cli/lint.cpp`) were removed.
+
+## 4. Build System Changes (`CMakeLists.txt`)
+
+The `CMakeLists.txt` file was updated to reflect the architectural changes:
+- The `find_package` call for `Qt5` was removed.
+- A `find_package` call for `Curses` (ncurses) was added.
+- The list of source files was updated to remove the deleted component files.
+- The target executable is now linked against the `ncurses` library instead of the Qt libraries.
+
+## 5. Result
+
+The TissLang IDE is now a native terminal application that no longer requires the Qt framework. It provides basic text editing capabilities within an `ncurses`-based interface. The codebase is significantly lighter and free of graphical server dependencies.
+

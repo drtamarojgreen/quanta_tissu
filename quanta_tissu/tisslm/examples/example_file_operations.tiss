@@ -1,0 +1,28 @@
+#TISS! Language=Python
+
+TASK "Demonstrate file system operations"
+
+STEP "Create a directory" {
+    MKDIR "test_dir"
+}
+
+STEP "Write a file to the new directory" {
+    WRITE "test_dir/test_file.txt" <<TEXT
+This is a test file.
+It contains two lines.
+TEXT
+}
+
+STEP "List the contents of the directory" {
+    RUN "ls test_dir"
+    ASSERT LAST_RUN.EXIT_CODE == 0
+    ASSERT LAST_RUN.STDOUT CONTAINS "test_file.txt"
+}
+
+STEP "Delete the file" {
+    DELETE "test_dir/test_file.txt"
+}
+
+STEP "Delete the directory" {
+    DELETE "test_dir"
+}

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <iomanip>
 
 namespace TissDB {
 namespace Query {
@@ -16,10 +17,23 @@ struct GroupKeyVisitor {
     void operator()(const std::string& s) const { ss << s; }
     void operator()(const Number& n) const { ss << n; }
     void operator()(const Boolean& b) const { ss << (b ? "true" : "false"); }
+    void operator()(const Date& d) const {
+        ss << std::setfill('0') << std::setw(4) << d.year << "-"
+           << std::setw(2) << static_cast<int>(d.month) << "-"
+           << std::setw(2) << static_cast<int>(d.day);
+    }
+    void operator()(const Time& t) const {
+        ss << std::setfill('0') << std::setw(2) << static_cast<int>(t.hour) << ":"
+           << std::setw(2) << static_cast<int>(t.minute) << ":"
+           << std::setw(2) << static_cast<int>(t.second);
+    }
     void operator()(const DateTime& dt) const {
         ss << std::chrono::duration_cast<std::chrono::milliseconds>(dt.time_since_epoch()).count();
     }
-    void operator()(const BinaryData& bd) const {
+    void operator()(const Timestamp& ts) const {
+        ss << ts.microseconds_since_epoch_utc;
+    }
+    void operator()(const BinaryData& /*bd*/) const {
         // Note: Grouping by binary data is tricky.
         // A proper implementation might hash the data.
         ss << "hash:" << TissDB::Common::crc32(bd.data(), bd.size());
@@ -28,22 +42,39 @@ struct GroupKeyVisitor {
         // Note: Grouping by a whole sub-document is also tricky.
         // A proper implementation might serialize and hash.
         // For now, we'll use a placeholder.
-        ss << "[";
-        for (const auto& elem : elements) {
-            ss << "{" << elem.key << ":";
-            std::visit(*this, elem.value);
-            ss << "}";
-        }
-        ss << "]";
+        ss << "[sub_document]";
     }
+    void operator()(std::nullptr_t) const { ss << "null"; }
+    void operator()(const std::shared_ptr<TissDB::Array>&) const { ss << "[array]"; }
+    void operator()(const std::shared_ptr<TissDB::Object>&) const { ss << "[object]"; }
 };
 
-QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const SelectStatement& select_stmt) {
+// Helper to create a string representation for an aggregate function, e.g., "COUNT(field)" or "COUNT(*)"
+std::string get_aggregate_result_key(const AggregateFunction& agg_func) {
+    std::string key;
+    switch (agg_func.type) {
+        case AggregateType::COUNT: key = "COUNT"; break;
+        case AggregateType::AVG:   key = "AVG";   break;
+        case AggregateType::SUM:   key = "SUM";   break;
+        case AggregateType::MIN:   key = "MIN";   break;
+        case AggregateType::MAX:   key = "MAX";   break;
+    }
+    key += "(";
+    if (agg_func.field_name.has_value()) {
+        key += agg_func.field_name.value();
+    } else {
+        key += "*";
+    }
+    key += ")";
+    return key;
+}
+
+QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const SelectStatement& select_stmt, const std::vector<Literal>& params) {
     // --- UNION Operation ---
     if (select_stmt.union_clause) {
         // Recursively execute the left and right select statements
-        auto left_result = execute_select_statement(storage_engine, *select_stmt.union_clause->left_select);
-        auto right_result = execute_select_statement(storage_engine, *select_stmt.union_clause->right_select);
+        auto left_result = execute_select_statement(storage_engine, *select_stmt.union_clause->left_select, params);
+        auto right_result = execute_select_statement(storage_engine, *select_stmt.union_clause->right_select, params);
 
         // Combine the results
         std::vector<Document> combined_docs = left_result;
@@ -119,40 +150,70 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
     // --- Join Operation ---
     if (select_stmt.join_clause) {
         const auto& join_clause = select_stmt.join_clause.value();
-        std::vector<Document> right_docs = storage_engine.scan(join_clause.collection_name);
         std::vector<Document> joined_docs;
 
         if (join_clause.type == JoinType::CROSS) {
+            std::vector<Document> right_docs = storage_engine.scan(join_clause.collection_name);
             for (const auto& left_doc : all_docs) {
                 for (const auto& right_doc : right_docs) {
                     joined_docs.push_back(combine_documents(left_doc, right_doc));
                 }
             }
-        } else { // For INNER, LEFT, RIGHT, FULL joins that have a condition
-            std::vector<bool> right_doc_matched(right_docs.size(), false);
+        } else {
+            // Improved join logic with index lookup
+            const auto* on_cond = std::get_if<std::shared_ptr<BinaryExpression>>(&join_clause.on_condition);
+            std::string left_key, right_key;
+
+            if (on_cond && (*on_cond)->op == "=") {
+                if (const auto* left_ident = std::get_if<Identifier>(&(*on_cond)->left)) {
+                    left_key = left_ident->name;
+                }
+                if (const auto* right_ident = std::get_if<Identifier>(&(*on_cond)->right)) {
+                    right_key = right_ident->name;
+                }
+            }
+
+            bool can_use_index = !left_key.empty() && !right_key.empty() && storage_engine.has_index(join_clause.collection_name, {right_key});
 
             for (const auto& left_doc : all_docs) {
                 bool left_doc_matched = false;
-                for (size_t i = 0; i < right_docs.size(); ++i) {
-                    const auto& right_doc = right_docs[i];
-                    if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc))) {
+                std::vector<Document> right_docs_to_join;
+
+                if (can_use_index) {
+                    const auto* left_val_ptr = get_value_from_doc(left_doc, left_key);
+                    if (left_val_ptr) {
+                        std::string val_str = value_to_string(*left_val_ptr);
+                        auto doc_ids = storage_engine.find_by_index(join_clause.collection_name, {right_key}, {val_str});
+                        right_docs_to_join = storage_engine.get_many(join_clause.collection_name, doc_ids);
+                    }
+                } else {
+                    right_docs_to_join = storage_engine.scan(join_clause.collection_name);
+                }
+
+                for (const auto& right_doc : right_docs_to_join) {
+                    if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc), params)) {
                         joined_docs.push_back(combine_documents(left_doc, right_doc));
                         left_doc_matched = true;
-                        right_doc_matched[i] = true;
                     }
                 }
 
                 if (!left_doc_matched && (join_clause.type == JoinType::LEFT || join_clause.type == JoinType::FULL)) {
-                    // For LEFT and FULL joins, add the left doc with nulls for the right.
-                    joined_docs.push_back(left_doc); // Assuming combine with null doc is implicit
+                    joined_docs.push_back(left_doc);
                 }
             }
 
             if (join_clause.type == JoinType::RIGHT || join_clause.type == JoinType::FULL) {
-                for (size_t i = 0; i < right_docs.size(); ++i) {
-                    if (!right_doc_matched[i]) {
-                        // For RIGHT and FULL joins, add the unmatched right docs with nulls for the left.
-                        joined_docs.push_back(right_docs[i]); // Assuming combine with null doc is implicit
+                std::vector<Document> right_docs = storage_engine.scan(join_clause.collection_name);
+                for (const auto& right_doc : right_docs) {
+                    bool right_doc_matched = false;
+                    for (const auto& left_doc : all_docs) {
+                        if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc), params)) {
+                            right_doc_matched = true;
+                            break;
+                        }
+                    }
+                    if (!right_doc_matched) {
+                        joined_docs.push_back(right_doc);
                     }
                 }
             }
@@ -164,7 +225,7 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
     std::vector<Document> filtered_docs;
     if (select_stmt.where_clause) {
         for (const auto& doc : all_docs) {
-            if (evaluate_expression(*select_stmt.where_clause, doc)) {
+            if (evaluate_expression(*select_stmt.where_clause, doc, params)) {
                 filtered_docs.push_back(doc);
             }
         }
@@ -176,27 +237,23 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
     bool has_aggregate = std::any_of(select_stmt.fields.begin(), select_stmt.fields.end(),
                                      [](const auto& field){ return std::holds_alternative<AggregateFunction>(field); });
 
-    if (has_aggregate) {
+    if (has_aggregate || !select_stmt.group_by_clause.empty()) {
         std::vector<Document> aggregated_docs;
+        // --- GROUP BY flow ---
         if (!select_stmt.group_by_clause.empty()) {
             std::map<std::string, std::vector<Document>> grouped_docs;
             for (const auto& doc : filtered_docs) {
                 std::stringstream group_key_ss;
                 for (size_t i = 0; i < select_stmt.group_by_clause.size(); ++i) {
                     const auto& field_name = select_stmt.group_by_clause[i];
-                    auto it = std::find_if(doc.elements.begin(), doc.elements.end(),
-                                           [&](const Element& e) { return e.key == field_name; });
-
-                    if (it != doc.elements.end()) {
-                        std::visit(GroupKeyVisitor{group_key_ss}, it->value);
+                    const auto* val_ptr = get_value_from_doc(doc, field_name);
+                    if (val_ptr) {
+                        std::visit(GroupKeyVisitor{group_key_ss}, *val_ptr);
                     } else {
-                        // Handle cases where a group by key is not in a document.
-                        // We can represent this as a "null" placeholder.
                         group_key_ss << "NULL";
                     }
-
                     if (i < select_stmt.group_by_clause.size() - 1) {
-                        group_key_ss << "::"; // Use a more distinct separator
+                        group_key_ss << "::";
                     }
                 }
                 grouped_docs[group_key_ss.str()].push_back(doc);
@@ -207,96 +264,68 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
                 aggregated_doc.id = group_key;
                 std::map<std::string, AggregateResult> group_results;
 
+                // Add the group by fields to the result doc from the first doc in the group
                 if (!docs.empty()) {
                     const auto& first_doc = docs.front();
                     for (const auto& field_name : select_stmt.group_by_clause) {
-                        auto it = std::find_if(first_doc.elements.begin(), first_doc.elements.end(),
-                                               [&](const Element& e){ return e.key == field_name; });
-                        if (it != first_doc.elements.end()) {
-                            aggregated_doc.elements.push_back(*it);
+                        if (const auto* val_ptr = get_value_from_doc(first_doc, field_name)) {
+                            aggregated_doc.elements.push_back({field_name, *val_ptr});
                         }
                     }
                 }
 
+                // Process aggregations for the group
                 for (const auto& field : select_stmt.fields) {
                     if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
-                        std::string result_key = agg_func->function_name + "(" + agg_func->field_name + ")";
+                        std::string result_key = get_aggregate_result_key(*agg_func);
                         for (const auto& doc : docs) {
                             process_aggregation(group_results, result_key, doc, *agg_func);
                         }
                     }
                 }
 
+                // Finalize and add results to the aggregated doc
                 for (const auto& field : select_stmt.fields) {
                     if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
-                        std::string result_key = agg_func->function_name + "(" + agg_func->field_name + ")";
+                        std::string result_key = get_aggregate_result_key(*agg_func);
                         const auto& result = group_results.at(result_key);
-                        if (agg_func->function_name == "SUM") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.sum});
-                        else if (agg_func->function_name == "AVG") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.count > 0 ? result.sum / static_cast<double>(result.count) : 0});
-                        else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back(TissDB::Element{result_key, static_cast<double>(result.count)});
-                        else if (agg_func->function_name == "MIN") {
-                            if (result.min_str.has_value()) {
-                                aggregated_doc.elements.push_back(TissDB::Element{result_key, result.min_str.value()});
-                            } else {
-                                aggregated_doc.elements.push_back(TissDB::Element{result_key, result.min.value_or(0)});
-                            }
-                        }
-                        else if (agg_func->function_name == "MAX") {
-                            if (result.max_str.has_value()) {
-                                aggregated_doc.elements.push_back(TissDB::Element{result_key, result.max_str.value()});
-                            } else {
-                                aggregated_doc.elements.push_back(TissDB::Element{result_key, result.max.value_or(0)});
-                            }
-                        }
-                        else if (agg_func->function_name == "STDDEV") {
-                            if (result.count > 0) {
-                                double mean = result.sum / static_cast<double>(result.count);
-                                double variance = (result.sum_sq / static_cast<double>(result.count)) - (mean * mean);
-                                aggregated_doc.elements.push_back(TissDB::Element{result_key, sqrt(variance)});
-                            } else {
-                                aggregated_doc.elements.push_back(TissDB::Element{result_key, 0.0});
-                            }
-                        }
-                    }
-                }
-
-                if (select_stmt.drilldown_clause) {
-                    std::stringstream drilldown_query;
-                    drilldown_query << "SELECT ";
-                    for (size_t i = 0; i < select_stmt.drilldown_clause->fields.size(); ++i) {
-                        drilldown_query << select_stmt.drilldown_clause->fields[i] << (i == select_stmt.drilldown_clause->fields.size() - 1 ? "" : ", ");
-                    }
-                    drilldown_query << " FROM " << select_stmt.from_collection << " WHERE ";
-                    for (size_t i = 0; i < select_stmt.group_by_clause.size(); ++i) {
-                        auto it = std::find_if(aggregated_doc.elements.begin(), aggregated_doc.elements.end(),
-                                               [&](const Element& e){ return e.key == select_stmt.group_by_clause[i]; });
-                        if (it != aggregated_doc.elements.end()) {
-                            drilldown_query << it->key << " = ";
-                            if (std::holds_alternative<std::string>(it->value)) {
-                                drilldown_query << "'" << std::get<std::string>(it->value) << "'";
-                            } else {
-                                drilldown_query << std::get<double>(it->value);
-                            }
-                            if (i < select_stmt.group_by_clause.size() - 1) {
-                                drilldown_query << " AND ";
-                            }
+                        switch(agg_func->type) {
+                            case AggregateType::SUM:
+                                aggregated_doc.elements.push_back({result_key, result.sum});
+                                break;
+                            case AggregateType::AVG:
+                                aggregated_doc.elements.push_back({result_key, result.avg_count > 0 ? result.sum / static_cast<double>(result.avg_count) : 0.0});
+                                break;
+                            case AggregateType::COUNT:
+                                aggregated_doc.elements.push_back({result_key, static_cast<double>(result.count)});
+                                break;
+                            case AggregateType::MIN:
+                                if (result.min_str.has_value()) {
+                                    aggregated_doc.elements.push_back({result_key, result.min_str.value()});
+                                } else {
+                                    aggregated_doc.elements.push_back({result_key, result.min.value_or(0.0)});
+                                }
+                                break;
+                            case AggregateType::MAX:
+                                if (result.max_str.has_value()) {
+                                    aggregated_doc.elements.push_back({result_key, result.max_str.value()});
+                                } else {
+                                    aggregated_doc.elements.push_back({result_key, result.max.value_or(0.0)});
+                                }
+                                break;
                         }
                     }
-                    drilldown_query << " GROUP BY ";
-                    for (size_t i = 0; i < select_stmt.drilldown_clause->fields.size(); ++i) {
-                        drilldown_query << select_stmt.drilldown_clause->fields[i] << (i == select_stmt.drilldown_clause->fields.size() - 1 ? "" : ", ");
-                    }
-                    aggregated_doc.elements.push_back({"drilldown_query", drilldown_query.str()});
                 }
                 aggregated_docs.push_back(aggregated_doc);
             }
-        } else {
+        } else { // --- Aggregation without GROUP BY ---
             Document aggregated_doc;
             aggregated_doc.id = "aggregate";
             std::map<std::string, AggregateResult> group_results;
+
             for (const auto& field : select_stmt.fields) {
                 if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
-                    std::string result_key = agg_func->function_name + "(" + agg_func->field_name + ")";
+                    std::string result_key = get_aggregate_result_key(*agg_func);
                     for (const auto& doc : filtered_docs) {
                        process_aggregation(group_results, result_key, doc, *agg_func);
                     }
@@ -304,33 +333,32 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
             }
              for (const auto& field : select_stmt.fields) {
                 if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
-                    std::string result_key = agg_func->function_name + "(" + agg_func->field_name + ")";
+                    std::string result_key = get_aggregate_result_key(*agg_func);
                     const auto& result = group_results.at(result_key);
-                    if (agg_func->function_name == "SUM") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.sum});
-                    else if (agg_func->function_name == "AVG") aggregated_doc.elements.push_back(TissDB::Element{result_key, result.count > 0 ? result.sum / static_cast<double>(result.count) : 0});
-                    else if (agg_func->function_name == "COUNT") aggregated_doc.elements.push_back(TissDB::Element{result_key, static_cast<double>(result.count)});
-                    else if (agg_func->function_name == "MIN") {
-                        if (result.min_str.has_value()) {
-                            aggregated_doc.elements.push_back(TissDB::Element{result_key, result.min_str.value()});
-                        } else {
-                            aggregated_doc.elements.push_back(TissDB::Element{result_key, result.min.value_or(0)});
-                        }
-                    }
-                    else if (agg_func->function_name == "MAX") {
-                        if (result.max_str.has_value()) {
-                            aggregated_doc.elements.push_back(TissDB::Element{result_key, result.max_str.value()});
-                        } else {
-                            aggregated_doc.elements.push_back(TissDB::Element{result_key, result.max.value_or(0)});
-                        }
-                    }
-                    else if (agg_func->function_name == "STDDEV") {
-                        if (result.count > 0) {
-                            double mean = result.sum / static_cast<double>(result.count);
-                            double variance = (result.sum_sq / static_cast<double>(result.count)) - (mean * mean);
-                            aggregated_doc.elements.push_back(TissDB::Element{result_key, sqrt(variance)});
-                        } else {
-                            aggregated_doc.elements.push_back(TissDB::Element{result_key, 0.0});
-                        }
+                     switch(agg_func->type) {
+                        case AggregateType::SUM:
+                            aggregated_doc.elements.push_back({result_key, result.sum});
+                            break;
+                        case AggregateType::AVG:
+                            aggregated_doc.elements.push_back({result_key, result.avg_count > 0 ? result.sum / static_cast<double>(result.avg_count) : 0.0});
+                            break;
+                        case AggregateType::COUNT:
+                            aggregated_doc.elements.push_back({result_key, static_cast<double>(result.count)});
+                            break;
+                        case AggregateType::MIN:
+                            if (result.min_str.has_value()) {
+                                aggregated_doc.elements.push_back({result_key, result.min_str.value()});
+                            } else {
+                                aggregated_doc.elements.push_back({result_key, result.min.value_or(0.0)});
+                            }
+                            break;
+                        case AggregateType::MAX:
+                            if (result.max_str.has_value()) {
+                                aggregated_doc.elements.push_back({result_key, result.max_str.value()});
+                            } else {
+                                aggregated_doc.elements.push_back({result_key, result.max.value_or(0.0)});
+                            }
+                            break;
                     }
                 }
             }

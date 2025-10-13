@@ -9,7 +9,7 @@ from quanta_tissu.tisslm.migration_tools.tissdb_migration_tool import (
     convert_xml_to_docs,
     convert_docs_to_xml_root,
 )
-from tests.test_utils import assert_equal
+from tests.helpers.test_utils import assert_equal
 
 def test_xml_to_docs():
     """Tests the conversion of an XML string to a list of dictionaries."""

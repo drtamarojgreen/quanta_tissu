@@ -154,7 +154,7 @@ next_token = model.generate_with_kb(prompt, generation_method="greedy")
 
 ### Basic Usage
 ```bash
-python quanta_tissu/scripts/run_inference.py
+python -m quanta_tissu.tisslm.legacylm.run_inference
 ```
 
 ### Enhanced Demo

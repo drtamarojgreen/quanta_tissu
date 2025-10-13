@@ -1,0 +1,7 @@
+{
+    "model_dir": "models",
+    "tokenizer_dir": "models/tokenizers",
+    "tokenizer_filename_prefix": "revised_tokenizer",
+    "checkpoint_dir": "checkpoints",
+    "corpus_dir": "corpus"
+}

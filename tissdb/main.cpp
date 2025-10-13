@@ -9,7 +9,8 @@
 #include <atomic>
 
 // --- Configuration ---
-const int DEFAULT_PORT = 8080;
+const int DEFAULT_PORT = 9876;
+const std::string DEFAULT_DATA_DIR = "tissdb_data";
 
 // Global flag for signal handling
 std::atomic<bool> shutdown_requested(false);
@@ -19,16 +20,51 @@ void signal_handler(int signum) {
     shutdown_requested.store(true);
 }
 
+void print_usage(const char* prog_name) {
+    std::cout << "Usage: " << prog_name << " [options]\n\n"
+              << "Options:\n"
+              << "  -h, --help           Show this help message and exit\n"
+              << "  --port <port>        Specify the port to listen on (default: " << DEFAULT_PORT << ")\n"
+              << "  --data-dir <path>    Specify the data directory (default: " << DEFAULT_DATA_DIR << ")\n"
+              << std::endl;
+}
+
 int main(int argc, char* argv[]) {
-    // --- Basic command-line argument parsing ---
+    // --- Argument Parsing ---
     int port = DEFAULT_PORT;
-    if (argc > 1) {
-        try {
-            port = std::stoi(argv[1]);
-        } catch (const std::invalid_argument& e) {
-            std::cerr << "Invalid port number provided: '" << argv[1] << "'. Using default port " << DEFAULT_PORT << "." << std::endl;
-        } catch (const std::out_of_range& e) {
-            std::cerr << "Port number '" << argv[1] << "' is out of range. Using default port " << DEFAULT_PORT << "." << std::endl;
+    std::string data_dir = DEFAULT_DATA_DIR;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "-h" || arg == "--help") {
+            print_usage(argv[0]);
+            return 0;
+        } else if (arg == "--port") {
+            if (i + 1 < argc) {
+                try {
+                    port = std::stoi(argv[++i]);
+                } catch (const std::invalid_argument& e) {
+                    std::cerr << "Error: Invalid port number '" << argv[i] << "'." << std::endl;
+                    return 1;
+                } catch (const std::out_of_range& e) {
+                    std::cerr << "Error: Port number '" << argv[i] << "' is out of range." << std::endl;
+                    return 1;
+                }
+            } else {
+                std::cerr << "Error: --port option requires an argument." << std::endl;
+                return 1;
+            }
+        } else if (arg == "--data-dir") {
+            if (i + 1 < argc) {
+                data_dir = argv[++i];
+            } else {
+                std::cerr << "Error: --data-dir option requires an argument." << std::endl;
+                return 1;
+            }
+        } else {
+            std::cerr << "Error: Unknown option '" << arg << "'." << std::endl;
+            print_usage(argv[0]);
+            return 1;
         }
     }
 
@@ -37,8 +73,8 @@ int main(int argc, char* argv[]) {
         std::cout << "TissDB starting..." << std::endl;
 
         // 1. Initialize the database manager
-        TissDB::Storage::DatabaseManager db_manager("tissdb_data");
-        std::cout << "  - Data directory: tissdb_data" << std::endl;
+        TissDB::Storage::DatabaseManager db_manager(data_dir);
+        std::cout << "  - Data directory: " << data_dir << std::endl;
 
         // 2. Initialize the API server
         TissDB::API::HttpServer server(db_manager, port);
