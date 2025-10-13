@@ -84,6 +84,28 @@ void LSMTree::recover() {
 
 LSMTree::~LSMTree() {}
 
+LSMTree::LSMTree() : LSMTree(".") {
+    // Delegating constructor
+}
+
+std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::string& field_name, const std::string& value) {
+    try {
+        const Collection& collection = get_collection(collection_name);
+        return collection.find_by_index({field_name}, {value});
+    } catch (const std::runtime_error& e) {
+        return {};
+    }
+}
+
+std::vector<std::string> LSMTree::find_by_index(const std::string& collection_name, const std::vector<std::string>& field_names, const std::vector<std::string>& values) {
+    try {
+        const Collection& collection = get_collection(collection_name);
+        return collection.find_by_index(field_names, values);
+    } catch (const std::runtime_error& e) {
+        return {};
+    }
+}
+
 void LSMTree::create_collection(const std::string& name, const TissDB::Schema& schema, bool is_recovery) {
     if (collections_.count(name)) {
         LOG_ERROR("Attempted to create collection that already exists: " + name);

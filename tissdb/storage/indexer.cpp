@@ -307,42 +307,71 @@ std::vector<std::string> Indexer::find_by_index(const std::string& index_name, i
     return {};
 }
 
+// This overload was missing from the implementation.
+std::vector<std::string> Indexer::find_by_index(const std::string& index_name, const Value& key) const {
+    // This is a simplified implementation. A real one would handle different key types.
+    if (std::holds_alternative<std::string>(key)) {
+        return find_by_index(index_name, std::get<std::string>(key));
+    }
+    if (std::holds_alternative<TissDB::Timestamp>(key)) {
+        return find_by_index(index_name, std::get<TissDB::Timestamp>(key).microseconds_since_epoch_utc);
+    }
+    return {};
+}
+
 std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const {
     if (field_names.size() != values.size()) {
         return {}; // Or throw an error
     }
 
     std::string index_name = get_index_name(field_names);
-    if (indexes_.count(index_name)) {
-        auto it = indexes_.find(index_name);
-        std::stringstream key_ss;
-        for (size_t i = 0; i < values.size(); ++i) {
-            key_ss << values[i];
-            if (i < values.size() - 1) {
-                key_ss << ' ';
+    auto it = indexes_.find(index_name);
+    if (it == indexes_.end()) {
+        return {};
+    }
+
+    std::stringstream key_ss;
+    for (size_t i = 0; i < values.size(); ++i) {
+        key_ss << values[i];
+        if (i < values.size() - 1) {
+            key_ss << '\0';
+        }
+    }
+    std::string key = key_ss.str();
+
+    const auto& btree = it->second;
+    auto json_str_opt = btree->find(key);
+
+    if (json_str_opt.has_value()) {
+        std::vector<std::string> doc_ids;
+        try {
+            Json::JsonArray ids_array = Json::JsonValue::parse(json_str_opt.value()).as_array();
+            for (const auto& id_val : ids_array) {
+                doc_ids.push_back(id_val.as_string());
             }
-        }
-        std::string key = key_ss.str();
-
-        const auto& btree = it->second;
-        auto json_str_opt = btree->find(key);
-
-        if (json_str_opt.has_value()) {
-            std::vector<std::string> doc_ids;
-            try {
-                Json::JsonArray ids_array = Json::JsonValue::parse(json_str_opt.value()).as_array();
-                for (const auto& id_val : ids_array) {
-                    doc_ids.push_back(id_val.as_string());
-                }
-            } catch (...) { /* Ignore malformed JSON */ }
-            return doc_ids;
-        }
-    } else if (timestamp_indexes_.count(index_name)) {
-        // This is a bit of a simplification. A real implementation would need to
-        // handle type conversion from string in `values` to int64_t.
+        } catch (...) { /* Ignore malformed JSON */ }
+        return doc_ids;
     }
 
     return {};
+}
+
+
+// This overload was also missing.
+std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& field_names, const std::vector<Value>& values) const {
+     if (field_names.size() != values.size()) {
+        return {}; // Or throw an error
+    }
+    std::vector<std::string> string_values;
+    for(const auto& v : values) {
+        if(std::holds_alternative<std::string>(v)) {
+            string_values.push_back(std::get<std::string>(v));
+        } else {
+            // Or handle other types appropriately
+            return {};
+        }
+    }
+    return find_by_index(field_names, string_values);
 }
 
 std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& field_names) const {
