@@ -27,7 +27,7 @@ void run_cpp_full_fledged_workout() {
 
     // --- 1. Setup Model and Tokenizer ---
     // Dummy tokenizer (assuming dummy_vocab.json and dummy_merges.txt are available)
-    Tokenizer tokenizer("dummy");
+    Tokenizer tokenizer("models/tokenizers/revised_tokenizer");
     int vocab_size = tokenizer.get_vocab_size();
     int max_seq_len = 50;
     int embed_dim = 32;
