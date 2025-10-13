@@ -219,10 +219,10 @@ kill $TISSDB_PID
 ```cpp
 void test_new_feature() {
     std::cout << "\n=== Testing New Feature ===" << std::endl;
-
+    
     try {
         // Test implementation
-
+        
         if (/* success condition */) {
             results.record_pass("New feature test");
         } else {

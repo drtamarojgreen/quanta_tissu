@@ -12,7 +12,7 @@ float CosineSimilarityStrategy::dot_product(const std::vector<float>& a, const s
     if (a.size() != b.size()) {
         return 0.0f;
     }
-
+    
     float sum = 0.0f;
     for (size_t i = 0; i < a.size(); ++i) {
         sum += a[i] * b[i];
@@ -31,11 +31,11 @@ float CosineSimilarityStrategy::vector_norm(const std::vector<float>& vec) const
 float CosineSimilarityStrategy::cosine_similarity(const std::vector<float>& a, const std::vector<float>& b) const {
     float norm_a = vector_norm(a);
     float norm_b = vector_norm(b);
-
+    
     if (norm_a == 0.0f || norm_b == 0.0f) {
         return 0.0f;
     }
-
+    
     return dot_product(a, b) / (norm_a * norm_b);
 }
 
@@ -43,14 +43,14 @@ std::vector<float> CosineSimilarityStrategy::calculate_similarity(
     const std::vector<float>& query_embedding,
     const std::vector<std::vector<float>>& doc_embeddings,
     const std::map<std::string, std::string>& kwargs) {
-
+    
     std::vector<float> similarities;
     similarities.reserve(doc_embeddings.size());
-
+    
     for (const auto& doc_emb : doc_embeddings) {
         similarities.push_back(cosine_similarity(query_embedding, doc_emb));
     }
-
+    
     return similarities;
 }
 
@@ -59,7 +59,7 @@ float EuclideanDistanceStrategy::euclidean_distance(const std::vector<float>& a,
     if (a.size() != b.size()) {
         return std::numeric_limits<float>::max();
     }
-
+    
     float sum = 0.0f;
     for (size_t i = 0; i < a.size(); ++i) {
         float diff = a[i] - b[i];
@@ -72,17 +72,17 @@ std::vector<float> EuclideanDistanceStrategy::calculate_similarity(
     const std::vector<float>& query_embedding,
     const std::vector<std::vector<float>>& doc_embeddings,
     const std::map<std::string, std::string>& kwargs) {
-
+    
     std::vector<float> similarities;
     similarities.reserve(doc_embeddings.size());
-
+    
     for (const auto& doc_emb : doc_embeddings) {
         float distance = euclidean_distance(query_embedding, doc_emb);
         // Convert distance to similarity (inverse relationship)
         float similarity = 1.0f / (1.0f + distance);
         similarities.push_back(similarity);
     }
-
+    
     return similarities;
 }
 
@@ -91,7 +91,7 @@ float DotProductStrategy::dot_product(const std::vector<float>& a, const std::ve
     if (a.size() != b.size()) {
         return 0.0f;
     }
-
+    
     float sum = 0.0f;
     for (size_t i = 0; i < a.size(); ++i) {
         sum += a[i] * b[i];
@@ -103,14 +103,14 @@ std::vector<float> DotProductStrategy::calculate_similarity(
     const std::vector<float>& query_embedding,
     const std::vector<std::vector<float>>& doc_embeddings,
     const std::map<std::string, std::string>& kwargs) {
-
+    
     std::vector<float> similarities;
     similarities.reserve(doc_embeddings.size());
-
+    
     for (const auto& doc_emb : doc_embeddings) {
         similarities.push_back(dot_product(query_embedding, doc_emb));
     }
-
+    
     return similarities;
 }
 
@@ -124,14 +124,14 @@ std::vector<std::string> BM25RetrievalStrategy::tokenize(const std::string& text
     std::vector<std::string> tokens;
     std::istringstream iss(text);
     std::string token;
-
+    
     while (iss >> token) {
         // Simple tokenization - split by whitespace
         // Convert to lowercase
         std::transform(token.begin(), token.end(), token.begin(), ::tolower);
         tokens.push_back(token);
     }
-
+    
     return tokens;
 }
 
@@ -143,29 +143,29 @@ void BM25RetrievalStrategy::initialize() {
         doc_len_.push_back(tokens.size());
         total_len += tokens.size();
     }
-
+    
     avgdl_ = corpus_.empty() ? 0.0f : static_cast<float>(total_len) / corpus_.size();
-
+    
     // Calculate document frequencies and term frequencies
     std::map<std::string, size_t> df;
-
+    
     for (const auto& doc : corpus_) {
         auto tokens = tokenize(doc);
         std::map<std::string, size_t> term_freq;
         std::set<std::string> unique_terms;
-
+        
         for (const auto& token : tokens) {
             term_freq[token]++;
             unique_terms.insert(token);
         }
-
+        
         term_freqs_.push_back(term_freq);
-
+        
         for (const auto& term : unique_terms) {
             df[term]++;
         }
     }
-
+    
     // Calculate IDF
     size_t N = corpus_.size();
     for (const auto& pair : df) {
@@ -183,38 +183,38 @@ std::vector<float> BM25RetrievalStrategy::calculate_similarity(
     const std::vector<float>& query_embedding,
     const std::vector<std::vector<float>>& doc_embeddings,
     const std::map<std::string, std::string>& kwargs) {
-
+    
     // BM25 requires query text, not embedding
     auto it = kwargs.find("query_text");
     if (it == kwargs.end()) {
         // Return zeros if no query text provided
         return std::vector<float>(corpus_.size(), 0.0f);
     }
-
+    
     std::string query_text = it->second;
     auto query_terms = tokenize(query_text);
-
+    
     std::vector<float> scores(corpus_.size(), 0.0f);
-
+    
     for (size_t i = 0; i < corpus_.size(); ++i) {
         float score = 0.0f;
-
+        
         for (const auto& term : query_terms) {
             auto tf_it = term_freqs_[i].find(term);
             if (tf_it != term_freqs_[i].end()) {
                 float tf = static_cast<float>(tf_it->second);
                 float idf = calculate_idf(term);
-
+                
                 float numerator = tf * (k1_ + 1.0f);
                 float denominator = tf + k1_ * (1.0f - b_ + b_ * doc_len_[i] / avgdl_);
-
+                
                 score += idf * (numerator / denominator);
             }
         }
-
+        
         scores[i] = score;
     }
-
+    
     return scores;
 }
 
@@ -227,21 +227,21 @@ std::vector<float> HybridStrategy::normalize_scores(const std::vector<float>& sc
     if (scores.empty()) {
         return scores;
     }
-
+    
     float min_score = *std::min_element(scores.begin(), scores.end());
     float max_score = *std::max_element(scores.begin(), scores.end());
-
+    
     if (max_score == min_score) {
         return std::vector<float>(scores.size(), 0.5f);
     }
-
+    
     std::vector<float> normalized;
     normalized.reserve(scores.size());
-
+    
     for (float score : scores) {
         normalized.push_back((score - min_score) / (max_score - min_score));
     }
-
+    
     return normalized;
 }
 
@@ -249,38 +249,38 @@ std::vector<float> HybridStrategy::calculate_similarity(
     const std::vector<float>& query_embedding,
     const std::vector<std::vector<float>>& doc_embeddings,
     const std::map<std::string, std::string>& kwargs) {
-
+    
     if (strategies_.empty() || doc_embeddings.empty()) {
         return std::vector<float>(doc_embeddings.size(), 0.0f);
     }
-
+    
     // Initialize combined scores
     std::vector<float> combined_scores(doc_embeddings.size(), 0.0f);
     float total_weight = 0.0f;
-
+    
     // Calculate scores for each strategy
     for (const auto& strategy_pair : strategies_) {
         auto strategy = strategy_pair.first;
         float weight = strategy_pair.second;
-
+        
         auto scores = strategy->calculate_similarity(query_embedding, doc_embeddings, kwargs);
         auto normalized = normalize_scores(scores);
-
+        
         // Add weighted scores
         for (size_t i = 0; i < combined_scores.size(); ++i) {
             combined_scores[i] += normalized[i] * weight;
         }
-
+        
         total_weight += weight;
     }
-
+    
     // Normalize by total weight
     if (total_weight > 0.0f) {
         for (float& score : combined_scores) {
             score /= total_weight;
         }
     }
-
+    
     return combined_scores;
 }
 

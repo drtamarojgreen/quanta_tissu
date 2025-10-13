@@ -34,11 +34,7 @@ Matrix LayerNorm::backward(const Matrix& d_out, const Matrix& cache) {
 
     Matrix mean = cache.mean(1);
     Matrix var = cache.variance(1, mean);
-    Matrix reshaped_mean = Matrix::zeros(1, d_out.cols());
-    for (int i = 0; i < d_out.cols(); ++i) {
-        reshaped_mean(0, i) = mean(0, 0);
-    }
-    Matrix x_minus_mean = cache - reshaped_mean;
+    Matrix x_norm = (cache - mean) / Matrix::sqrt(var + eps_);
 
     // Gradients for gamma and beta
     gamma_.grad() = (d_out * x_norm).sum(0);

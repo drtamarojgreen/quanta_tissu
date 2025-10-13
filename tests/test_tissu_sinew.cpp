@@ -1,5 +1,5 @@
 #include "db/test_framework.h"
-#include "quanta_tissu/tissu_sinew.h"
+#include "../quanta_tissu/tisslm/program/tissu_sinew.h"
 #include <vector>
 #include <string>
 #include <map>

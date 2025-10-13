@@ -52,7 +52,7 @@ def generate_text(model: QuantaTissu, tokenizer: Tokenizer, prompt: str, length:
     # Use the new efficient generate method
     logger.debug("Calling model.generate() for token generation.")
     generated_ids = model.sample(
-        prompt_token_ids.tolist(),
+        prompt_token_ids,
         n_new_tokens=length,
         method=method,
         temperature=temperature,

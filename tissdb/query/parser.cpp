@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <chrono>
 #include <ctime>
+#include <ctime>
 
 namespace TissDB {
 namespace Query {
@@ -87,16 +88,12 @@ std::optional<Timestamp> try_parse_timestamp(const std::string& s) {
 
     // Convert to time_t and then to system_clock::time_point
     tm.tm_isdst = 0; // Assuming UTC, no DST
-<<<<<<< HEAD
-    time_t time = timegm(&tm);
-=======
     time_t time;
     #ifdef _WIN32
         time = _mkgmtime(&tm);
     #else
         time = timegm(&tm);
     #endif
->>>>>>> feature/tisslm-program
     if (time == -1) {
         return std::nullopt;
     }
@@ -598,7 +595,7 @@ Expression Parser::parse_expression(int precedence) {
 }
 
 Expression Parser::parse_primary_expression() {
-    if (peek().type == Token::Type::KEYWORD && (peek().value == "DATE" || peek().value == "TIME")) {
+    if (peek().type == Token::Type::KEYWORD && (peek().value == "DATE" || peek().value == "TIME" || peek().value == "DATETIME")) {
         std::string keyword = consume().value; // consume the keyword
         auto token = consume();
         if (token.type != Token::Type::STRING_LITERAL) {

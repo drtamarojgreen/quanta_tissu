@@ -40,7 +40,11 @@ std::string RuleEnforcer::enforce_repetition_rule(const std::string& text) const
     for (const auto& word : words) {
         // Simple repetition check: if current word is same as last word, skip it based on strictness
         if (word == last_word && (float)rand() / RAND_MAX < strictness_) {
+<<<<<<< HEAD
             continue;
+=======
+            continue; 
+>>>>>>> e72c5ea98e23e69a621ac711e1bc76496d6d3f0e
         }
         oss << word << " ";
         last_word = word;

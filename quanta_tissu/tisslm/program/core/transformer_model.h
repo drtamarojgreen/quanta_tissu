@@ -29,7 +29,7 @@ private:
     TissNum::PositionalEncoding positional_encoding_layer_;
     std::vector<TissNum::TransformerBlock> transformer_blocks_;
     TissNum::LayerNorm final_layer_norm_;
-
+    
     // Output linear layer
     TissNum::Parameter output_weight_;
     TissNum::Parameter output_bias_;

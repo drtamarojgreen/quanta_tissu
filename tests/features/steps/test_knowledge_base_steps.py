@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from quanta_tissu.tisslm.core.model import QuantaTissu
 from quanta_tissu.tisslm.config import model_config
@@ -10,8 +11,11 @@ def register_steps(runner):
     @runner.step(r'^(?:Given|And) a knowledge base with a model and tokenizer$')
     def knowledge_base_context(context):
         np.random.seed(42)
-        tokenizer = Tokenizer()
-        model_config['vocab_size'] = tokenizer.get_vocab_size()
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
+        tokenizer_prefix = os.path.join(project_root, "test_tokenizer", "test_tokenizer")
+        tokenizer = Tokenizer(tokenizer_prefix=tokenizer_prefix)
+        model_config['vocab_size'] = 8000
         model = QuantaTissu(model_config)
 
         # Create the correct dependencies for the KnowledgeBase

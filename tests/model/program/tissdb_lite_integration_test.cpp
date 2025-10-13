@@ -4,8 +4,32 @@
 #include <string>
 #include <map>
 #include <algorithm>
+#include <variant>
 
 using namespace TissDB;
+
+// Helper function to get a field from a document
+std::string get_field(const TissDB::Document& doc, const std::string& key) {
+    for (const auto& element : doc.elements) {
+        if (element.key == key) {
+            if (std::holds_alternative<std::string>(element.value)) {
+                return std::get<std::string>(element.value);
+            }
+        }
+    }
+    return "";
+}
+
+// Helper function to set a field in a document
+void set_field(TissDB::Document& doc, const std::string& key, const std::string& value) {
+    for (auto& element : doc.elements) {
+        if (element.key == key) {
+            element.value = value;
+            return;
+        }
+    }
+    doc.elements.push_back({key, value});
+}
 
 void run_tissdb_lite_integration_evaluation() {
     std::cout << "=== Running TissDB-Lite Integration Evaluation (C++) ===" << std::endl;
@@ -22,20 +46,20 @@ void run_tissdb_lite_integration_evaluation() {
 
         // Insert items
         Document doc1;
-        doc1.set_field("name", "Test Item 1");
-        doc1.set_field("value", "10");
+        set_field(doc1, "name", "Test Item 1");
+        set_field(doc1, "value", "10");
         std::string id1 = client.add_document("myCollection", doc1, "item1");
         std::cout << "  Inserted item 1 with ID: " << id1 << std::endl;
 
         Document doc2;
-        doc2.set_field("name", "Test Item 2");
-        doc2.set_field("value", "20");
+        set_field(doc2, "name", "Test Item 2");
+        set_field(doc2, "value", "20");
         std::string id2 = client.add_document("myCollection", doc2, "item2");
         std::cout << "  Inserted item 2 with ID: " << id2 << std::endl;
 
         // Get item by ID
         Document retrieved_doc1 = client.get_document("myCollection", "item1");
-        if (retrieved_doc1.get_field("name") == "Test Item 1") {
+        if (get_field(retrieved_doc1, "name") == "Test Item 1") {
             std::cout << "  Retrieved item 1 successfully." << std::endl;
         } else {
             throw std::runtime_error("Failed to retrieve item 1.");
@@ -46,17 +70,17 @@ void run_tissdb_lite_integration_evaluation() {
         std::string query_json = "{\"query\": \"value > 15\"}";
         std::vector<Document> found_items = client.search_documents("myCollection", query_json);
         std::cout << "  Found " << found_items.size() << " items with value > 15." << std::endl;
-        if (found_items.size() == 1 && found_items[0].get_field("name") == "Test Item 2") {
+        if (found_items.size() == 1 && get_field(found_items[0], "name") == "Test Item 2") {
             std::cout << "  Search for value > 15 Passed." << std::endl;
         } else {
             throw std::runtime_error("Search for value > 15 failed.");
         }
 
         // Update item
-        doc1.set_field("value", "15");
+        set_field(doc1, "value", "15");
         client.add_document("myCollection", doc1, "item1"); // add_document also acts as update if ID exists
         Document updated_doc1 = client.get_document("myCollection", "item1");
-        if (updated_doc1.get_field("value") == "15") {
+        if (get_field(updated_doc1, "value") == "15") {
             std::cout << "  Updated item 1 successfully." << std::endl;
         } else {
             throw std::runtime_error("Failed to update item 1.");

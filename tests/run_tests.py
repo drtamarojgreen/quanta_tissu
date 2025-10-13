@@ -5,7 +5,7 @@ import traceback
 import time
 import sys
 
-from bdd_runner import BDDRunner
+from tests.bdd_runner import BDDRunner
 
 def discover_and_run_tests():
     """

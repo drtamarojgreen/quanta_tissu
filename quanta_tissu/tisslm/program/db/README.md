@@ -75,27 +75,27 @@ int main() {
     try {
         // Connect to TissDB
         TissDBClient client("127.0.0.1", 9876, "mydb");
-
+        
         // Setup database
         std::vector<std::string> collections = {"documents", "embeddings"};
         client.ensure_db_setup(collections);
-
+        
         // Add a document
         Document doc;
         doc.set_field("title", "My Document");
         doc.set_field("content", "Document content here");
-
+        
         std::string doc_id = client.add_document("documents", doc);
         std::cout << "Document added: " << doc_id << std::endl;
-
+        
         // Retrieve document
         Document retrieved = client.get_document("documents", doc_id);
         std::cout << "Title: " << retrieved.get_field("title") << std::endl;
-
+        
     } catch (const DatabaseException& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
-
+    
     return 0;
 }
 ```

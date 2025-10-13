@@ -98,7 +98,7 @@ KVCacheTestResult run_single_kv_cache_test(
         for(size_t j=0; j<current_tokens_no_cache.size(); ++j) {
             input_token_matrix(0, j) = static_cast<float>(current_tokens_no_cache[j]);
         }
-
+        
         Matrix logits = model->forward(input_token_matrix);
         int next_token = sample_token_greedy(logits); // Always greedy for no-cache baseline for simplicity
         generated_tokens_no_cache_ids.push_back(next_token);
@@ -153,7 +153,8 @@ void run_kv_cache_evaluation() {
     std::cout << "=== Running KV Cache Evaluation (C++) ===" << std::endl;
 
     // --- Setup Model and Tokenizer ---
-    int vocab_size = 100;
+    Tokenizer tokenizer("models/tokenizers/revised_tokenizer");
+    int vocab_size = tokenizer.get_vocab_size();
     int max_seq_len = 500; // Increased max_seq_len for longer prompts
     int embed_dim = 32;
     int num_heads = 4;
@@ -162,7 +163,7 @@ void run_kv_cache_evaluation() {
     int lora_rank = 0; // Disable LoRA for this test for simplicity
 
     std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, dropout_rate, lora_rank);
-    Tokenizer tokenizer("dummy"); // Assuming dummy_vocab.json and dummy_merges.txt
+    Tokenizer tokenizer("../dummy"); // Assuming dummy_vocab.json and dummy_merges.txt
 
     std::cout << "  Model and Tokenizer initialized." << std::endl;
 
@@ -191,7 +192,7 @@ void run_kv_cache_evaluation() {
 
         for (const auto& method_config : generation_methods) {
             std::cout << "    Method: " << ((method_config.top_k.value_or(0) <= 1) ? "greedy" : "top_k") << " (TopK: " << method_config.top_k.value_or(-1) << ", Temp: " << method_config.temperature << ")" << std::endl;
-
+            
             try {
                 KVCacheTestResult result = run_single_kv_cache_test(model, tokenizer, prompt, tokens_to_generate, method_config);
                 all_results.push_back(result);

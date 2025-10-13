@@ -91,7 +91,7 @@ std::vector<std::string> Collection::find_by_index(const std::vector<std::string
 }
 
 void Collection::put(const std::string& key, const Document& doc) {
-    LOG_DEBUG("PUT key: " + key);
+
 
     // =================================================================
     // Schema Validation & Constraint Checking
@@ -185,8 +185,16 @@ std::optional<std::shared_ptr<Document>> Collection::get(const std::string& key)
         // The key is not in the collection at all.
         return std::nullopt;
     }
-    // The key is in the collection. The value could be a document or a tombstone (nullptr).
-    return it->second;
+
+    if (!it->second) {
+        // It's a tombstone, return the nullptr.
+        return it->second;
+    }
+
+    // It's a valid document. Create a copy to populate the ID and return an independent object.
+    auto doc_copy = std::make_shared<Document>(*it->second);
+    doc_copy->id = key;
+    return doc_copy;
 }
 
 std::vector<std::string> Collection::find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const {

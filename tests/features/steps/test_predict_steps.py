@@ -1,7 +1,5 @@
 import numpy as np
-from quanta_tissu.tisslm.core.model import QuantaTissu
-from quanta_tissu.tisslm.config import model_config
-from quanta_tissu.tisslm.core.tokenizer import Tokenizer
+from quanta_tissu.tisslm.core.generation.config import GenerationConfig
 
 def register_steps(runner):
     @runner.step(r'^Given a model and tokenizer$')
@@ -18,7 +16,8 @@ def register_steps(runner):
         token_ids_np = np.array(prompt_tokens)
         logits, _ = context['model'].forward(np.array([prompt_tokens]))
         last_logit = logits[:, -1, :]
-        next_token_id = context['model'].generator._predict_from_logits(last_logit, method="greedy")
+        config = GenerationConfig(method="greedy")
+        next_token_id, _ = context['model'].generator._predict_from_logits(last_logit, config)
         context['next_token_id'] = next_token_id
 
     @runner.step(r'^Then the next token should be a valid token id$')

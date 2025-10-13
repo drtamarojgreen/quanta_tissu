@@ -78,10 +78,10 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
         if (i < past_kv_cache.size()) {
             current_past_kv = past_kv_cache[i];
         }
-
+        
         std::optional<std::pair<Matrix, Matrix>> current_new_kv;
         x = transformer_blocks_[i].forward(x, Matrix(), current_past_kv, &current_new_kv);
-
+        
         if (current_new_kv.has_value()) {
             new_kv_cache[i] = current_new_kv.value();
         }

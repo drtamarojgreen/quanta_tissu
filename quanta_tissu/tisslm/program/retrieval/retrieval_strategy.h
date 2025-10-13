@@ -13,7 +13,7 @@ namespace Retrieval {
 class RetrievalStrategy {
 public:
     virtual ~RetrievalStrategy() = default;
-
+    
     /**
      * Calculate similarity between query embedding and document embeddings
      * @param query_embedding Query embedding vector
@@ -26,7 +26,7 @@ public:
         const std::vector<std::vector<float>>& doc_embeddings,
         const std::map<std::string, std::string>& kwargs = {}
     ) = 0;
-
+    
     /**
      * Get the name of this strategy
      */
@@ -44,7 +44,7 @@ public:
         const std::vector<std::vector<float>>& doc_embeddings,
         const std::map<std::string, std::string>& kwargs = {}
     ) override;
-
+    
     std::string get_name() const override { return "CosineSimilarity"; }
 
 private:
@@ -64,7 +64,7 @@ public:
         const std::vector<std::vector<float>>& doc_embeddings,
         const std::map<std::string, std::string>& kwargs = {}
     ) override;
-
+    
     std::string get_name() const override { return "EuclideanDistance"; }
 
 private:
@@ -82,7 +82,7 @@ public:
         const std::vector<std::vector<float>>& doc_embeddings,
         const std::map<std::string, std::string>& kwargs = {}
     ) override;
-
+    
     std::string get_name() const override { return "DotProduct"; }
 
 private:
@@ -101,15 +101,15 @@ public:
      * @param k1 BM25 k1 parameter (default: 1.5)
      * @param b BM25 b parameter (default: 0.75)
      */
-    BM25RetrievalStrategy(const std::vector<std::string>& corpus,
+    BM25RetrievalStrategy(const std::vector<std::string>& corpus, 
                          float k1 = 1.5f, float b = 0.75f);
-
+    
     std::vector<float> calculate_similarity(
         const std::vector<float>& query_embedding,
         const std::vector<std::vector<float>>& doc_embeddings,
         const std::map<std::string, std::string>& kwargs = {}
     ) override;
-
+    
     std::string get_name() const override { return "BM25"; }
 
 private:
@@ -121,7 +121,7 @@ private:
     std::map<std::string, size_t> doc_freqs_;
     std::map<std::string, float> idf_;
     std::vector<std::map<std::string, size_t>> term_freqs_;
-
+    
     void initialize();
     std::vector<std::string> tokenize(const std::string& text) const;
     float calculate_idf(const std::string& term) const;
@@ -139,18 +139,18 @@ public:
      * @param weight Weight for this strategy (default: 1.0)
      */
     void add_strategy(std::shared_ptr<RetrievalStrategy> strategy, float weight = 1.0f);
-
+    
     std::vector<float> calculate_similarity(
         const std::vector<float>& query_embedding,
         const std::vector<std::vector<float>>& doc_embeddings,
         const std::map<std::string, std::string>& kwargs = {}
     ) override;
-
+    
     std::string get_name() const override { return "Hybrid"; }
 
 private:
     std::vector<std::pair<std::shared_ptr<RetrievalStrategy>, float>> strategies_;
-
+    
     std::vector<float> normalize_scores(const std::vector<float>& scores) const;
 };
 
