@@ -11,7 +11,6 @@
 #include "../common/schema.h"
 #include "indexer.h"
 #include "memtable.h"
-#include "indexer.h"
 
 namespace TissDB {
 namespace Storage {
@@ -65,7 +64,6 @@ public:
 private:
     std::string name_;
     TissDB::Schema schema_;
-    Indexer indexer_;
     LSMTree* parent_db_; // Pointer to the parent database
     std::unique_ptr<Indexer> indexer_;
     std::string path_;

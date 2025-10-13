@@ -33,7 +33,7 @@ struct GroupKeyVisitor {
     void operator()(const TissDB::Timestamp& ts) const {
         ss << ts.microseconds_since_epoch_utc;
     }
-    void operator()(const BinaryData& /*bd*/) const {
+    void operator()(const BinaryData& bd) const {
         // Note: Grouping by binary data is tricky.
         // A proper implementation might hash the data.
         ss << "hash:" << TissDB::Common::crc32(bd.data(), bd.size());

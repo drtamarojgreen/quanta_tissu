@@ -22,10 +22,10 @@ static std::optional<Value> get_value_by_key(const Document& doc, const std::str
 
 // Implementation for Nested Loop Join
 std::vector<Document> JoinAlgorithms::nestedLoopJoin(
-    const std::vector<Document>& /*left_table*/,
-    const std::vector<Document>& /*right_table*/,
-    const std::string& /*left_join_key*/,
-    const std::string& /*right_join_key*/
+    const std::vector<Document>& left_table,
+    const std::vector<Document>& right_table,
+    const std::string& left_join_key,
+    const std::string& right_join_key
 ) {
     std::vector<Document> result;
     for (const auto& left_doc : left_table) {
@@ -45,7 +45,7 @@ std::vector<Document> JoinAlgorithms::nestedLoopJoin(
 }
 
 // Helper to convert a Value to a string for hashing
-static std::string value_to_string(const Value& val) {
+std::string value_to_string(const Value& val) {
     if (const auto* s = std::get_if<std::string>(&val)) {
         return *s;
     }
@@ -62,10 +62,10 @@ static std::string value_to_string(const Value& val) {
 
 // Implementation for Hash Join
 std::vector<Document> JoinAlgorithms::hashJoin(
-    const std::vector<Document>& /*left_table*/,
-    const std::vector<Document>& /*right_table*/,
-    const std::string& /*left_join_key*/,
-    const std::string& /*right_join_key*/
+    const std::vector<Document>& left_table,
+    const std::vector<Document>& right_table,
+    const std::string& left_join_key,
+    const std::string& right_join_key
 ) {
     std::vector<Document> result;
     std::unordered_map<std::string, std::vector<Document>> hash_table;

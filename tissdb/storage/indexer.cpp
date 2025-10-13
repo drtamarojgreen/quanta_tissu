@@ -18,24 +18,10 @@ std::string Indexer::get_index_name(const std::vector<std::string>& field_names)
     return ss.str();
 }
 
-<<<<<<< HEAD
-void Indexer::create_index(const std::vector<std::string>& field_names, IndexType type, bool is_unique) {
-    std::string index_name = get_index_name(field_names);
-    if (indexes_.find(index_name) == indexes_.end()) {
-        if (type == IndexType::TIMESTAMP) {
-            indexes_[index_name] = std::make_shared<BTree<int64_t, std::string>>();
-        } else {
-            indexes_[index_name] = std::make_shared<BTree<std::string, std::string>>();
-        }
-        index_fields_[index_name] = field_names;
-        index_types_[index_name] = type;
-        index_uniqueness_[index_name] = is_unique;
-=======
 void Indexer::create_index(const std::vector<std::string>& field_names, bool is_unique, IndexType type) {
     std::string index_name = get_index_name(field_names);
     if (indexes_.count(index_name) || timestamp_indexes_.count(index_name)) {
         return; // Index already exists
->>>>>>> main
     }
 
     if (type == IndexType::Timestamp) {
@@ -301,11 +287,7 @@ std::vector<std::string> Indexer::find_by_index(const std::string& index_name, c
     return {};
 }
 
-<<<<<<< HEAD
-std::vector<std::string> find_by_index(const std::string& index_name, int64_t value) const {
-=======
 std::vector<std::string> Indexer::find_by_index(const std::string& index_name, int64_t value) const {
->>>>>>> feature/timestamp-support
     auto it = timestamp_indexes_.find(index_name);
     if (it != timestamp_indexes_.end()) {
         const auto& btree = it->second;
@@ -337,7 +319,7 @@ std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& 
         for (size_t i = 0; i < values.size(); ++i) {
             key_ss << values[i];
             if (i < values.size() - 1) {
-                key_ss << ' ';
+                key_ss << ' ';
             }
         }
         std::string key = key_ss.str();
