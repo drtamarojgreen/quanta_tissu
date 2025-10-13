@@ -28,18 +28,18 @@ def main():
 
     # Paths should have sensible defaults if possible, or be clearly documented
     # For now, making them optional with a warning if not found.
-    tokenizer_path = "C:/Users/tamar/Documents/DataAnnotation/Gemini/quanta_tissu/tokenizer/trained_tokenizer"
+    tokenizer_prefix = "tokenizer/trained_tokenizer"
     checkpoint_path = "C:/Users/tamar/Documents/DataAnnotation/Gemini/quanta_tissu/checkpoints/checkpoint_step_115500.npz"
     db_port = 9876
 
     logger.info("--- Starting Algorithmic Generation Suite ---")
 
     logger.info("Initializing Tokenizer...")
-    tokenizer_full_path = os.path.normpath(os.path.join(project_root, tokenizer_path))
+    tokenizer_full_prefix = os.path.normpath(os.path.join(project_root, tokenizer_prefix))
     try:
-        tokenizer = Tokenizer(tokenizer_path=tokenizer_full_path)
+        tokenizer = Tokenizer(tokenizer_prefix=tokenizer_full_prefix)
     except FileNotFoundError as e:
-        logger.error(f"Error: Tokenizer files not found at {tokenizer_full_path}. {e}")
+        logger.error(f"Error: Tokenizer files not found at {tokenizer_full_prefix}. {e}")
         logger.error("Please ensure the tokenizer is trained and available at the specified path.")
         sys.exit(1)
 

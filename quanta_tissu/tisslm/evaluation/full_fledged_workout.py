@@ -28,6 +28,8 @@ from quanta_tissu.tisslm.evaluation.full_fledged_workout06 import run_advanced_a
 from quanta_tissu.tisslm.evaluation.full_fledged_workout07 import run_advanced_analysis_tests as run_advanced_analysis_tests_07
 from quanta_tissu.tisslm.evaluation.full_fledged_workout08 import run_tissdb_lite_tests
 from quanta_tissu.tisslm.evaluation.full_fledged_workout09 import run_tisslang_parser_tests
+from quanta_tissu.tisslm.evaluation.full_fledged_workout10 import run_advanced_sampling_tests
+from quanta_tissu.tisslm.evaluation.full_fledged_workout11 import run_knowledge_retrieval_tests
 
 # --- Configuration ---
 TEST_TOKENIZER_DIR = os.path.join(project_root, "test_tokenizer")
@@ -420,7 +422,7 @@ def save_evaluation_results(results, output_dir="evaluation_logs"):
 def main():
     """Main function to orchestrate the evaluation workout."""
     parser = argparse.ArgumentParser(description="Run a comprehensive evaluation workout on the TissLM model.")
-    parser.add_argument('--test', type=str, help='Specify which test to run (e.g., "1", "2", "all", "expanded").')
+    parser.add_argument('--test', type=str, help='Specify which test to run (e.g., "1" through "11", "all", "expanded").')
     parser.add_argument('--save-results', action='store_true', help='Save detailed evaluation results to files.')
     args = parser.parse_args()
 
@@ -490,6 +492,13 @@ def main():
 
     if args.test == "9" or args.test == "all":
         full_report.extend(run_tisslang_parser_tests())
+
+    if args.test == "10" or args.test == "all":
+        # Assuming a draft model would be loaded here if available/needed
+        full_report.extend(run_advanced_sampling_tests(model, tokenizer))
+
+    if args.test == "11" or args.test == "all":
+        full_report.extend(run_knowledge_retrieval_tests(model, tokenizer))
 
     # Save results if requested
     if args.save_results and evaluation_results:

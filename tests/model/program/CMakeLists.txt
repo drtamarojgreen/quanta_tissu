@@ -1,0 +1,320 @@
+cmake_minimum_required(VERSION 3.10)
+project(TissLMTests)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+
+
+# Include directories
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/core)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/training)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/generation)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/tokenizer)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/db)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/retrieval)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/rules)
+
+
+add_library(tisslm_core
+    ../../../quanta_tissu/tisslm/program/core/matrix.cpp
+    ../../../quanta_tissu/tisslm/program/core/parameter.cpp
+    ../../../quanta_tissu/tisslm/program/core/layernorm.cpp
+    ../../../quanta_tissu/tisslm/program/core/dropout.cpp
+    ../../../quanta_tissu/tisslm/program/core/feedforward.cpp
+    ../../../quanta_tissu/tisslm/program/core/multiheadattention.cpp
+    ../../../quanta_tissu/tisslm/program/core/transformerblock.cpp
+    ../../../quanta_tissu/tisslm/program/core/positionalencoding.cpp
+    ../../../quanta_tissu/tisslm/program/core/embedding.cpp
+    ../../../quanta_tissu/tisslm/program/core/transformer_model.cpp
+    ../../../quanta_tissu/tisslm/program/core/mock_embedder.cpp
+    ../../../quanta_tissu/tisslm/program/db/tissdb_client.cpp
+    ../../../quanta_tissu/tisslm/program/db/http_client.cpp
+)
+
+if(WIN32)
+    target_link_libraries(tisslm_core ws2_32)
+endif()
+
+# Training components library
+add_library(tisslm_training
+    ../../../quanta_tissu/tisslm/program/training/optimizer.cpp
+    ../../../quanta_tissu/tisslm/program/training/loss_function.cpp
+    ../../../quanta_tissu/tisslm/program/training/trainer.cpp
+)
+
+# Generation components library
+add_library(tisslm_generation
+    ../../../quanta_tissu/tisslm/program/generation/generator.cpp
+)
+
+add_library(tisslm_tokenizer
+    ../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.cpp
+)
+
+# Rules components library
+add_library(tisslm_rules
+    ../../../quanta_tissu/tisslm/program/rules/rule_enforcer.cpp
+)
+
+# Retrieval strategies library
+add_library(retrieval_strategies
+    ../../../quanta_tissu/tisslm/program/retrieval/retrieval_strategy.cpp
+)
+
+# Test executables
+add_executable(test_db_and_retrieval
+    test_db_and_retrieval.cpp
+)
+
+target_link_libraries(test_db_and_retrieval
+    retrieval_strategies
+    tisslm_core
+)
+
+add_executable(test_new_components
+    test_new_components.cpp
+)
+target_link_libraries(test_new_components
+    tisslm_core
+)
+
+add_executable(matrix_test
+    matrix_test.cpp
+)
+target_link_libraries(matrix_test
+    tisslm_core
+)
+
+add_executable(tokenizer_test
+    tokenizer_test.cpp
+)
+target_link_libraries(tokenizer_test
+    tisslm_tokenizer
+)
+
+add_executable(training_test
+    training_test.cpp
+)
+target_link_libraries(training_test
+    tisslm_core
+    tisslm_training
+)
+
+add_executable(model_generation_test
+    model_generation_test.cpp
+)
+target_link_libraries(model_generation_test
+    tisslm_core
+    tisslm_generation
+)
+
+add_executable(full_fledged_workout_cpp
+    full_fledged_workout_cpp.cpp
+)
+target_link_libraries(full_fledged_workout_cpp
+    tisslm_core
+    tisslm_generation
+    tisslm_tokenizer
+)
+
+add_executable(kv_cache_test
+    kv_cache_test.cpp
+)
+target_link_libraries(kv_cache_test
+    tisslm_core
+    tisslm_generation
+    tisslm_tokenizer
+)
+
+add_executable(rag_self_update_test
+    rag_self_update_test.cpp
+)
+target_link_libraries(rag_self_update_test
+    tisslm_core
+    tisslm_generation
+    tisslm_tokenizer
+)
+
+add_executable(experimental_sampling_test
+    experimental_sampling_test.cpp
+)
+target_link_libraries(experimental_sampling_test
+    tisslm_core
+    tisslm_generation
+    tisslm_tokenizer
+)
+
+add_executable(standard_generation_test
+    standard_generation_test.cpp
+)
+target_link_libraries(standard_generation_test
+    tisslm_core
+    tisslm_generation
+    tisslm_tokenizer
+)
+
+add_executable(rule_enforcement_test
+    rule_enforcement_test.cpp
+)
+target_link_libraries(rule_enforcement_test
+    tisslm_core
+    tisslm_generation
+    tisslm_tokenizer
+    tisslm_rules
+)
+
+# Enable testing
+enable_testing()
+
+# Add tests
+add_test(NAME DatabaseAndRetrievalTests
+         COMMAND test_db_and_retrieval)
+
+add_test(NAME NewComponentsTests
+         COMMAND test_new_components)
+
+add_test(NAME MatrixTests
+         COMMAND matrix_test)
+
+add_test(NAME TokenizerTests
+         COMMAND tokenizer_test)
+
+add_test(NAME TrainingTests
+         COMMAND training_test)
+
+add_test(NAME ModelGenerationTests
+         COMMAND model_generation_test)
+
+add_test(NAME FullFledgedWorkoutCppTests
+         COMMAND full_fledged_workout_cpp)
+
+add_test(NAME KVCacheTests
+         COMMAND kv_cache_test)
+
+add_test(NAME RAGSelfUpdateTests
+         COMMAND rag_self_update_test)
+
+add_test(NAME ExperimentalSamplingTests
+         COMMAND experimental_sampling_test)
+
+add_test(NAME StandardGenerationTests
+         COMMAND standard_generation_test)
+
+add_test(NAME RuleEnforcementTests
+         COMMAND rule_enforcement_test)
+
+# Set test properties
+set_tests_properties(DatabaseAndRetrievalTests PROPERTIES
+    TIMEOUT 60
+    LABELS "integration;database;retrieval"
+)
+
+set_tests_properties(NewComponentsTests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;core"
+)
+
+set_tests_properties(MatrixTests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;core"
+)
+
+set_tests_properties(TokenizerTests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;tokenizer"
+)
+
+set_tests_properties(TrainingTests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;training"
+)
+
+set_tests_properties(ModelGenerationTests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;model;generation"
+)
+
+set_tests_properties(FullFledgedWorkoutCppTests PROPERTIES
+    TIMEOUT 30
+    LABELS "integration;evaluation;generation"
+)
+
+set_tests_properties(KVCacheTests PROPERTIES
+    TIMEOUT 60
+    LABELS "integration;evaluation;kv_cache"
+)
+
+set_tests_properties(RAGSelfUpdateTests PROPERTIES
+    TIMEOUT 120
+    LABELS "integration;evaluation;rag;self_update"
+)
+
+set_tests_properties(ExperimentalSamplingTests PROPERTIES
+    TIMEOUT 30
+    LABELS "unit;evaluation;sampling"
+)
+
+set_tests_properties(StandardGenerationTests PROPERTIES
+    TIMEOUT 30
+    LABELS "unit;evaluation;generation"
+)
+
+set_tests_properties(RuleEnforcementTests PROPERTIES
+    TIMEOUT 30
+    LABELS "unit;evaluation;rules"
+)
+
+add_executable(advanced_analysis_test
+    advanced_analysis_test.cpp
+)
+target_link_libraries(advanced_analysis_test
+    tisslm_core
+    tisslm_generation
+    tisslm_tokenizer
+)
+
+add_test(NAME AdvancedAnalysisTests
+         COMMAND advanced_analysis_test)
+
+set_tests_properties(AdvancedAnalysisTests PROPERTIES
+    TIMEOUT 30
+    LABELS "unit;evaluation;analysis"
+)
+
+add_executable(tissdb_lite_integration_test
+    tissdb_lite_integration_test.cpp
+)
+target_link_libraries(tissdb_lite_integration_test
+    tisslm_core
+)
+
+add_test(NAME TissDBLiteIntegrationTests
+         COMMAND tissdb_lite_integration_test)
+
+set_tests_properties(TissDBLiteIntegrationTests PROPERTIES
+    TIMEOUT 60
+    LABELS "integration;database;lite"
+)
+
+add_executable(advanced_sampling_test
+    advanced_sampling_test.cpp
+)
+target_link_libraries(advanced_sampling_test
+    tisslm_core
+    tisslm_generation
+    tisslm_tokenizer
+)
+
+add_test(NAME AdvancedSamplingTests
+         COMMAND advanced_sampling_test)
+
+set_tests_properties(AdvancedSamplingTests PROPERTIES
+    TIMEOUT 30
+    LABELS "unit;evaluation;sampling;advanced"
+)
+
+# Print build information
+message(STATUS "Building TissLM Tests")
+message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
