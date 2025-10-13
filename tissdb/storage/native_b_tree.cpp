@@ -335,9 +335,13 @@ void BTree<Key, Value, Order>::dump_recursive(BTreeNode* node, std::ostream& os)
     size_t num_keys = node->keys.size();
     os.write(reinterpret_cast<const char*>(&num_keys), sizeof(num_keys));
     for (const auto& key : node->keys) {
-        size_t key_len = key.size();
-        os.write(reinterpret_cast<const char*>(&key_len), sizeof(key_len));
-        os.write(key.data(), key_len);
+        if constexpr (std::is_same_v<Key, std::string>) {
+            size_t key_len = key.size();
+            os.write(reinterpret_cast<const char*>(&key_len), sizeof(key_len));
+            os.write(key.data(), key_len);
+        } else {
+            os.write(reinterpret_cast<const char*>(&key), sizeof(key));
+        }
     }
     for (const auto& value : node->values) {
         size_t val_len = value.size();
@@ -368,10 +372,14 @@ std::unique_ptr<typename BTree<Key, Value, Order>::BTreeNode> BTree<Key, Value, 
     node->keys.resize(num_keys);
     node->values.resize(num_keys);
     for (size_t i = 0; i < num_keys; ++i) {
-        size_t key_len;
-        is.read(reinterpret_cast<char*>(&key_len), sizeof(key_len));
-        node->keys[i].resize(key_len);
-        is.read(&node->keys[i][0], key_len);
+        if constexpr (std::is_same_v<Key, std::string>) {
+            size_t key_len;
+            is.read(reinterpret_cast<char*>(&key_len), sizeof(key_len));
+            node->keys[i].resize(key_len);
+            is.read(&node->keys[i][0], key_len);
+        } else {
+            is.read(reinterpret_cast<char*>(&node->keys[i]), sizeof(Key));
+        }
     }
     for (size_t i = 0; i < num_keys; ++i) {
         size_t val_len;
