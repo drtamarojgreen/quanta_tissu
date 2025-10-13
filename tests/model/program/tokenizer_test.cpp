@@ -9,7 +9,7 @@ void test_tokenizer() {
 
     // Assuming dummy_vocab.json and dummy_merges.txt are in the same directory as the test executable
     // The Tokenizer constructor expects a prefix, so we pass "dummy"
-    Tokenizer tokenizer("dummy"); 
+    Tokenizer tokenizer("../dummy"); 
 
     // Test get_vocab_size
     if (tokenizer.get_vocab_size() == 6) { // Based on dummy_vocab.json

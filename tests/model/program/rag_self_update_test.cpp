@@ -14,9 +14,34 @@
 #include <random>
 #include <chrono>
 #include <iomanip>
+#include <numeric>
 
 using namespace TissDB;
 #include <set>
+
+// Helper function to get a field from a document
+std::string get_field(const TissDB::Document& doc, const std::string& key) {
+    for (const auto& element : doc.elements) {
+        if (element.key == key) {
+            if (std::holds_alternative<std::string>(element.value)) {
+                return std::get<std::string>(element.value);
+            }
+        }
+    }
+    return "";
+}
+
+// Helper function to set a field in a document
+void set_field(TissDB::Document& doc, const std::string& key, const std::string& value) {
+    for (auto& element : doc.elements) {
+        if (element.key == key) {
+            element.value = value;
+            return;
+        }
+    }
+    doc.elements.push_back({key, value});
+}
+
 
 // Helper to convert std::vector<float> to JSON array string
 std::string vector_to_json_array(const std::vector<float>& vec) {
@@ -101,13 +126,13 @@ RAGTestResult run_single_rag_test(
             for(int c=0; c<embedding_matrix.cols(); ++c) embedding[c] = embedding_matrix(0,c);
 
             Document doc;
-            doc.set_field("id", doc_id);
-            doc.set_field("content", content);
+            set_field(doc, "id", doc_id);
+            set_field(doc, "content", content);
             // Store embedding as a string (simplified, needs proper serialization)
             std::string embedding_str;
             for(float val : embedding) embedding_str += std::to_string(val) + ",";
             if(!embedding_str.empty()) embedding_str.pop_back(); // Remove trailing comma
-            doc.set_field("embedding", embedding_str);
+            set_field(doc, "embedding", embedding_str);
 
             db_client.add_document(collection_name, doc, doc_id);
         }
@@ -128,7 +153,7 @@ RAGTestResult run_single_rag_test(
         if (!expected_retrieval_ids.empty() && expected_retrieval_ids[0] != "None") {
             for (const std::string& doc_id : expected_retrieval_ids) {
                 Document retrieved_doc = db_client.get_document(collection_name, doc_id);
-                retrieved_docs_content.push_back(retrieved_doc.get_field("content"));
+                retrieved_docs_content.push_back(get_field(retrieved_doc, "content"));
                 actual_retrieved_ids.push_back(retrieved_doc.id);
             }
             retrieved_context_str = "\n" + std::accumulate(retrieved_docs_content.begin(), retrieved_docs_content.end(), std::string(),
@@ -171,12 +196,12 @@ RAGTestResult run_single_rag_test(
         std::string new_doc_id = "self_update_" + scenario_config.at("id");
         std::string new_content = "Query: " + scenario_config.at("query") + "\nResponse: " + final_answer;
         Document new_doc;
-        new_doc.set_field("content", new_content);
+        set_field(new_doc, "content", new_content);
         db_client.add_document(collection_name, new_doc, new_doc_id);
 
         // Verify update
         Document verified_doc = db_client.get_document(collection_name, new_doc_id);
-        results.self_update_correct = (verified_doc.get_field("content") == new_content);
+        results.self_update_correct = (get_field(verified_doc, "content") == new_content);
 
         results.success = results.retrieval_correct && results.generation_correct && results.self_update_correct;
 
