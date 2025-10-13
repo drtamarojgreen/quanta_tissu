@@ -153,7 +153,7 @@ void run_kv_cache_evaluation() {
     std::cout << "=== Running KV Cache Evaluation (C++) ===" << std::endl;
 
     // --- Setup Model and Tokenizer ---
-    Tokenizer tokenizer("dummy"); // Assuming dummy_vocab.json and dummy_merges.txt
+    Tokenizer tokenizer("models/tokenizers/revised_tokenizer");
     int vocab_size = tokenizer.get_vocab_size();
     int max_seq_len = 500; // Increased max_seq_len for longer prompts
     int embed_dim = 32;
@@ -162,7 +162,7 @@ void run_kv_cache_evaluation() {
     float dropout_rate = 0.1f;
     int lora_rank = 0; // Disable LoRA for this test for simplicity
 
-    std::shared_p <TransformerModel> model = std::make_shared<TransformerModel>(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, dropout_rate, lora_rank);
+    std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, dropout_rate, lora_rank);
 
     std::cout << "  Model and Tokenizer initialized." << std::endl;
 

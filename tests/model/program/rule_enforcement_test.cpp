@@ -103,7 +103,7 @@ void run_rule_enforcement_evaluation() {
     std::cout << "=== Running Rule Enforcement Evaluation (C++) ===" << std::endl;
 
     // --- Setup Model and Tokenizer ---
-    Tokenizer tokenizer("dummy"); // Assuming dummy_vocab.json and dummy_merges.txt
+    Tokenizer tokenizer("models/tokenizers/revised_tokenizer");
     int vocab_size = tokenizer.get_vocab_size();
     int max_seq_len = 50;
     int embed_dim = 32;
