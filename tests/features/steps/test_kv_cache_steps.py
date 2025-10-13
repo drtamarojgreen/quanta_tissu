@@ -6,6 +6,9 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from quanta_tissu.tisslm.core.generation.config import GenerationConfig
+from quanta_tissu.tisslm.core.model import QuantaTissu
+from quanta_tissu.tisslm.core.tokenizer import Tokenizer
+from quanta_tissu.tisslm.config import model_config
 
 def register_steps(runner):
     @runner.step(r'^Given a model and tokenizer$')
