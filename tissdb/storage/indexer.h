@@ -28,8 +28,8 @@ public:
     bool has_index(const std::vector<std::string>& field_names) const;
     void update_indexes(const std::string& document_id, const Document& doc);
     void remove_from_indexes(const std::string& document_id, const Document& doc);
-    std::vector<std::string> find_by_index(const std::string& index_name, const std::string& key) const;
-    std::vector<std::string> find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const;
+    std::vector<std::string> find_by_index(const std::string& index_name, const Value& key) const;
+    std::vector<std::string> find_by_index(const std::vector<std::string>& field_names, const std::vector<Value>& values) const;
     std::vector<std::string> find_by_index(const std::vector<std::string>& field_names) const;
     std::vector<std::string> find_by_timestamp_range(const std::string& index_name, int64_t start_key, int64_t end_key) const;
 
@@ -38,6 +38,11 @@ public:
     std::vector<std::vector<std::string>> get_available_indexes() const;
 
 private:
+    using BTreeVariant = std::variant<
+        std::shared_ptr<BTree<std::string, std::string>>,
+        std::shared_ptr<BTree<int64_t, std::string>>
+    >;
+
     std::string get_index_name(const std::vector<std::string>& field_names) const;
     std::string get_composite_key(const std::vector<std::string>& field_names, const Document& doc) const;
 
