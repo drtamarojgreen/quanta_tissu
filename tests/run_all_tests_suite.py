@@ -31,8 +31,7 @@ def discover_and_run_tests():
         return False
 
     print("=" * 70)
-    print("Discovering and Running All Tests (Unit & Behavior)...
-")
+    print("Discovering and Running All Tests (Unit & Behavior)...")
     print("=" * 70)
 
     loader = unittest.TestLoader()
