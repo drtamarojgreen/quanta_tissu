@@ -157,7 +157,7 @@ class TestKnowledgeBase(unittest.TestCase):
         self.kb.add_document(doc2_text)
 
         query_text = "Document one"
-        retrieved_docs = self.kb.retrieve(query_text, use_db=False) # Force local cache
+        retrieved_docs, _ = self.kb.retrieve(query_text, use_db=False) # Force local cache
 
         self.assertEqual(len(retrieved_docs), 1)
         self.assertEqual(retrieved_docs[0], doc1_text)
@@ -169,7 +169,7 @@ class TestKnowledgeBase(unittest.TestCase):
         # Mock db_client.get_all_documents to return empty (as it's a stub)
         with patch.object(self.kb.db_client, 'get_all_documents', return_value=[]):
             query_text = "Document for DB"
-            retrieved_docs = self.kb.retrieve(query_text, use_db=True) # Try DB, should fallback
+            retrieved_docs, _ = self.kb.retrieve(query_text, use_db=True) # Try DB, should fallback
 
             self.assertEqual(len(retrieved_docs), 1)
             self.assertEqual(retrieved_docs[0], doc_text)
