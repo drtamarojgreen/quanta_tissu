@@ -18,10 +18,24 @@ std::string Indexer::get_index_name(const std::vector<std::string>& field_names)
     return ss.str();
 }
 
+<<<<<<< HEAD
+void Indexer::create_index(const std::vector<std::string>& field_names, IndexType type, bool is_unique) {
+    std::string index_name = get_index_name(field_names);
+    if (indexes_.find(index_name) == indexes_.end()) {
+        if (type == IndexType::TIMESTAMP) {
+            indexes_[index_name] = std::make_shared<BTree<int64_t, std::string>>();
+        } else {
+            indexes_[index_name] = std::make_shared<BTree<std::string, std::string>>();
+        }
+        index_fields_[index_name] = field_names;
+        index_types_[index_name] = type;
+        index_uniqueness_[index_name] = is_unique;
+=======
 void Indexer::create_index(const std::vector<std::string>& field_names, bool is_unique, IndexType type) {
     std::string index_name = get_index_name(field_names);
     if (indexes_.count(index_name) || timestamp_indexes_.count(index_name)) {
         return; // Index already exists
+>>>>>>> main
     }
 
     if (type == IndexType::Timestamp) {
@@ -88,6 +102,8 @@ void Indexer::update_indexes(const std::string& document_id, const Document& doc
     for (const auto& pair : index_fields_) {
         const std::string& index_name = pair.first;
         const auto& field_names = pair.second;
+        auto index_type = index_types_.at(index_name);
+        auto& btree_variant = indexes_.at(index_name);
 
         if (timestamp_indexes_.count(index_name)) {
             // Handle timestamp index
@@ -177,6 +193,8 @@ void Indexer::remove_from_indexes(const std::string& document_id, const Document
     for (const auto& pair : index_fields_) {
         const std::string& index_name = pair.first;
         const auto& field_names = pair.second;
+        auto index_type = index_types_.at(index_name);
+        auto& btree_variant = indexes_.at(index_name);
 
         if (timestamp_indexes_.count(index_name)) {
             // Handle timestamp index
@@ -283,7 +301,11 @@ std::vector<std::string> Indexer::find_by_index(const std::string& index_name, c
     return {};
 }
 
+<<<<<<< HEAD
 std::vector<std::string> find_by_index(const std::string& index_name, int64_t value) const {
+=======
+std::vector<std::string> Indexer::find_by_index(const std::string& index_name, int64_t value) const {
+>>>>>>> feature/timestamp-support
     auto it = timestamp_indexes_.find(index_name);
     if (it != timestamp_indexes_.end()) {
         const auto& btree = it->second;

@@ -291,4 +291,9 @@ def then_connector_fails_with_connection_error(context):
     assert result['returncode'] != 0, "Expected a non-zero exit code for connection failure, but got 0."
     error_msg = result['stderr'].lower()
     assert "connect" in error_msg or "connection refused" in error_msg or "failed to create" in error_msg, \
+
+@step(r'the document should contain the field "(.*)" with the timestamp "(.*)"')
+def step_impl_timestamp(context, field, value):
+    assert find_doc_with_field_value(context, field, value), \
+        f"Could not find a document with field '{field}' having timestamp value '{value}'"
         f"Expected a connection error in stderr, but got: {result['stderr']}"

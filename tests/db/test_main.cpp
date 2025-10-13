@@ -18,6 +18,7 @@
 #include "test_transactions.cpp"
 #include "test_stddev.cpp"
 #include "test_query_executor.cpp"
+#include "test_timestamp.cpp"
 
 // Tissu Sinew Client Library Tests
 #include "../test_tissu_sinew.cpp"

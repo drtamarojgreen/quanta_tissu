@@ -12,8 +12,8 @@
 namespace TissDB {
 namespace Query {
 
-namespace {
 // Helper to parse YYYY-MM-DD
+namespace {
 std::optional<Date> parse_date_string(const std::string& s) {
     Date d;
     int year, month, day;
@@ -56,6 +56,8 @@ std::optional<DateTime> parse_datetime_string(const std::string& s) {
     }
     return std::nullopt;
 }
+
+} // anonymous namespace
 
 // Helper to parse ISO 8601 timestamp strings
 std::optional<Timestamp> try_parse_timestamp(const std::string& s) {
@@ -189,11 +191,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             std::string upper_value = value;
             std::transform(upper_value.begin(), upper_value.end(), upper_value.begin(), ::toupper);
 
-<<<<<<< HEAD
             if (upper_value == "SELECT" || upper_value == "FROM" || upper_value == "WHERE" || upper_value == "AND" || upper_value == "OR" || upper_value == "UPDATE" || upper_value == "DELETE" || upper_value == "SET" || upper_value == "GROUP" || upper_value == "BY" || upper_value == "COUNT" || upper_value == "AVG" || upper_value == "SUM" || upper_value == "MIN" || upper_value == "MAX" || upper_value == "INSERT" || upper_value == "INTO" || upper_value == "VALUES" || upper_value == "STDDEV" || upper_value == "LIKE" || upper_value == "ORDER" || upper_value == "LIMIT" || upper_value == "JOIN" || upper_value == "ON" || upper_value == "UNION" || upper_value == "ALL" || upper_value == "ASC" || upper_value == "DESC" || upper_value == "WITH" || upper_value == "DRILLDOWN" || upper_value == "TRUE" || upper_value == "FALSE" || upper_value == "NULL" || upper_value == "DATE" || upper_value == "TIME" || upper_value == "DATETIME" || upper_value == "TIMESTAMP") {
-=======
-            if (upper_value == "SELECT" || upper_value == "FROM" || upper_value == "WHERE" || upper_value == "AND" || upper_value == "OR" || upper_value == "UPDATE" || upper_value == "DELETE" || upper_value == "SET" || upper_value == "GROUP" || upper_value == "BY" || upper_value == "COUNT" || upper_value == "AVG" || upper_value == "SUM" || upper_value == "MIN" || upper_value == "MAX" || upper_value == "INSERT" || upper_value == "INTO" || upper_value == "VALUES" || upper_value == "STDDEV" || upper_value == "LIKE" || upper_value == "ORDER" || upper_value == "LIMIT" || upper_value == "JOIN" || upper_value == "ON" || upper_value == "UNION" || upper_value == "ALL" || upper_value == "ASC" || upper_value == "DESC" || upper_value == "WITH" || upper_value == "DRILLDOWN" || upper_value == "TRUE" || upper_value == "FALSE" || upper_value == "NULL" || upper_value == "DATE" || upper_value == "TIME") {
->>>>>>> feat/timestamp-object
                 new_tokens.push_back(Token{Token::Type::KEYWORD, upper_value});
             } else {
                 new_tokens.push_back(Token{Token::Type::IDENTIFIER, value});
