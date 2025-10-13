@@ -36,7 +36,7 @@ def main():
     
     # Paths should have sensible defaults if possible, or be clearly documented
     # For now, making them optional with a warning if not found.
-    parser.add_argument("--tokenizer_path", type=str, default="tokenizer/trained_tokenizer", help="Path prefix for the tokenizer files.")
+    parser.add_argument("--tokenizer_prefix", type=str, default="tokenizer/trained_tokenizer", help="Path prefix for the tokenizer files.")
     parser.add_argument("--checkpoint_path", type=str, default="checkpoints/checkpoint_step_248860.npz", help="Path to the model checkpoint (.npz file).")
     
     parser.add_argument("--method", type=str, default="nucleus", help="Generation method: greedy, top_k, nucleus, random.")
@@ -60,11 +60,11 @@ def main():
 
     logger.info("\nStep 2: Initializing Components...")
     logger.info("Initializing Tokenizer...")
-    tokenizer_full_path = os.path.normpath(os.path.join(project_root, args.tokenizer_path))
+    tokenizer_full_prefix = os.path.normpath(os.path.join(project_root, args.tokenizer_prefix))
     try:
-        tokenizer = Tokenizer(tokenizer_path=tokenizer_full_path)
+        tokenizer = Tokenizer(tokenizer_prefix=tokenizer_full_prefix)
     except FileNotFoundError as e:
-        logger.error(f"Error: Tokenizer files not found at {tokenizer_full_path}. {e}")
+        logger.error(f"Error: Tokenizer files not found at {tokenizer_full_prefix}. {e}")
         logger.error("Please ensure the tokenizer is trained and available at the specified path.")
         sys.exit(1)
 
