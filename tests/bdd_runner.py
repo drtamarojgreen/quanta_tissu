@@ -43,30 +43,43 @@ class BDDRunner:
             return func
         return decorator
 
+    def _parse_docstring(self, scenario_lines, start_index):
+        docstring_lines = []
+        if start_index < len(scenario_lines) and scenario_lines[start_index].strip().startswith('"""'):
+            i = start_index + 1
+            while i < len(scenario_lines) and not scenario_lines[i].strip().endswith('"""'):
+                docstring_lines.append(scenario_lines[i])
+                i += 1
+            return docstring_lines, i + 1
+        return None, start_index
+
     def _parse_scenario_steps(self, scenario_lines):
         steps = []
         i = 0
         while i < len(scenario_lines):
-            line = scenario_lines[i].strip()
-            if not line or line.startswith('#'):
+            line = scenario_lines[i]
+            stripped_line = line.strip()
+            if not stripped_line or stripped_line.startswith('#'):
                 i += 1
                 continue
 
-            if line.startswith(('Given', 'When', 'Then', 'And', 'But')):
-                step_line = line
+            if stripped_line.startswith(('Given', 'When', 'Then', 'And', 'But')):
+                step_line = stripped_line
                 table_lines = []
                 j = i + 1
                 while j < len(scenario_lines) and scenario_lines[j].strip().startswith('|'):
                     table_lines.append(scenario_lines[j].strip())
                     j += 1
 
-                steps.append((step_line, table_lines if table_lines else None))
+                docstring_lines, j = self._parse_docstring(scenario_lines, j)
+
+                steps.append((step_line, table_lines if table_lines else None, docstring_lines if docstring_lines else None))
                 i = j
             else:
                 i += 1
         return steps
 
-    def _execute_step(self, context, step_line, table, feature_name, scenario_title):
+    def _execute_step(self, context, step_line, table, docstring, feature_name, scenario_title):
         self.report_data['steps_run'] += 1
 
         found_steps = []
@@ -94,8 +107,9 @@ class BDDRunner:
             args = list(match.groups())
             if table:
                 args.append(table)
+            if docstring:
+                context['text'] = "\n".join(docstring)
             func(context, *args)
-            self.report_data['steps_passed'] += 1
             return True, True
         except Exception as e:
             tb = traceback.format_exc()
@@ -110,7 +124,7 @@ class BDDRunner:
             })
             return False, True
 
-    def is_server_running(self, host='127.0.0.1', port=8080):
+    def is_server_running(self, host='127.0.0.1', port=9876):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.connect((host, port))
@@ -179,9 +193,12 @@ class BDDRunner:
         self.report_data['start_time'] = datetime.datetime.now()
         overall_success = True
         
-        try:
+        db_started_by_runner = False
+        if not self.is_server_running():
             self.start_db()
+            db_started_by_runner = True
 
+        try:
             if os.path.isfile(self.features_path):
                 feature_files = [self.features_path]
             else:
@@ -235,8 +252,8 @@ class BDDRunner:
                     # Execute Background steps
                     if background_steps_and_tables:
                         print("    Executing Background:")
-                        for step_line, table in background_steps_and_tables:
-                            success, _ = self._execute_step(context, step_line, table, feature_name, "Background")
+                        for step_line, table, docstring in background_steps_and_tables:
+                            success, _ = self._execute_step(context, step_line, table, docstring, feature_name, "Background")
                             if not success:
                                 scenario_success = False
                                 break
@@ -247,13 +264,13 @@ class BDDRunner:
                         continue
 
                     scenario_steps_and_tables = self._parse_scenario_steps(lines[1:])
-                    for step_line, table in scenario_steps_and_tables:
+                    for step_line, table, docstring in scenario_steps_and_tables:
                         if not scenario_success:
                             print(f"    Skipping step due to previous failure: {step_line}")
                             self.report_data['steps_skipped'] += 1
                             continue
 
-                        success, _ = self._execute_step(context, step_line, table, feature_name, scenario_title)
+                        success, _ = self._execute_step(context, step_line, table, docstring, feature_name, scenario_title)
                         if not success:
                             scenario_success = False
                             overall_success = False
@@ -269,7 +286,8 @@ class BDDRunner:
             self.report_data['fatal_error'] = traceback.format_exc()
             overall_success = False
         finally:
-            self.stop_db()
+            if db_started_by_runner:
+                self.stop_db()
             self.report_data['end_time'] = datetime.datetime.now()
             # self._generate_report() # Report generation disabled for brevity
 

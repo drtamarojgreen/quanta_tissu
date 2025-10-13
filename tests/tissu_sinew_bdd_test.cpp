@@ -1,4 +1,4 @@
-#include "../quanta_tissu/tissu_sinew.h"
+#include "quanta_tissu/tisslm/program/tissu_sinew.h"
 #include <iostream>
 #include <stdexcept>
 

@@ -249,7 +249,7 @@ def _run_connector_test(context, command):
 
     source_files = [
         "tests/tissu_sinew_bdd_test.cpp",
-        "quanta_tissu/tissu_sinew.cpp"
+        "quanta_tissu/tisslm/program/tissu_sinew.cpp"
     ]
     output_executable = "tests/tissu_sinew_bdd_test"
 

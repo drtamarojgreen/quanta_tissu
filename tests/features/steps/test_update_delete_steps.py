@@ -19,6 +19,7 @@ def register_steps(runner):
     def document_should_have_content(context, doc_id, collection_name, expected_content_str):
         headers = get_headers(context)
         response = requests.get(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}", headers=headers)
+        print(f"Response for doc {doc_id}: {response.status_code}, {response.text}")
         assert response.status_code == 200, f"Failed to get document {doc_id}. Status: {response.status_code}, Body: {response.text}"
 
         actual_content = response.json()
@@ -37,12 +38,22 @@ def register_steps(runner):
 
     @runner.step(r'the document with ID "(.*)" in "(.*)" should exist')
     def document_should_exist(context, doc_id, collection_name):
+        print(f"--- Entering document_should_exist for doc {doc_id} ---")
         headers = get_headers(context)
+        print(f"Requesting doc {doc_id} from {collection_name}")
         response = requests.get(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}", headers=headers)
+        print(f"Response for doc {doc_id}: {response.status_code}, {response.text}")
         assert response.status_code == 200, f"Expected document '{doc_id}' to exist, but it does not (status code: {response.status_code})."
+        print(f"--- Exiting document_should_exist for doc {doc_id} ---")
 
     @runner.step(r'the document with ID "(.*)" in "(.*)" should not exist')
     def document_should_not_exist(context, doc_id, collection_name):
+        print(f"--- Entering document_should_not_exist for doc {doc_id} ---")
         headers = get_headers(context)
+        print(f"Requesting doc {doc_id} from {collection_name}")
         response = requests.get(f"{BASE_URL}/{DB_NAME}/{collection_name}/{doc_id}", headers=headers)
+        print(f"Response for doc {doc_id}: {response.status_code}, {response.text}")
         assert response.status_code == 404, f"Expected document '{doc_id}' not to exist, but it does (status code: {response.status_code})."
+        print(f"--- Exiting document_should_not_exist for doc {doc_id} ---")
+
+

@@ -15,9 +15,8 @@ def register_steps(runner):
         if not hasattr(context, 'text') or not context.text:
             raise ValueError("This step requires a multiline script in a docstring.")
 
-        context['script'] = context.text.strip()
-        context['language'] = language
-
+            context['script'] = context.text.strip()
+            context['language'] = "TissLM"
     @runner.step(r'When I parse the script')
     def when_i_parse_the_script(context):
         parser = TissLangParser()
