@@ -126,7 +126,7 @@ std::string HttpClient::get(const std::string& url) {
     parse_url(url, host, port, path);
     int sock = create_socket();
     connect_socket(sock, host, port);
-    std::string request = "GET " + path + " HTTP/1.1\r\nHost: " + host + "\r\nConnection: close\r\n\r\n";
+    std::string request = "GET " + path + " HTTP/1.1\r\nHost: " + host + "\r\nAuthorization: Bearer static_test_token\r\nConnection: close\r\n\r\n";
     send_data(sock, request);
     std::string response = receive_data(sock);
     close_socket(sock);
@@ -146,7 +146,7 @@ std::string HttpClient::post(const std::string& url, const std::string& body) {
     parse_url(url, host, port, path);
     int sock = create_socket();
     connect_socket(sock, host, port);
-    std::string request = "POST " + path + " HTTP/1.1\r\nHost: " + host + "\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(body.length()) + "\r\nConnection: close\r\n\r\n" + body;
+    std::string request = "POST " + path + " HTTP/1.1\r\nHost: " + host + "\r\nAuthorization: Bearer static_test_token\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(body.length()) + "\r\nConnection: close\r\n\r\n" + body;
     send_data(sock, request);
     std::string response = receive_data(sock);
     close_socket(sock);
