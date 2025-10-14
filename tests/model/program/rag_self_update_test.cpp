@@ -216,14 +216,6 @@ void run_rag_self_update_evaluation() {
     std::cout << "=== Running RAG and Self-Updating KB Evaluation (C++) ===" << std::endl;
 
     // --- Setup Model, Tokenizer, Embedder ---
-    int vocab_size = 100;
-    int max_seq_len = 500;
-    int embed_dim = 32;
-    int num_heads = 4;
-    int num_layers = 2;
-    float dropout_rate = 0.1f;
-    int lora_rank = 0; 
-
     Tokenizer tokenizer("models/tokenizers/revised_tokenizer");
     int vocab_size = tokenizer.get_vocab_size();
     int max_seq_len = 500;
