@@ -124,34 +124,34 @@ std::string HttpClient::get(const std::string& url) {
     std::string host, path;
     int port;
     parse_url(url, host, port, path);
-
     int sock = create_socket();
     connect_socket(sock, host, port);
-
     std::string request = "GET " + path + " HTTP/1.1\r\nHost: " + host + "\r\nConnection: close\r\n\r\n";
     send_data(sock, request);
-
     std::string response = receive_data(sock);
     close_socket(sock);
-
-    return response;
+    size_t header_end = response.find("\r\n\r\n");
+    if (header_end != std::string::npos) {
+        return response.substr(header_end + 4);
+    }
+    return "";
 }
 
 std::string HttpClient::post(const std::string& url, const std::string& body) {
     std::string host, path;
     int port;
     parse_url(url, host, port, path);
-
     int sock = create_socket();
     connect_socket(sock, host, port);
-
     std::string request = "POST " + path + " HTTP/1.1\r\nHost: " + host + "\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(body.length()) + "\r\nConnection: close\r\n\r\n" + body;
     send_data(sock, request);
-
     std::string response = receive_data(sock);
     close_socket(sock);
-
-    return response;
+    size_t header_end = response.find("\r\n\r\n");
+    if (header_end != std::string::npos) {
+        return response.substr(header_end + 4);
+    }
+    return "";
 }
 
 } // namespace TissDB
