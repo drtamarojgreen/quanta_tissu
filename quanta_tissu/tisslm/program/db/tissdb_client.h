@@ -14,7 +14,7 @@ class HttpClient;
 
 class TissDBClient {
 public:
-    TissDBClient(const std::string& host = "127.0.0.1", int port = 9876, const std::string& db_name = "testdb");
+    TissDBClient(const std::string& host = "127.0.0.1", int port = 9876, const std::string& db_name = "testdb", const std::string& token = "");
     ~TissDBClient();
 
     bool ensure_db_setup(const std::vector<std::string>& collections);
