@@ -76,10 +76,16 @@ bool TissDBClient::ensure_db_setup(const std::vector<std::string>& collections) 
 
 std::string TissDBClient::add_document(const std::string& collection, const TissDB::Document& document, const std::string& doc_id) {
     std::string url = db_url_ + "/collection/" + collection + "/document";
+    if (!doc_id.empty()) {
+        url += "/" + doc_id;
+    }
     std::string doc_json = to_json(document);
-    // In a real scenario, http_client_->post(url, doc_json) would be called
-    // For now, just return a dummy ID
-    return "dummy_id";
+    std::string response_json = http_client_->post(url, doc_json);
+    TissDB::Json::JsonValue json = TissDB::Json::JsonValue::parse(response_json);
+    if (json.as_object().count("id")) {
+        return json.as_object().at("id").as_string();
+    }
+    return "";
 }
 
 TissDB::Document TissDBClient::get_document(const std::string& collection, const std::string& doc_id) {
@@ -93,7 +99,14 @@ std::map<std::string, std::string> TissDBClient::get_stats() {
 }
 
 std::string TissDBClient::add_feedback(const TissDB::Document& feedback_data) {
-    return "dummy_feedback_id";
+    std::string url = base_url_ + "/feedback";
+    std::string feedback_json = to_json(feedback_data);
+    std::string response_json = http_client_->post(url, feedback_json);
+    TissDB::Json::JsonValue json = TissDB::Json::JsonValue::parse(response_json);
+    if (json.as_object().count("id")) {
+        return json.as_object().at("id").as_string();
+    }
+    return "";
 }
 
 bool TissDBClient::test_connection() {
