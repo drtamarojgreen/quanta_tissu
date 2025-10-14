@@ -34,6 +34,9 @@ private:
 
     // Helper to parse URL
     void parse_url(const std::string& url, std::string& host, int& port, std::string& path);
+
+    // Helper to check HTTP status
+    void check_response_status(const std::string& response);
 };
 
 } // namespace TissDB
