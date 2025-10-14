@@ -83,7 +83,7 @@ void test_db_connection() {
     std::cout << "\n=== Testing Database Connection ===" << std::endl;
     
     try {
-        TissDBClient client("127.0.0.1", 9876, "test_cpp_db");
+        TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
         
         if (client.test_connection()) {
             results.record_pass("Database connection");
@@ -99,7 +99,7 @@ void test_db_setup() {
     std::cout << "\n=== Testing Database Setup ===" << std::endl;
     
     try {
-        TissDBClient client("127.0.0.1", 9876, "test_cpp_db");
+        TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
         std::vector<std::string> collections = {"test_docs", "test_embeddings", "test_feedback"};
         
         if (client.ensure_db_setup(collections)) {
@@ -116,7 +116,7 @@ void test_document_crud() {
     std::cout << "\n=== Testing Document CRUD Operations ===" << std::endl;
     
     try {
-        TissDBClient client("127.0.0.1", 9876, "test_cpp_db");
+        TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
         std::vector<std::string> collections = {"test_docs"};
         client.ensure_db_setup(collections);
         
@@ -159,7 +159,7 @@ void test_feedback_collection() {
     std::cout << "\n=== Testing Feedback Collection ===" << std::endl;
     
     try {
-        TissDBClient client("127.0.0.1", 9876, "test_cpp_db");
+        TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
         std::vector<std::string> collections = {"feedback"};
         client.ensure_db_setup(collections);
         
@@ -185,7 +185,7 @@ void test_multiple_documents() {
     std::cout << "\n=== Testing Multiple Document Operations ===" << std::endl;
     
     try {
-        TissDBClient client("127.0.0.1", 9876, "test_cpp_db");
+        TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
         std::vector<std::string> collections = {"test_docs"};
         client.ensure_db_setup(collections);
         
@@ -237,7 +237,7 @@ void test_document_search() {
     std::cout << "\n=== Testing Document Search ===" << std::endl;
     
     try {
-        TissDBClient client("127.0.0.1", 9876, "test_cpp_db");
+        TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
         std::vector<std::string> collections = {"search_docs"};
         client.ensure_db_setup(collections);
         
@@ -451,7 +451,7 @@ void test_db_with_embeddings() {
     std::cout << "\n=== Testing Database with Embeddings ===" << std::endl;
     
     try {
-        TissDBClient client("127.0.0.1", 9876, "test_cpp_db");
+        TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
         std::vector<std::string> collections = {"embeddings"};
         client.ensure_db_setup(collections);
         
