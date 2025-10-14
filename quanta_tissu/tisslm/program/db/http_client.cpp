@@ -160,6 +160,7 @@ std::string HttpClient::get(const std::string& url) {
     if (status_code < 200 || status_code >= 300) {
         throw HttpClientException("HTTP Error: " + status_line);
     }
+    check_response_status(response);
 
     size_t header_end = response.find("\r\n\r\n");
     if (header_end != std::string::npos) {
@@ -195,12 +196,43 @@ std::string HttpClient::post(const std::string& url, const std::string& body) {
     if (status_code < 200 || status_code >= 300) {
         throw HttpClientException("HTTP Error: " + status_line);
     }
+    check_response_status(response);
 
     size_t header_end = response.find("\r\n\r\n");
     if (header_end != std::string::npos) {
         return response.substr(header_end + 4);
     }
     return "";
+}
+
+void HttpClient::check_response_status(const std::string& response) {
+    size_t first_line_end = response.find("\r\n");
+    if (first_line_end == std::string::npos) {
+        throw HttpClientException("Invalid HTTP response: no status line");
+    }
+    std::string status_line = response.substr(0, first_line_end);
+    size_t code_pos = status_line.find(' ');
+    if (code_pos == std::string::npos) {
+        throw HttpClientException("Invalid HTTP status line: " + status_line);
+    }
+    // Skip version part, find next space
+    code_pos++;
+    size_t code_end_pos = status_line.find(' ', code_pos);
+     if (code_end_pos == std::string::npos) {
+        throw HttpClientException("Invalid HTTP status line: " + status_line);
+    }
+
+    std::string status_code_str = status_line.substr(code_pos, code_end_pos - code_pos);
+    int status_code = 0;
+    try {
+        status_code = std::stoi(status_code_str);
+    } catch (...) {
+        throw HttpClientException("Invalid HTTP status code: " + status_code_str);
+    }
+
+    if (status_code < 200 || status_code >= 300) {
+        throw HttpClientException("HTTP Error: " + status_line);
+    }
 }
 
 } // namespace TissDB
