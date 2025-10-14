@@ -38,6 +38,9 @@ private:
     void parse_url(const std::string& url, std::string& host, int& port, std::string& path);
     // Helper to parse status line
     void parse_status_line(const std::string& status_line, int& status_code, std::string& reason_phrase);
+
+    // Helper to check HTTP status
+    void check_response_status(const std::string& response);
 };
 
 } // namespace TissDB
