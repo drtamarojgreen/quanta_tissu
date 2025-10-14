@@ -57,17 +57,12 @@ The trainer implements backward passes for all model components:
 ```cpp
 class Trainer {
 public:
-<<<<<<< HEAD
     Trainer(Model* model,
-=======
-    Trainer(Model* model, 
->>>>>>> e72c5ea98e23e69a621ac711e1bc76496d6d3f0e
             Optimizer* optimizer,
             LossFunction* loss_fn,
             LRScheduler* scheduler,
             Dataset* dataset,
             const TrainingConfig& config);
-<<<<<<< HEAD
 
     // Main training loop
     void train();
@@ -82,22 +77,6 @@ public:
     void save_checkpoint(int epoch, int step);
     void load_checkpoint(const std::string& path);
 
-=======
-    
-    // Main training loop
-    void train();
-    
-    // Single training step
-    float train_step(const Matrix& x_batch, const Matrix& y_batch);
-    
-    // Validation
-    float validate(Dataset* val_dataset);
-    
-    // Checkpoint management
-    void save_checkpoint(int epoch, int step);
-    void load_checkpoint(const std::string& path);
-    
->>>>>>> e72c5ea98e23e69a621ac711e1bc76496d6d3f0e
 private:
     // Backward pass implementations
     void backward(const Matrix& d_logits, const ModelCache& cache);
@@ -105,31 +84,19 @@ private:
     void backward_layernorm(Matrix& d_out, const LayerNormCache& cache);
     void backward_ffn(Matrix& d_out, const FFNCache& cache);
     void backward_mha(Matrix& d_out, const MHACache& cache);
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> e72c5ea98e23e69a621ac711e1bc76496d6d3f0e
     // Gradient utilities
     float compute_grad_norm();
     void clip_gradients(float max_norm);
     void zero_gradients();
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> e72c5ea98e23e69a621ac711e1bc76496d6d3f0e
     Model* model_;
     Optimizer* optimizer_;
     LossFunction* loss_fn_;
     LRScheduler* scheduler_;
     Dataset* dataset_;
     TrainingConfig config_;
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> e72c5ea98e23e69a621ac711e1bc76496d6d3f0e
     // Training state
     int current_epoch_;
     int current_step_;
@@ -289,7 +256,6 @@ for (int epoch = 0; epoch < num_epochs; ++epoch) {
     for (auto [x_batch, y_batch] : dataset) {
         // Forward pass
         auto [logits, cache] = model.forward(x_batch);
-<<<<<<< HEAD
 
         // Compute loss
         float loss = loss_fn.forward(logits, y_batch);
@@ -316,43 +282,11 @@ for (int epoch = 0; epoch < num_epochs; ++epoch) {
                      << ", LR: " << lr << std::endl;
         }
 
-=======
-        
-        // Compute loss
-        float loss = loss_fn.forward(logits, y_batch);
-        
-        // Backward pass
-        auto d_logits = loss_fn.backward();
-        trainer.backward(d_logits, cache);
-        
-        // Clip gradients
-        trainer.clip_gradients(1.0f);
-        
-        // Update parameters
-        optimizer.step();
-        
-        // Update learning rate
-        float lr = scheduler.step(step);
-        
-        // Zero gradients
-        optimizer.zero_grad();
-        
-        // Log
-        if (step % 10 == 0) {
-            std::cout << "Step " << step << ", Loss: " << loss 
-                     << ", LR: " << lr << std::endl;
-        }
-        
->>>>>>> e72c5ea98e23e69a621ac711e1bc76496d6d3f0e
         // Save checkpoint
         if (step % 1000 == 0) {
             trainer.save_checkpoint(epoch, step);
         }
-<<<<<<< HEAD
 
-=======
-        
->>>>>>> e72c5ea98e23e69a621ac711e1bc76496d6d3f0e
         step++;
     }
 }
