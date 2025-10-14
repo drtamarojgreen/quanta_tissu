@@ -17,10 +17,12 @@ public:
     HttpClient();
     ~HttpClient();
 
+    void set_token(const std::string& token);
     std::string get(const std::string& url);
     std::string post(const std::string& url, const std::string& body);
 
 private:
+    std::string token_;
     // Platform-specific socket initialization/cleanup
     void platform_init();
     void platform_cleanup();
@@ -34,6 +36,8 @@ private:
 
     // Helper to parse URL
     void parse_url(const std::string& url, std::string& host, int& port, std::string& path);
+    // Helper to parse status line
+    void parse_status_line(const std::string& status_line, int& status_code, std::string& reason_phrase);
 };
 
 } // namespace TissDB

@@ -59,11 +59,14 @@ std::string to_json(const TissDB::Document& doc) {
     return TissDB::Json::JsonValue(obj).serialize();
 }
 
-TissDBClient::TissDBClient(const std::string& host, int port, const std::string& db_name)
+TissDBClient::TissDBClient(const std::string& host, int port, const std::string& db_name, const std::string& token)
     : host_(host), port_(port), db_name_(db_name) {
     base_url_ = "http://" + host_ + ":" + std::to_string(port_);
     db_url_ = base_url_ + "/db/" + db_name_;
     http_client_ = std::make_unique<HttpClient>();
+    if (!token.empty()) {
+        http_client_->set_token(token);
+    }
 }
 
 TissDBClient::~TissDBClient() = default;
