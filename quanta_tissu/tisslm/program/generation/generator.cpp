@@ -112,38 +112,6 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
             processed_logits(0, pair.first) += pair.second;
         }
     }
-
-} // namespace Core
-
-namespace {
-    // Softmax function
-    TissNum::Matrix softmax(const TissNum::Matrix& input) {
-        TissNum::Matrix output(input.rows(), input.cols());
-        for (int r = 0; r < input.rows(); ++r) {
-            float max_val = -std::numeric_limits<float>::infinity();
-            for (int c = 0; c < input.cols(); ++c) {
-                if (input(r, c) > max_val) {
-                    max_val = input(r, c);
-                }
-            }
-
-            float sum_exp = 0.0f;
-            for (int c = 0; c < input.cols(); ++c) {
-                output(r, c) = std::exp(input(r, c) - max_val);
-                sum_exp += output(r, c);
-            }
-
-            for (int c = 0; c < input.cols(); ++c) {
-                output(r, c) = output(r, c) / sum_exp;
-            }
-        }
-        return output;
-    }
-} // anonymous namespace
-
-namespace Core {
-
-
     TissNum::Matrix probabilities = softmax(processed_logits);
 
     if (config_.method == "random" || config_.method == "sampling") {
@@ -224,7 +192,36 @@ namespace Core {
         int sampled_index = d(gen);
         return token_probs[sampled_index].second;
     }
+
 }
+
+namespace {
+    // Softmax function
+    TissNum::Matrix softmax(const TissNum::Matrix& input) {
+        TissNum::Matrix output(input.rows(), input.cols());
+        for (int r = 0; r < input.rows(); ++r) {
+            float max_val = -std::numeric_limits<float>::infinity();
+            for (int c = 0; c < input.cols(); ++c) {
+                if (input(r, c) > max_val) {
+                    max_val = input(r, c);
+                }
+            }
+
+            float sum_exp = 0.0f;
+            for (int c = 0; c < input.cols(); ++c) {
+                output(r, c) = std::exp(input(r, c) - max_val);
+                sum_exp += output(r, c);
+            }
+
+            for (int c = 0; c < input.cols(); ++c) {
+                output(r, c) = output(r, c) / sum_exp;
+            }
+        }
+        return output;
+    }
+} // anonymous namespace
+
+namespace Core {
 
 std::vector<int> Generator::beam_search(const std::vector<int>& prompt_tokens, int n_new_tokens, int beam_width, int eos_id) {
     std::vector<std::pair<std::vector<int>, float>> beams;
@@ -430,6 +427,7 @@ std::vector<int> Generator::mirostat_sampling(const std::vector<int>& prompt_tok
         }
 
         generated_tokens.push_back(next_token);
+    }
     return generated_tokens;
 }
 
