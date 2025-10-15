@@ -62,7 +62,7 @@ std::string to_json(const TissDB::Document& doc) {
 TissDBClient::TissDBClient(const std::string& host, int port, const std::string& db_name, const std::string& token)
     : host_(host), port_(port), db_name_(db_name) {
     base_url_ = "http://" + host_ + ":" + std::to_string(port_);
-    db_url_ = base_url_ + "/db/" + db_name_;
+    db_url_ = base_url_ + "/" + db_name_; // Corrected DB URL
     http_client_ = std::make_unique<HttpClient>();
     if (!token.empty()) {
         http_client_->set_token(token);
@@ -78,21 +78,33 @@ bool TissDBClient::ensure_db_setup(const std::vector<std::string>& collections) 
 }
 
 std::string TissDBClient::add_document(const std::string& collection, const TissDB::Document& document, const std::string& doc_id) {
-    std::string url = db_url_ + "/collection/" + collection + "/document";
-    if (!doc_id.empty()) {
-        url += "/" + doc_id;
-    }
+    std::string url = db_url_ + "/" + collection;
     std::string doc_json = to_json(document);
-    std::string response_json = http_client_->post(url, doc_json);
+    std::string response_json;
+
+    if (!doc_id.empty()) {
+        // PUT to /<db>/<collection>/<doc_id> for creation/update with specific ID
+        url += "/" + doc_id;
+        response_json = http_client_->put(url, doc_json);
+    } else {
+        // POST to /<db>/<collection> for creation with generated ID
+        response_json = http_client_->post(url, doc_json);
+    }
+
     TissDB::Json::JsonValue json = TissDB::Json::JsonValue::parse(response_json);
-    if (json.as_object().count("id")) {
+    if (json.is_object() && json.as_object().count("id")) {
         return json.as_object().at("id").as_string();
+    }
+    // PUT might return the full document, not an ID object.
+    // If an ID was provided, we can assume it was successful on a 2xx response.
+    if (!doc_id.empty()) {
+        return doc_id;
     }
     return "";
 }
 
 TissDB::Document TissDBClient::get_document(const std::string& collection, const std::string& doc_id) {
-    std::string url = db_url_ + "/collection/" + collection + "/document/" + doc_id;
+    std::string url = db_url_ + "/" + collection + "/" + doc_id;
     std::string response_json = http_client_->get(url);
     return from_json(response_json);
 }
@@ -102,7 +114,8 @@ std::map<std::string, std::string> TissDBClient::get_stats() {
 }
 
 std::string TissDBClient::add_feedback(const TissDB::Document& feedback_data) {
-    std::string url = base_url_ + "/feedback";
+    // Corrected to post to a collection within the database, e.g., /<db_name>/feedback
+    std::string url = db_url_ + "/feedback";
     std::string feedback_json = to_json(feedback_data);
     std::string response_json = http_client_->post(url, feedback_json);
     TissDB::Json::JsonValue json = TissDB::Json::JsonValue::parse(response_json);
@@ -126,7 +139,7 @@ bool TissDBClient::test_connection() {
 }
 
 std::vector<TissDB::Document> TissDBClient::search_documents(const std::string& collection, const std::string& query_json) {
-    std::string url = db_url_ + "/collection/" + collection + "/_search";
+    std::string url = db_url_ + "/" + collection + "/_search";
     std::string response_json = http_client_->post(url, query_json);
     TissDB::Json::JsonValue json = TissDB::Json::JsonValue::parse(response_json);
     std::vector<TissDB::Document> docs;
