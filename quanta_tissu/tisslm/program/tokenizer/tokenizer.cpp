@@ -33,10 +33,12 @@ std::map<int, std::vector<unsigned char>> parse_vocab_from_json(const std::strin
 }
 
 Tokenizer::Tokenizer(const std::string& prefix) {
-    std::string vocab_path = prefix + "_vocab.json";
-    std::string merges_path = prefix + "_merges.txt";
-    load_vocab(vocab_path);
-    load_merges(merges_path);
+    if (!prefix.empty()) {
+        std::string vocab_path = prefix + "_vocab.json";
+        std::string merges_path = prefix + "_merges.txt";
+        load_vocab(vocab_path);
+        load_merges(merges_path);
+    }
 }
 
 void Tokenizer::load_vocab(const std::string& vocab_path) {
@@ -71,29 +73,26 @@ std::vector<int> Tokenizer::bpe_encode(const std::vector<unsigned char>& bytes) 
     std::vector<int> ids(bytes.begin(), bytes.end());
 
     while (ids.size() >= 2) {
-        auto best_pair_it = merges.end();
-        int min_rank = -1;
-        std::pair<int, int> best_pair;
+        auto pairs = get_pairs(ids);
+        auto best_pair_it = std::min_element(pairs.begin(), pairs.end(),
+            [this](const auto& a, const auto& b) {
+                auto it_a = this->merges.find(a);
+                auto it_b = this->merges.find(b);
+                if (it_a == this->merges.end()) return false;
+                if (it_b == this->merges.end()) return true;
+                return it_a->second < it_b->second;
+            });
 
-        for (size_t i = 0; i < ids.size() - 1; ++i) {
-            std::pair<int, int> pair = {ids[i], ids[i+1]};
-            auto it = merges.find(pair);
-            if (it != merges.end()) {
-                if (min_rank == -1 || it->second < min_rank) {
-                    min_rank = it->second;
-                    best_pair = pair;
-                }
-            }
+        if (this->merges.find(*best_pair_it) == this->merges.end()) {
+            break; // No more merges are possible
         }
 
-        if (min_rank == -1) {
-            break;
-        }
-
+        std::pair<int, int> best_pair = *best_pair_it;
+        int new_id = this->merges.at(best_pair);
         std::vector<int> new_ids;
         for (size_t i = 0; i < ids.size();) {
             if (i < ids.size() - 1 && ids[i] == best_pair.first && ids[i+1] == best_pair.second) {
-                new_ids.push_back(merges.at(best_pair));
+                new_ids.push_back(new_id);
                 i += 2;
             } else {
                 new_ids.push_back(ids[i]);
@@ -131,9 +130,184 @@ std::string Tokenizer::decode(const std::vector<int>& token_ids) {
             all_bytes.insert(all_bytes.end(), it->second.begin(), it->second.end());
         }
     }
-    return std::string(all_bytes.begin(), all_bytes.end());
+
+    std::string text;
+    text.reserve(all_bytes.size());
+    for (size_t i = 0; i < all_bytes.size(); ) {
+        unsigned char byte1 = all_bytes[i];
+        int num_bytes = 0;
+
+        if (byte1 < 0x80) { // 0xxxxxxx (ASCII)
+            num_bytes = 1;
+        } else if ((byte1 & 0xE0) == 0xC0) { // 110xxxxx
+            num_bytes = 2;
+        } else if ((byte1 & 0xF0) == 0xE0) { // 1110xxxx
+            num_bytes = 3;
+        } else if ((byte1 & 0xF8) == 0xF0) { // 11110xxx
+            num_bytes = 4;
+        } else {
+            // Invalid start byte, replace with replacement character
+            text += "\xEF\xBF\xBD";
+            i += 1;
+            continue;
+        }
+
+        if (i + num_bytes > all_bytes.size()) {
+            // Incomplete character at the end
+            text += "\xEF\xBF\xBD";
+            break;
+        }
+
+        // Check for valid continuation bytes
+        bool valid = true;
+        for (int j = 1; j < num_bytes; ++j) {
+            if ((all_bytes[i + j] & 0xC0) != 0x80) {
+                valid = false;
+                break;
+            }
+        }
+
+        if (valid) {
+            text.append(reinterpret_cast<const char*>(&all_bytes[i]), num_bytes);
+        } else {
+            text += "\xEF\xBF\xBD";
+        }
+        i += num_bytes;
+    }
+    
+    return text;
 }
 
 int Tokenizer::get_vocab_size() const {
     return vocab.size();
+}
+
+#include <regex>
+#include <algorithm>
+#include <set>
+
+// Helper function to find consecutive pairs of IDs in a list.
+std::set<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
+    std::set<std::pair<int, int>> pairs;
+    for (size_t i = 0; i < ids.size() - 1; ++i) {
+        pairs.insert({ids[i], ids[i+1]});
+    }
+    return pairs;
+}
+
+void Tokenizer::train(const std::string& text, int vocab_size, bool verbose) {
+    if (vocab_size < 256) {
+        throw std::invalid_argument("Vocabulary size must be at least 256 to cover all bytes.");
+    }
+
+    // 1. Pre-tokenize the text
+    std::regex pre_tokenizer(R"('s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)");
+    auto words_begin = std::sregex_iterator(text.begin(), text.end(), pre_tokenizer);
+    auto words_end = std::sregex_iterator();
+
+    std::vector<std::vector<int>> word_byte_sequences;
+    for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
+        std::smatch match = *i;
+        std::string word = match.str();
+        std::vector<int> byte_sequence;
+        for (char c : word) {
+            byte_sequence.push_back(static_cast<unsigned char>(c));
+        }
+        word_byte_sequences.push_back(byte_sequence);
+    }
+
+    // 2. Initialize vocabulary with all individual bytes (0-255)
+    this->vocab.clear();
+    for (int i = 0; i < 256; ++i) {
+        this->vocab[i] = {static_cast<unsigned char>(i)};
+    }
+
+    // 3. Iteratively merge the most frequent pair of tokens
+    int num_merges = vocab_size - 256;
+    for (int i = 0; i < num_merges; ++i) {
+        std::map<std::pair<int, int>, int> pair_counts;
+        for (const auto& sequence : word_byte_sequences) {
+            for (const auto& pair : get_pairs(sequence)) {
+                pair_counts[pair]++;
+            }
+        }
+
+        if (pair_counts.empty()) {
+            break; // No more pairs to merge
+        }
+
+        auto best_pair = std::max_element(pair_counts.begin(), pair_counts.end(),
+            [](const auto& a, const auto& b) {
+                return a.second < b.second;
+            })->first;
+
+        int new_token_id = 256 + i;
+        this->merges[best_pair] = new_token_id;
+        std::vector<unsigned char> new_token_bytes = this->vocab[best_pair.first];
+        new_token_bytes.insert(new_token_bytes.end(), this->vocab[best_pair.second].begin(), this->vocab[best_pair.second].end());
+        this->vocab[new_token_id] = new_token_bytes;
+
+        std::vector<std::vector<int>> new_word_byte_sequences;
+        for (const auto& sequence : word_byte_sequences) {
+            std::vector<int> new_sequence;
+            for (size_t j = 0; j < sequence.size();) {
+                if (j < sequence.size() - 1 && sequence[j] == best_pair.first && sequence[j+1] == best_pair.second) {
+                    new_sequence.push_back(new_token_id);
+                    j += 2;
+                } else {
+                    new_sequence.push_back(sequence[j]);
+                    j += 1;
+                }
+            }
+            new_word_byte_sequences.push_back(new_sequence);
+        }
+        word_byte_sequences = new_word_byte_sequences;
+
+        if (verbose) {
+            std::cout << "Merge " << i+1 << "/" << num_merges << ": (" << best_pair.first << ", " << best_pair.second << ") -> " << new_token_id << std::endl;
+        }
+    }
+
+    // Create the reverse vocabulary for decoding
+    this->reverse_vocab.clear();
+    for (const auto& pair : this->vocab) {
+        this->reverse_vocab[pair.second] = pair.first;
+    }
+}
+
+void Tokenizer::save(const std::string& prefix) {
+    std::string vocab_path = prefix + "_vocab.json";
+    std::string merges_path = prefix + "_merges.txt";
+
+    // Save vocabulary
+    std::ofstream vocab_file(vocab_path);
+    if (vocab_file.is_open()) {
+        vocab_file << "{";
+        bool first = true;
+        for (const auto& pair : this->vocab) {
+            if (!first) {
+                vocab_file << ", ";
+            }
+            vocab_file << "\"" << pair.first << "\": [";
+            bool first_byte = true;
+            for (unsigned char byte : pair.second) {
+                if (!first_byte) {
+                    vocab_file << ", ";
+                }
+                vocab_file << static_cast<int>(byte);
+                first_byte = false;
+            }
+            vocab_file << "]";
+            first = false;
+        }
+        vocab_file << "}";
+    }
+
+    // Save merges
+    std::ofstream merges_file(merges_path);
+    if (merges_file.is_open()) {
+        for (const auto& pair : this->merges) {
+            merges_file << pair.first.first << " " << pair.first.second << " " << pair.second << std::endl;
+        }
+    }
 }

@@ -21,7 +21,15 @@ public:
     std::vector<int> generate(const std::vector<int>& prompt_tokens, int max_new_tokens);
 
     // Helper for sampling
-    int sample_token(const TissNum::Matrix& logits);
+    int sample_token(const TissNum::Matrix& logits, const std::vector<int>& past_tokens);
+
+    std::vector<int> beam_search(const std::vector<int>& prompt_tokens, int n_new_tokens, int beam_width, int eos_id);
+
+    std::vector<int> contrastive_search(const std::vector<int>& prompt_tokens, int n_new_tokens, int beam_width, float alpha, int eos_id);
+
+    std::vector<int> mirostat_sampling(const std::vector<int>& prompt_tokens, int n_new_tokens, float tau, float eta, int eos_id);
+
+    std::vector<int> speculative_sampling(const std::vector<int>& prompt_tokens, int n_new_tokens);
 
 private:
     std::shared_ptr<Model> model_;

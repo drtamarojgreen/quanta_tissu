@@ -13,6 +13,9 @@ public:
     std::string decode(const std::vector<int>& token_ids);
     int get_vocab_size() const;
 
+    void train(const std::string& text, int vocab_size, bool verbose = false);
+    void save(const std::string& prefix);
+
 private:
     std::map<std::pair<int, int>, int> merges;
     std::map<int, std::vector<unsigned char>> vocab;

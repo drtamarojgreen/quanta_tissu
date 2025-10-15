@@ -21,6 +21,7 @@ public:
     std::string get(const std::string& url);
     std::string post(const std::string& url, const std::string& body);
     std::string put(const std::string& url, const std::string& body);
+    std::string del(const std::string& url);
 
 private:
     std::string token_;

@@ -5,6 +5,8 @@
 #include "optimizer.h"
 #include "loss_function.h"
 
+#include "dataset.h"
+
 #include <memory>
 #include <vector>
 #include <iostream>
@@ -22,8 +24,7 @@ public:
     );
 
     void train(
-        const std::vector<TissNum::Matrix>& train_data,
-        const std::vector<TissNum::Matrix>& train_labels,
+        TissDB::TissLM::Training::TokenDataset& dataset, // Use TokenDataset
         int epochs,
         int batch_size
     );

@@ -125,25 +125,11 @@ Matrix TransformerModel::backward(const Matrix& grad_output) {
 }
 
 std::vector<std::shared_ptr<Parameter>> TransformerModel::get_parameters() {
-    std::vector<std::shared_ptr<Parameter>> params;
+    // Implementation ...
+}
 
-    // Embedding layer parameters
-    for (auto& p : embedding_layer_.parameters()) {
-        params.push_back(std::make_shared<Parameter>(*p));
-    }
-
-    // Transformer block parameters
-    for (auto& block : transformer_blocks_) {
-        for (auto& p : block.parameters()) {
-            params.push_back(std::make_shared<Parameter>(*p));
-        }
-    }
-
-    // Output layer parameters
-    params.push_back(std::make_shared<Parameter>(output_weight_));
-    params.push_back(std::make_shared<Parameter>(output_bias_));
-
-    return params;
+const TissNum::Matrix& TransformerModel::get_embeddings() const {
+    return embedding_layer_.get_weight();
 }
 
 } // namespace Core

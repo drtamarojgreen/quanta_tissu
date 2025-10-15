@@ -26,6 +26,8 @@ public:
     // Get parameters
     std::vector<Parameter*> parameters();
 
+    const Matrix& get_weight() const;
+
 private:
     size_t vocab_size_;
     size_t d_model_;

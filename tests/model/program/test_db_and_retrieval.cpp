@@ -117,31 +117,28 @@ void test_document_crud() {
     
     try {
         TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
-        std::vector<std::string> collections = {"test_docs"};
-        client.ensure_db_setup(collections);
+        std::string collection = "test_docs";
+        client.ensure_db_setup({collection});
         
         // Create
-        Document doc;
-        set_field(doc, "title", "Test Document");
-        set_field(doc, "content", "This is test content");
-        set_field(doc, "author", "Unit Test");
-        
-        std::string doc_id = client.add_document("test_docs", doc);
-        
-        if (!doc_id.empty()) {
+        std::string insert_query = "INSERT INTO " + collection + " (_id, title, content, author) VALUES ('doc1', 'Test Document', 'This is test content', 'Unit Test');";
+        try {
+            client.query(collection, insert_query);
             results.record_pass("Document creation");
-        } else {
-            results.record_fail("Document creation", "Empty document ID returned");
+        } catch (const std::exception& e) {
+            results.record_fail("Document creation", e.what());
             return;
         }
         
         // Read
+        std::string select_query = "SELECT title, content, author FROM " + collection + " WHERE _id = 'doc1';";
         try {
-            Document retrieved = client.get_document("test_docs", doc_id);
-            
-            if (get_field(retrieved, "title") == "Test Document" &&
-                get_field(retrieved, "content") == "This is test content" &&
-                get_field(retrieved, "author") == "Unit Test") {
+            std::string response = client.query(collection, select_query);
+            // NOTE: The C++ JSON parser is not available here.
+            // We will do a simple string search for now.
+            if (response.find("Test Document") != std::string::npos &&
+                response.find("This is test content") != std::string::npos &&
+                response.find("Unit Test") != std::string::npos) {
                 results.record_pass("Document retrieval");
             } else {
                 results.record_fail("Document retrieval", "Retrieved data doesn't match");
@@ -149,7 +146,53 @@ void test_document_crud() {
         } catch (const std::exception& e) {
             results.record_fail("Document retrieval", e.what());
         }
-        
+
+        // Update
+        std::string update_query = "UPDATE " + collection + " SET content = 'This is updated content' WHERE _id = 'doc1';";
+        try {
+            client.query(collection, update_query);
+            results.record_pass("Document update");
+        } catch (const std::exception& e) {
+            results.record_fail("Document update", e.what());
+            return;
+        }
+
+        // Verify Update
+        std::string verify_update_query = "SELECT content FROM " + collection + " WHERE _id = 'doc1';";
+        try {
+            std::string response = client.query(collection, verify_update_query);
+            if (response.find("This is updated content") != std::string::npos) {
+                results.record_pass("Document update verification");
+            } else {
+                results.record_fail("Document update verification", "Updated data not found");
+            }
+        } catch (const std::exception& e) {
+            results.record_fail("Document update verification", e.what());
+        }
+
+        // Delete
+        std::string delete_query = "DELETE FROM " + collection + " WHERE _id = 'doc1';";
+        try {
+            client.query(collection, delete_query);
+            results.record_pass("Document deletion");
+        } catch (const std::exception& e) {
+            results.record_fail("Document deletion", e.what());
+            return;
+        }
+
+        // Verify Delete
+        std::string verify_delete_query = "SELECT _id FROM " + collection + " WHERE _id = 'doc1';";
+        try {
+            std::string response = client.query(collection, verify_delete_query);
+            if (response == "[]") {
+                results.record_pass("Document deletion verification");
+            } else {
+                results.record_fail("Document deletion verification", "Document not deleted");
+            }
+        } catch (const std::exception& e) {
+            results.record_fail("Document deletion verification", e.what());
+        }
+
     } catch (const std::exception& e) {
         results.record_fail("Document CRUD", e.what());
     }
@@ -160,21 +203,15 @@ void test_feedback_collection() {
     
     try {
         TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
-        std::vector<std::string> collections = {"feedback"};
-        client.ensure_db_setup(collections);
+        std::string collection = "feedback";
+        client.ensure_db_setup({collection});
         
-        Document feedback;
-        set_field(feedback, "rating", "5");
-        set_field(feedback, "comment", "Excellent system!");
-        set_field(feedback, "user", "test_user");
-        set_field(feedback, "feature", "retrieval");
-        
-        std::string feedback_id = client.add_feedback(feedback);
-        
-        if (!feedback_id.empty() && feedback_id.find("feedback_") == 0) {
+        std::string insert_query = "INSERT INTO " + collection + " (rating, comment, user, feature) VALUES (5, 'Excellent system!', 'test_user', 'retrieval');";
+        try {
+            client.query(collection, insert_query);
             results.record_pass("Feedback collection");
-        } else {
-            results.record_fail("Feedback collection", "Invalid feedback ID");
+        } catch (const std::exception& e) {
+            results.record_fail("Feedback collection", e.what());
         }
     } catch (const std::exception& e) {
         results.record_fail("Feedback collection", e.what());
@@ -186,46 +223,42 @@ void test_multiple_documents() {
     
     try {
         TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
-        std::vector<std::string> collections = {"test_docs"};
-        client.ensure_db_setup(collections);
-        
-        std::vector<std::string> doc_ids;
+        std::string collection = "test_docs";
+        client.ensure_db_setup({collection});
         
         // Add multiple documents
+        int created_count = 0;
         for (int i = 0; i < 5; ++i) {
-            Document doc;
-            set_field(doc, "title", "Document " + std::to_string(i));
-            set_field(doc, "content", "Content for document " + std::to_string(i));
-            set_field(doc, "index", std::to_string(i));
-            
-            std::string doc_id = client.add_document("test_docs", doc);
-            doc_ids.push_back(doc_id);
+            std::string title = "Document " + std::to_string(i);
+            std::string content = "Content for document " + std::to_string(i);
+            std::string doc_id = "doc" + std::to_string(i);
+            std::string insert_query = "INSERT INTO " + collection + " (_id, title, content, idx) VALUES ('" + doc_id + "', '" + title + "', '" + content + "', " + std::to_string(i) + ");";
+            try {
+                client.query(collection, insert_query);
+                created_count++;
+            } catch (const std::exception& e) {
+                // fail silently
+            }
         }
         
-        if (doc_ids.size() == 5) {
+        if (created_count == 5) {
             results.record_pass("Multiple document creation");
         } else {
             results.record_fail("Multiple document creation", "Not all documents created");
         }
         
         // Verify all documents
-        int verified = 0;
-        for (size_t i = 0; i < doc_ids.size(); ++i) {
-            try {
-                Document retrieved = client.get_document("test_docs", doc_ids[i]);
-                if (get_field(retrieved, "index") == std::to_string(i)) {
-                    verified++;
-                }
-            } catch (...) {
-                // Document not found
+        std::string select_query = "SELECT COUNT(*) FROM " + collection + ";";
+        try {
+            std::string response = client.query(collection, select_query);
+            // A bit of a hack to parse the count
+            if (response.find("[{\"COUNT(*)\":5}]") != std::string::npos) {
+                results.record_pass("Multiple document retrieval");
+            } else {
+                results.record_fail("Multiple document retrieval", "Verification query failed. Response: " + response);
             }
-        }
-        
-        if (verified == 5) {
-            results.record_pass("Multiple document retrieval");
-        } else {
-            results.record_fail("Multiple document retrieval", 
-                              "Only " + std::to_string(verified) + "/5 documents verified");
+        } catch (const std::exception& e) {
+            results.record_fail("Multiple document retrieval", e.what());
         }
         
     } catch (const std::exception& e) {
@@ -238,53 +271,51 @@ void test_document_search() {
     
     try {
         TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
-        std::vector<std::string> collections = {"search_docs"};
-        client.ensure_db_setup(collections);
+        std::string collection = "search_docs";
+        client.ensure_db_setup({collection});
         
         // Add sample documents
-        Document doc1;
-        set_field(doc1, "title", "Mars Mission Overview");
-        set_field(doc1, "content", "The first manned mission to Mars, named 'Ares 1', is scheduled for 2035.");
-        client.add_document("search_docs", doc1, "doc_mars");
-
-        Document doc2;
-        set_field(doc2, "title", "Moon Landing History");
-        set_field(doc2, "content", "The Apollo 11 mission landed humans on the Moon in 1969.");
-        client.add_document("search_docs", doc2, "doc_moon");
-
-        Document doc3;
-        set_field(doc3, "title", "Future Space Exploration");
-        set_field(doc3, "content", "Plans for future space exploration include missions to Jupiter's moons.");
-        client.add_document("search_docs", doc3, "doc_jupiter");
+        client.query(collection, "INSERT INTO " + collection + " (_id, title, content) VALUES ('doc_mars', 'Mars Mission Overview', 'The first manned mission to Mars, named ''Ares 1'', is scheduled for 2035.');");
+        client.query(collection, "INSERT INTO " + collection + " (_id, title, content) VALUES ('doc_moon', 'Moon Landing History', 'The Apollo 11 mission landed humans on the Moon in 1969.');");
+        client.query(collection, "INSERT INTO " + collection + " (_id, title, content) VALUES ('doc_jupiter', 'Future Space Exploration', 'Plans for future space exploration include missions to Jupiter\'s moons.');");
         
         // Search for documents containing "Mars"
-        std::string query_json = "{\"query\": \"Mars\"}";
-        std::vector<Document> search_results = client.search_documents("search_docs", query_json);
-        
-        if (search_results.size() == 1 && get_field(search_results[0], "title") == "Mars Mission Overview") {
-            results.record_pass("Document search for 'Mars'");
-        } else {
-            results.record_fail("Document search for 'Mars'", "Unexpected search results or count");
+        std::string mars_query = "SELECT title FROM " + collection + " WHERE content LIKE '%Mars%';";
+        try {
+            std::string response = client.query(collection, mars_query);
+            if (response.find("Mars Mission Overview") != std::string::npos) {
+                results.record_pass("Document search for 'Mars'");
+            } else {
+                results.record_fail("Document search for 'Mars'", "Unexpected search results. Response: " + response);
+            }
+        } catch (const std::exception& e) {
+            results.record_fail("Document search for 'Mars'", e.what());
         }
 
         // Search for documents containing "Moon"
-        query_json = "{\"query\": \"Moon\"}";
-        search_results = client.search_documents("search_docs", query_json);
-
-        if (search_results.size() == 1 && get_field(search_results[0], "title") == "Moon Landing History") {
-            results.record_pass("Document search for 'Moon'");
-        } else {
-            results.record_fail("Document search for 'Moon'", "Unexpected search results or count for 'Moon'");
+        std::string moon_query = "SELECT title FROM " + collection + " WHERE content LIKE '%Moon%';";
+        try {
+            std::string response = client.query(collection, moon_query);
+            if (response.find("Moon Landing History") != std::string::npos) {
+                results.record_pass("Document search for 'Moon'");
+            } else {
+                results.record_fail("Document search for 'Moon'", "Unexpected search results for 'Moon'. Response: " + response);
+            }
+        } catch (const std::exception& e) {
+            results.record_fail("Document search for 'Moon'", e.what());
         }
 
-        // Search for documents containing "exploration" (should find two)
-        query_json = "{\"query\": \"exploration\"}";
-        search_results = client.search_documents("search_docs", query_json);
-
-        if (search_results.size() == 2) { // Assuming both Mars and Jupiter docs contain "exploration" implicitly or explicitly
-            results.record_pass("Document search for 'exploration'");
-        } else {
-            results.record_fail("Document search for 'exploration'", "Expected 2 documents, got " + std::to_string(search_results.size()));
+        // Search for documents containing "exploration" (should find one)
+        std::string exploration_query = "SELECT COUNT(*) FROM " + collection + " WHERE content LIKE '%exploration%';";
+        try {
+            std::string response = client.query(collection, exploration_query);
+            if (response.find("[{\"COUNT(*)\":1}]") != std::string::npos) {
+                results.record_pass("Document search for 'exploration'");
+            } else {
+                results.record_fail("Document search for 'exploration'", "Expected 1 document, got different count. Response: " + response);
+            }
+        } catch (const std::exception& e) {
+            results.record_fail("Document search for 'exploration'", e.what());
         }
         
     } catch (const std::exception& e) {
@@ -452,26 +483,42 @@ void test_db_with_embeddings() {
     
     try {
         TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
-        std::vector<std::string> collections = {"embeddings"};
-        client.ensure_db_setup(collections);
+        std::string collection = "embeddings";
+        client.ensure_db_setup({collection});
         
         // Store documents with embedding metadata
-        std::vector<std::string> doc_ids;
+        int created_count = 0;
         for (int i = 0; i < 3; ++i) {
-            Document doc;
-            set_field(doc, "text", "Document " + std::to_string(i));
-            set_field(doc, "embedding_dim", "3");
-            set_field(doc, "has_embedding", "true");
-            
-            std::string doc_id = client.add_document("embeddings", doc);
-            doc_ids.push_back(doc_id);
+            std::string text = "Document " + std::to_string(i);
+            std::string doc_id = "doc" + std::to_string(i);
+            std::string insert_query = "INSERT INTO " + collection + " (_id, text, embedding_dim, has_embedding) VALUES ('" + doc_id + "', '" + text + "', 3, true);";
+            try {
+                client.query(collection, insert_query);
+                created_count++;
+            } catch (const std::exception& e) {
+                // fail silently
+            }
         }
         
-        if (doc_ids.size() == 3) {
+        if (created_count == 3) {
             results.record_pass("Database with embedding metadata");
         } else {
             results.record_fail("Database with embedding metadata", "Failed to store documents");
         }
+
+        // Verify the documents were stored
+        std::string select_query = "SELECT COUNT(*) FROM " + collection + " WHERE has_embedding = true;";
+        try {
+            std::string response = client.query(collection, select_query);
+            if (response.find("[{\"COUNT(*)\":3}]") != std::string::npos) {
+                results.record_pass("Verification of documents with embeddings");
+            } else {
+                results.record_fail("Verification of documents with embeddings", "Verification query failed. Response: " + response);
+            }
+        } catch (const std::exception& e) {
+            results.record_fail("Verification of documents with embeddings", e.what());
+        }
+
     } catch (const std::exception& e) {
         results.record_fail("Database with embeddings", e.what());
     }
@@ -513,6 +560,55 @@ void test_retrieval_pipeline() {
     }
 }
 
+void test_advanced_queries() {
+    std::cout << "\n=== Testing Advanced Queries ===" << std::endl;
+    
+    try {
+        TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
+        std::string orders_collection = "orders";
+        std::string customers_collection = "customers";
+        client.ensure_db_setup({orders_collection, customers_collection});
+        
+        // Insert customers
+        client.query(customers_collection, "INSERT INTO " + customers_collection + " (_id, name) VALUES ('cust1', 'Alice');");
+        client.query(customers_collection, "INSERT INTO " + customers_collection + " (_id, name) VALUES ('cust2', 'Bob');");
+
+        // Insert orders
+        client.query(orders_collection, "INSERT INTO " + orders_collection + " (customer_id, item, amount) VALUES ('cust1', 'Laptop', 1200);");
+        client.query(orders_collection, "INSERT INTO " + orders_collection + " (customer_id, item, amount) VALUES ('cust2', 'Mouse', 25);");
+        client.query(orders_collection, "INSERT INTO " + orders_collection + " (customer_id, item, amount) VALUES ('cust1', 'Keyboard', 75);");
+
+        // Test JOIN
+        std::string join_query = "SELECT c.name, o.item, o.amount FROM " + orders_collection + " o JOIN " + customers_collection + " c ON o.customer_id = c._id;";
+        try {
+            std::string response = client.query(orders_collection, join_query);
+            if (response.find("Alice") != std::string::npos && response.find("Laptop") != std::string::npos && response.find("Bob") != std::string::npos) {
+                results.record_pass("JOIN query");
+            } else {
+                results.record_fail("JOIN query", "Unexpected result. Response: " + response);
+            }
+        } catch (const std::exception& e) {
+            results.record_fail("JOIN query", e.what());
+        }
+
+        // Test GROUP BY
+        std::string groupby_query = "SELECT customer_id, SUM(amount) FROM " + orders_collection + " GROUP BY customer_id;";
+        try {
+            std::string response = client.query(orders_collection, groupby_query);
+            if (response.find("1275") != std::string::npos && response.find("25") != std::string::npos) {
+                results.record_pass("GROUP BY query");
+            } else {
+                results.record_fail("GROUP BY query", "Unexpected result. Response: " + response);
+            }
+        } catch (const std::exception& e) {
+            results.record_fail("GROUP BY query", e.what());
+        }
+
+    } catch (const std::exception& e) {
+        results.record_fail("Advanced Queries", e.what());
+    }
+}
+
 // ============================================================================ 
 // Main Test Runner
 // ============================================================================ 
@@ -522,6 +618,15 @@ int main() {
     std::cout << "TissLM C++ Database and Retrieval Test Suite" << std::endl;
     std::cout << "Testing against TissDB on 127.0.0.1:9876" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
+
+    // Clean up and create database before running tests
+    try {
+        TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
+        client.delete_database();
+        client.create_database();
+    } catch (const std::exception& e) {
+        std::cerr << "Error during test setup: " << e.what() << std::endl;
+    }
     
     // Database Tests
     test_db_connection();
@@ -541,6 +646,7 @@ int main() {
     // Integration Tests
     test_db_with_embeddings();
     test_retrieval_pipeline();
+    test_advanced_queries();
     
     // Print summary
     results.print_summary();

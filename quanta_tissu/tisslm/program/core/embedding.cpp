@@ -74,4 +74,8 @@ std::vector<Parameter*> Embedding::parameters() {
     return {weight_.get()};
 }
 
+const Matrix& Embedding::get_weight() const {
+    return weight_->value();
+}
+
 } // namespace TissNum

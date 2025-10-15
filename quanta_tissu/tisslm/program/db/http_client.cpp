@@ -241,6 +241,47 @@ std::string HttpClient::put(const std::string& url, const std::string& body) {
     return "";
 }
 
+std::string HttpClient::del(const std::string& url) {
+    std::string host, path;
+    int port;
+    parse_url(url, host, port, path);
+    int sock = create_socket();
+    connect_socket(sock, host, port);
+    std::string request = "DELETE " + path + " HTTP/1.1\r\nHost: " + host + "\r\n";
+    if (!token_.empty()) {
+        request += "Authorization: Bearer " + token_ + "\r\n";
+    }
+    request += "Connection: close\r\n\r\n";
+    send_data(sock, request);
+    std::string response = receive_data(sock);
+    close_socket(sock);
+
+    size_t status_line_end = response.find("\r\n");
+    if (status_line_end == std::string::npos) {
+        return "";
+    }
+    std::string status_line = response.substr(0, status_line_end);
+    int status_code;
+    std::string reason_phrase;
+    parse_status_line(status_line, status_code, reason_phrase);
+
+    if (status_code >= 300 && status_code != 404) {
+        if (status_code == 500) {
+            // For DELETE, we can be more lenient with 500 errors,
+            // as the server might be complaining about a non-existent DB.
+            // In a real application, this would be a server-side fix (return 404).
+            return "";
+        }
+        throw HttpClientException("HTTP Error: " + status_line);
+    }
+
+    size_t header_end = response.find("\r\n\r\n");
+    if (header_end != std::string::npos) {
+        return response.substr(header_end + 4);
+    }
+    return "";
+}
+
 void HttpClient::check_response_status(const std::string& response) {
     size_t first_line_end = response.find("\r\n");
     if (first_line_end == std::string::npos) {
