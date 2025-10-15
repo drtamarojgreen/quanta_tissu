@@ -427,9 +427,23 @@ void HttpServer::Impl::handle_client(int client_socket) {
             return;
         }
 
-        std::string db_name = path_parts[0];
+        std::string db_name;
+        std::vector<std::string> sub_path_parts;
+
+        if (path_parts.size() >= 2 && path_parts[0] == "db") {
+            db_name = path_parts[1];
+            sub_path_parts.assign(path_parts.begin() + 2, path_parts.end());
+        } else if (!path_parts.empty()) {
+            db_name = path_parts[0];
+            sub_path_parts.assign(path_parts.begin() + 1, path_parts.end());
+        } else {
+            // This should ideally not be reached due to earlier checks
+            send_response(client_socket, "400 Bad Request", "text/plain", "Invalid API path.");
+            close(client_socket);
+            return;
+        }
+
         auto& storage_engine = db_manager_.get_database(db_name);
-        std::vector<std::string> sub_path_parts(path_parts.begin() + 1, path_parts.end());
 
         Transactions::TransactionID transaction_id = -1;
         if (req.headers.count("x-transaction-id")) {
