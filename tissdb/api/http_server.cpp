@@ -427,50 +427,9 @@ void HttpServer::Impl::handle_client(int client_socket) {
             return;
         }
 
-        // Handle POST /feedback at root as a special case for tests
-        if (req.method == "POST" && path_parts.size() == 1 && path_parts[0] == "feedback") {
-            try {
-                // The test client that calls this endpoint is configured for "test_cpp_db".
-                auto& storage_engine = db_manager_.get_database("test_cpp_db");
-                Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
-                Document doc = json_to_document(parsed_body.as_object());
-                std::string id = "feedback_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
-                doc.id = id;
-                // The test sets up a "feedback" collection, not "knowledge_feedback"
-                storage_engine.put("feedback", id, doc, -1);
-                Json::JsonObject response_obj;
-                response_obj["id"] = Json::JsonValue(id);
-                send_response(client_socket, "201 Created", "application/json", Json::JsonValue(response_obj).serialize());
-            } catch (const std::exception& e) {
-                    send_response(client_socket, "500 Internal Server Error", "text/plain", "Server error processing feedback: " + std::string(e.what()));
-            }
-            close(client_socket);
-            return;
-        }
-
-        std::string db_name;
-        std::vector<std::string> remaining_parts;
-
-        if (path_parts.size() >= 2 && path_parts[0] == "db") {
-            db_name = path_parts[1];
-            remaining_parts.assign(path_parts.begin() + 2, path_parts.end());
-        } else if (!path_parts.empty()) {
-            db_name = path_parts[0];
-            remaining_parts.assign(path_parts.begin() + 1, path_parts.end());
-        } else {
-            send_response(client_socket, "400 Bad Request", "text/plain", "Invalid API path.");
-            close(client_socket);
-            return;
-        }
-
+        std::string db_name = path_parts[0];
         auto& storage_engine = db_manager_.get_database(db_name);
-        std::vector<std::string> sub_path_parts;
-
-        if (remaining_parts.size() >= 2 && remaining_parts[0] == "collection") {
-            sub_path_parts.assign(remaining_parts.begin() + 1, remaining_parts.end());
-        } else {
-            sub_path_parts = remaining_parts;
-        }
+        std::vector<std::string> sub_path_parts(path_parts.begin() + 1, path_parts.end());
 
         Transactions::TransactionID transaction_id = -1;
         if (req.headers.count("x-transaction-id")) {

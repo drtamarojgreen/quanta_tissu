@@ -20,6 +20,7 @@ public:
     void set_token(const std::string& token);
     std::string get(const std::string& url);
     std::string post(const std::string& url, const std::string& body);
+    std::string put(const std::string& url, const std::string& body);
 
 private:
     std::string token_;
