@@ -2,6 +2,7 @@
 #include "../../../quanta_tissu/tisslm/program/generation/generator.h"
 #include "../../../quanta_tissu/tisslm/program/generation/generation_config.h"
 #include "../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
+#include "../../../quanta_tissu/tisslm/program/core/config.h"
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -102,15 +103,19 @@ GenerationAnalysis analyze_generated_text(const std::string& text, float gen_tim
 void run_standard_generation_evaluation() {
     std::cout << "=== Running Standard Generation Evaluation (C++) ===" << std::endl;
 
+    // --- Load Configuration ---
+    Config model_config("quanta_tissu/tisslm/program/config/model.conf");
+    Config test_config("tests/model/program/config/test.conf");
+
     // --- Setup Model and Tokenizer ---
-    Tokenizer tokenizer("models/tokenizers/revised_tokenizer");
-    int vocab_size = tokenizer.get_vocab_size();
-    int max_seq_len = 500;
-    int embed_dim = 32;
-    int num_heads = 4;
-    int num_layers = 2;
-    float dropout_rate = 0.1f;
-    int lora_rank = 0; 
+    Tokenizer tokenizer(test_config.get_string("tokenizer_prefix"));
+    int vocab_size = model_config.get_int("vocab_size");
+    int max_seq_len = model_config.get_int("seq_len");
+    int embed_dim = model_config.get_int("embed_dim");
+    int num_heads = model_config.get_int("num_heads");
+    int num_layers = model_config.get_int("num_layers");
+    float dropout_rate = model_config.get_float("dropout_rate");
+    int lora_rank = 0; // Not in config, assuming 0 for now
 
     std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, dropout_rate, lora_rank);
 
@@ -126,7 +131,7 @@ void run_standard_generation_evaluation() {
 
     std::vector<TestConfig> test_configurations = {
         // Greedy Method (baseline)
-        {"The definition of science is", "greedy", 60, Generation::GenerationConfig::greedy()},
+        {test_config.get_string("prompt"), "greedy", test_config.get_int("generation_length"), Generation::GenerationConfig::greedy()},
 
         // Nucleus Sampling: Temperature variations
         {"The future of space exploration involves", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 0.5f)},
