@@ -32,43 +32,24 @@ Matrix CrossEntropyLoss::softmax(const Matrix& input) {
 }
 
 float CrossEntropyLoss::compute_loss(const Matrix& predictions, const Matrix& targets) {
-    // Ensure predictions and targets have the same dimensions
-    if (predictions.rows() != targets.rows() || predictions.cols() != targets.cols()) {
-        throw std::runtime_error("Predictions and targets must have the same dimensions for CrossEntropyLoss.");
-    }
-
     Matrix softmax_predictions = softmax(predictions);
     float loss = 0.0f;
     int num_samples = predictions.rows();
 
     for (int r = 0; r < num_samples; ++r) {
-        for (int c = 0; c < predictions.cols(); ++c) {
-            // Only sum if target is 1 (one-hot encoding)
-            if (targets(r, c) > 0.5f) { // Assuming targets are 0 or 1
-                loss -= targets(r, c) * std::log(softmax_predictions(r, c) + std::numeric_limits<float>::epsilon());
-            }
-        }
+        int target_class = static_cast<int>(targets(r, 0));
+        loss -= std::log(softmax_predictions(r, target_class) + std::numeric_limits<float>::epsilon());
     }
     return loss / num_samples;
 }
 
 Matrix CrossEntropyLoss::compute_gradient(const Matrix& predictions, const Matrix& targets) {
-    // Ensure predictions and targets have the same dimensions
-    if (predictions.rows() != targets.rows() || predictions.cols() != targets.cols()) {
-        throw std::runtime_error("Predictions and targets must have the same dimensions for CrossEntropyLoss gradient.");
-    }
-
     Matrix softmax_predictions = softmax(predictions);
-    // Gradient of Cross-Entropy loss after softmax is (softmax_predictions - targets)
-    Matrix dense_targets = Matrix::zeros(targets.rows(), targets.cols());
-    for (int i = 0; i < targets.rows(); ++i) {
-        for (int j = 0; j < targets.cols(); ++j) {
-            if (targets(i, j) == 1.0f) {
-                dense_targets(i, j) = 1.0f;
-            }
-        }
+    for (int i = 0; i < predictions.rows(); ++i) {
+        int target_class = static_cast<int>(targets(i, 0));
+        softmax_predictions(i, target_class) -= 1.0f;
     }
-    return softmax_predictions - dense_targets;
+    return softmax_predictions / predictions.rows();
 }
 
 } // namespace Core

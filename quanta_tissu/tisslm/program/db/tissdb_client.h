@@ -24,6 +24,9 @@ public:
     std::string add_feedback(const Document& feedback_data);
     bool test_connection();
     std::map<std::string, std::string> get_stats();
+    void delete_database();
+    void create_database();
+    std::string query(const std::string& collection, const std::string& query_string);
 
 private:
     std::string host_;

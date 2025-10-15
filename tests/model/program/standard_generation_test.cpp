@@ -30,7 +30,18 @@ void print_tokens_int(const std::vector<int>& tokens, const std::string& prefix 
 std::string generate_with_model(std::shared_ptr<TissDB::TissLM::Core::TransformerModel> model, Tokenizer& tokenizer, const std::string& prompt, int generation_length, const Generation::GenerationConfig& config) {
     Generator generator(model, config);
     std::vector<int> prompt_tokens = tokenizer.encode(prompt);
-    std::vector<int> generated_tokens = generator.generate(prompt_tokens, generation_length);
+    std::vector<int> generated_tokens;
+    if (config.method == "beam_search") {
+        generated_tokens = generator.beam_search(prompt_tokens, generation_length, config.beam_width, -1);
+    } else if (config.method == "contrastive_search") {
+        generated_tokens = generator.contrastive_search(prompt_tokens, generation_length, config.beam_width, config.contrastive_alpha, -1);
+    } else if (config.method == "mirostat_sampling") {
+        generated_tokens = generator.mirostat_sampling(prompt_tokens, generation_length, config.mirostat_tau, config.mirostat_eta, -1);
+    } else if (config.method == "speculative_sampling") {
+        generated_tokens = generator.speculative_sampling(prompt_tokens, generation_length);
+    } else {
+        generated_tokens = generator.generate(prompt_tokens, generation_length);
+    }
     return tokenizer.decode(generated_tokens);
 }
 
@@ -130,6 +141,63 @@ void run_standard_generation_evaluation() {
         // Different prompt types
         {"To build a successful startup, one must first", "nucleus", 90, Generation::GenerationConfig::nucleus(0.9f, 0.9f)},
         {"Once upon a time, in a land of dragons and magic,", "nucleus", 100, Generation::GenerationConfig::nucleus(0.95f, 0.85f)},
+
+        // Random Sampling
+        {"The cat sat on the", "random", 50, Generation::GenerationConfig::sampling(1.0f)},
+
+        // Repetition Penalty
+        {"This is a test of the repetition penalty.", "nucleus", 100, []() {
+            auto config = Generation::GenerationConfig::nucleus(0.9f, 0.8f);
+            config.repetition_penalty = 1.5f;
+            return config;
+        }()},
+
+        // Logit Bias (assuming token 29 is 'Paris')
+        {"The capital of France is", "greedy", 1, []() {
+            auto config = Generation::GenerationConfig::greedy();
+            config.logit_bias = {{29, 10.0f}};
+            return config;
+        }()},
+
+        // No-repeat N-gram
+        {"This is a test of the no-repeat n-gram. This is a test of the no-repeat n-gram.", "nucleus", 50, []() {
+            auto config = Generation::GenerationConfig::nucleus(0.9f, 0.8f);
+            config.no_repeat_ngram_size = 3;
+            return config;
+        }()},
+
+        // Beam Search
+        {"The best way to learn is", "beam_search", 50, []() {
+            auto config = Generation::GenerationConfig::greedy();
+            config.method = "beam_search";
+            config.beam_width = 3;
+            return config;
+        }()},
+
+        // Contrastive Search
+        {"The meaning of life is", "contrastive_search", 60, []() {
+            auto config = Generation::GenerationConfig::greedy();
+            config.method = "contrastive_search";
+            config.beam_width = 5;
+            config.contrastive_alpha = 0.6f;
+            return config;
+        }()},
+
+        // Mirostat Sampling
+        {"In a world where AI is king,", "mirostat_sampling", 70, []() {
+            auto config = Generation::GenerationConfig::greedy();
+            config.method = "mirostat_sampling";
+            config.mirostat_tau = 5.0f;
+            config.mirostat_eta = 0.1f;
+            return config;
+        }()},
+
+        // Speculative Sampling (placeholder)
+        {"The journey of a thousand miles begins with", "speculative_sampling", 40, []() {
+            auto config = Generation::GenerationConfig::greedy();
+            config.method = "speculative_sampling";
+            return config;
+        }()},
     };
 
     std::vector<GenerationAnalysis> all_results;

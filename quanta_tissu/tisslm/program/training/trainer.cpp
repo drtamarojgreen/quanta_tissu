@@ -15,12 +15,11 @@ Trainer::Trainer(
 }
 
 void Trainer::train(
-    const std::vector<TissNum::Matrix>& train_data,
-    const std::vector<TissNum::Matrix>& train_labels,
+    TissDB::TissLM::Training::TokenDataset& dataset,
     int epochs,
     int batch_size
 ) {
-    int num_samples = train_data.size();
+    int num_samples = dataset.size();
     if (num_samples == 0) {
         std::cerr << "No training data provided." << std::endl;
         return;
@@ -37,27 +36,21 @@ void Trainer::train(
         int num_batches = (num_samples + batch_size - 1) / batch_size;
 
         for (int b = 0; b < num_batches; ++b) {
-            // Prepare batch data
             int batch_start = b * batch_size;
             int batch_end = std::min(batch_start + batch_size, num_samples);
             int current_batch_size = batch_end - batch_start;
 
-            // Assuming input data is 2D (batch_size x input_dim)
-            // And labels are 2D (batch_size x output_dim)
-            // This part needs to be adapted based on actual data structure
-            // For now, let's assume a simple concatenation for batching
-            // This is a placeholder and might need more sophisticated batching logic
-            TissNum::Matrix batch_input(current_batch_size, train_data[0].cols());
-            TissNum::Matrix batch_target(current_batch_size, train_labels[0].cols());
+            TissNum::Matrix batch_input(current_batch_size, dataset.get_item(0).first.cols());
+            TissNum::Matrix batch_target(current_batch_size, dataset.get_item(0).second.cols());
 
             for (int i = 0; i < current_batch_size; ++i) {
                 int sample_idx = indices[batch_start + i];
-                // Copy row by row
-                for (int col = 0; col < train_data[sample_idx].cols(); ++col) {
-                    batch_input(i, col) = train_data[sample_idx](0, col);
+                auto item = dataset.get_item(sample_idx);
+                for (int col = 0; col < item.first.cols(); ++col) {
+                    batch_input(i, col) = item.first(0, col);
                 }
-                for (int col = 0; col < train_labels[sample_idx].cols(); ++col) {
-                    batch_target(i, col) = train_labels[sample_idx](0, col);
+                for (int col = 0; col < item.second.cols(); ++col) {
+                    batch_target(i, col) = item.second(0, col);
                 }
             }
 

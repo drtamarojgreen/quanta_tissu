@@ -49,9 +49,40 @@ void test_tokenizer() {
     std::cout << "Tokenizer tests completed successfully." << std::endl << std::endl;
 }
 
+void test_tokenizer_training() {
+    std::cout << "\n=== Testing Tokenizer Training ===" << std::endl;
+
+    std::string corpus = "hugging face is a company based in New York City";
+    std::string prefix = "test_tokenizer";
+    int vocab_size = 300;
+
+    // 1. Train a new tokenizer
+    Tokenizer tokenizer1(""); // Create an empty tokenizer
+    tokenizer1.train(corpus, vocab_size, true);
+
+    // 2. Save the tokenizer
+    tokenizer1.save(prefix);
+
+    // 3. Load the tokenizer
+    Tokenizer tokenizer2(prefix);
+
+    // 4. Test encoding and decoding
+    std::string text_to_encode = "hugging face";
+    std::vector<int> encoded = tokenizer2.encode(text_to_encode);
+    std::string decoded = tokenizer2.decode(encoded);
+
+    if (decoded == text_to_encode) {
+        std::cout << "  Training and Save/Load Passed\n";
+    } else {
+        std::cout << "  Training and Save/Load FAILED (Expected: \"" << text_to_encode << "\", Got: \"" << decoded << "\")\n";
+        throw std::runtime_error("Tokenizer training failed.");
+    }
+}
+
 int main() {
     try {
         test_tokenizer();
+        test_tokenizer_training();
         std::cout << "All Tokenizer tests passed!" << std::endl;
         return 0;
     } catch (const std::exception& e) {

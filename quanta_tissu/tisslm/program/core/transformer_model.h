@@ -24,6 +24,8 @@ public:
     TissNum::Matrix backward(const TissNum::Matrix& grad_output) override;
     std::vector<std::shared_ptr<TissNum::Parameter>> get_parameters() override;
 
+    const TissNum::Matrix& get_embeddings() const;
+
 private:
     TissNum::Embedding embedding_layer_;
     TissNum::PositionalEncoding positional_encoding_layer_;

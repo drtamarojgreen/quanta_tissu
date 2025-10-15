@@ -72,8 +72,10 @@ TissDBClient::TissDBClient(const std::string& host, int port, const std::string&
 TissDBClient::~TissDBClient() = default;
 
 bool TissDBClient::ensure_db_setup(const std::vector<std::string>& collections) {
-    // Simplified: In a real scenario, this would make API calls to create DB/collections
-    // For now, just return true
+    for (const auto& collection_name : collections) {
+        std::string url = db_url_ + "/" + collection_name;
+        http_client_->put(url, "");
+    }
     return true;
 }
 
@@ -113,6 +115,14 @@ std::map<std::string, std::string> TissDBClient::get_stats() {
     return {}; // Dummy stats
 }
 
+void TissDBClient::delete_database() {
+    http_client_->del(db_url_);
+}
+
+void TissDBClient::create_database() {
+    http_client_->put(db_url_, "");
+}
+
 std::string TissDBClient::add_feedback(const TissDB::Document& feedback_data) {
     // Corrected to post to a collection within the database, e.g., /<db_name>/feedback
     std::string url = db_url_ + "/feedback";
@@ -147,6 +157,14 @@ std::vector<TissDB::Document> TissDBClient::search_documents(const std::string& 
         docs.push_back(from_json(val.serialize()));
     }
     return docs;
+}
+
+std::string TissDBClient::query(const std::string& collection, const std::string& query_string) {
+    std::string url = db_url_ + "/" + collection + "/_query";
+    TissDB::Json::JsonObject data;
+    data["query"] = TissDB::Json::JsonValue(query_string);
+    std::string query_json = TissDB::Json::JsonValue(data).serialize();
+    return http_client_->post(url, query_json);
 }
 
 } // namespace TissDB
