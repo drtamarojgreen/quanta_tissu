@@ -69,6 +69,15 @@ void Tokenizer::load_merges(const std::string& merges_path) {
     }
 }
 
+// Helper function to find consecutive pairs of IDs in a list.
+std::set<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
+    std::set<std::pair<int, int>> pairs;
+    for (size_t i = 0; i < ids.size() - 1; ++i) {
+        pairs.insert({ids[i], ids[i+1]});
+    }
+    return pairs;
+}
+
 std::vector<int> Tokenizer::bpe_encode(const std::vector<unsigned char>& bytes) const {
     std::vector<int> ids(bytes.begin(), bytes.end());
 
@@ -185,15 +194,6 @@ int Tokenizer::get_vocab_size() const {
 #include <regex>
 #include <algorithm>
 #include <set>
-
-// Helper function to find consecutive pairs of IDs in a list.
-std::set<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
-    std::set<std::pair<int, int>> pairs;
-    for (size_t i = 0; i < ids.size() - 1; ++i) {
-        pairs.insert({ids[i], ids[i+1]});
-    }
-    return pairs;
-}
 
 void Tokenizer::train(const std::string& text, int vocab_size, bool verbose) {
     if (vocab_size < 256) {
