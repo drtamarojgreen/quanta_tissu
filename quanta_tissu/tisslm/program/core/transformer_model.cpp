@@ -124,26 +124,26 @@ Matrix TransformerModel::backward(const Matrix& grad_output) {
     return TissNum::Matrix(); // Gradients for input tokens are not typically propagated further
 }
 
-std::vector<std::shared_ptr<Parameter>> TransformerModel::get_parameters() {
-    std::vector<std::shared_ptr<Parameter>> params;
+std::vector<TissNum::Parameter*> TransformerModel::get_parameters() {
+    std::vector<TissNum::Parameter*> params;
 
     // Embedding layer
-    auto embedding_params = embedding_layer_.get_parameters();
+    auto embedding_params = embedding_layer_.parameters;
     params.insert(params.end(), embedding_params.begin(), embedding_params.end());
 
     // Transformer blocks
     for (auto& block : transformer_blocks_) {
-        auto block_params = block.get_parameters();
+        auto block_params = block.parameters;
         params.insert(params.end(), block_params.begin(), block_params.end());
     }
 
     // Final layer norm
-    auto norm_params = final_layer_norm_.get_parameters();
+    auto norm_params = final_layer_norm_.parameters;
     params.insert(params.end(), norm_params.begin(), norm_params.end());
 
     // Output layer
-    params.push_back(std::make_shared<Parameter>(output_weight_));
-    params.push_back(std::make_shared<Parameter>(output_bias_));
+    params.push_back(&output_weight_);
+    params.push_back(&output_bias_);
 
     return params;
 }
