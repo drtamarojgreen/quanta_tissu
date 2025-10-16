@@ -22,7 +22,7 @@ public:
     TissNum::Matrix forward(const TissNum::Matrix& input_tokens) override; // input_tokens would be a batch of token IDs
     TissNum::Matrix forward_inference(const TissNum::Matrix& input_tokens, const std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>>& past_kv_cache, std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>>& new_kv_cache);
     TissNum::Matrix backward(const TissNum::Matrix& grad_output) override;
-    std::vector<std::shared_ptr<TissNum::Parameter>> get_parameters() override;
+    std::vector<TissNum::Parameter*> get_parameters() override;
 
     const TissNum::Matrix& get_embeddings() const;
 
