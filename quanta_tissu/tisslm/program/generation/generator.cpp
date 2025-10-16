@@ -10,6 +10,32 @@ namespace Core {
 
 using namespace TissNum;
 
+namespace {
+    // Softmax function
+    TissNum::Matrix softmax(const TissNum::Matrix& input) {
+        TissNum::Matrix output(input.rows(), input.cols());
+        for (int r = 0; r < input.rows(); ++r) {
+            float max_val = -std::numeric_limits<float>::infinity();
+            for (int c = 0; c < input.cols(); ++c) {
+                if (input(r, c) > max_val) {
+                    max_val = input(r, c);
+                }
+            }
+
+            float sum_exp = 0.0f;
+            for (int c = 0; c < input.cols(); ++c) {
+                output(r, c) = std::exp(input(r, c) - max_val);
+                sum_exp += output(r, c);
+            }
+
+            for (int c = 0; c < input.cols(); ++c) {
+                output(r, c) = output(r, c) / sum_exp;
+            }
+        }
+        return output;
+    }
+} // anonymous namespace
+
 Generator::Generator(
     std::shared_ptr<Model> model,
     const Generation::GenerationConfig& config
@@ -112,37 +138,6 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
             processed_logits(0, pair.first) += pair.second;
         }
     }
-
-} // namespace Core
-
-namespace {
-    // Softmax function
-    TissNum::Matrix softmax(const TissNum::Matrix& input) {
-        TissNum::Matrix output(input.rows(), input.cols());
-        for (int r = 0; r < input.rows(); ++r) {
-            float max_val = -std::numeric_limits<float>::infinity();
-            for (int c = 0; c < input.cols(); ++c) {
-                if (input(r, c) > max_val) {
-                    max_val = input(r, c);
-                }
-            }
-
-            float sum_exp = 0.0f;
-            for (int c = 0; c < input.cols(); ++c) {
-                output(r, c) = std::exp(input(r, c) - max_val);
-                sum_exp += output(r, c);
-            }
-
-            for (int c = 0; c < input.cols(); ++c) {
-                output(r, c) = output(r, c) / sum_exp;
-            }
-        }
-        return output;
-    }
-} // anonymous namespace
-
-namespace Core {
-
 
     TissNum::Matrix probabilities = softmax(processed_logits);
 
@@ -430,6 +425,7 @@ std::vector<int> Generator::mirostat_sampling(const std::vector<int>& prompt_tok
         }
 
         generated_tokens.push_back(next_token);
+    }
     return generated_tokens;
 }
 
