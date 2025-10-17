@@ -4,6 +4,7 @@
 #include <iostream>
 #include <regex>
 #include <algorithm>
+#include <set>
 
 // A simple JSON parser for the vocabulary
 std::map<int, std::vector<unsigned char>> parse_vocab_from_json(const std::string& content) {
@@ -30,6 +31,15 @@ std::map<int, std::vector<unsigned char>> parse_vocab_from_json(const std::strin
         search_start = match.suffix().first;
     }
     return vocab;
+}
+
+// Helper function to find consecutive pairs of IDs in a list.
+std::set<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
+    std::set<std::pair<int, int>> pairs;
+    for (size_t i = 0; i < ids.size() - 1; ++i) {
+        pairs.insert({ids[i], ids[i+1]});
+    }
+    return pairs;
 }
 
 Tokenizer::Tokenizer(const std::string& prefix) {
@@ -67,15 +77,6 @@ void Tokenizer::load_merges(const std::string& merges_path) {
         ss >> p1 >> p2 >> new_id;
         this->merges[{p1, p2}] = new_id;
     }
-}
-
-// Helper function to find consecutive pairs of IDs in a list.
-std::set<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
-    std::set<std::pair<int, int>> pairs;
-    for (size_t i = 0; i < ids.size() - 1; ++i) {
-        pairs.insert({ids[i], ids[i+1]});
-    }
-    return pairs;
 }
 
 std::vector<int> Tokenizer::bpe_encode(const std::vector<unsigned char>& bytes) const {
