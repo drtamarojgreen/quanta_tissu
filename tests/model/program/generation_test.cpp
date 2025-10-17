@@ -1,7 +1,7 @@
-#include "quanta_tissu/tisslm/program/generation/generator.h"
-#include "quanta_tissu/tisslm/program/generation/generation_config.h"
-#include "quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
-#include "quanta_tissu/tisslm/program/core/transformer_model.h"
+#include "generation/generator.h"
+#include "generation/generation_config.h"
+#include "tokenizer/tokenizer.h"
+#include "core/transformer_model.h"
 #include <memory>
 #include <iostream>
 #include <cassert>
