@@ -319,6 +319,25 @@ set_tests_properties(AdvancedSamplingTests PROPERTIES
     LABELS "unit;evaluation;sampling;advanced"
 )
 
+add_executable(generation_test
+    generation_test.cpp
+)
+target_link_libraries(generation_test
+    GTest::gtest
+    GTest::gtest_main
+    tisslm_core
+    tisslm_generation
+    tisslm_tokenizer
+)
+
+add_test(NAME GenerationTests
+         COMMAND generation_test)
+
+set_tests_properties(GenerationTests PROPERTIES
+    TIMEOUT 30
+    LABELS "unit;generation"
+)
+
 # Print build information
 message(STATUS "Building TissLM Tests")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
