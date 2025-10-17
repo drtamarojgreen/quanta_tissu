@@ -331,7 +331,7 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
             for (const auto& field : select_stmt.fields) {
                 if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
                     std::string result_key = get_aggregate_result_key(*agg_func);
-                    for (const auto& doc : result_docs) { // Corrected from filtered_docs
+                    for (const auto& doc : filtered_docs) {
                        process_aggregation(group_results, result_key, doc, *agg_func);
                     }
                 }
@@ -434,15 +434,6 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
                  if (auto* ident_str = std::get_if<std::string>(&field_variant)) {
                     for (const auto& elem : doc.elements) {
                         if (elem.key == *ident_str) {
-                            projected_doc.elements.push_back(elem);
-                        }
-                    }
-                } else if (auto* agg_func = std::get_if<AggregateFunction>(&field_variant)) {
-                    // If the field is an aggregate function, its result should already be in the doc's elements
-                    // from the aggregation step. We just need to find it and include it.
-                    std::string result_key = get_aggregate_result_key(*agg_func);
-                    for (const auto& elem : doc.elements) {
-                        if (elem.key == result_key) {
                             projected_doc.elements.push_back(elem);
                         }
                     }
