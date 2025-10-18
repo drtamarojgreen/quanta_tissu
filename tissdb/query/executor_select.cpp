@@ -1,5 +1,6 @@
 #include "executor_select.h"
 #include "executor_common.h"
+#include "join_algorithms.h"
 #include "../common/checksum.h"
 #include <iostream>
 #include <sstream>
@@ -156,7 +157,7 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
             std::vector<Document> right_docs = storage_engine.scan(join_clause.collection_name);
             for (const auto& left_doc : all_docs) {
                 for (const auto& right_doc : right_docs) {
-                    joined_docs.push_back(combine_documents(left_doc, right_doc));
+                    joined_docs.push_back(combine_documents(left_doc, select_stmt.from_collection, right_doc, join_clause.collection_name));
                 }
             }
         } else {
@@ -191,8 +192,8 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
                 }
 
                 for (const auto& right_doc : right_docs_to_join) {
-                    if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc), params)) {
-                        joined_docs.push_back(combine_documents(left_doc, right_doc));
+                    if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, select_stmt.from_collection, right_doc, join_clause.collection_name), params)) {
+                        joined_docs.push_back(combine_documents(left_doc, select_stmt.from_collection, right_doc, join_clause.collection_name));
                         left_doc_matched = true;
                     }
                 }
@@ -207,7 +208,7 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
                 for (const auto& right_doc : right_docs) {
                     bool right_doc_matched = false;
                     for (const auto& left_doc : all_docs) {
-                        if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, right_doc), params)) {
+                        if (evaluate_expression(join_clause.on_condition, combine_documents(left_doc, select_stmt.from_collection, right_doc, join_clause.collection_name), params)) {
                             right_doc_matched = true;
                             break;
                         }

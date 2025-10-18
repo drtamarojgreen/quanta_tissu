@@ -323,22 +323,18 @@ void process_aggregation(std::map<std::string, AggregateResult>& results_map, co
 }
 
 
-Document combine_documents(const Document& doc1, const Document& doc2) {
+Document combine_documents(const Document& doc1, const std::string& collection1_name, const Document& doc2, const std::string& collection2_name) {
     Document combined_doc;
     combined_doc.id = doc1.id + "_" + doc2.id;
-    combined_doc.elements = doc1.elements;
-    for (const auto& elem : doc2.elements) {
-        bool found = false;
-        for (const auto& existing_elem : combined_doc.elements) {
-            if (existing_elem.key == elem.key) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            combined_doc.elements.push_back(elem);
-        }
+
+    for (const auto& elem : doc1.elements) {
+        combined_doc.elements.push_back({collection1_name + "." + elem.key, elem.value});
     }
+
+    for (const auto& elem : doc2.elements) {
+        combined_doc.elements.push_back({collection2_name + "." + elem.key, elem.value});
+    }
+
     return combined_doc;
 }
 
