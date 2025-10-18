@@ -17,7 +17,9 @@ public:
     // Placeholder for Nested Loop Join
     static std::vector<Document> nestedLoopJoin(
         const std::vector<Document>& left_table,
+        const std::string& left_collection_name,
         const std::vector<Document>& right_table,
+        const std::string& right_collection_name,
         const std::string& left_join_key,
         const std::string& right_join_key
     );
@@ -25,7 +27,9 @@ public:
     // Placeholder for Hash Join
     static std::vector<Document> hashJoin(
         const std::vector<Document>& left_table,
+        const std::string& left_collection_name,
         const std::vector<Document>& right_table,
+        const std::string& right_collection_name,
         const std::string& left_join_key,
         const std::string& right_join_key
     );
@@ -33,7 +37,9 @@ public:
     // Placeholder for Sort-Merge Join
     static std::vector<Document> sortMergeJoin(
         std::vector<Document> left_table,
+        const std::string& left_collection_name,
         std::vector<Document> right_table,
+        const std::string& right_collection_name,
         const std::string& left_join_key,
         const std::string& right_join_key
     );
