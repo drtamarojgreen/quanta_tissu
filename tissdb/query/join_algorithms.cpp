@@ -23,7 +23,9 @@ static std::optional<Value> get_value_by_key(const Document& doc, const std::str
 // Implementation for Nested Loop Join
 std::vector<Document> JoinAlgorithms::nestedLoopJoin(
     const std::vector<Document>& left_table,
+    const std::string& left_collection_name,
     const std::vector<Document>& right_table,
+    const std::string& right_collection_name,
     const std::string& left_join_key,
     const std::string& right_join_key
 ) {
@@ -37,7 +39,7 @@ std::vector<Document> JoinAlgorithms::nestedLoopJoin(
             if (!right_value_opt) continue;
 
             if (*left_value_opt == *right_value_opt) {
-                result.push_back(combine_documents(left_doc, right_doc));
+                result.push_back(combine_documents(left_doc, left_collection_name, right_doc, right_collection_name));
             }
         }
     }
@@ -49,7 +51,9 @@ std::vector<Document> JoinAlgorithms::nestedLoopJoin(
 // Implementation for Hash Join
 std::vector<Document> JoinAlgorithms::hashJoin(
     const std::vector<Document>& left_table,
+    const std::string& left_collection_name,
     const std::vector<Document>& right_table,
+    const std::string& right_collection_name,
     const std::string& left_join_key,
     const std::string& right_join_key
 ) {
@@ -71,7 +75,7 @@ std::vector<Document> JoinAlgorithms::hashJoin(
             auto it = hash_table.find(value_to_string(*left_value_opt));
             if (it != hash_table.end()) {
                 for (const auto& right_doc : it->second) {
-                    result.push_back(combine_documents(left_doc, right_doc));
+                    result.push_back(combine_documents(left_doc, left_collection_name, right_doc, right_collection_name));
                 }
             }
         }
@@ -83,7 +87,9 @@ std::vector<Document> JoinAlgorithms::hashJoin(
 // Implementation for Sort-Merge Join
 std::vector<Document> JoinAlgorithms::sortMergeJoin(
     std::vector<Document> left_table,
+    const std::string& left_collection_name,
     std::vector<Document> right_table,
+    const std::string& right_collection_name,
     const std::string& left_join_key,
     const std::string& right_join_key
 ) {
@@ -113,7 +119,7 @@ std::vector<Document> JoinAlgorithms::sortMergeJoin(
         } else {
             size_t j_start = j;
             while (j < right_table.size() && value_to_string(get_value_by_key(right_table[j], right_join_key).value_or("")) == left_key) {
-                result.push_back(combine_documents(left_table[i], right_table[j]));
+                result.push_back(combine_documents(left_table[i], left_collection_name, right_table[j], right_collection_name));
                 j++;
             }
             i++;
