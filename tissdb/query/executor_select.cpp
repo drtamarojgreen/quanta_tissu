@@ -329,11 +329,19 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
             aggregated_doc.id = "aggregate";
             std::map<std::string, AggregateResult> group_results;
 
+            // First, initialize all aggregate functions in the map
             for (const auto& field : select_stmt.fields) {
-                if (auto* agg_func = std::get_if<AggregateFunction>(&field)) {
+                if (const auto* agg_func = std::get_if<AggregateFunction>(&field)) {
                     std::string result_key = get_aggregate_result_key(*agg_func);
-                    for (const auto& doc : filtered_docs) {
-                       process_aggregation(group_results, result_key, doc, *agg_func);
+                    group_results[result_key] = AggregateResult{}; // Default initialization
+                }
+            }
+            // Then, process the documents
+            for (const auto& doc : result_docs) { // Use result_docs which is the filtered set
+                for (const auto& field : select_stmt.fields) {
+                    if (const auto* agg_func = std::get_if<AggregateFunction>(&field)) {
+                        std.string result_key = get_aggregate_result_key(*agg_func);
+                        process_aggregation(group_results, result_key, doc, *agg_func);
                     }
                 }
             }
@@ -426,13 +434,40 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
 
     if (select_all) {
         return {result_docs};
-    } else {
+    }
+
+    // If there was aggregation, the result_docs already contain the aggregated data.
+    // The projection should select the correct fields from these aggregated docs.
+    if (has_aggregate || !select_stmt.group_by_clause.empty()) {
         std::vector<Document> projected_docs;
         for (const auto& doc : result_docs) {
             Document projected_doc;
             projected_doc.id = doc.id;
             for (const auto& field_variant : select_stmt.fields) {
-                 if (auto* ident_str = std::get_if<std::string>(&field_variant)) {
+                std::string field_name_to_find;
+                if (const auto* ident_str = std::get_if<std::string>(&field_variant)) {
+                    field_name_to_find = *ident_str;
+                } else if (const auto* agg_func = std::get_if<AggregateFunction>(&field_variant)) {
+                    field_name_to_find = get_aggregate_result_key(*agg_func);
+                }
+
+                for (const auto& elem : doc.elements) {
+                    if (elem.key == field_name_to_find) {
+                        projected_doc.elements.push_back(elem);
+                    }
+                }
+            }
+            projected_docs.push_back(projected_doc);
+        }
+        return {projected_docs};
+    } else {
+        // Original projection logic for non-aggregated queries
+        std::vector<Document> projected_docs;
+        for (const auto& doc : result_docs) {
+            Document projected_doc;
+            projected_doc.id = doc.id;
+            for (const auto& field_variant : select_stmt.fields) {
+                 if (const auto* ident_str = std::get_if<std::string>(&field_variant)) {
                     for (const auto& elem : doc.elements) {
                         if (elem.key == *ident_str) {
                             projected_doc.elements.push_back(elem);
