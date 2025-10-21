@@ -340,7 +340,7 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
             for (const auto& doc : result_docs) { // Use result_docs which is the filtered set
                 for (const auto& field : select_stmt.fields) {
                     if (const auto* agg_func = std::get_if<AggregateFunction>(&field)) {
-                        std.string result_key = get_aggregate_result_key(*agg_func);
+                        std::string result_key = get_aggregate_result_key(*agg_func);
                         process_aggregation(group_results, result_key, doc, *agg_func);
                     }
                 }
