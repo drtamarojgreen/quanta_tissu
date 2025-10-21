@@ -219,15 +219,15 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
                     // Check for escaped quote ('')
                     if (i + 1 < query_string.length() && query_string[i+1] == '\'') {
                         value += '\'';
-                        i += 2; // consume both quotes
+                        i++;
                     } else {
                         // It's a closing quote
                         break;
                     }
                 } else {
                     value += query_string[i];
-                    i++;
                 }
+                i++;
             }
             new_tokens.push_back(Token{Token::Type::STRING_LITERAL, value});
         } else if (query_string[i] == '=' || query_string[i] == '!' || query_string[i] == '<' || query_string[i] == '>' || query_string[i] == '+' || query_string[i] == '-' || query_string[i] == '*' || query_string[i] == '/') {
@@ -236,7 +236,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
                 i++;
             }
             new_tokens.push_back(Token{Token::Type::OPERATOR, query_string.substr(start, i - start + 1)});
-        } else if (query_string[i] == ',' || query_string[i] == '(' || query_string[i] == ')') {
+        } else if (query_string[i] == ',' || query_string[i] == '(' || query_string[i] == ')' || query_string[i] == '.') {
             new_tokens.push_back(Token{Token::Type::OPERATOR, std::string(1, query_string[i])});
         } else if (query_string[i] == '?') {
             new_tokens.push_back(Token{Token::Type::PARAM_PLACEHOLDER, "?"});
@@ -643,6 +643,14 @@ Expression Parser::parse_primary_expression() {
 
     auto token = consume();
     if (token.type == Token::Type::IDENTIFIER) {
+        if (peek().type == Token::Type::OPERATOR && peek().value == ".") {
+            consume(); // consume '.'
+            auto next_token = consume();
+            if (next_token.type != Token::Type::IDENTIFIER) {
+                throw std::runtime_error("Expected identifier after '.'");
+            }
+            return Identifier{token.value + "." + next_token.value};
+        }
         return Identifier{token.value};
     } else if (token.type == Token::Type::NUMERIC_LITERAL) {
         return Literal{std::stod(token.value)};
