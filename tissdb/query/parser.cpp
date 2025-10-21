@@ -212,11 +212,24 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             }
             new_tokens.push_back(Token{Token::Type::NUMERIC_LITERAL, val});
         } else if (query_string[i] == '\'') {
-            size_t start = ++i;
-            while (i < query_string.length() && query_string[i] != '\'') {
-                i++;
+            std::string value;
+            i++; // consume opening quote
+            while (i < query_string.length()) {
+                if (query_string[i] == '\'') {
+                    // Check for escaped quote ('')
+                    if (i + 1 < query_string.length() && query_string[i+1] == '\'') {
+                        value += '\'';
+                        i += 2; // consume both quotes
+                    } else {
+                        // It's a closing quote
+                        break;
+                    }
+                } else {
+                    value += query_string[i];
+                    i++;
+                }
             }
-            new_tokens.push_back(Token{Token::Type::STRING_LITERAL, query_string.substr(start, i - start)});
+            new_tokens.push_back(Token{Token::Type::STRING_LITERAL, value});
         } else if (query_string[i] == '=' || query_string[i] == '!' || query_string[i] == '<' || query_string[i] == '>' || query_string[i] == '+' || query_string[i] == '-' || query_string[i] == '*' || query_string[i] == '/') {
             size_t start = i;
             if (i + 1 < query_string.length() && query_string[i + 1] == '=') { // Handles ==, !=, <=, >=
@@ -358,8 +371,13 @@ std::vector<std::variant<std::string, AggregateFunction>> Parser::parse_select_l
         if (peek().type == Token::Type::KEYWORD && (peek().value == "COUNT" || peek().value == "AVG" || peek().value == "SUM" || peek().value == "MIN" || peek().value == "MAX")) {
             fields.push_back(parse_aggregate_function());
         } else {
-            // It's a regular column name
-            fields.push_back(consume().value);
+            // It's a regular column name, possibly qualified (e.g., table.column)
+            std::string field_name = consume().value;
+            if (peek().type == Token::Type::OPERATOR && peek().value == ".") {
+                consume(); // consume '.'
+                field_name += "." + consume().value;
+            }
+            fields.push_back(field_name);
         }
 
         if (peek().type == Token::Type::OPERATOR && peek().value == ",") {
@@ -395,8 +413,14 @@ AggregateFunction Parser::parse_aggregate_function() {
         expect(Token::Type::OPERATOR, ")");
         return {type, std::nullopt};
     } else {
+        std::string field_name = consume().value;
+        if (peek().type == Token::Type::OPERATOR && peek().value == ".") {
+            consume(); // consume '.'
+            field_name += "." + consume().value;
+        }
+        // Go back one position so the expect() works correctly
+        pos--;
         expect(Token::Type::IDENTIFIER);
-        std::string field_name = tokens[pos-1].value;
         expect(Token::Type::OPERATOR, ")");
         return {type, field_name};
     }
