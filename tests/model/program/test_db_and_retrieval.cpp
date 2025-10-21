@@ -226,6 +226,14 @@ void test_multiple_documents() {
         std::string collection = "test_docs";
         client.ensure_db_setup({collection});
         
+        // Clean up collection before test to ensure isolation
+        try {
+            client.query(collection, "DELETE FROM " + collection + ";");
+        } catch (const std::exception& e) {
+            results.record_fail("Multiple document retrieval", "Cleanup failed: " + std::string(e.what()));
+            return;
+        }
+
         // Add multiple documents
         int created_count = 0;
         for (int i = 0; i < 5; ++i) {
@@ -251,8 +259,7 @@ void test_multiple_documents() {
         std::string select_query = "SELECT COUNT(*) FROM " + collection + ";";
         try {
             std::string response = client.query(collection, select_query);
-            // A bit of a hack to parse the count
-            if (response.find("[{\"COUNT(*)\":5}]") != std::string::npos) {
+            if (response.find("\"COUNT(*)\":5") != std::string::npos) {
                 results.record_pass("Multiple document retrieval");
             } else {
                 results.record_fail("Multiple document retrieval", "Verification query failed. Response: " + response);
@@ -277,7 +284,7 @@ void test_document_search() {
         // Add sample documents
         client.query(collection, "INSERT INTO " + collection + " (_id, title, content) VALUES ('doc_mars', 'Mars Mission Overview', 'The first manned mission to Mars, named ''Ares 1'', is scheduled for 2035.');");
         client.query(collection, "INSERT INTO " + collection + " (_id, title, content) VALUES ('doc_moon', 'Moon Landing History', 'The Apollo 11 mission landed humans on the Moon in 1969.');");
-        client.query(collection, "INSERT INTO " + collection + " (_id, title, content) VALUES ('doc_jupiter', 'Future Space Exploration', 'Plans for future space exploration include missions to Jupiter\'s moons.');");
+        client.query(collection, "INSERT INTO " + collection + " (_id, title, content) VALUES ('doc_jupiter', 'Future Space Exploration', 'Plans for future space exploration include missions to Jupiter''s moons.');");
         
         // Search for documents containing "Mars"
         std::string mars_query = "SELECT title FROM " + collection + " WHERE content LIKE '%Mars%';";
@@ -309,7 +316,7 @@ void test_document_search() {
         std::string exploration_query = "SELECT COUNT(*) FROM " + collection + " WHERE content LIKE '%exploration%';";
         try {
             std::string response = client.query(collection, exploration_query);
-            if (response.find("[{\"COUNT(*)\":1}]") != std::string::npos) {
+            if (response.find("\"COUNT(*)\":1") != std::string::npos) {
                 results.record_pass("Document search for 'exploration'");
             } else {
                 results.record_fail("Document search for 'exploration'", "Expected 1 document, got different count. Response: " + response);
@@ -485,6 +492,14 @@ void test_db_with_embeddings() {
         TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
         std::string collection = "embeddings";
         client.ensure_db_setup({collection});
+
+        // Clean up collection before test to ensure isolation
+        try {
+            client.query(collection, "DELETE FROM " + collection + ";");
+        } catch (const std::exception& e) {
+            results.record_fail("Verification of documents with embeddings", "Cleanup failed: " + std::string(e.what()));
+            return;
+        }
         
         // Store documents with embedding metadata
         int created_count = 0;
@@ -510,7 +525,7 @@ void test_db_with_embeddings() {
         std::string select_query = "SELECT COUNT(*) FROM " + collection + " WHERE has_embedding = true;";
         try {
             std::string response = client.query(collection, select_query);
-            if (response.find("[{\"COUNT(*)\":3}]") != std::string::npos) {
+            if (response.find("\"COUNT(*)\":3") != std::string::npos) {
                 results.record_pass("Verification of documents with embeddings");
             } else {
                 results.record_fail("Verification of documents with embeddings", "Verification query failed. Response: " + response);
