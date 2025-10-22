@@ -9,7 +9,7 @@ class LayerNorm {
 public:
     LayerNorm(size_t dim, const std::string& name = "", bool bias = true, float eps = 1e-5);
 
-    Matrix forward(const Matrix& x);
+    std::pair<Matrix, Matrix> forward(const Matrix& x);
     Matrix backward(const Matrix& d_out, const Matrix& cache);
 
     std::vector<Parameter*> parameters();

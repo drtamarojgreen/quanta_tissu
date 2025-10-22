@@ -37,19 +37,37 @@ float CrossEntropyLoss::compute_loss(const Matrix& predictions, const Matrix& ta
     int num_samples = predictions.rows();
 
     for (int r = 0; r < num_samples; ++r) {
-        int target_class = static_cast<int>(targets(r, 0));
-        loss -= std::log(softmax_predictions(r, target_class) + std::numeric_limits<float>::epsilon());
+        int target_class = -1;
+        for (int c = 0; c < targets.cols(); ++c) {
+            if (targets(r, c) == 1.0f) {
+                target_class = c;
+                break;
+            }
+        }
+        if (target_class != -1) {
+            loss -= std::log(softmax_predictions(r, target_class) + 1e-9);
+        }
     }
     return loss / num_samples;
 }
 
 Matrix CrossEntropyLoss::compute_gradient(const Matrix& predictions, const Matrix& targets) {
     Matrix softmax_predictions = softmax(predictions);
-    for (int i = 0; i < predictions.rows(); ++i) {
-        int target_class = static_cast<int>(targets(i, 0));
-        softmax_predictions(i, target_class) -= 1.0f;
+    Matrix gradient = softmax_predictions;
+
+    for (int r = 0; r < predictions.rows(); ++r) {
+        int target_class = -1;
+        for (int c = 0; c < targets.cols(); ++c) {
+            if (targets(r, c) == 1.0f) {
+                target_class = c;
+                break;
+            }
+        }
+        if (target_class != -1) {
+            gradient(r, target_class) -= 1.0f;
+        }
     }
-    return softmax_predictions / predictions.rows();
+    return gradient / predictions.rows();
 }
 
 } // namespace Core

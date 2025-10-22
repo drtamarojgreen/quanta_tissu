@@ -19,9 +19,6 @@ namespace TissDB {
 
 HttpClient::HttpClient() {
     platform_init();
-    if (token_.empty()) {
-        token_ = "static_test_token";
-    }
 }
 
 HttpClient::~HttpClient() {

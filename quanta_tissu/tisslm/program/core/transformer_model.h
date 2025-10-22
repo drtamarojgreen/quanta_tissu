@@ -27,24 +27,20 @@ public:
     const TissNum::Matrix& get_embeddings() const;
 
 private:
-    TissNum::Embedding embedding_layer_;
-    TissNum::PositionalEncoding positional_encoding_layer_;
-    std::vector<TissNum::TransformerBlock> transformer_blocks_;
-    TissNum::LayerNorm final_layer_norm_;
-    
-    // Output linear layer
-    TissNum::Parameter output_weight_;
-    TissNum::Parameter output_bias_;
+    std::optional<TissNum::Parameter> token_embedding_table_;
+    std::optional<TissNum::Parameter> position_embedding_table_;
+    std::vector<TissNum::TransformerBlock> layers_;
+    TissNum::LayerNorm final_layernorm_;
+    std::optional<TissNum::Parameter> output_layer_;
 
     int vocab_size_;
     int embed_dim_;
     int num_layers_;
 
-    // Store intermediate activations for backward pass
+    // Caching for backward pass (if needed)
     TissNum::Matrix embedded_input_;
     std::vector<TissNum::Matrix> transformer_block_outputs_;
-    TissNum::Matrix final_layer_norm_output_; // Store output of final layer norm
-    std::vector<size_t> cached_token_ids_; // Store token IDs for backward pass
+    std::vector<size_t> cached_token_ids_;
 };
 
 } // namespace Core

@@ -68,6 +68,11 @@ public:
     // Concatenation
     static Matrix concatenate(const Matrix& a, const Matrix& b, int axis);
 
+    // Slicing and lookup
+    Matrix slice(size_t row_start, size_t row_end, size_t col_start, size_t col_end) const;
+    static Matrix embedding_lookup(const Matrix& ids, const Matrix& embeddings);
+
+
 private:
     size_t rows_;
     size_t cols_;

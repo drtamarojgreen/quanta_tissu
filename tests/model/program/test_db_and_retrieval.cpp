@@ -117,7 +117,7 @@ void test_document_crud() {
     
     try {
         TissDBClient client("127.0.0.1", 9876, "test_cpp_db", "static_test_token");
-        std::string collection = "test_docs";
+        std::string collection = "test_docs_multiple";
         client.ensure_db_setup({collection});
         
         // Clean up collection before test to ensure isolation

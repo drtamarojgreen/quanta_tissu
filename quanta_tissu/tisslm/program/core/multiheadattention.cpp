@@ -72,6 +72,47 @@ Matrix MultiHeadAttention::scaled_dot_product_attention(const Matrix& q, const M
     return output;
 }
 
+// Helper function to split a matrix for multi-head attention
+// Input: (seq_len, d_model), Output: std::vector of (seq_len, head_dim) matrices
+std::vector<Matrix> split_heads(const Matrix& m, size_t num_heads, size_t head_dim) {
+    std::vector<Matrix> heads;
+    size_t seq_len = m.rows();
+    heads.reserve(num_heads);
+    for (size_t i = 0; i < num_heads; ++i) {
+        Matrix head(seq_len, head_dim);
+        for (size_t r = 0; r < seq_len; ++r) {
+            for (size_t c = 0; c < head_dim; ++c) {
+                head(r, c) = m(r, i * head_dim + c);
+            }
+        }
+        heads.push_back(head);
+    }
+    return heads;
+}
+
+// Helper function to combine heads back
+// Input: std::vector of (seq_len, head_dim) matrices, Output: (seq_len, d_model)
+Matrix combine_heads(const std::vector<Matrix>& heads) {
+    if (heads.empty()) {
+        return Matrix();
+    }
+    size_t seq_len = heads[0].rows();
+    size_t head_dim = heads[0].cols();
+    size_t num_heads = heads.size();
+    size_t d_model = num_heads * head_dim;
+
+    Matrix result(seq_len, d_model);
+    for (size_t i = 0; i < num_heads; ++i) {
+        for (size_t r = 0; r < seq_len; ++r) {
+            for (size_t c = 0; c < head_dim; ++c) {
+                result(r, i * head_dim + c) = heads[i](r, c);
+            }
+        }
+    }
+    return result;
+}
+
+
 Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const Matrix& v_in, const Matrix& mask, std::optional<std::pair<Matrix, Matrix>> past_kv, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache) {
     cached_q_ = q_in;
 
@@ -79,9 +120,8 @@ Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const
     Matrix current_v = v_in;
 
     if (past_kv.has_value()) {
-        // Concatenate past keys and values with current ones
-        current_k = Matrix::concatenate(past_kv->first, current_k, 1); // Assuming axis 1 for sequence length
-        current_v = Matrix::concatenate(past_kv->second, current_v, 1); // Assuming axis 1 for sequence length
+        current_k = Matrix::concatenate(past_kv->first, current_k, 0);
+        current_v = Matrix::concatenate(past_kv->second, current_v, 0);
     }
 
     cached_k_ = current_k;
@@ -97,14 +137,23 @@ Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const
         v = v + Matrix::matmul(Matrix::matmul(current_v, w_v_lora_a_.value().value()), w_v_lora_b_.value().value());
     }
 
-    // Reshape for multi-head attention (simplified - actual reshape is more complex)
-    // For now, assume q, k, v are already in the correct shape for scaled_dot_product_attention
+    // Split heads
+    auto q_heads = split_heads(q, num_heads_, head_dim_);
+    auto k_heads = split_heads(k, num_heads_, head_dim_);
+    auto v_heads = split_heads(v, num_heads_, head_dim_);
 
-    Matrix scaled_attention_output = scaled_dot_product_attention(q, k, v, mask);
+    std::vector<Matrix> attention_outputs;
+    attention_outputs.reserve(num_heads_);
+    for (size_t i = 0; i < num_heads_; ++i) {
+        Matrix attention_output = scaled_dot_product_attention(q_heads[i], k_heads[i], v_heads[i], mask);
+        attention_outputs.push_back(attention_output);
+    }
+
+    // Combine heads
+    Matrix scaled_attention_output = combine_heads(attention_outputs);
     cached_scaled_attention_ = scaled_attention_output;
 
-    // Concatenate and final linear layer
-    // (simplified - actual concatenation is more complex)
+    // Final linear layer
     Matrix output = Matrix::matmul(scaled_attention_output, w_o_.value());
     cached_output_projection_input_ = scaled_attention_output;
 

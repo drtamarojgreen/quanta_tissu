@@ -292,4 +292,45 @@ Matrix Matrix::concatenate(const Matrix& a, const Matrix& b, int axis) {
     }
 }
 
+Matrix Matrix::slice(size_t row_start, size_t row_end, size_t col_start, size_t col_end) const {
+    if (row_start >= row_end || col_start >= col_end || row_end > rows_ || col_end > cols_) {
+        throw std::out_of_range("Slice dimensions are out of range.");
+    }
+    size_t new_rows = row_end - row_start;
+    size_t new_cols = col_end - col_start;
+    Matrix result(new_rows, new_cols);
+    for (size_t r = 0; r < new_rows; ++r) {
+        for (size_t c = 0; c < new_cols; ++c) {
+            result(r, c) = (*this)(row_start + r, col_start + c);
+        }
+    }
+    return result;
+}
+
+Matrix Matrix::embedding_lookup(const Matrix& ids, const Matrix& embeddings) {
+    // ids is expected to be a (batch_size, seq_len) matrix of token IDs (as floats)
+    // embeddings is (vocab_size, embed_dim)
+    size_t batch_size = ids.rows();
+    size_t seq_len = ids.cols();
+    size_t embed_dim = embeddings.cols();
+
+    Matrix result(seq_len, embed_dim); // Simplified to handle seq_len x embed_dim for now
+    if (batch_size != 1) {
+         // Simplified version only handles batch_size = 1
+        throw std::runtime_error("Embedding lookup simplified for batch size 1.");
+    }
+
+    for (size_t i = 0; i < seq_len; ++i) {
+        int token_id = static_cast<int>(ids(0, i));
+        if (token_id < 0 || token_id >= embeddings.rows()) {
+            throw std::out_of_range("Token ID out of range in embedding lookup.");
+        }
+        for (size_t j = 0; j < embed_dim; ++j) {
+            result(i, j) = embeddings(token_id, j);
+        }
+    }
+    return result;
+}
+
+
 } // namespace TissNum

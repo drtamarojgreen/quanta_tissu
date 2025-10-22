@@ -10,22 +10,20 @@ LayerNorm::LayerNorm(size_t dim, const std::string& name, bool bias, float eps)
       beta_(Parameter(Matrix::zeros(1, dim), name + ".beta")),
       has_bias_(bias) {}
 
-Matrix LayerNorm::forward(const Matrix& x) {
+std::pair<Matrix, Matrix> LayerNorm::forward(const Matrix& x) {
     // x shape: (batch_size, dim)
     Matrix mean = x.mean(1); // Mean across the feature dimension
     Matrix var = x.variance(1, mean); // Variance across the feature dimension
 
-    Matrix x_norm = (x - mean) / Matrix::sqrt(var + eps_);
+    Matrix x_norm = (x - mean) / TissNum::Matrix::sqrt(var + eps_);
 
     Matrix out = gamma_.value() * x_norm;
     if (has_bias_) {
         out = out + beta_.value();
     }
 
-    // For backward pass, we need to cache some values
-    // In a real implementation, we would have a more sophisticated cache mechanism
-    // For now, we'll just return the normalized matrix and recompute others in backward
-    return out;
+    // Return the output and the input x as cache
+    return {out, x};
 }
 
 Matrix LayerNorm::backward(const Matrix& d_out, const Matrix& cache) {
