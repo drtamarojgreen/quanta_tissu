@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Exit immediately if a command exits with a non-zero status.
-set -e
-
 # --- Safety Preamble ---
 # Get the absolute path of the directory where this script is located.
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
@@ -41,12 +38,29 @@ cmake --build .
 # Run all the test executables individually
 echo "Running test executables..."
 
+# Initialize a variable to track the overall exit status
+OVERALL_EXIT_CODE=0
+
 for test_exe in $(find . -maxdepth 1 -type f -executable -not -name "*.*"); do
     echo "========================================"
     echo "Executing: $test_exe"
     echo "========================================"
-    "./$test_exe"
+    # Execute the test and capture its exit code
+    if ! "./$test_exe"; then
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo "!!! Test Failed: $test_exe"
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        # Set the overall exit code to indicate failure, but continue the loop
+        OVERALL_EXIT_CODE=1
+    fi
     echo "========================================"
 done
 
-echo "All tests completed successfully."
+# Check the overall exit code and report final status
+if [ $OVERALL_EXIT_CODE -ne 0 ]; then
+    echo "One or more test executables failed."
+    exit 1
+else
+    echo "All tests completed successfully."
+    exit 0
+fi
