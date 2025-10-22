@@ -436,8 +436,6 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
         return {result_docs};
     }
 
-    // If there was aggregation, the result_docs already contain the aggregated data.
-    // The projection should select the correct fields from these aggregated docs.
     if (has_aggregate || !select_stmt.group_by_clause.empty()) {
         std::vector<Document> projected_docs;
         for (const auto& doc : result_docs) {
@@ -461,16 +459,33 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
         }
         return {projected_docs};
     } else {
-        // Original projection logic for non-aggregated queries
         std::vector<Document> projected_docs;
         for (const auto& doc : result_docs) {
             Document projected_doc;
             projected_doc.id = doc.id;
             for (const auto& field_variant : select_stmt.fields) {
-                 if (const auto* ident_str = std::get_if<std::string>(&field_variant)) {
+                 if (const auto* ident_str_ptr = std::get_if<std::string>(&field_variant)) {
+                    const std::string& qualified_name = *ident_str_ptr;
+                    // Check for qualified name first (e.g., "c.name")
+                    bool found = false;
                     for (const auto& elem : doc.elements) {
-                        if (elem.key == *ident_str) {
+                        if (elem.key == qualified_name) {
                             projected_doc.elements.push_back(elem);
+                            found = true;
+                            break;
+                        }
+                    }
+                    // If not found, try unqualified name (e.g., "name")
+                    if (!found) {
+                        std::string unqualified_name = qualified_name;
+                        if (auto dot_pos = qualified_name.find('.'); dot_pos != std::string::npos) {
+                            unqualified_name = qualified_name.substr(dot_pos + 1);
+                        }
+                        for (const auto& elem : doc.elements) {
+                            if (elem.key == unqualified_name) {
+                                projected_doc.elements.push_back({qualified_name, elem.value});
+                                break;
+                            }
                         }
                     }
                 }
