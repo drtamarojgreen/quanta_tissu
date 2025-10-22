@@ -1,9 +1,10 @@
 #include "dropout.h"
 #include <random>
+#include <algorithm>
 
 namespace TissNum {
 
-Dropout::Dropout(float p) : p_(p) {}
+Dropout::Dropout(float p) : p_(std::clamp(p, 0.0f, 1.0f)) {}
 
 Matrix Dropout::forward(const Matrix& x, bool training) {
     if (!training) {
