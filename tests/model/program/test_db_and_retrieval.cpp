@@ -120,6 +120,14 @@ void test_document_crud() {
         std::string collection = "test_docs";
         client.ensure_db_setup({collection});
         
+        // Clean up collection before test to ensure isolation
+        try {
+            client.query(collection, "DELETE FROM " + collection + ";");
+        } catch (const std::exception& e) {
+            // Log this but don't fail the test itself, as the main test might still pass
+            std::cerr << "  (Note: Initial cleanup query failed, proceeding with test...)" << std::endl;
+        }
+
         // Create
         std::string insert_query = "INSERT INTO " + collection + " (_id, title, content, author) VALUES ('doc1', 'Test Document', 'This is test content', 'Unit Test');";
         try {
@@ -583,6 +591,14 @@ void test_advanced_queries() {
         std::string orders_collection = "orders";
         std::string customers_collection = "customers";
         client.ensure_db_setup({orders_collection, customers_collection});
+
+        // Clean up collections before test to ensure isolation
+        try {
+            client.query(orders_collection, "DELETE FROM " + orders_collection + ";");
+            client.query(customers_collection, "DELETE FROM " + customers_collection + ";");
+        } catch (const std::exception& e) {
+            std::cerr << "  (Note: Initial cleanup query failed in advanced queries, proceeding...)" << std::endl;
+        }
         
         // Insert customers
         client.query(customers_collection, "INSERT INTO " + customers_collection + " (_id, name) VALUES ('cust1', 'Alice');");
