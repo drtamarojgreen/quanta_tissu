@@ -7,9 +7,9 @@
 void test_tokenizer() {
     std::cout << "=== Testing Tokenizer ===" << std::endl;
 
-    // Assuming dummy_vocab.json and dummy_merges.txt are in the same directory as the test executable
-    // The Tokenizer constructor expects a prefix, so we pass "dummy"
-    Tokenizer tokenizer("../dummy"); 
+    // The Tokenizer constructor expects a prefix. The test runner executes from the build directory,
+    // so we need to point it to the source directory where the tokenizer files are.
+    Tokenizer tokenizer("../../models/tokenizers/revised_tokenizer");
 
     // Test get_vocab_size
     int vocab_size = tokenizer.get_vocab_size();

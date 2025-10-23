@@ -216,7 +216,7 @@ void run_rag_self_update_evaluation() {
     std::cout << "=== Running RAG and Self-Updating KB Evaluation (C++) ===" << std::endl;
 
     // --- Setup Model, Tokenizer, Embedder ---
-    Tokenizer tokenizer("models/tokenizers/revised_tokenizer");
+    Tokenizer tokenizer("../../models/tokenizers/revised_tokenizer");
     int vocab_size = tokenizer.get_vocab_size();
     int max_seq_len = 500;
     int embed_dim = 32;
