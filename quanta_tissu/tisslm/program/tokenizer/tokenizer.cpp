@@ -116,7 +116,7 @@ std::vector<int> Tokenizer::bpe_encode(const std::vector<unsigned char>& bytes) 
 
 
 std::vector<int> Tokenizer::encode(const std::string& text) {
-    std::regex bpe_regex(R"('s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)");
+    std::regex bpe_regex(R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[[:alpha:]][[:digit:]]]+|\s+(?!\S)|\s+)");
     std::vector<int> all_ids;
 
     auto words_begin = std::sregex_iterator(text.begin(), text.end(), bpe_regex);
@@ -202,7 +202,7 @@ void Tokenizer::train(const std::string& text, int vocab_size, bool verbose) {
     }
 
     // 1. Pre-tokenize the text
-    std::regex pre_tokenizer(R"('s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)");
+    std::regex pre_tokenizer(R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[[:alpha:]][[:digit:]]]+|\s+(?!\S)|\s+)");
     auto words_begin = std::sregex_iterator(text.begin(), text.end(), pre_tokenizer);
     auto words_end = std::sregex_iterator();
 

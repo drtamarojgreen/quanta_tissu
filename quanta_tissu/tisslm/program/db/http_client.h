@@ -42,7 +42,6 @@ private:
     void parse_status_line(const std::string& status_line, int& status_code, std::string& reason_phrase);
 
     // Helper to check HTTP status
-    void check_response_status(const std::string& response);
 };
 
 } // namespace TissDB
