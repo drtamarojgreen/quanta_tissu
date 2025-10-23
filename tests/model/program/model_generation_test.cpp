@@ -20,6 +20,7 @@ void test_transformer_model() {
         TestConfig::EmbedDim,
         TestConfig::NumHeads,
         TestConfig::NumLayers,
+        TestConfig::FFNDim,
         TestConfig::DropoutRate,
         TestConfig::LoraRank
     );
@@ -81,6 +82,7 @@ void test_generator() {
         TestConfig::EmbedDim,
         TestConfig::NumHeads,
         TestConfig::NumLayers,
+        TestConfig::FFNDim,
         TestConfig::DropoutRate,
         0 // LoraRank = 0 for this test
     );

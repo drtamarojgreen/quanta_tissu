@@ -6,7 +6,7 @@ namespace Core {
 
 using namespace TissNum;
 
-TransformerModel::TransformerModel(int vocab_size, int max_seq_len, int embed_dim, int num_heads, int num_layers, float dropout_rate, int lora_rank)
+TransformerModel::TransformerModel(int vocab_size, int max_seq_len, int embed_dim, int num_heads, int num_layers, int d_ff, float dropout_rate, int lora_rank)
     : embedding_layer_(vocab_size, embed_dim),
       positional_encoding_layer_(embed_dim, max_seq_len),
       final_layer_norm_(embed_dim),
@@ -17,7 +17,7 @@ TransformerModel::TransformerModel(int vocab_size, int max_seq_len, int embed_di
       num_layers_(num_layers)
 {
     for (int i = 0; i < num_layers; ++i) {
-        transformer_blocks_.emplace_back(embed_dim, num_heads, dropout_rate, lora_rank);
+        transformer_blocks_.emplace_back(embed_dim, num_heads, d_ff, dropout_rate, lora_rank);
     }
 }
 
