@@ -104,7 +104,7 @@ Matrix TransformerModel::backward(const Matrix& grad_output) {
     TissNum::Matrix grad_x = TissNum::Matrix::matmul(grad_output, output_weight_.value().transpose());
 
     // 2. Backward through Final Layer Norm
-    grad_x = final_layer_norm_.backward(grad_x);
+    grad_x = final_layer_norm_.backward(grad_x, transformer_block_outputs_.back());
 
     // 3. Backward through Transformer Blocks (in reverse order)
     for (int i = num_layers_ - 1; i >= 0; --i) {
