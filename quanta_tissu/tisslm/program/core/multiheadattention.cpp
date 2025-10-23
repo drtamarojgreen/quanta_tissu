@@ -80,8 +80,8 @@ Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const
 
     if (past_kv.has_value()) {
         // Concatenate past keys and values with current ones
-        current_k = Matrix::concatenate(past_kv->first, current_k, 1); // Assuming axis 1 for sequence length
-        current_v = Matrix::concatenate(past_kv->second, current_v, 1); // Assuming axis 1 for sequence length
+        current_k = Matrix::concatenate(past_kv->first, current_k, 0); // Concatenate along sequence length dimension
+        current_v = Matrix::concatenate(past_kv->second, current_v, 0); // Concatenate along sequence length dimension
     }
 
     cached_k_ = current_k;

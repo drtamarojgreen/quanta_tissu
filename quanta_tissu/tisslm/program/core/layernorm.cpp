@@ -15,16 +15,24 @@ Matrix LayerNorm::forward(const Matrix& x) {
     Matrix mean = x.mean(1); // Mean across the feature dimension
     Matrix var = x.variance(1, mean); // Variance across the feature dimension
 
-    Matrix x_norm = (x - mean) / Matrix::sqrt(var + eps_);
+    Matrix x_norm(x.rows(), x.cols());
+    Matrix std_dev = Matrix::sqrt(var + eps_);
 
-    Matrix out = gamma_.value() * x_norm;
-    if (has_bias_) {
-        out = out + beta_.value();
+    for (size_t r = 0; r < x.rows(); ++r) {
+        for (size_t c = 0; c < x.cols(); ++c) {
+            x_norm(r, c) = (x(r, c) - mean(r, 0)) / std_dev(r, 0);
+        }
     }
 
-    // For backward pass, we need to cache some values
-    // In a real implementation, we would have a more sophisticated cache mechanism
-    // For now, we'll just return the normalized matrix and recompute others in backward
+    Matrix out(x.rows(), x.cols());
+    for (size_t r = 0; r < x.rows(); ++r) {
+        for (size_t c = 0; c < x.cols(); ++c) {
+            out(r, c) = x_norm(r, c) * gamma_.value()(0, c);
+            if (has_bias_) {
+                out(r, c) += beta_.value()(0, c);
+            }
+        }
+    }
     return out;
 }
 
@@ -34,7 +42,17 @@ Matrix LayerNorm::backward(const Matrix& d_out, const Matrix& cache) {
 
     Matrix mean = cache.mean(1);
     Matrix var = cache.variance(1, mean);
-    Matrix x_norm = (cache - mean) / Matrix::sqrt(var + eps_);
+    Matrix std_dev = Matrix::sqrt(var + eps_);
+
+    Matrix x_norm(N, D);
+    Matrix cache_centered(N, D);
+
+    for (size_t r = 0; r < N; ++r) {
+        for (size_t c = 0; c < D; ++c) {
+            cache_centered(r, c) = cache(r, c) - mean(r, 0);
+            x_norm(r, c) = cache_centered(r, c) / std_dev(r, 0);
+        }
+    }
 
     // Gradients for gamma and beta
     gamma_.grad() = (d_out * x_norm).sum(0);
@@ -43,11 +61,46 @@ Matrix LayerNorm::backward(const Matrix& d_out, const Matrix& cache) {
     }
 
     // Gradient for the input x
-    Matrix dx_norm = d_out * gamma_.value();
-    Matrix dvar = (dx_norm * (cache - mean) * -0.5 * Matrix::pow(var + eps_, -1.5)).sum(1);
-    Matrix dmean = (dx_norm * (-1.0 / Matrix::sqrt(var + eps_))).sum(1) + (dvar * (-2.0 * (cache - mean)).mean(1) / D);
+    Matrix dx_norm(N, D);
+    for (size_t r = 0; r < N; ++r) {
+        for (size_t c = 0; c < D; ++c) {
+            dx_norm(r, c) = d_out(r, c) * gamma_.value()(0, c);
+        }
+    }
 
-    Matrix dx = (dx_norm / Matrix::sqrt(var + eps_)) + (dvar * 2.0 * (cache - mean) / D) + (dmean / D);
+    Matrix inv_std_dev = 1.0f / std_dev;
+    Matrix pow_var_term = Matrix::pow(var + eps_, -1.5f);
+
+    Matrix dvar_sum_term = dx_norm * cache_centered;
+    Matrix dvar(N, 1);
+    for(size_t r=0; r < N; ++r) {
+        float row_sum = 0.0f;
+        for(size_t c=0; c < D; ++c) {
+            row_sum += dvar_sum_term(r, c);
+        }
+        dvar(r, 0) = row_sum * -0.5f * pow_var_term(r, 0);
+    }
+
+    Matrix dmean_term1 = dx_norm.sum(1);
+    for(size_t r=0; r < N; ++r) {
+        dmean_term1(r, 0) *= -1.0f * inv_std_dev(r, 0);
+    }
+
+    Matrix dmean_term2 = (cache_centered.sum(1) * -2.0f / D);
+    for(size_t r=0; r < N; ++r) {
+        dmean_term2(r, 0) *= dvar(r, 0);
+    }
+    Matrix dmean = dmean_term1 + dmean_term2;
+
+    Matrix dx(N, D);
+    for(size_t r = 0; r < N; ++r) {
+        for (size_t c = 0; c < D; ++c) {
+            float term1 = dx_norm(r, c) * inv_std_dev(r, 0);
+            float term2 = dvar(r, 0) * (2.0f * cache_centered(r, c)) / D;
+            float term3 = dmean(r, 0) / D;
+            dx(r, c) = term1 + term2 + term3;
+        }
+    }
 
     return dx;
 }
