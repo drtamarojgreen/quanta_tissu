@@ -48,6 +48,7 @@ std::vector<int> Generator::generate(const std::vector<int>& prompt_tokens, int 
 
     auto transformer_model = static_cast<TransformerModel*>(model_.get());
 
+    TissNum::Matrix logits;
     // Use forward_inference to process the prompt and build the initial KV cache
     if (!prompt_tokens.empty()) {
         TissNum::Matrix prompt_matrix(1, prompt_tokens.size());
@@ -55,15 +56,17 @@ std::vector<int> Generator::generate(const std::vector<int>& prompt_tokens, int 
             prompt_matrix(0, i) = static_cast<float>(prompt_tokens[i]);
         }
         std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>> new_kv_cache;
-        // We don't need the logits for the prompt, just the cache
-        transformer_model->forward_inference(prompt_matrix, kv_cache, new_kv_cache);
+        logits = transformer_model->forward_inference(prompt_matrix, kv_cache, new_kv_cache);
         kv_cache = new_kv_cache;
     }
 
-    int current_token = -1;
-    if (!generated_sequence.empty()) {
-        current_token = generated_sequence.back();
+    // Get the logits for the last token of the prompt
+    TissNum::Matrix last_token_logits(1, logits.cols());
+    for(size_t c = 0; c < logits.cols(); ++c) {
+        last_token_logits(0, c) = logits(logits.rows() - 1, c);
     }
+    int current_token = sample_token(last_token_logits, generated_sequence);
+    generated_sequence.push_back(current_token);
 
     for (int i = 0; i < max_new_tokens; ++i) {
         TissNum::Matrix input_token(1, 1);
