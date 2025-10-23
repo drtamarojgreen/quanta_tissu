@@ -6,6 +6,15 @@
 #include <algorithm>
 #include <set>
 
+// Helper function to find consecutive pairs of IDs in a list.
+std::set<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
+    std::set<std::pair<int, int>> pairs;
+    for (size_t i = 0; i < ids.size() - 1; ++i) {
+        pairs.insert({ids[i], ids[i+1]});
+    }
+    return pairs;
+}
+
 // A simple JSON parser for the vocabulary
 std::map<int, std::vector<unsigned char>> parse_vocab_from_json(const std::string& content) {
     std::map<int, std::vector<unsigned char>> vocab;
@@ -31,15 +40,6 @@ std::map<int, std::vector<unsigned char>> parse_vocab_from_json(const std::strin
         search_start = match.suffix().first;
     }
     return vocab;
-}
-
-// Helper function to find consecutive pairs of IDs in a list.
-std::set<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
-    std::set<std::pair<int, int>> pairs;
-    for (size_t i = 0; i < ids.size() - 1; ++i) {
-        pairs.insert({ids[i], ids[i+1]});
-    }
-    return pairs;
 }
 
 Tokenizer::Tokenizer(const std::string& prefix) {
@@ -71,43 +71,54 @@ void Tokenizer::load_merges(const std::string& merges_path) {
         return;
     }
     std::string line;
+    int rank = 0;
     while (std::getline(file, line)) {
-        if (line.empty() || line[0] == '#') { // Skip empty lines and comments
+        // Skip comments and empty lines
+        if (line.empty() || line[0] == '#') {
             continue;
         }
         std::stringstream ss(line);
-        int p1, p2, new_id;
-        if (ss >> p1 && ss >> p2 && ss >> new_id) {
-            this->merges[{p1, p2}] = new_id;
+        std::string part1, part2;
+        ss >> part1 >> part2;
+        if (!part1.empty() && !part2.empty()) {
+            try {
+                this->merges[{std::stoi(part1), std::stoi(part2)}] = rank++;
+            } catch (const std::invalid_argument& e) {
+                // Ignore malformed lines
+            }
         }
     }
 }
 
 std::vector<int> Tokenizer::bpe_encode(const std::vector<unsigned char>& bytes) const {
+    if (bytes.empty()) {
+        return {};
+    }
     std::vector<int> ids(bytes.begin(), bytes.end());
 
     while (ids.size() >= 2) {
         auto pairs = get_pairs(ids);
-        auto best_pair_it = std::min_element(pairs.begin(), pairs.end(),
-            [this](const auto& a, const auto& b) {
-                auto it_a = this->merges.find(a);
-                auto it_b = this->merges.find(b);
-                if (it_a == this->merges.end()) {
-                    return false; // a is not a valid merge, so it's not "less"
-                }
-                if (it_b == this->merges.end()) {
-                    return true; // a is valid, b is not, so a is "less"
-                }
-                // Both are valid, compare their rank (new_id)
-                return it_a->second < it_b->second;
-            });
 
-        if (this->merges.find(*best_pair_it) == this->merges.end()) {
+        // Find the best pair with the lowest merge rank
+        std::pair<int, int> best_pair = {-1, -1};
+        int min_rank = -1;
+
+        for (const auto& p : pairs) {
+            auto it = this->merges.find(p);
+            if (it != this->merges.end()) {
+                if (min_rank == -1 || it->second < min_rank) {
+                    min_rank = it->second;
+                    best_pair = p;
+                }
+            }
+        }
+
+        if (min_rank == -1) {
             break; // No more merges are possible
         }
 
-        std::pair<int, int> best_pair = *best_pair_it;
-        int new_id = this->merges.at(best_pair);
+        int new_id = 256 + min_rank; // The new token ID is derived from its rank.
+
         std::vector<int> new_ids;
         for (size_t i = 0; i < ids.size();) {
             if (i < ids.size() - 1 && ids[i] == best_pair.first && ids[i+1] == best_pair.second) {
@@ -125,6 +136,13 @@ std::vector<int> Tokenizer::bpe_encode(const std::vector<unsigned char>& bytes) 
 
 
 std::vector<int> Tokenizer::encode(const std::string& text) {
+     if (vocab.empty() || merges.empty()) { // Fallback if vocab/merges not loaded
+        std::vector<int> byte_ids;
+        for(unsigned char c : text) {
+            byte_ids.push_back(static_cast<int>(c));
+        }
+        return byte_ids;
+    }
     std::regex bpe_regex(R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[[:alpha:]][[:digit:]]]+|\s+(?!\S)|\s+)");
     std::vector<int> all_ids;
 
@@ -200,10 +218,6 @@ std::string Tokenizer::decode(const std::vector<int>& token_ids) {
 int Tokenizer::get_vocab_size() const {
     return vocab.size();
 }
-
-#include <regex>
-#include <algorithm>
-#include <set>
 
 void Tokenizer::train(const std::string& text, int vocab_size, bool verbose) {
     if (vocab_size < 256) {
@@ -317,7 +331,7 @@ void Tokenizer::save(const std::string& prefix) {
     std::ofstream merges_file(merges_path);
     if (merges_file.is_open()) {
         for (const auto& pair : this->merges) {
-            merges_file << pair.first.first << " " << pair.first.second << " " << pair.second << std::endl;
+            merges_file << pair.first.first << " " << pair.first.second << std::endl;
         }
     }
 }
