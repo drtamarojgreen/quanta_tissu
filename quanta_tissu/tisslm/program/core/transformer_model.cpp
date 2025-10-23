@@ -10,8 +10,8 @@ TransformerModel::TransformerModel(int vocab_size, int max_seq_len, int embed_di
     : embedding_layer_(vocab_size, embed_dim),
       positional_encoding_layer_(embed_dim, max_seq_len),
       final_layer_norm_(embed_dim),
-      output_weight_(TissNum::Matrix::random(embed_dim, vocab_size), "output_weight"), // Output layer weight
-      output_bias_(TissNum::Matrix::zeros(1, vocab_size), "output_bias"), // Output layer bias
+      output_weight_(TissNum::Matrix::random(embed_dim, vocab_size), "output_weight"),
+      output_bias_(TissNum::Matrix::zeros(1, vocab_size), "output_bias"),
       vocab_size_(vocab_size),
       embed_dim_(embed_dim),
       num_layers_(num_layers)
@@ -85,7 +85,10 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
         }
     }
 
-    // 4. Output Linear Layer
+    // 4. Final Layer Norm
+    x = final_layer_norm_.forward(x);
+
+    // 5. Output Linear Layer
     TissNum::Matrix output = TissNum::Matrix::matmul(x, output_weight_.value()) + output_bias_.value();
 
     return output;
@@ -93,20 +96,22 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
 
 Matrix TransformerModel::backward(const Matrix& grad_output) {
     // 1. Backward through Output Linear Layer
-    output_bias_.grad() = grad_output.sum(0);
     TissNum::Matrix x_transpose = final_layer_norm_output_.transpose();
     output_weight_.grad() = TissNum::Matrix::matmul(x_transpose, grad_output);
+    output_bias_.grad() = grad_output.sum(0);
+
+    // Gradient propagated back to the input of the output layer
     TissNum::Matrix grad_x = TissNum::Matrix::matmul(grad_output, output_weight_.value().transpose());
 
     // 2. Backward through Final Layer Norm
-    grad_x = final_layer_norm_.backward(grad_x, transformer_block_outputs_.back());
+    grad_x = final_layer_norm_.backward(grad_x);
 
-    // 3. Backward through Transformer Blocks
+    // 3. Backward through Transformer Blocks (in reverse order)
     for (int i = num_layers_ - 1; i >= 0; --i) {
         grad_x = transformer_blocks_[i].backward(grad_x, transformer_block_outputs_[i]);
     }
 
-    // 4. Backward through Positional Encoding
+    // 4. Backward through Positional Encoding (gradient passes through)
     Matrix grad_embedded_input = grad_x;
 
     // 5. Backward through Embedding layer

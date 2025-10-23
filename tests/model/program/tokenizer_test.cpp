@@ -21,23 +21,30 @@ void test_tokenizer() {
         throw std::runtime_error("Tokenizer get_vocab_size failed.");
     }
 
-    // Test encode and decode for consistency
-    std::string text_to_encode = "a b c d";
+    // Test encode
+    std::string text_to_encode = "ab cd";
     std::vector<int> encoded_ids = tokenizer.encode(text_to_encode);
+    std::vector<int> expected_ids = {4, 3, 5}; // 'ab' -> 4, ' ' -> 3 (assuming space is token 3), 'cd' -> 5
 
-    if (!encoded_ids.empty()) {
-        std::cout << "  Encode Passed (Generated " << encoded_ids.size() << " tokens)\n";
+    if (encoded_ids == expected_ids) {
+        std::cout << "  Encode Passed\n";
     } else {
-        std::cout << "  Encode FAILED (No tokens were generated)\n";
+        std::cout << "  Encode FAILED (Expected: ";
+        for (int id : expected_ids) std::cout << id << " ";
+        std::cout << ", Got: ";
+        for (int id : encoded_ids) std::cout << id << " ";
+        std::cout << ")\n";
         throw std::runtime_error("Tokenizer encode failed.");
     }
 
+    // Test decode
     std::string decoded_text = tokenizer.decode(encoded_ids);
+    std::string expected_text = "ab cd"; // Assuming space is handled correctly
 
-    if (decoded_text == text_to_encode) {
-        std::cout << "  Decode Passed (Decoded text matches original)\n";
+    if (decoded_text == expected_text) {
+        std::cout << "  Decode Passed\n";
     } else {
-        std::cout << "  Decode FAILED (Expected: \"" << text_to_encode << "\", Got: \"" << decoded_text << "\")\n";
+        std::cout << "  Decode FAILED (Expected: \"" << expected_text << ", Got: \"" << decoded_text << ")\n";
         throw std::runtime_error("Tokenizer decode failed.");
     }
 
