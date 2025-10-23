@@ -34,11 +34,23 @@ FeedForward::FeedForward(size_t d_model, size_t d_ff, const std::string& name)
 Matrix FeedForward::forward(const Matrix& x) {
     cached_x_ = x;
 
-    Matrix hidden = Matrix::matmul(x, w1_.value()) + b1_.value();
+    Matrix hidden_no_bias = Matrix::matmul(x, w1_.value());
+    Matrix hidden(hidden_no_bias.rows(), hidden_no_bias.cols());
+    for (size_t r = 0; r < hidden.rows(); ++r) {
+        for (size_t c = 0; c < hidden.cols(); ++c) {
+            hidden(r, c) = hidden_no_bias(r, c) + b1_.value()(0, c);
+        }
+    }
     cached_hidden_ = hidden;
     hidden = relu(hidden);
 
-    Matrix output = Matrix::matmul(hidden, w2_.value()) + b2_.value();
+    Matrix output_no_bias = Matrix::matmul(hidden, w2_.value());
+    Matrix output(output_no_bias.rows(), output_no_bias.cols());
+    for (size_t r = 0; r < output.rows(); ++r) {
+        for (size_t c = 0; c < output.cols(); ++c) {
+            output(r, c) = output_no_bias(r, c) + b2_.value()(0, c);
+        }
+    }
     return output;
 }
 
