@@ -45,7 +45,13 @@ Matrix TransformerModel::forward(const Matrix& input_tokens) {
     final_layer_norm_output_ = final_layer_norm_.forward(x);
 
     // 5. Output Linear Layer
-    TissNum::Matrix output = TissNum::Matrix::matmul(final_layer_norm_output_, output_weight_.value()) + output_bias_.value();
+    TissNum::Matrix output_no_bias = TissNum::Matrix::matmul(final_layer_norm_output_, output_weight_.value());
+    TissNum::Matrix output(output_no_bias.rows(), output_no_bias.cols());
+    for (size_t r = 0; r < output.rows(); ++r) {
+        for (size_t c = 0; c < output.cols(); ++c) {
+            output(r, c) = output_no_bias(r, c) + output_bias_.value()(0, c);
+        }
+    }
 
     return output;
 }
@@ -89,7 +95,13 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
     x = final_layer_norm_.forward(x);
 
     // 5. Output Linear Layer
-    TissNum::Matrix output = TissNum::Matrix::matmul(x, output_weight_.value()) + output_bias_.value();
+    TissNum::Matrix output_no_bias = TissNum::Matrix::matmul(x, output_weight_.value());
+    TissNum::Matrix output(output_no_bias.rows(), output_no_bias.cols());
+    for (size_t r = 0; r < output.rows(); ++r) {
+        for (size_t c = 0; c < output.cols(); ++c) {
+            output(r, c) = output_no_bias(r, c) + output_bias_.value()(0, c);
+        }
+    }
 
     return output;
 }
