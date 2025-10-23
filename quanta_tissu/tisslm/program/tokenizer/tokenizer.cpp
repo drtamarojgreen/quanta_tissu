@@ -117,7 +117,20 @@ std::vector<int> Tokenizer::bpe_encode(const std::vector<unsigned char>& bytes) 
             break; // No more merges are possible
         }
 
-        int new_id = 256 + min_rank; // The new token ID is derived from its rank.
+        auto it1 = vocab.find(best_pair.first);
+        auto it2 = vocab.find(best_pair.second);
+        if (it1 == vocab.end() || it2 == vocab.end()) {
+            break;
+        }
+
+        std::vector<unsigned char> new_bytes = it1->second;
+        new_bytes.insert(new_bytes.end(), it2->second.begin(), it2->second.end());
+
+        auto rev_it = reverse_vocab.find(new_bytes);
+        if (rev_it == reverse_vocab.end()) {
+            break;
+        }
+        int new_id = rev_it->second;
 
         std::vector<int> new_ids;
         for (size_t i = 0; i < ids.size();) {
