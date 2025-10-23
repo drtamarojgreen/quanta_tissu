@@ -37,27 +37,33 @@ Matrix TransformerBlock::backward(const Matrix& d_out, const Matrix& cache) {
     Matrix dx_norm2 = ln2_.backward(d_out, cached_x_for_ffn_);
 
     // Backpropagate through addition (x_norm1 + ffn_out)
-    Matrix d_ffn_out = dx_norm2;
-    Matrix dx_norm1_from_ffn = dx_norm2;
+    Matrix d_ffn_out = dx_norm2; // Gradient flowing to the ffn_out branch
+    Matrix dx_norm1_from_residual = dx_norm2; // Gradient flowing to the x_norm1 branch (residual connection)
 
     // Backpropagate through dropout2
     d_ffn_out = dropout2_.backward(d_ffn_out);
 
-    // Backpropagate through ffn
-    dx_norm1_from_ffn = dx_norm1_from_ffn + ffn_.backward(d_ffn_out, cached_x_for_ln1_);
+    // Backpropagate through ffn to get gradient contribution for x_norm1
+    Matrix dx_norm1_from_ffn = ffn_.backward(d_ffn_out, cached_x_for_ln1_);
+
+    // Total gradient for x_norm1 is the sum from both branches
+    Matrix total_dx_norm1 = dx_norm1_from_residual + dx_norm1_from_ffn;
 
     // Backpropagate through ln1
-    Matrix dx_plus_attn = ln1_.backward(dx_norm1_from_ffn, cached_x_for_ln1_);
+    Matrix dx_plus_attn = ln1_.backward(total_dx_norm1, cached_x_for_ln1_);
 
     // Backpropagate through addition (x + attn_out)
-    Matrix d_attn_out = dx_plus_attn;
-    Matrix dx_from_attn = dx_plus_attn;
+    Matrix d_attn_out = dx_plus_attn; // Gradient flowing to the attn_out branch
+    Matrix dx_from_residual = dx_plus_attn; // Gradient flowing to the x branch (residual connection)
 
     // Backpropagate through dropout1
     d_attn_out = dropout1_.backward(d_attn_out);
 
-    // Backpropagate through mha
-    dx_from_attn = dx_from_attn + mha_.backward(d_attn_out, cache);
+    // Backpropagate through mha to get gradient contribution for x
+    Matrix dx_from_mha = mha_.backward(d_attn_out, cache);
+
+    // Total gradient for x is the sum from both branches
+    Matrix dx_from_attn = dx_from_residual + dx_from_mha;
 
     return dx_from_attn;
 }
