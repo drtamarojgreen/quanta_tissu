@@ -2,6 +2,7 @@
 #include "../../../quanta_tissu/tisslm/program/generation/generator.h"
 #include "../../../quanta_tissu/tisslm/program/generation/generation_config.h"
 #include "../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
+#include "config/TestConfig.h"
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -26,17 +27,18 @@ void run_cpp_full_fledged_workout() {
     std::cout << "=== Running C++ Full-Fledged Workout ===" << std::endl;
 
     // --- 1. Setup Model and Tokenizer ---
-    // Dummy tokenizer (assuming dummy_vocab.json and dummy_merges.txt are available)
-    Tokenizer tokenizer("models/tokenizers/revised_tokenizer");
+    Tokenizer tokenizer(TestConfig::TokenizerPath);
     int vocab_size = tokenizer.get_vocab_size();
-    int max_seq_len = 50;
-    int embed_dim = 32;
-    int num_heads = 4;
-    int num_layers = 2;
-    float dropout_rate = 0.1f;
-    int lora_rank = 4; // Test with LoRA enabled
 
-    std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, dropout_rate, lora_rank);
+    std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(
+        vocab_size,
+        TestConfig::MaxSeqLen,
+        TestConfig::EmbedDim,
+        TestConfig::NumHeads,
+        TestConfig::NumLayers,
+        TestConfig::DropoutRate,
+        TestConfig::LoraRank
+    );
     
     std::cout << "  Model and Tokenizer initialized." << std::endl;
 

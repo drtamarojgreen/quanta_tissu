@@ -1,5 +1,6 @@
 #include "../../../quanta_tissu/tisslm/program/core/embedding.h"
 #include "../../../quanta_tissu/tisslm/program/core/positionalencoding.h"
+#include "config/TestConfig.h"
 #include <iostream>
 #include <vector>
 #include <iomanip>
@@ -10,7 +11,7 @@ void test_embedding() {
     std::cout << "=== Testing Embedding Layer ===" << std::endl;
     
     // Create an embedding layer with vocab_size=10, d_model=4
-    Embedding emb(10, 4, "test_emb");
+    Embedding emb(10, TestConfig::EmbedDim, "test_emb");
     
     // Test forward pass with a sequence of token IDs
     std::vector<size_t> tokens = {0, 1, 2, 3, 1};
@@ -30,7 +31,7 @@ void test_embedding() {
     std::cout << std::endl;
     
     // Test backward pass
-    Matrix grad_out = Matrix::ones(tokens.size(), 4);
+    Matrix grad_out = Matrix::ones(tokens.size(), TestConfig::EmbedDim);
     emb.backward(grad_out, tokens);
     
     std::cout << "Backward pass completed successfully" << std::endl;
@@ -41,12 +42,12 @@ void test_positional_encoding() {
     std::cout << "=== Testing Positional Encoding ===" << std::endl;
     
     // Create positional encoding with d_model=4, max_len=100
-    PositionalEncoding pe(4, 100);
+    PositionalEncoding pe(TestConfig::EmbedDim, 100);
     
     // Create a simple input matrix (seq_len=3, d_model=4)
-    Matrix input(3, 4);
+    Matrix input(3, TestConfig::EmbedDim);
     for (size_t i = 0; i < 3; ++i) {
-        for (size_t j = 0; j < 4; ++j) {
+        for (size_t j = 0; j < TestConfig::EmbedDim; ++j) {
             input(i, j) = 1.0f;  // Fill with ones for simplicity
         }
     }
