@@ -72,10 +72,14 @@ void Tokenizer::load_merges(const std::string& merges_path) {
     }
     std::string line;
     while (std::getline(file, line)) {
+        if (line.empty() || line[0] == '#') { // Skip empty lines and comments
+            continue;
+        }
         std::stringstream ss(line);
         int p1, p2, new_id;
-        ss >> p1 >> p2 >> new_id;
-        this->merges[{p1, p2}] = new_id;
+        if (ss >> p1 && ss >> p2 && ss >> new_id) {
+            this->merges[{p1, p2}] = new_id;
+        }
     }
 }
 
@@ -88,8 +92,13 @@ std::vector<int> Tokenizer::bpe_encode(const std::vector<unsigned char>& bytes) 
             [this](const auto& a, const auto& b) {
                 auto it_a = this->merges.find(a);
                 auto it_b = this->merges.find(b);
-                if (it_a == this->merges.end()) return false;
-                if (it_b == this->merges.end()) return true;
+                if (it_a == this->merges.end()) {
+                    return false; // a is not a valid merge, so it's not "less"
+                }
+                if (it_b == this->merges.end()) {
+                    return true; // a is valid, b is not, so a is "less"
+                }
+                // Both are valid, compare their rank (new_id)
                 return it_a->second < it_b->second;
             });
 
@@ -116,7 +125,7 @@ std::vector<int> Tokenizer::bpe_encode(const std::vector<unsigned char>& bytes) 
 
 
 std::vector<int> Tokenizer::encode(const std::string& text) {
-    std::regex bpe_regex(R"('s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)");
+    std::regex bpe_regex(R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[[:alpha:]][[:digit:]]]+|\s+(?!\S)|\s+)");
     std::vector<int> all_ids;
 
     auto words_begin = std::sregex_iterator(text.begin(), text.end(), bpe_regex);
@@ -202,7 +211,7 @@ void Tokenizer::train(const std::string& text, int vocab_size, bool verbose) {
     }
 
     // 1. Pre-tokenize the text
-    std::regex pre_tokenizer(R"('s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)");
+    std::regex pre_tokenizer(R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[[:alpha:]][[:digit:]]]+|\s+(?!\S)|\s+)");
     auto words_begin = std::sregex_iterator(text.begin(), text.end(), pre_tokenizer);
     auto words_end = std::sregex_iterator();
 
