@@ -1,6 +1,7 @@
 #include "../../../quanta_tissu/tisslm/program/core/transformer_model.h"
 #include "../../../quanta_tissu/tisslm/program/generation/generator.h"
 #include "../../../quanta_tissu/tisslm/program/generation/generation_config.h"
+#include "config/TestConfig.h"
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -11,15 +12,17 @@ using namespace TissNum;
 void test_transformer_model() {
     std::cout << "=== Testing Transformer Model ===" << std::endl;
 
-    int vocab_size = 100;
-    int max_seq_len = 50;
-    int embed_dim = 32;
-    int num_heads = 4;
-    int num_layers = 2;
-    float dropout_rate = 0.1f;
-    int lora_rank = 4; // Test with LoRA enabled
+    int vocab_size = 100; // This test doesn't use the tokenizer, so we can keep a dummy value here.
 
-    TransformerModel model(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, dropout_rate, lora_rank);
+    TransformerModel model(
+        vocab_size,
+        TestConfig::MaxSeqLen,
+        TestConfig::EmbedDim,
+        TestConfig::NumHeads,
+        TestConfig::NumLayers,
+        TestConfig::DropoutRate,
+        TestConfig::LoraRank
+    );
 
     // Test forward pass (training mode)
     Matrix input_tokens_train(1, 5); // Batch size 1, sequence length 5
@@ -70,15 +73,17 @@ void test_transformer_model() {
 void test_generator() {
     std::cout << "=== Testing Generator ===" << std::endl;
 
-    int vocab_size = 100;
-    int max_seq_len = 50;
-    int embed_dim = 32;
-    int num_heads = 4;
-    int num_layers = 2;
-    float dropout_rate = 0.1f;
-    int lora_rank = 0; // Test Generator without LoRA for simplicity
+    int vocab_size = 100; // This test doesn't use the tokenizer, so we can keep a dummy value here.
 
-    std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, dropout_rate, lora_rank);
+    std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(
+        vocab_size,
+        TestConfig::MaxSeqLen,
+        TestConfig::EmbedDim,
+        TestConfig::NumHeads,
+        TestConfig::NumLayers,
+        TestConfig::DropoutRate,
+        0 // LoraRank = 0 for this test
+    );
     Generation::GenerationConfig config;
     config.eos_ids.push_back(50); // Example EOS token ID
 

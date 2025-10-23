@@ -3,6 +3,7 @@
 #include "../../../quanta_tissu/tisslm/program/generation/generation_config.h"
 #include "../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
 #include "../../../quanta_tissu/tisslm/program/rules/rule_enforcer.h"
+#include "config/TestConfig.h"
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -103,16 +104,18 @@ void run_rule_enforcement_evaluation() {
     std::cout << "=== Running Rule Enforcement Evaluation (C++) ===" << std::endl;
 
     // --- Setup Model and Tokenizer ---
-    Tokenizer tokenizer("models/tokenizers/revised_tokenizer");
+    Tokenizer tokenizer(TestConfig::TokenizerPath);
     int vocab_size = tokenizer.get_vocab_size();
-    int max_seq_len = 50;
-    int embed_dim = 32;
-    int num_heads = 4;
-    int num_layers = 2;
-    float dropout_rate = 0.1f;
-    int lora_rank = 0; 
 
-    std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, dropout_rate, lora_rank);
+    std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(
+        vocab_size,
+        TestConfig::MaxSeqLen,
+        TestConfig::EmbedDim,
+        TestConfig::NumHeads,
+        TestConfig::NumLayers,
+        TestConfig::DropoutRate,
+        0 // LoraRank = 0 for this test
+    );
 
     std::cout << "  Model and Tokenizer initialized." << std::endl;
 
