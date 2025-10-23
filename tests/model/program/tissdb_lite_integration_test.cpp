@@ -35,7 +35,7 @@ void run_tissdb_lite_integration_evaluation() {
     std::cout << "=== Running TissDB-Lite Integration Evaluation (C++) ===" << std::endl;
 
     // --- Setup TissDBClient ---
-    TissDBClient client("127.0.0.1", 9876, "test_tissdb_lite_db");
+    TissDBClient client("127.0.0.1", 9876, "test_tissdb_lite_db", "static_test_token");
 
     std::cout << "  TissDBClient initialized." << std::endl;
 

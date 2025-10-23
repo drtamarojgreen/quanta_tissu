@@ -50,20 +50,11 @@ void test_cross_entropy_loss() {
     CrossEntropyLoss loss_fn;
     int vocab_size = 3;
 
-    // Helper to create one-hot matrix
-    auto create_one_hot = [&](const std::vector<int>& indices, int num_classes) {
-        Matrix one_hot(indices.size(), num_classes);
-        for (size_t i = 0; i < indices.size(); ++i) {
-            one_hot(i, indices[i]) = 1.0f;
-        }
-        return one_hot;
-    };
-
     // Test case 1: Perfect prediction
     Matrix predictions1(1, vocab_size);
     predictions1(0,0) = 10.0f; predictions1(0,1) = 0.0f; predictions1(0,2) = 0.0f; // Logits
-    std::vector<int> target_indices1 = {0};
-    Matrix targets1 = create_one_hot(target_indices1, vocab_size);
+    Matrix targets1(1, 1);
+    targets1(0, 0) = 0;
 
     float loss1 = loss_fn.compute_loss(predictions1, targets1);
     Matrix grad1 = loss_fn.compute_gradient(predictions1, targets1);
@@ -88,8 +79,8 @@ void test_cross_entropy_loss() {
     // Test case 2: Imperfect prediction
     Matrix predictions2(1, vocab_size);
     predictions2(0,0) = 0.0f; predictions2(0,1) = 10.0f; predictions2(0,2) = 0.0f; // Logits
-    std::vector<int> target_indices2 = {0};
-    Matrix targets2 = create_one_hot(target_indices2, vocab_size);
+    Matrix targets2(1, 1);
+    targets2(0, 0) = 0;
 
     float loss2 = loss_fn.compute_loss(predictions2, targets2);
     Matrix grad2 = loss_fn.compute_gradient(predictions2, targets2);

@@ -263,6 +263,13 @@ void test_multiple_documents() {
             results.record_fail("Multiple document creation", "Not all documents created");
         }
         
+        // Clean up collection before test to ensure isolation
+        try {
+            client.query(collection, "DELETE FROM " + collection + ";");
+        } catch (const std::exception& e) {
+            results.record_fail("Multiple document retrieval", "Cleanup failed: " + std::string(e.what()));
+            return;
+        }
         // Verify all documents
         std::string select_query = "SELECT COUNT(*) FROM " + collection + ";";
         try {
