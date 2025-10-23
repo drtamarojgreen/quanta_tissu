@@ -117,7 +117,7 @@ Matrix TransformerModel::backward(const Matrix& grad_output) {
     // 5. Backward through Embedding layer
     embedding_layer_.backward(grad_embedded_input, cached_token_ids_);
 
-    return TissNum::Matrix(); // Gradients for input tokens are not typically propagated further
+    return TissNum::Matrix();
 }
 
 std::vector<std::shared_ptr<TissNum::Parameter>> TransformerModel::get_parameters() {
