@@ -171,9 +171,9 @@ void run_kv_cache_evaluation() {
 
     // --- Test Scenarios ---
     std::vector<std::tuple<std::string, int, std::string>> kv_cache_test_scenarios = {
-        {"The laws of physics state that", 80, "Short physics prompt"},
-        {"In the beginning of the universe, there was nothing but darkness and void", 200, "Medium cosmology prompt"},
-        {"The development of artificial intelligence has progressed rapidly in recent years, with breakthroughs in machine learning, natural language processing, and computer vision leading to", 400, "Long AI development prompt"},
+        {"A core principle of Cognitive Behavioral Therapy is that", 80, "Short CBT Intro"},
+        {"One common cognitive distortion is catastrophizing, which involves assuming the worst possible outcome will occur. To counter this, one can", 200, "Medium CBT Technique"},
+        {"The process of cognitive restructuring in CBT involves several steps. First, the individual must identify the automatic negative thought. Second, they must challenge the validity of this thought by examining the evidence for and against it. Third, they generate a more balanced or realistic alternative thought to replace the original distorted one. This technique helps to", 400, "Long CBT Process"},
     };
 
     std::vector<Generation::GenerationConfig> generation_methods = {
