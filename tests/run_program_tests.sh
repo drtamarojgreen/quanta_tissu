@@ -29,7 +29,7 @@ cd "$BUILD_DIR"
 
 # Configure the project with CMake. '..' points to the parent dir (tests/model/program)
 echo "Configuring with CMake..."
-cmake ..
+cmake -DTOKENIZER_PATH_FROM_CMAKE=../../../test_tokenizer/test_tokenizer ..
 
 # Build the test executables
 echo "Building test executables..."

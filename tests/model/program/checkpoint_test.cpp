@@ -68,7 +68,7 @@ void test_checkpointing() {
 
     // --- 3. Save a checkpoint ---
     std::string checkpoint_path = "test_checkpoint.bin";
-    std.cout << "  Saving checkpoint to: " << checkpoint_path << std::endl;
+    std::cout << "  Saving checkpoint to: " << checkpoint_path << std::endl;
     save_checkpoint(checkpoint_path, model);
 
     // --- 4. Verify checkpoint file exists ---
