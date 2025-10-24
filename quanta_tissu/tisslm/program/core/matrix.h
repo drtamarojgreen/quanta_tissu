@@ -68,6 +68,9 @@ public:
     // Concatenation
     static Matrix concatenate(const Matrix& a, const Matrix& b, int axis);
 
+    // Raw data access
+    const float* get_data() const { return data_.data(); }
+
 private:
     size_t rows_;
     size_t cols_;
