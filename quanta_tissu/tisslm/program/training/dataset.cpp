@@ -1,4 +1,5 @@
 #include "dataset.h"
+#include <stdexcept>
 
 namespace TissDB {
 namespace TissLM {
@@ -12,10 +13,14 @@ size_t TokenDataset::size() const {
     if (token_ids_.size() <= seq_len_) {
         return 0;
     }
-    return token_ids_.size() - seq_len_;
+    return token_ids_.size() - seq_len_ - 1;
 }
 
 std::pair<TissNum::Matrix, TissNum::Matrix> TokenDataset::get_item(size_t index) const {
+    if (index + seq_len_ + 1 > token_ids_.size()) {
+        throw std::out_of_range("Index out of range in TokenDataset::get_item");
+    }
+
     TissNum::Matrix x(1, seq_len_);
     TissNum::Matrix y(1, seq_len_);
 
