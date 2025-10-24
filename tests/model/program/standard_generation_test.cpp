@@ -129,48 +129,49 @@ void run_standard_generation_evaluation() {
 
     std::vector<TestConfig> test_configurations = {
         // Greedy Method (baseline)
-        {"The definition of science is", "greedy", 60, Generation::GenerationConfig::greedy()},
+        {"The definition of Cognitive Behavioral Therapy is", "greedy", 60, Generation::GenerationConfig::greedy()},
 
         // Nucleus Sampling: Temperature variations
-        {"The future of space exploration involves", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 0.5f)},
-        {"The future of space exploration involves", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 0.8f)},
-        {"The future of space exploration involves", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 1.2f)},
+        {"To overcome negative thought patterns, one can", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 0.5f)},
+        {"To overcome negative thought patterns, one can", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 0.8f)},
+        {"To overcome negative thought patterns, one can", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 1.2f)},
 
         // Nucleus Sampling: Top-p variations
-        {"A novel is a work of fiction that", "nucleus", 80, Generation::GenerationConfig::nucleus(0.7f, 0.8f)},
-        {"A novel is a work of fiction that", "nucleus", 80, Generation::GenerationConfig::nucleus(0.9f, 0.8f)},
-        {"A novel is a work of fiction that", "nucleus", 80, Generation::GenerationConfig::nucleus(0.99f, 0.8f)},
+        {"A cognitive distortion is a biased perspective on", "nucleus", 80, Generation::GenerationConfig::nucleus(0.7f, 0.8f)},
+        {"A cognitive distortion is a biased perspective on", "nucleus", 80, Generation::GenerationConfig::nucleus(0.9f, 0.8f)},
+        {"A cognitive distortion is a biased perspective on", "nucleus", 80, Generation::GenerationConfig::nucleus(0.99f, 0.8f)},
 
         // Different prompt types
-        {"To build a successful startup, one must first", "nucleus", 90, Generation::GenerationConfig::nucleus(0.9f, 0.9f)},
-        {"Once upon a time, in a land of dragons and magic,", "nucleus", 100, Generation::GenerationConfig::nucleus(0.95f, 0.85f)},
+        {"To build a strong therapeutic alliance, a therapist must", "nucleus", 90, Generation::GenerationConfig::nucleus(0.9f, 0.9f)},
+        {"Once upon a time, in a therapy session, a client realized", "nucleus", 100, Generation::GenerationConfig::nucleus(0.95f, 0.85f)},
 
         // Random Sampling
-        {"The cat sat on the", "random", 50, Generation::GenerationConfig::sampling(1.0f)},
+        {"The patient sat on the", "random", 50, Generation::GenerationConfig::sampling(1.0f)},
 
         // Repetition Penalty
-        {"This is a test of the repetition penalty.", "nucleus", 100, []() {
+        {"This is a test of challenging automatic thoughts. This is a test of challenging automatic thoughts.", "nucleus", 100, []() {
             auto config = Generation::GenerationConfig::nucleus(0.9f, 0.8f);
             config.repetition_penalty = 1.5f;
             return config;
         }()},
 
-        // Logit Bias (assuming token 29 is 'Paris')
-        {"The capital of France is", "greedy", 1, []() {
+        // Logit Bias (assuming a relevant token for 'anxiety')
+        {"A common symptom of social anxiety is", "greedy", 1, []() {
             auto config = Generation::GenerationConfig::greedy();
-            config.logit_bias = {{29, 10.0f}};
+            // Assuming token 40 represents 'avoidance'
+            config.logit_bias = {{40, 10.0f}};
             return config;
         }()},
 
         // No-repeat N-gram
-        {"This is a test of the no-repeat n-gram. This is a test of the no-repeat n-gram.", "nucleus", 50, []() {
+        {"This is a test of a behavioral experiment. This is a test of a behavioral experiment.", "nucleus", 50, []() {
             auto config = Generation::GenerationConfig::nucleus(0.9f, 0.8f);
             config.no_repeat_ngram_size = 3;
             return config;
         }()},
 
         // Beam Search
-        {"The best way to learn is", "beam_search", 50, []() {
+        {"The best way to practice mindfulness is", "beam_search", 50, []() {
             auto config = Generation::GenerationConfig::greedy();
             config.method = "beam_search";
             config.beam_width = 3;
@@ -178,7 +179,7 @@ void run_standard_generation_evaluation() {
         }()},
 
         // Contrastive Search
-        {"The meaning of life is", "contrastive_search", 60, []() {
+        {"The core belief behind impostor syndrome is", "contrastive_search", 60, []() {
             auto config = Generation::GenerationConfig::greedy();
             config.method = "contrastive_search";
             config.beam_width = 5;
@@ -187,7 +188,7 @@ void run_standard_generation_evaluation() {
         }()},
 
         // Mirostat Sampling
-        {"In a world where AI is king,", "mirostat_sampling", 70, []() {
+        {"In a session focused on exposure therapy,", "mirostat_sampling", 70, []() {
             auto config = Generation::GenerationConfig::greedy();
             config.method = "mirostat_sampling";
             config.mirostat_tau = 5.0f;
@@ -196,7 +197,7 @@ void run_standard_generation_evaluation() {
         }()},
 
         // Speculative Sampling (placeholder)
-        {"The journey of a thousand miles begins with", "speculative_sampling", 40, []() {
+        {"The journey to mental wellness begins with", "speculative_sampling", 40, []() {
             auto config = Generation::GenerationConfig::greedy();
             config.method = "speculative_sampling";
             return config;

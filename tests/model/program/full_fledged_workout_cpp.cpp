@@ -52,8 +52,8 @@ void run_cpp_full_fledged_workout() {
     };
 
     std::vector<std::string> prompts = {
-        "The quick brown fox",
-        "Hello world"
+        "Cognitive Behavioral Therapy focuses on",
+        "A common cognitive distortion is"
     };
     int max_new_tokens = 10;
 

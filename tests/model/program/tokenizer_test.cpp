@@ -1,15 +1,29 @@
 #include "../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
+#include "config/TestConfig.h"
 #include <iostream>
 #include <vector>
 #include <string>
 #include <numeric>
+#include <fstream>
+#include <sstream>
+
+// Helper function to read a file into a string
+std::string read_file_to_string(const std::string& path) {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open file: " + path);
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
 
 void test_tokenizer() {
     std::cout << "=== Testing Tokenizer ===" << std::endl;
 
     // The Tokenizer constructor expects a prefix. The test runner executes from the build directory,
-    // so we use a relative path to the test-specific tokenizer files in the parent directory.
-    Tokenizer tokenizer("../test");
+    // so we need to point it to the source directory where the tokenizer files are.
+    Tokenizer tokenizer(TestConfig::TokenizerPath);
 
     // Test get_vocab_size
     int vocab_size = tokenizer.get_vocab_size();
@@ -53,8 +67,8 @@ void test_tokenizer() {
 void test_tokenizer_training() {
     std::cout << "\n=== Testing Tokenizer Training ===" << std::endl;
 
-    std::string corpus = "Cognitive Behavioral Therapy helps in identifying and changing destructive thought patterns";
-    std::string prefix = "temp_trained_tokenizer";
+    std::string corpus = "hugging face is a company based in New York City";
+    std::string prefix = "test_tokenizer";
     int vocab_size = 300;
 
     // 1. Train a new tokenizer
@@ -68,7 +82,7 @@ void test_tokenizer_training() {
     Tokenizer tokenizer2(prefix);
 
     // 4. Test encoding and decoding
-    std::string text_to_encode = "Cognitive Behavioral Therapy";
+    std::string text_to_encode = "hugging face";
     std::vector<int> encoded = tokenizer2.encode(text_to_encode);
     std::string decoded = tokenizer2.decode(encoded);
 
@@ -80,11 +94,46 @@ void test_tokenizer_training() {
     }
 }
 
+void test_corpus_based_tokenizer() {
+    std::cout << "\n=== Testing Corpus-Based Tokenizer Training ===" << std::endl;
+
+    // 1. Read the corpus
+    std::string corpus_path = "../../../tests/test_corpus/cbt_corpus.txt";
+    std::string corpus = read_file_to_string(corpus_path);
+    if (corpus.empty()) {
+        throw std::runtime_error("Corpus file is empty or could not be read.");
+    }
+    std::cout << "  Corpus loaded successfully from: " << corpus_path << std::endl;
+
+    // 2. Train a new tokenizer on the corpus
+    std::string prefix = "corpus_trained_tokenizer";
+    int vocab_size = 400; // A bit larger for a real corpus
+    Tokenizer tokenizer("");
+    tokenizer.train(corpus, vocab_size, false); // verbose = false
+
+    // 3. Save and reload the tokenizer to ensure serialization works
+    tokenizer.save(prefix);
+    Tokenizer reloaded_tokenizer(prefix);
+
+    // 4. Test encoding and decoding
+    std::string text_to_test = "solving current problems";
+    std::vector<int> encoded = reloaded_tokenizer.encode(text_to_test);
+    std::string decoded = reloaded_tokenizer.decode(encoded);
+
+    if (decoded == text_to_test) {
+        std::cout << "  Corpus-based Training and Save/Load Passed\n";
+    } else {
+        std::cout << "  Corpus-based Training and Save/Load FAILED (Expected: \"" << text_to_test << "\", Got: \"" << decoded << "\")\n";
+        throw std::runtime_error("Corpus-based tokenizer test failed.");
+    }
+}
+
 int main() {
     try {
         test_tokenizer();
         test_tokenizer_training();
-        std::cout << "All Tokenizer tests passed!" << std::endl;
+        test_corpus_based_tokenizer();
+        std::cout << "\nAll Tokenizer tests passed!" << std::endl;
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "Tokenizer tests failed with exception: " << e.what() << std::endl;
