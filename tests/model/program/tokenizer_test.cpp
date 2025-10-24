@@ -1,5 +1,4 @@
 #include "../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
-#include "config/TestConfig.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -9,8 +8,8 @@ void test_tokenizer() {
     std::cout << "=== Testing Tokenizer ===" << std::endl;
 
     // The Tokenizer constructor expects a prefix. The test runner executes from the build directory,
-    // so we need to point it to the source directory where the tokenizer files are.
-    Tokenizer tokenizer(TestConfig::TokenizerPath);
+    // so we use a relative path to the test-specific tokenizer files in the parent directory.
+    Tokenizer tokenizer("../test");
 
     // Test get_vocab_size
     int vocab_size = tokenizer.get_vocab_size();
@@ -54,8 +53,8 @@ void test_tokenizer() {
 void test_tokenizer_training() {
     std::cout << "\n=== Testing Tokenizer Training ===" << std::endl;
 
-    std::string corpus = "hugging face is a company based in New York City";
-    std::string prefix = "test_tokenizer";
+    std::string corpus = "Cognitive Behavioral Therapy helps in identifying and changing destructive thought patterns";
+    std::string prefix = "temp_trained_tokenizer";
     int vocab_size = 300;
 
     // 1. Train a new tokenizer
@@ -69,7 +68,7 @@ void test_tokenizer_training() {
     Tokenizer tokenizer2(prefix);
 
     // 4. Test encoding and decoding
-    std::string text_to_encode = "hugging face";
+    std::string text_to_encode = "Cognitive Behavioral Therapy";
     std::vector<int> encoded = tokenizer2.encode(text_to_encode);
     std::string decoded = tokenizer2.decode(encoded);
 
