@@ -4,7 +4,7 @@ project(TissLMTests)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
+option(TOKENIZER_PATH_FROM_CMAKE "Path to the tokenizer files" "")
 
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program)
@@ -46,6 +46,7 @@ add_library(tisslm_training
     ../../../quanta_tissu/tisslm/program/training/optimizer.cpp
     ../../../quanta_tissu/tisslm/program/training/loss_function.cpp
     ../../../quanta_tissu/tisslm/program/training/trainer.cpp
+    ../../../quanta_tissu/tisslm/program/training/dataset.cpp
 )
 
 # Generation components library
@@ -355,9 +356,8 @@ set(TEST_EXECUTABLES
 )
 
 # Get the project root and pass it as a compile definition to all tests
-get_filename_component(PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." REALPATH)
 foreach(test_exe ${TEST_EXECUTABLES})
-    target_compile_definitions(${test_exe} PRIVATE "TOKENIZER_PATH_FROM_CMAKE=\"${PROJECT_ROOT}/test_tokenizer/test_tokenizer\"")
+    target_compile_definitions(${test_exe} PRIVATE "TOKENIZER_PATH_FROM_CMAKE=\"${TOKENIZER_PATH_FROM_CMAKE}\"")
 endforeach()
 
 # Print build information
