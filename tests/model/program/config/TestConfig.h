@@ -3,7 +3,7 @@
 
 #ifndef TOKENIZER_PATH_FROM_CMAKE
 // This is a fallback for IDEs that don't get the definition from CMake
-#define TOKENIZER_PATH_FROM_CMAKE "../../../../test_tokenizer/test_tokenizer"
+#define TOKENIZER_PATH_FROM_CMAKE "../../../test_tokenizer/test_tokenizer"
 #endif
 
 struct TestConfig {

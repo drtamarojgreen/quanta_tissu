@@ -31,7 +31,7 @@ void save_checkpoint(const std::string& path, std::shared_ptr<Model> model) {
     for (const auto& param_ptr : params) {
         const auto& param = *param_ptr;
         const auto& value_matrix = param.value();
-        ofs.write(reinterpret_cast<const char*>(value_matrix.data()), value_matrix.rows() * value_matrix.cols() * sizeof(float));
+        ofs.write(reinterpret_cast<const char*>(value_matrix.get_data()), value_matrix.rows() * value_matrix.cols() * sizeof(float));
     }
 }
 
@@ -51,7 +51,7 @@ void test_checkpointing() {
         TestConfig::DropoutRate
     );
 
-    auto optimizer = std::make_shared<AdamOptimizer>(model->get_parameters(), 0.001f);
+    auto optimizer = std::make_shared<Adam>(0.001f);
     auto loss_fn = std::make_shared<CrossEntropyLoss>();
 
     // Dummy data
@@ -68,7 +68,7 @@ void test_checkpointing() {
 
     // --- 3. Save a checkpoint ---
     std::string checkpoint_path = "test_checkpoint.bin";
-    std::cout << "  Saving checkpoint to: " << checkpoint_path << std::endl;
+    std.cout << "  Saving checkpoint to: " << checkpoint_path << std::endl;
     save_checkpoint(checkpoint_path, model);
 
     // --- 4. Verify checkpoint file exists ---
