@@ -37,7 +37,7 @@ void test_tokenizer() {
     // Test encode
     std::string text_to_encode = "ab cd";
     std::vector<int> encoded_ids = tokenizer.encode(text_to_encode);
-    std::vector<int> expected_ids = {4, 3, 5}; // 'ab' -> 4, ' ' -> 3 (assuming space is token 3), 'cd' -> 5
+    std::vector<int> expected_ids = {4, 3, 5}; // 'ab' -> 4, ' ' -> 3, 'cd' -> 5
 
     if (encoded_ids == expected_ids) {
         std::cout << "  Encode Passed\n";
@@ -57,7 +57,7 @@ void test_tokenizer() {
     if (decoded_text == expected_text) {
         std::cout << "  Decode Passed\n";
     } else {
-        std::cout << "  Decode FAILED (Expected: \"" << expected_text << ", Got: \"" << decoded_text << ")\n";
+        std::cout << "  Decode FAILED (Expected: \"" << expected_text << "\", Got: \"" << decoded_text << "\")\n";
         throw std::runtime_error("Tokenizer decode failed.");
     }
 
@@ -67,8 +67,8 @@ void test_tokenizer() {
 void test_tokenizer_training() {
     std::cout << "\n=== Testing Tokenizer Training ===" << std::endl;
 
-    std::string corpus = "hugging face is a company based in New York City";
-    std::string prefix = "test_tokenizer";
+    std::string corpus = "Cognitive Behavioral Therapy helps individuals identify and change destructive thinking patterns.";
+    std::string prefix = "test_cbt_tokenizer";
     int vocab_size = 300;
 
     // 1. Train a new tokenizer
@@ -82,7 +82,7 @@ void test_tokenizer_training() {
     Tokenizer tokenizer2(prefix);
 
     // 4. Test encoding and decoding
-    std::string text_to_encode = "hugging face";
+    std::string text_to_encode = "change thinking patterns";
     std::vector<int> encoded = tokenizer2.encode(text_to_encode);
     std::string decoded = tokenizer2.decode(encoded);
 
