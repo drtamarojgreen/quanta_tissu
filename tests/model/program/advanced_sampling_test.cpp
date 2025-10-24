@@ -44,12 +44,32 @@ void run_advanced_sampling_evaluation() {
 
     std::cout << "  Model and Tokenizer initialized." << std::endl;
 
-    std::string prompt = "The future of space exploration involves";
-    int length = 30;
+    // --- Test 10a: Beam Search ---
+    std::cout << "\n  --- Test 10a: Beam Search ---" << std::endl;
+    try {
+        std::string prompt = "A helpful way to manage anxiety is to";
+        int length = 20;
+        int beam_width = 3;
 
-    // --- Test 10a: Beam Search (Placeholder) ---
-    std::cout << "\n  --- Test 10a: Beam Search (Placeholder) ---" << std::endl;
-    std::cout << "    [SKIPPED] Beam Search not yet implemented in C++ Generator." << std::endl;
+        Generation::GenerationConfig config = Generation::GenerationConfig::greedy();
+        config.method = "beam_search";
+        config.beam_width = beam_width;
+
+        Generator generator(model, config);
+        std::vector<int> prompt_tokens = tokenizer.encode(prompt);
+        std::vector<int> generated_tokens = generator.beam_search(prompt_tokens, length, beam_width, -1);
+
+        std::string decoded_text = tokenizer.decode(generated_tokens);
+        std::cout << "    Prompt: \"" << prompt << "\"" << std::endl;
+        std::cout << "    Generated Text: \"" << decoded_text << "\"" << std::endl;
+        if (generated_tokens.size() > prompt_tokens.size()) {
+            std::cout << "    [PASSED] Beam Search generated a sequence of tokens." << std::endl;
+        } else {
+            std::cout << "    [FAILED] Beam Search did not generate new tokens." << std::endl;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "    [ERROR] Beam Search test failed: " << e.what() << std::endl;
+    }
 
     // --- Test 10b: Contrastive Search (Placeholder) ---
     std::cout << "\n  --- Test 10b: Contrastive Search (Placeholder) ---" << std::endl;

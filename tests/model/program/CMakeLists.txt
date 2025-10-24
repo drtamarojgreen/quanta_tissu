@@ -319,6 +319,22 @@ set_tests_properties(AdvancedSamplingTests PROPERTIES
     LABELS "unit;evaluation;sampling;advanced"
 )
 
+add_executable(checkpoint_test
+    checkpoint_test.cpp
+)
+target_link_libraries(checkpoint_test
+    tisslm_core
+    tisslm_training
+)
+
+add_test(NAME CheckpointingTests
+         COMMAND checkpoint_test)
+
+set_tests_properties(CheckpointingTests PROPERTIES
+    TIMEOUT 20
+    LABELS "integration;training;checkpoint"
+)
+
 # Print build information
 message(STATUS "Building TissLM Tests")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
