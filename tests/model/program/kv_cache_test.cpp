@@ -101,7 +101,11 @@ KVCacheTestResult run_single_kv_cache_test(
         }
         
         Matrix logits = model->forward(input_token_matrix);
-        int next_token = sample_token_greedy(logits); // Always greedy for no-cache baseline for simplicity
+        Matrix last_token_logits(1, logits.cols());
+        for (int c = 0; c < logits.cols(); ++c) {
+            last_token_logits(0, c) = logits(logits.rows() - 1, c);
+        }
+        int next_token = sample_token_greedy(last_token_logits);
         generated_tokens_no_cache_ids.push_back(next_token);
         current_tokens_no_cache.push_back(next_token);
     }

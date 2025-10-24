@@ -335,6 +335,31 @@ set_tests_properties(CheckpointingTests PROPERTIES
     LABELS "integration;training;checkpoint"
 )
 
+# Define all test executables
+set(TEST_EXECUTABLES
+    test_db_and_retrieval
+    test_new_components
+    matrix_test
+    tokenizer_test
+    training_test
+    model_generation_test
+    full_fledged_workout_cpp
+    kv_cache_test
+    rag_self_update_test
+    experimental_sampling_test
+    standard_generation_test
+    rule_enforcement_test
+    advanced_analysis_test
+    tissdb_lite_integration_test
+    advanced_sampling_test
+)
+
+# Get the project root and pass it as a compile definition to all tests
+get_filename_component(PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." REALPATH)
+foreach(test_exe ${TEST_EXECUTABLES})
+    target_compile_definitions(${test_exe} PRIVATE "TOKENIZER_PATH_FROM_CMAKE=\"${PROJECT_ROOT}/test_tokenizer/test_tokenizer\"")
+endforeach()
+
 # Print build information
 message(STATUS "Building TissLM Tests")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
