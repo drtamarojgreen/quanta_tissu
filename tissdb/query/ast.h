@@ -77,6 +77,7 @@ enum class JoinType {
 // Represents a join clause
 struct JoinClause {
     std::string collection_name; // The right-hand side collection to join with
+    std::string join_alias;
     JoinType type;
     Expression on_condition; // The ON clause expression
 };
@@ -98,6 +99,7 @@ struct DrilldownClause {
 struct SelectStatement {
     std::vector<std::variant<std::string, AggregateFunction>> fields;
     std::string from_collection;
+    std::string from_alias;
     std::optional<Expression> where_clause;
     std::vector<std::string> group_by_clause;
     std::vector<std::pair<std::string, std::string>> order_by_clause; // Added for ORDER BY

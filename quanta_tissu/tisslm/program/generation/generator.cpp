@@ -1,14 +1,16 @@
 #include "generator.h"
-#include "core/transformer_model.h" // For static_cast to TransformerModel
+#include "../core/transformer_model.h" // For static_cast to TransformerModel
+#include "../retrieval/retrieval_strategy.h"
 #include <random>
 #include <algorithm>
 #include <limits>
 
-namespace TissDB {
 namespace TissLM {
-namespace Core {
+namespace Generation {
 
+using namespace TissLM::Core;
 using namespace TissNum;
+using namespace Retrieval;
 
 namespace {
     // Softmax function
@@ -37,69 +39,83 @@ namespace {
 } // anonymous namespace
 
 Generator::Generator(
-    std::shared_ptr<Model> model,
-    const Generation::GenerationConfig& config
+    std::shared_ptr<TissLM::Core::Model> model,
+    const GenerationConfig& config
 ) : model_(model), config_(config) {
+}
+
+Generator::Generator(
+    std::shared_ptr<TissLM::Core::Model> model,
+    std::shared_ptr<TissLM::Core::Model> draft_model,
+    const GenerationConfig& config
+) : model_(model), draft_model_(draft_model), config_(config) {
 }
 
 std::vector<int> Generator::generate(const std::vector<int>& prompt_tokens, int max_new_tokens) {
     std::vector<int> generated_sequence = prompt_tokens;
     std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>> kv_cache;
-
     auto transformer_model = static_cast<TransformerModel*>(model_.get());
 
-    TissNum::Matrix logits;
-    // Use forward_inference to process the prompt and build the initial KV cache
+    TissNum::Matrix next_token_logits;
+
+    // 1. Process the prompt
     if (!prompt_tokens.empty()) {
         TissNum::Matrix prompt_matrix(1, prompt_tokens.size());
         for (size_t i = 0; i < prompt_tokens.size(); ++i) {
             prompt_matrix(0, i) = static_cast<float>(prompt_tokens[i]);
         }
         std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>> new_kv_cache;
-        logits = transformer_model->forward_inference(prompt_matrix, kv_cache, new_kv_cache);
+        TissNum::Matrix all_logits = transformer_model->forward_inference(prompt_matrix, kv_cache, new_kv_cache);
         kv_cache = new_kv_cache;
-    }
-
-    // Get the logits for the last token of the prompt
-    TissNum::Matrix last_token_logits(1, logits.cols());
-    for(size_t c = 0; c < logits.cols(); ++c) {
-        last_token_logits(0, c) = logits(logits.rows() - 1, c);
-    }
-    int current_token = sample_token(last_token_logits, generated_sequence);
-    generated_sequence.push_back(current_token);
-
-    for (int i = 0; i < max_new_tokens; ++i) {
-        TissNum::Matrix input_token(1, 1);
-        input_token(0, 0) = static_cast<float>(current_token);
-
-        std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>> new_kv_cache;
-        TissNum::Matrix logits = transformer_model->forward_inference(input_token, kv_cache, new_kv_cache);
-        kv_cache = new_kv_cache;
-
         // Get the logits for the last token
-        TissNum::Matrix last_token_logits(1, logits.cols());
-        for(size_t c = 0; c < logits.cols(); ++c) {
-            last_token_logits(0, c) = logits(logits.rows() - 1, c);
+        next_token_logits = TissNum::Matrix(1, all_logits.cols());
+        for (size_t c = 0; c < all_logits.cols(); ++c) {
+            next_token_logits(0, c) = all_logits(all_logits.rows() - 1, c);
+        }
+    } else {
+        // Handle empty prompt. For now, assume prompt is not empty.
+        // A robust solution would need a start-of-sequence token and initial logits.
+        // Let's create a zero matrix for logits to avoid crashing.
+        next_token_logits = TissNum::Matrix(1, model_->get_vocab_size());
+    }
+
+    // 2. Unified generation loop
+    for (int i = 0; i < max_new_tokens; ++i) {
+        int next_token = sample_token(next_token_logits, generated_sequence, i);
+
+        bool is_eos = std::find(config_.eos_ids.begin(), config_.eos_ids.end(), next_token) != config_.eos_ids.end();
+
+        if (is_eos) {
+            if (!config_.suppress_eos) {
+                generated_sequence.push_back(next_token);
+            }
+            break;
+        } else {
+            generated_sequence.push_back(next_token);
         }
 
-        int next_token = sample_token(last_token_logits, generated_sequence); // Pass generated_sequence
+        // Prepare the input for the next iteration
+        TissNum::Matrix input_token(1, 1);
+        input_token(0, 0) = static_cast<float>(next_token);
 
-        if (config_.eos_ids.size() > 0 && std::find(config_.eos_ids.begin(), config_.eos_ids.end(), next_token) != config_.eos_ids.end()) {
-            break; // End of sequence token found
-        }
-
-        generated_sequence.push_back(next_token);
-        current_token = next_token;
+        // Get the logits for the next token
+        std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>> new_kv_cache;
+        next_token_logits = transformer_model->forward_inference(input_token, kv_cache, new_kv_cache);
+        kv_cache = new_kv_cache;
     }
 
     return generated_sequence;
 }
 
-int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int>& past_tokens) {
+int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int>& past_tokens, int current_step) {
     // Apply temperature if configured
     TissNum::Matrix processed_logits = logits; // Assuming logits is (1, vocab_size)
-    if (config_.temperature > 0.0f) {
-        processed_logits = processed_logits / config_.temperature;
+    float temperature = config_.temperature;
+    if (!config_.temperature_schedule.empty()) {
+        temperature = config_.temperature_schedule[std::min((size_t)current_step, config_.temperature_schedule.size() - 1)];
+    }
+    if (temperature > 0.0f) {
+        processed_logits = processed_logits / temperature;
     }
 
     // Apply repetition penalty
@@ -142,6 +158,28 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
         }
     }
 
+    // Bayesian influenced sampling
+    if (config_.method == "bayesian_influenced") {
+        if (config_.query_embedding.empty() || config_.eigenvalues.empty()) {
+            throw std::runtime_error("Bayesian sampling requires query_embedding and eigenvalues in config.");
+        }
+
+        auto transformer_model = static_cast<TransformerModel*>(model_.get());
+        auto vocab_embeddings = transformer_model->get_embeddings_as_vectors();
+
+        BayesianSimilarityStrategy strategy;
+        std::map<std::string, std::any> kwargs;
+        kwargs["eigenvalues"] = config_.eigenvalues;
+        
+        auto similarity_scores = strategy.calculate_similarity(config_.query_embedding, vocab_embeddings, kwargs);
+
+        for (size_t i = 0; i < similarity_scores.size(); ++i) {
+            if (i < processed_logits.cols()) {
+                processed_logits(0, i) += similarity_scores[i] * config_.bayesian_influence_scale;
+            }
+        }
+    }
+
     TissNum::Matrix probabilities = softmax(processed_logits);
 
     if (config_.method == "random" || config_.method == "sampling") {
@@ -163,6 +201,32 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
 
     // Sort by probability in descending order
     std::sort(token_probs.rbegin(), token_probs.rend());
+
+    // Top-A sampling
+    if (config_.method == "top_a" && config_.top_a > 0.0f) {
+        if (token_probs.empty()) return -1;
+        float p_max = token_probs[0].first;
+        float p_a = config_.top_a;
+        size_t last_idx = 0;
+        for (size_t i = 0; i < token_probs.size(); ++i) {
+            if (token_probs[i].first < p_a * p_max) {
+                break;
+            }
+            last_idx = i;
+        }
+        token_probs.resize(last_idx + 1);
+
+        // Re-normalize probabilities
+        float sum_top_a_probs = 0.0f;
+        for (const auto& p : token_probs) {
+            sum_top_a_probs += p.first;
+        }
+        if (sum_top_a_probs > 0) {
+            for (auto& p : token_probs) {
+                p.first /= sum_top_a_probs;
+            }
+        }
+    }
 
     // Nucleus (Top-p) sampling
     if (config_.method == "nucleus" && config_.top_p.has_value() && config_.top_p.value() < 1.0f) {
@@ -433,13 +497,73 @@ std::vector<int> Generator::mirostat_sampling(const std::vector<int>& prompt_tok
 }
 
 std::vector<int> Generator::speculative_sampling(const std::vector<int>& prompt_tokens, int n_new_tokens) {
-    // TODO: Implement speculative sampling with a draft model.
-    // For now, defaulting to greedy sampling.
-    Generation::GenerationConfig greedy_config = Generation::GenerationConfig::greedy();
-    Generator greedy_generator(model_, greedy_config);
-    return greedy_generator.generate(prompt_tokens, n_new_tokens);
+    if (!draft_model_) {
+        // Fallback to greedy if no draft model is provided
+        return generate(prompt_tokens, n_new_tokens);
+    }
+
+    std::vector<int> generated_sequence = prompt_tokens;
+    auto main_transformer_model = static_cast<TransformerModel*>(model_.get());
+    auto draft_transformer_model = static_cast<TransformerModel*>(draft_model_.get());
+
+    int K = 5; // Number of tokens to speculate
+
+    for (int i = 0; i < n_new_tokens; ) {
+        // 1. Generate a draft sequence from the draft model
+        std::vector<int> draft_sequence;
+        std::vector<int> current_sequence = generated_sequence;
+        for (int k = 0; k < K; ++k) {
+            TissNum::Matrix input(1, current_sequence.size());
+            for(size_t j = 0; j < current_sequence.size(); ++j) input(0, j) = current_sequence[j];
+            
+            TissNum::Matrix logits = draft_transformer_model->forward(input);
+            TissNum::Matrix last_logits(1, logits.cols());
+            for(size_t c=0; c<logits.cols(); ++c) last_logits(0,c) = logits(logits.rows()-1, c);
+
+            int next_token = sample_token(last_logits, current_sequence, i+k);
+            draft_sequence.push_back(next_token);
+            current_sequence.push_back(next_token);
+        }
+
+        // 2. Use the main model to verify the draft sequence
+        TissNum::Matrix main_model_input(1, generated_sequence.size() + K);
+        for(size_t j=0; j<generated_sequence.size(); ++j) main_model_input(0,j) = generated_sequence[j];
+        for(int k=0; k<K; ++k) main_model_input(0, generated_sequence.size()+k) = draft_sequence[k];
+
+        TissNum::Matrix main_logits = main_transformer_model->forward(main_model_input);
+
+        // 3. Compare and accept/reject tokens
+        int accepted_count = 0;
+        for (int k = 0; k < K; ++k) {
+            TissNum::Matrix draft_token_logits(1, main_logits.cols());
+            for(size_t c=0; c<main_logits.cols(); ++c) draft_token_logits(0,c) = main_logits(generated_sequence.size() -1 + k, c);
+            
+            int draft_token = draft_sequence[k];
+            int main_model_token = sample_token(draft_token_logits, generated_sequence, i+k);
+
+            if (draft_token == main_model_token) {
+                generated_sequence.push_back(draft_token);
+                accepted_count++;
+            } else {
+                // Reject the rest of the draft and sample one token from the main model
+                generated_sequence.push_back(main_model_token);
+                accepted_count++;
+                break;
+            }
+        }
+        i += accepted_count;
+    }
+
+    return generated_sequence;
 }
 
-} // namespace Core
+std::vector<std::vector<int>> Generator::generate_batch(const std::vector<std::vector<int>>& prompts, int max_new_tokens) {
+    std::vector<std::vector<int>> results;
+    for (const auto& prompt : prompts) {
+        results.push_back(generate(prompt, max_new_tokens));
+    }
+    return results;
+}
+
+} // namespace Generation
 } // namespace TissLM
-} // namespace TissDB

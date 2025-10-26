@@ -4,7 +4,10 @@
 #include <sstream>
 #include <numeric>
 #include <set>
+#include <any>
+#include <random>
 
+namespace TissLM {
 namespace Retrieval {
 
 // CosineSimilarityStrategy implementation
@@ -42,7 +45,7 @@ float CosineSimilarityStrategy::cosine_similarity(const std::vector<float>& a, c
 std::vector<float> CosineSimilarityStrategy::calculate_similarity(
     const std::vector<float>& query_embedding,
     const std::vector<std::vector<float>>& doc_embeddings,
-    const std::map<std::string, std::string>& kwargs) {
+    const std::map<std::string, std::any>& kwargs) {
     
     std::vector<float> similarities;
     similarities.reserve(doc_embeddings.size());
@@ -71,7 +74,7 @@ float EuclideanDistanceStrategy::euclidean_distance(const std::vector<float>& a,
 std::vector<float> EuclideanDistanceStrategy::calculate_similarity(
     const std::vector<float>& query_embedding,
     const std::vector<std::vector<float>>& doc_embeddings,
-    const std::map<std::string, std::string>& kwargs) {
+    const std::map<std::string, std::any>& kwargs) {
     
     std::vector<float> similarities;
     similarities.reserve(doc_embeddings.size());
@@ -102,7 +105,7 @@ float DotProductStrategy::dot_product(const std::vector<float>& a, const std::ve
 std::vector<float> DotProductStrategy::calculate_similarity(
     const std::vector<float>& query_embedding,
     const std::vector<std::vector<float>>& doc_embeddings,
-    const std::map<std::string, std::string>& kwargs) {
+    const std::map<std::string, std::any>& kwargs) {
     
     std::vector<float> similarities;
     similarities.reserve(doc_embeddings.size());
@@ -182,7 +185,7 @@ float BM25RetrievalStrategy::calculate_idf(const std::string& term) const {
 std::vector<float> BM25RetrievalStrategy::calculate_similarity(
     const std::vector<float>& query_embedding,
     const std::vector<std::vector<float>>& doc_embeddings,
-    const std::map<std::string, std::string>& kwargs) {
+    const std::map<std::string, std::any>& kwargs) {
     
     // BM25 requires query text, not embedding
     auto it = kwargs.find("query_text");
@@ -191,7 +194,7 @@ std::vector<float> BM25RetrievalStrategy::calculate_similarity(
         return std::vector<float>(corpus_.size(), 0.0f);
     }
     
-    std::string query_text = it->second;
+    std::string query_text = std::any_cast<std::string>(it->second);
     auto query_terms = tokenize(query_text);
     
     std::vector<float> scores(corpus_.size(), 0.0f);
@@ -248,7 +251,7 @@ std::vector<float> HybridStrategy::normalize_scores(const std::vector<float>& sc
 std::vector<float> HybridStrategy::calculate_similarity(
     const std::vector<float>& query_embedding,
     const std::vector<std::vector<float>>& doc_embeddings,
-    const std::map<std::string, std::string>& kwargs) {
+    const std::map<std::string, std::any>& kwargs) {
     
     if (strategies_.empty() || doc_embeddings.empty()) {
         return std::vector<float>(doc_embeddings.size(), 0.0f);
@@ -284,4 +287,47 @@ std::vector<float> HybridStrategy::calculate_similarity(
     return combined_scores;
 }
 
+// BayesianSimilarityStrategy implementation
+std::vector<float> BayesianSimilarityStrategy::calculate_similarity(
+    const std::vector<float>& query_embedding,
+    const std::vector<std::vector<float>>& doc_embeddings,
+    const std::map<std::string, std::any>& kwargs) {
+
+    auto it = kwargs.find("eigenvalues");
+    if (it == kwargs.end()) {
+        throw std::runtime_error("BayesianSimilarityStrategy requires 'eigenvalues' in kwargs.");
+    }
+
+    const auto& eigenvalues = std::any_cast<const std::vector<float>&>(it->second);
+
+    std::vector<float> posterior_variance;
+    if (eigenvalues.size() != query_embedding.size()) {
+        float mean_uncertainty = 1.0f;
+        if (!eigenvalues.empty()) {
+            float sum = 0.0f;
+            for(float val : eigenvalues) sum += val;
+            mean_uncertainty = 1.0f / (sum / eigenvalues.size() + 1e-6f);
+        }
+        posterior_variance.assign(query_embedding.size(), mean_uncertainty);
+    } else {
+        for (float val : eigenvalues) {
+            posterior_variance.push_back(1.0f / (val + 1e-6f));
+        }
+    }
+
+    std::vector<float> noisy_query = query_embedding;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    for (size_t i = 0; i < noisy_query.size(); ++i) {
+        float variance = std::max(posterior_variance[i], 1e-9f);
+        std::normal_distribution<> d(0, std::sqrt(variance));
+        noisy_query[i] += d(gen);
+    }
+
+    CosineSimilarityStrategy cosine_strategy;
+    return cosine_strategy.calculate_similarity(noisy_query, doc_embeddings, {});
+}
+
 } // namespace Retrieval
+} // namespace TissLM

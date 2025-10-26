@@ -3,19 +3,26 @@
 #include <chrono>
 #include <algorithm> // For std::shuffle
 
-namespace TissDB {
+#include "trainer.h"
+#include <random>
+#include <chrono>
+#include <algorithm> // For std::shuffle
+
 namespace TissLM {
-namespace Core {
+namespace Training {
+
+using namespace TissLM::Core;
+using namespace TissNum;
 
 Trainer::Trainer(
-    std::shared_ptr<Model> model,
+    std::shared_ptr<Core::Model> model,
     std::shared_ptr<Optimizer> optimizer,
     std::shared_ptr<LossFunction> loss_function
 ) : model_(model), optimizer_(optimizer), loss_function_(loss_function) {
 }
 
 void Trainer::train(
-    TissDB::TissLM::Training::TokenDataset& dataset,
+    TokenDataset& dataset,
     int epochs,
     int batch_size
 ) {
@@ -57,24 +64,26 @@ void Trainer::train(
             // Forward pass
             TissNum::Matrix predictions = model_->forward(batch_input);
 
+            // Transpose target for loss computation
+            TissNum::Matrix transposed_target = batch_target.transpose();
+
             // Compute loss
-            float loss = loss_function_->compute_loss(predictions, batch_target);
+            float loss = loss_function_->compute_loss(predictions, transposed_target);
             epoch_loss += loss;
 
             // Compute gradient of loss w.r.t. predictions
-            TissNum::Matrix grad_loss = loss_function_->compute_gradient(predictions, batch_target);
+            TissNum::Matrix grad_loss = loss_function_->compute_gradient(predictions, transposed_target);
 
             // Backward pass
             model_->backward(grad_loss);
 
             // Update parameters
-            std::vector<std::shared_ptr<TissNum::Parameter>> params = model_->get_parameters();
+            std::vector<TissNum::Parameter*> params = model_->get_parameters();
             optimizer_->update(params);
         }
         std::cout << "Epoch " << epoch + 1 << ", Loss: " << epoch_loss / num_batches << std::endl;
     }
 }
 
-} // namespace Core
+} // namespace Training
 } // namespace TissLM
-} // namespace TissDB

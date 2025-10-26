@@ -1,9 +1,8 @@
 #include "optimizer.h"
 #include <cmath>
 
-namespace TissDB {
 namespace TissLM {
-namespace Core {
+namespace Training {
 
 using namespace TissNum;
 
@@ -11,7 +10,7 @@ Adam::Adam(float learning_rate, float beta1, float beta2, float epsilon)
     : learning_rate_(learning_rate), beta1_(beta1), beta2_(beta2), epsilon_(epsilon) {
 }
 
-void Adam::update(std::vector<std::shared_ptr<Parameter>>& parameters) {
+void Adam::update(std::vector<Parameter*>& parameters) {
     t_++;
 
     float bias_correction1 = 1.0f - std::pow(beta1_, t_);
@@ -47,6 +46,5 @@ void Adam::update(std::vector<std::shared_ptr<Parameter>>& parameters) {
     }
 }
 
-} // namespace Core
+} // namespace Training
 } // namespace TissLM
-} // namespace TissDB

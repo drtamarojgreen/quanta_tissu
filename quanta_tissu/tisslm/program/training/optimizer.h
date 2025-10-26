@@ -5,9 +5,8 @@
 #include <vector>
 #include <memory>
 
-namespace TissDB {
 namespace TissLM {
-namespace Core {
+namespace Training {
 
 // Forward declaration for Parameter if needed, though it's included above
 // class Parameter;
@@ -15,14 +14,14 @@ namespace Core {
 class Optimizer {
 public:
     virtual ~Optimizer() = default;
-    virtual void update(std::vector<std::shared_ptr<TissNum::Parameter>>& parameters) = 0;
+    virtual void update(std::vector<TissNum::Parameter*>& parameters) = 0;
 };
 
 class Adam : public Optimizer {
 public:
     Adam(float learning_rate = 0.001f, float beta1 = 0.9f, float beta2 = 0.999f, float epsilon = 1e-8f);
 
-    void update(std::vector<std::shared_ptr<TissNum::Parameter>>& parameters) override;
+    void update(std::vector<TissNum::Parameter*>& parameters) override;
 
 private:
     float learning_rate_;
@@ -36,8 +35,7 @@ private:
     int t_ = 0; // Timestep
 };
 
-} // namespace Core
+} // namespace Training
 } // namespace TissLM
-} // namespace TissDB
 
 #endif // TISSLM_OPTIMIZER_H

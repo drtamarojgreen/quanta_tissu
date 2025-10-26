@@ -139,7 +139,7 @@ KVCacheTestResult run_single_kv_cache_test(
         Matrix logits = model->forward_inference(input_token, kv_cache, new_kv_cache_for_step);
         kv_cache = new_kv_cache_for_step;
 
-        int next_token = generator.sample_token(logits, generated_tokens_cache_ids);
+        int next_token = generator.sample_token(logits, generated_tokens_cache_ids, i);
         generated_tokens_cache_ids.push_back(next_token);
     }
 

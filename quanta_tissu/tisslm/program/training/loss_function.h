@@ -5,9 +5,8 @@
 #include <vector>
 #include <cmath>
 
-namespace TissDB {
 namespace TissLM {
-namespace Core {
+namespace Training {
 
 class LossFunction {
 public:
@@ -26,8 +25,7 @@ private:
     TissNum::Matrix softmax(const TissNum::Matrix& input);
 };
 
-} // namespace Core
+} // namespace Training
 } // namespace TissLM
-} // namespace TissDB
 
 #endif // TISSLM_LOSS_FUNCTION_H

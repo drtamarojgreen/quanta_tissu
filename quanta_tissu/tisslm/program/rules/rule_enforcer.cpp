@@ -2,9 +2,8 @@
 #include <sstream>
 #include <map>
 
-namespace TissDB {
 namespace TissLM {
-namespace Core {
+namespace Rules {
 
 RuleEnforcer::RuleEnforcer(float strictness)
     : strictness_(strictness) {
@@ -73,6 +72,5 @@ std::string RuleEnforcer::apply_rules(const std::string& text) {
     return cleaned_text;
 }
 
-} // namespace Core
+} // namespace Rules
 } // namespace TissLM
-} // namespace TissDB

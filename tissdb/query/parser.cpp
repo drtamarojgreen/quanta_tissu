@@ -196,7 +196,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             std::string upper_value = value;
             std::transform(upper_value.begin(), upper_value.end(), upper_value.begin(), ::toupper);
 
-            if (upper_value == "SELECT" || upper_value == "FROM" || upper_value == "WHERE" || upper_value == "AND" || upper_value == "OR" || upper_value == "UPDATE" || upper_value == "DELETE" || upper_value == "SET" || upper_value == "GROUP" || upper_value == "BY" || upper_value == "COUNT" || upper_value == "AVG" || upper_value == "SUM" || upper_value == "MIN" || upper_value == "MAX" || upper_value == "INSERT" || upper_value == "INTO" || upper_value == "VALUES" || upper_value == "STDDEV" || upper_value == "LIKE" || upper_value == "ORDER" || upper_value == "LIMIT" || upper_value == "JOIN" || upper_value == "ON" || upper_value == "UNION" || upper_value == "ALL" || upper_value == "ASC" || upper_value == "DESC" || upper_value == "WITH" || upper_value == "DRILLDOWN" || upper_value == "TRUE" || upper_value == "FALSE" || upper_value == "NULL" || upper_value == "DATE" || upper_value == "TIME") {
+            if (upper_value == "SELECT" || upper_value == "FROM" || upper_value == "WHERE" || upper_value == "AND" || upper_value == "OR" || upper_value == "UPDATE" || upper_value == "DELETE" || upper_value == "SET" || upper_value == "GROUP" || upper_value == "BY" || upper_value == "COUNT" || upper_value == "AVG" || upper_value == "SUM" || upper_value == "MIN" || upper_value == "MAX" || upper_value == "INSERT" || upper_value == "INTO" || upper_value == "VALUES" || upper_value == "STDDEV" || upper_value == "LIKE" || upper_value == "ORDER" || upper_value == "LIMIT" || upper_value == "JOIN" || upper_value == "ON" || upper_value == "UNION" || upper_value == "ALL" || upper_value == "ASC" || upper_value == "DESC" || upper_value == "WITH" || upper_value == "DRILLDOWN" || upper_value == "TRUE" || upper_value == "FALSE" || upper_value == "NULL" || upper_value == "DATE" || upper_value == "TIME" || upper_value == "AS") {
                 new_tokens.push_back(Token{Token::Type::KEYWORD, upper_value});
             } else {
                 new_tokens.push_back(Token{Token::Type::IDENTIFIER, value});
@@ -287,6 +287,17 @@ SelectStatement Parser::parse_select_statement() {
     auto fields = parse_select_list();
     expect(Token::Type::KEYWORD, "FROM");
     auto table = parse_table_name();
+    std::string alias = table;
+    if (peek().type == Token::Type::KEYWORD && peek().value == "AS") {
+        consume(); // consume AS
+        if (peek().type == Token::Type::IDENTIFIER) {
+            alias = consume().value;
+        } else {
+            throw std::runtime_error("Expected alias after AS");
+        }
+    } else if (peek().type == Token::Type::IDENTIFIER) {
+        alias = consume().value;
+    }
     auto join = parse_join_clause();
     auto where = parse_where_clause();
     auto group_by = parse_group_by_clause();
@@ -295,7 +306,7 @@ SelectStatement Parser::parse_select_statement() {
     auto drilldown = parse_drilldown_clause();
 
     // Create the SelectStatement for the query parsed so far.
-    auto current_select = SelectStatement{fields, table, std::move(where), group_by, order_by, limit, std::move(join), std::nullopt, std::move(drilldown)};
+    auto current_select = SelectStatement{fields, table, alias, std::move(where), group_by, order_by, limit, std::move(join), std::nullopt, std::move(drilldown)};
 
     // Check if this statement is followed by a UNION.
     if (peek().type == Token::Type::KEYWORD && peek().value == "UNION") {
@@ -317,7 +328,7 @@ SelectStatement Parser::parse_select_statement() {
 
         // Return a new, "wrapper" select statement that only holds the union clause.
         // The executor must check for the presence of union_clause first.
-        return SelectStatement{{}, "", std::nullopt, {}, {}, std::nullopt, std::nullopt, std::make_optional(std::move(union_clause)), {}};
+        return SelectStatement{{}, "", "", std::nullopt, {}, {}, std::nullopt, std::nullopt, std::make_optional(std::move(union_clause)), {}};
     }
 
     // If there was no UNION, just return the single statement we parsed.
@@ -562,13 +573,25 @@ std::optional<JoinClause> Parser::parse_join_clause() {
 
     if (is_join) {
         std::string collection_name = parse_table_name();
+        std::string alias = collection_name;
+        if (peek().type == Token::Type::KEYWORD && peek().value == "AS") {
+            consume();
+            if (peek().type == Token::Type::IDENTIFIER) {
+                alias = consume().value;
+            } else {
+                throw std::runtime_error("Expected alias after AS");
+            }
+        } else if (peek().type == Token::Type::IDENTIFIER) {
+            alias = consume().value;
+        }
+
         if (type == JoinType::CROSS) {
             // CROSS JOIN does not have an ON clause.
-            return JoinClause{collection_name, type, Expression{}};
+            return JoinClause{collection_name, alias, type, Expression{}};
         }
         expect(Token::Type::KEYWORD, "ON");
         Expression on_condition = parse_expression();
-        return JoinClause{collection_name, type, std::move(on_condition)};
+        return JoinClause{collection_name, alias, type, std::move(on_condition)};
     }
 
     return std::nullopt;

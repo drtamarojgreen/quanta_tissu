@@ -5,6 +5,7 @@
 #include <map>
 #include <optional>
 
+namespace TissLM {
 namespace Generation {
 
 /**
@@ -57,6 +58,11 @@ struct GenerationConfig {
     // Mirostat parameters
     float mirostat_tau = 5.0f;
     float mirostat_eta = 0.1f;
+
+    // Bayesian sampling parameters
+    std::vector<float> query_embedding;
+    std::vector<float> eigenvalues;
+    float bayesian_influence_scale = 1.0f;
     
     /**
      * Create default greedy config
@@ -101,3 +107,4 @@ struct GenerationConfig {
 };
 
 } // namespace Generation
+} // namespace TissLM

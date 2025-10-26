@@ -1,6 +1,5 @@
 #include "transformer_model.h"
 
-namespace TissDB {
 namespace TissLM {
 namespace Core {
 
@@ -132,13 +131,11 @@ Matrix TransformerModel::backward(const Matrix& grad_output) {
     return TissNum::Matrix();
 }
 
-std::vector<std::shared_ptr<TissNum::Parameter>> TransformerModel::get_parameters() {
-    std::vector<std::shared_ptr<TissNum::Parameter>> params;
+std::vector<TissNum::Parameter*> TransformerModel::get_parameters() {
+    std::vector<TissNum::Parameter*> params;
 
     auto add_params_from_raw = [&](const std::vector<TissNum::Parameter*>& raw_params) {
-        for (auto* p : raw_params) {
-            params.emplace_back(p, [](TissNum::Parameter*){}); // No-op deleter
-        }
+        params.insert(params.end(), raw_params.begin(), raw_params.end());
     };
 
     add_params_from_raw(embedding_layer_.parameters());
@@ -149,8 +146,8 @@ std::vector<std::shared_ptr<TissNum::Parameter>> TransformerModel::get_parameter
 
     add_params_from_raw(final_layer_norm_.parameters());
 
-    params.push_back(std::make_shared<TissNum::Parameter>(output_weight_));
-    params.push_back(std::make_shared<TissNum::Parameter>(output_bias_));
+    params.push_back(&output_weight_);
+    params.push_back(&output_bias_);
 
     return params;
 }
@@ -159,6 +156,20 @@ const TissNum::Matrix& TransformerModel::get_embeddings() const {
     return embedding_layer_.get_weight();
 }
 
+std::vector<std::vector<float>> TransformerModel::get_embeddings_as_vectors() const {
+    const auto& embedding_matrix = embedding_layer_.get_weight();
+    std::vector<std::vector<float>> embeddings;
+    embeddings.reserve(embedding_matrix.rows());
+    for (size_t i = 0; i < embedding_matrix.rows(); ++i) {
+        std::vector<float> row;
+        row.reserve(embedding_matrix.cols());
+        for (size_t j = 0; j < embedding_matrix.cols(); ++j) {
+            row.push_back(embedding_matrix(i, j));
+        }
+        embeddings.push_back(row);
+    }
+    return embeddings;
+}
+
 } // namespace Core
 } // namespace TissLM
-} // namespace TissDB

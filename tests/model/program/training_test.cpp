@@ -14,14 +14,14 @@ void test_adam_optimizer() {
     std::cout << "=== Testing Adam Optimizer ===" << std::endl;
 
     // Create dummy parameters
-    std::shared_ptr<Parameter> p1 = std::make_shared<Parameter>(Matrix::ones(2, 2), "p1");
-    std::shared_ptr<Parameter> p2 = std::make_shared<Parameter>(Matrix::zeros(2, 2), "p2");
+    Parameter p1(Matrix::ones(2, 2), "p1");
+    Parameter p2(Matrix::zeros(2, 2), "p2");
 
     // Set dummy gradients
-    p1->grad() = Matrix::ones(2, 2) * 0.1f;
-    p2->grad() = Matrix::ones(2, 2) * 0.2f;
+    p1.grad() = Matrix::ones(2, 2) * 0.1f;
+    p2.grad() = Matrix::ones(2, 2) * 0.2f;
 
-    std::vector<std::shared_ptr<Parameter>> params = {p1, p2};
+    std::vector<Parameter*> params = {&p1, &p2};
 
     Adam optimizer(0.01f); // learning_rate = 0.01
 
@@ -31,11 +31,11 @@ void test_adam_optimizer() {
     // Expected values after one step (simplified check)
     // Actual values would be complex due to Adam's internal state (m, v, bias correction)
     // This test primarily checks if the update runs without crashing and parameters change
-    std::cout << "  Parameter p1 after update (top-left): " << p1->value()(0,0) << "\n";
-    std::cout << "  Parameter p2 after update (top-left): " << p2->value()(0,0) << "\n";
+    std::cout << "  Parameter p1 after update (top-left): " << p1.value()(0,0) << "\n";
+    std::cout << "  Parameter p2 after update (top-left): " << p2.value()(0,0) << "\n";
 
     // Basic check: values should have changed
-    if (std::abs(p1->value()(0,0) - 1.0f) > 1e-5 || std::abs(p2->value()(0,0) - 0.0f) > 1e-5) {
+    if (std::abs(p1.value()(0,0) - 1.0f) > 1e-5 || std::abs(p2.value()(0,0) - 0.0f) > 1e-5) {
         std::cout << "  Adam Optimizer Test Passed (values changed as expected)\n";
     } else {
         std::cout << "  Adam Optimizer Test FAILED (values did not change significantly)\n";

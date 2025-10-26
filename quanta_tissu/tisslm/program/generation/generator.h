@@ -7,21 +7,27 @@
 #include <vector>
 #include <string>
 
-namespace TissDB {
 namespace TissLM {
-namespace Core {
+namespace Generation {
 
 class Generator {
 public:
     Generator(
-        std::shared_ptr<Model> model,
+        std::shared_ptr<TissLM::Core::Model> model,
+        const Generation::GenerationConfig& config
+    );
+
+    Generator(
+        std::shared_ptr<TissLM::Core::Model> model,
+        std::shared_ptr<TissLM::Core::Model> draft_model,
         const Generation::GenerationConfig& config
     );
 
     std::vector<int> generate(const std::vector<int>& prompt_tokens, int max_new_tokens);
+    std::vector<std::vector<int>> generate_batch(const std::vector<std::vector<int>>& prompts, int max_new_tokens);
 
     // Helper for sampling
-    int sample_token(const TissNum::Matrix& logits, const std::vector<int>& past_tokens);
+    int sample_token(const TissNum::Matrix& logits, const std::vector<int>& past_tokens, int current_step);
 
     std::vector<int> beam_search(const std::vector<int>& prompt_tokens, int n_new_tokens, int beam_width, int eos_id);
 
@@ -32,12 +38,12 @@ public:
     std::vector<int> speculative_sampling(const std::vector<int>& prompt_tokens, int n_new_tokens);
 
 private:
-    std::shared_ptr<Model> model_;
+    std::shared_ptr<TissLM::Core::Model> model_;
+    std::shared_ptr<TissLM::Core::Model> draft_model_;
     Generation::GenerationConfig config_;
 };
 
-} // namespace Core
+} // namespace Generation
 } // namespace TissLM
-} // namespace TissDB
 
 #endif // TISSLM_GENERATOR_H

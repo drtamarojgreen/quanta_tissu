@@ -113,6 +113,7 @@ add_executable(model_generation_test
 target_link_libraries(model_generation_test
     tisslm_core
     tisslm_generation
+    retrieval_strategies
 )
 
 add_executable(full_fledged_workout_cpp
@@ -122,6 +123,7 @@ target_link_libraries(full_fledged_workout_cpp
     tisslm_core
     tisslm_generation
     tisslm_tokenizer
+    retrieval_strategies
 )
 
 add_executable(kv_cache_test
@@ -131,6 +133,7 @@ target_link_libraries(kv_cache_test
     tisslm_core
     tisslm_generation
     tisslm_tokenizer
+    retrieval_strategies
 )
 
 add_executable(rag_self_update_test
@@ -140,6 +143,7 @@ target_link_libraries(rag_self_update_test
     tisslm_core
     tisslm_generation
     tisslm_tokenizer
+    retrieval_strategies
 )
 
 add_executable(experimental_sampling_test
@@ -149,6 +153,7 @@ target_link_libraries(experimental_sampling_test
     tisslm_core
     tisslm_generation
     tisslm_tokenizer
+    retrieval_strategies
 )
 
 add_executable(standard_generation_test
@@ -158,6 +163,7 @@ target_link_libraries(standard_generation_test
     tisslm_core
     tisslm_generation
     tisslm_tokenizer
+    retrieval_strategies
 )
 
 add_executable(rule_enforcement_test
@@ -168,6 +174,7 @@ target_link_libraries(rule_enforcement_test
     tisslm_generation
     tisslm_tokenizer
     tisslm_rules
+    retrieval_strategies
 )
 
 # Enable testing
@@ -278,6 +285,7 @@ target_link_libraries(advanced_analysis_test
     tisslm_core
     tisslm_generation
     tisslm_tokenizer
+    retrieval_strategies
 )
 
 add_test(NAME AdvancedAnalysisTests
@@ -310,6 +318,7 @@ target_link_libraries(advanced_sampling_test
     tisslm_core
     tisslm_generation
     tisslm_tokenizer
+    retrieval_strategies
 )
 
 add_test(NAME AdvancedSamplingTests
@@ -318,6 +327,39 @@ add_test(NAME AdvancedSamplingTests
 set_tests_properties(AdvancedSamplingTests PROPERTIES
     TIMEOUT 30
     LABELS "unit;evaluation;sampling;advanced"
+)
+
+add_executable(bayesian_sampling_test
+    bayesian_sampling_test.cpp
+)
+target_link_libraries(bayesian_sampling_test
+    tisslm_core
+    tisslm_generation
+    tisslm_tokenizer
+    retrieval_strategies
+)
+
+add_test(NAME BayesianSamplingTests
+         COMMAND bayesian_sampling_test)
+
+set_tests_properties(BayesianSamplingTests PROPERTIES
+    TIMEOUT 30
+    LABELS "unit;evaluation;sampling;bayesian"
+)
+
+add_executable(encoding_test
+    encoding_test.cpp
+)
+target_link_libraries(encoding_test
+    tisslm_tokenizer
+)
+
+add_test(NAME EncodingTests
+         COMMAND encoding_test)
+
+set_tests_properties(EncodingTests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;tokenizer;encoding"
 )
 
 add_executable(checkpoint_test
@@ -353,7 +395,8 @@ set(TEST_EXECUTABLES
     advanced_analysis_test
     tissdb_lite_integration_test
     advanced_sampling_test
-)
+    bayesian_sampling_test
+    encoding_test)
 
 # Get the project root and pass it as a compile definition to all tests
 foreach(test_exe ${TEST_EXECUTABLES})

@@ -11,7 +11,6 @@
 #include <vector>
 #include <memory>
 
-namespace TissDB {
 namespace TissLM {
 namespace Core {
 
@@ -22,7 +21,10 @@ public:
     TissNum::Matrix forward(const TissNum::Matrix& input_tokens) override; // input_tokens would be a batch of token IDs
     TissNum::Matrix forward_inference(const TissNum::Matrix& input_tokens, const std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>>& past_kv_cache, std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>>& new_kv_cache);
     TissNum::Matrix backward(const TissNum::Matrix& grad_output) override;
-    std::vector<std::shared_ptr<TissNum::Parameter>> get_parameters() override;
+    std::vector<TissNum::Parameter*> get_parameters() override;
+    std::vector<std::vector<float>> get_embeddings_as_vectors() const override;
+
+    int get_vocab_size() const override { return vocab_size_; }
 
     const TissNum::Matrix& get_embeddings() const;
 
@@ -49,6 +51,5 @@ private:
 
 } // namespace Core
 } // namespace TissLM
-} // namespace TissDB
 
 #endif // TISSLM_TRANSFORMER_MODEL_H
