@@ -6,7 +6,8 @@
 #include <vector>
 #include <memory>
 
-using namespace TissDB::TissLM::Core;
+using namespace TissLM::Core;
+using namespace TissLM::Generation;
 using namespace TissNum;
 
 void test_transformer_model() {
@@ -86,7 +87,7 @@ void test_generator() {
         TestConfig::DropoutRate,
         0 // LoraRank = 0 for this test
     );
-    Generation::GenerationConfig config;
+    GenerationConfig config;
     config.eos_ids.push_back(50); // Example EOS token ID
 
     Generator generator(model, config);

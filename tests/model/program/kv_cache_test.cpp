@@ -13,7 +13,9 @@
 #include <chrono>
 #include <iomanip>
 
-using namespace TissDB::TissLM::Core;
+using namespace TissLM::Core;
+using namespace TissLM::Generation;
+using namespace TissLM::Tokenizer;
 using namespace TissNum;
 
 // Helper to print generated tokens
@@ -81,7 +83,7 @@ KVCacheTestResult run_single_kv_cache_test(
     Tokenizer& tokenizer,
     const std::string& prompt,
     int n_new_tokens,
-    const Generation::GenerationConfig& config
+    const GenerationConfig& config
 ) {
     KVCacheTestResult results;
     results.prompt = prompt;
@@ -180,9 +182,9 @@ void run_kv_cache_evaluation() {
         {"The process of cognitive restructuring in CBT involves several steps. First, the individual must identify the automatic negative thought. Second, they must challenge the validity of this thought by examining the evidence for and against it. Third, they generate a more balanced or realistic alternative thought to replace the original distorted one. This technique helps to", 400, "Long CBT Process"},
     };
 
-    std::vector<Generation::GenerationConfig> generation_methods = {
-        Generation::GenerationConfig::greedy(),
-        Generation::GenerationConfig::with_top_k(10, 1.0f) // Top-k with temperature 1.0
+    std::vector<GenerationConfig> generation_methods = {
+        GenerationConfig::greedy(),
+        GenerationConfig::with_top_k(10, 1.0f) // Top-k with temperature 1.0
     };
 
     std::vector<KVCacheTestResult> all_results;
