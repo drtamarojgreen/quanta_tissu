@@ -7,6 +7,8 @@
 #include <fstream>
 #include <sstream>
 
+using namespace TissLM::Tokenizer;
+
 // Helper function to read a file into a string
 std::string read_file_to_string(const std::string& path) {
     std::ifstream file(path);
