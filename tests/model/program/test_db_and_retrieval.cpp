@@ -8,7 +8,7 @@
 #include <any>
 
 using namespace TissDB;
-using namespace Retrieval;
+using namespace TissLM::Retrieval;
 
 // Test result tracking
 struct TestResults {
