@@ -13,7 +13,9 @@
 #include <chrono>
 #include <iomanip>
 
-using namespace TissDB::TissLM::Core;
+using namespace TissLM::Core;
+using namespace TissLM::Generation;
+using namespace TissLM::Tokenizer;
 using namespace TissNum;
 
 // Helper to print generated tokens
@@ -45,19 +47,19 @@ void run_experimental_sampling_evaluation() {
     std::cout << "  Model and Tokenizer initialized." << std::endl;
 
     // --- Test Scenarios for Explicit Underlying Sampling ---
-    std::vector<std::tuple<std::string, int, Generation::GenerationConfig>> sampling_scenarios = {
-        {"The quick brown fox", 10, Generation::GenerationConfig::greedy()},
-        {"The quick brown fox", 10, Generation::GenerationConfig::with_top_k(5, 1.0f)},
-        {"The quick brown fox", 10, Generation::GenerationConfig::nucleus(0.9f, 1.0f)},
-        {"Hello world", 15, Generation::GenerationConfig::greedy()},
-        {"Hello world", 15, Generation::GenerationConfig::with_top_k(10, 1.0f)},
-        {"Hello world", 15, Generation::GenerationConfig::nucleus(0.7f, 1.0f)}
+    std::vector<std::tuple<std::string, int, GenerationConfig>> sampling_scenarios = {
+        {"The quick brown fox", 10, GenerationConfig::greedy()},
+        {"The quick brown fox", 10, GenerationConfig::with_top_k(5, 1.0f)},
+        {"The quick brown fox", 10, GenerationConfig::nucleus(0.9f, 1.0f)},
+        {"Hello world", 15, GenerationConfig::greedy()},
+        {"Hello world", 15, GenerationConfig::with_top_k(10, 1.0f)},
+        {"Hello world", 15, GenerationConfig::nucleus(0.7f, 1.0f)}
     };
 
     for (const auto& scenario : sampling_scenarios) {
         std::string prompt = std::get<0>(scenario);
         int tokens_to_generate = std::get<1>(scenario);
-        Generation::GenerationConfig config = std::get<2>(scenario);
+        GenerationConfig config = std::get<2>(scenario);
 
         std::cout << "\n  Scenario: Prompt=\"" << prompt.substr(0, 30) << "...\", Tokens=" << tokens_to_generate << std::endl;
         std::cout << "    Method: " << config.method << ", Temp=" << config.temperature;

@@ -7,8 +7,6 @@
 #include <fstream>
 #include <sstream>
 
-using namespace TissLM::Tokenizer;
-
 // Helper function to read a file into a string
 std::string read_file_to_string(const std::string& path) {
     std::ifstream file(path);
@@ -25,7 +23,7 @@ void test_tokenizer() {
 
     // The Tokenizer constructor expects a prefix. The test runner executes from the build directory,
     // so we need to point it to the source directory where the tokenizer files are.
-    Tokenizer tokenizer(TestConfig::TokenizerPath);
+    TissLM::Tokenizer::Tokenizer tokenizer(TestConfig::TokenizerPath);
 
     // Test get_vocab_size
     int vocab_size = tokenizer.get_vocab_size();
@@ -74,14 +72,14 @@ void test_tokenizer_training() {
     int vocab_size = 300;
 
     // 1. Train a new tokenizer
-    Tokenizer tokenizer1(""); // Create an empty tokenizer
+    TissLM::Tokenizer::Tokenizer tokenizer1(""); // Create an empty tokenizer
     tokenizer1.train(corpus, vocab_size, true);
 
     // 2. Save the tokenizer
     tokenizer1.save(prefix);
 
     // 3. Load the tokenizer
-    Tokenizer tokenizer2(prefix);
+    TissLM::Tokenizer::Tokenizer tokenizer2(prefix);
 
     // 4. Test encoding and decoding
     std::string text_to_encode = "change thinking patterns";
@@ -110,12 +108,12 @@ void test_corpus_based_tokenizer() {
     // 2. Train a new tokenizer on the corpus
     std::string prefix = "corpus_trained_tokenizer";
     int vocab_size = 400; // A bit larger for a real corpus
-    Tokenizer tokenizer("");
+    TissLM::Tokenizer::Tokenizer tokenizer("");
     tokenizer.train(corpus, vocab_size, false); // verbose = false
 
     // 3. Save and reload the tokenizer to ensure serialization works
     tokenizer.save(prefix);
-    Tokenizer reloaded_tokenizer(prefix);
+    TissLM::Tokenizer::Tokenizer reloaded_tokenizer(prefix);
 
     // 4. Test encoding and decoding
     std::string text_to_test = "solving current problems";

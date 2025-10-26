@@ -17,6 +17,9 @@
 #include <numeric>
 
 using namespace TissDB;
+using namespace TissLM::Core;
+using namespace TissLM::Generation;
+using namespace TissLM::Tokenizer;
 #include <set>
 
 // Helper function to get a field from a document
@@ -73,14 +76,11 @@ std::vector<float> json_array_to_vector(const std::string& json_str) {
     return vec;
 }
 
-using namespace TissDB::TissLM::Core;
-using namespace TissNum;
-
 const std::string evaluator_prompt = "Based on the context, evaluate the following query: ";
 const std::string final_prompt = "Based on the context, answer the following query: ";
 
 // Helper function to generate text with the model
-std::string generate_with_model(std::shared_ptr<TissDB::TissLM::Core::TransformerModel> model, Tokenizer& tokenizer, const std::string& prompt, int generation_length, const Generation::GenerationConfig& config) {
+std::string generate_with_model(std::shared_ptr<TransformerModel> model, Tokenizer& tokenizer, const std::string& prompt, int generation_length, const GenerationConfig& config) {
     Generator generator(model, config);
     std::vector<int> prompt_tokens = tokenizer.encode(prompt);
     std::vector<int> generated_tokens = generator.generate(prompt_tokens, generation_length);
@@ -162,12 +162,12 @@ RAGTestResult run_single_rag_test(
         results.retrieval_correct = (actual_retrieved_ids == expected_retrieval_ids);
 
         // Evaluation (Sanitize context)
-        Generation::GenerationConfig eval_gen_config = Generation::GenerationConfig::greedy();
+        GenerationConfig eval_gen_config = GenerationConfig::greedy();
         std::string evaluator_prompt = "User Query: \"" + scenario_config.at("query") + "\"\n\nRetrieved Context:\n---" + retrieved_context_str + "\n---\n\nExtract verified facts relevant to the query.";
         std::string sanitized_context = generate_with_model(model, tokenizer, evaluator_prompt, 60, eval_gen_config);
 
         // Generation
-        Generation::GenerationConfig final_gen_config = Generation::GenerationConfig::greedy();
+        GenerationConfig final_gen_config = GenerationConfig::greedy();
         std::string final_prompt = "Information: \"" + sanitized_context + "\"\n\nQuestion: \"" + scenario_config.at("query") + "\"\n\nAnswer:";
         std::string final_answer = generate_with_model(model, tokenizer, final_prompt, 50, final_gen_config);
         results.final_answer = final_answer;

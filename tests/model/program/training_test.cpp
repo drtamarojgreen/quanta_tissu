@@ -7,7 +7,8 @@
 #include <memory>
 #include <cmath>
 
-using namespace TissDB::TissLM::Core;
+using namespace TissLM::Core;
+using namespace TissLM::Training;
 using namespace TissNum;
 
 void test_adam_optimizer() {

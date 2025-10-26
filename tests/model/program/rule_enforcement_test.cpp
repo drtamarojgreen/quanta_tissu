@@ -16,7 +16,10 @@
 #include <numeric>
 #include <set>
 
-using namespace TissDB::TissLM::Core;
+using namespace TissLM::Core;
+using namespace TissLM::Generation;
+using namespace TissLM::Tokenizer;
+using namespace TissLM::Rules;
 using namespace TissNum;
 
 // Helper for text analysis (simplified)
@@ -93,7 +96,7 @@ TextQualityAnalysis analyze_text_quality(const std::string& text) {
     return analysis;
 }
 
-std::string generate_with_model(std::shared_ptr<TissDB::TissLM::Core::TransformerModel> model, Tokenizer& tokenizer, const std::string& prompt, int generation_length, const Generation::GenerationConfig& config) {
+std::string generate_with_model(std::shared_ptr<TransformerModel> model, Tokenizer& tokenizer, const std::string& prompt, int generation_length, const GenerationConfig& config) {
     Generator generator(model, config);
     std::vector<int> prompt_tokens = tokenizer.encode(prompt);
     std::vector<int> generated_tokens = generator.generate(prompt_tokens, generation_length);
@@ -172,7 +175,7 @@ void run_rule_enforcement_evaluation() {
         "Artificial intelligence will"
     };
     int generation_length = 30;
-    Generation::GenerationConfig gen_config = Generation::GenerationConfig::nucleus(0.9f, 0.8f);
+    GenerationConfig gen_config = GenerationConfig::nucleus(0.9f, 0.8f);
 
     for (const std::string& prompt : generation_prompts) {
         std::cout << "\n  Prompt: \"" << prompt << "\"" << std::endl;

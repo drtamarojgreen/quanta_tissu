@@ -15,7 +15,9 @@
 #include <numeric>
 #include <set>
 
-using namespace TissDB::TissLM::Core;
+using namespace TissLM::Core;
+using namespace TissLM::Generation;
+using namespace TissLM::Tokenizer;
 using namespace TissNum;
 
 // Helper for basic text analysis
@@ -92,7 +94,7 @@ void run_advanced_analysis_evaluation() {
         "Artificial intelligence is transforming the world. Machine learning is a subset of AI."
     };
     int generation_length = 20;
-    Generation::GenerationConfig gen_config = Generation::GenerationConfig::greedy();
+    GenerationConfig gen_config = GenerationConfig::greedy();
 
     std::vector<std::string> generated_texts;
     for (const std::string& prompt : prompts) {
