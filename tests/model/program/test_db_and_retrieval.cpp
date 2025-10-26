@@ -5,6 +5,7 @@
 #include <vector>
 #include <cmath>
 #include <iomanip>
+#include <any>
 
 using namespace TissDB;
 using namespace Retrieval;
@@ -444,8 +445,8 @@ void test_bm25() {
         
         std::vector<float> dummy_embedding;
         std::vector<std::vector<float>> dummy_docs;
-        std::map<std::string, std::string> kwargs;
-        kwargs["query_text"] = "quick fox";
+        std::map<std::string, std::any> kwargs;
+        kwargs["query_text"] = std::string("quick fox");
         
         auto scores = strategy.calculate_similarity(dummy_embedding, dummy_docs, kwargs);
         
@@ -486,6 +487,34 @@ void test_hybrid_strategy() {
         }
     } catch (const std::exception& e) {
         results.record_fail("Hybrid strategy", e.what());
+    }
+}
+
+void test_bayesian_similarity() {
+    std::cout << "\n=== Testing Bayesian Similarity Strategy ===" << std::endl;
+    
+    try {
+        BayesianSimilarityStrategy strategy;
+        
+        std::vector<float> query = {1.0f, 0.0f, 0.0f};
+        std::vector<std::vector<float>> docs = {
+            {1.0f, 0.0f, 0.0f},
+            {0.0f, 1.0f, 0.0f}
+        };
+        
+        std::map<std::string, std::any> kwargs;
+        kwargs["eigenvalues"] = std::vector<float>{0.1f, 0.2f, 0.3f};
+        
+        auto similarities = strategy.calculate_similarity(query, docs, kwargs);
+        
+        if (similarities.size() == 2) {
+            results.record_pass("Bayesian similarity calculation");
+        } else {
+            results.record_fail("Bayesian similarity calculation", 
+                              "Unexpected number of similarity values");
+        }
+    } catch (const std::exception& e) {
+        results.record_fail("Bayesian similarity", e.what());
     }
 }
 
@@ -673,6 +702,7 @@ int main() {
     test_dot_product();
     test_bm25();
     test_hybrid_strategy();
+    test_bayesian_similarity();
     
     // Integration Tests
     test_db_with_embeddings();

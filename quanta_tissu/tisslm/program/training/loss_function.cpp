@@ -2,9 +2,8 @@
 #include <algorithm>
 #include <limits>
 
-namespace TissDB {
 namespace TissLM {
-namespace Core {
+namespace Training {
 
 using namespace TissNum;
 
@@ -52,6 +51,5 @@ Matrix CrossEntropyLoss::compute_gradient(const Matrix& predictions, const Matri
     return softmax_predictions / predictions.rows();
 }
 
-} // namespace Core
+} // namespace Training
 } // namespace TissLM
-} // namespace TissDB

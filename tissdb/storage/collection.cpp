@@ -174,14 +174,10 @@ std::vector<Document> Collection::scan() const {
     LOG_DEBUG("SCAN collection");
     std::vector<Document> documents;
     for (const auto& pair : data) {
-        if (pair.second) {
+        if (pair.second) { // Only include documents that are not tombstones
             Document doc_with_id = *pair.second;
             doc_with_id.id = pair.first;
             documents.push_back(doc_with_id);
-        } else {
-            Document tombstone;
-            tombstone.id = pair.first;
-            documents.push_back(tombstone);
         }
     }
     return documents;

@@ -4,7 +4,9 @@
 #include <string>
 #include <memory>
 #include <map>
+#include <any>
 
+namespace TissLM {
 namespace Retrieval {
 
 /**
@@ -24,7 +26,7 @@ public:
     virtual std::vector<float> calculate_similarity(
         const std::vector<float>& query_embedding,
         const std::vector<std::vector<float>>& doc_embeddings,
-        const std::map<std::string, std::string>& kwargs = {}
+        const std::map<std::string, std::any>& kwargs = {}
     ) = 0;
     
     /**
@@ -42,7 +44,7 @@ public:
     std::vector<float> calculate_similarity(
         const std::vector<float>& query_embedding,
         const std::vector<std::vector<float>>& doc_embeddings,
-        const std::map<std::string, std::string>& kwargs = {}
+        const std::map<std::string, std::any>& kwargs = {}
     ) override;
     
     std::string get_name() const override { return "CosineSimilarity"; }
@@ -62,7 +64,7 @@ public:
     std::vector<float> calculate_similarity(
         const std::vector<float>& query_embedding,
         const std::vector<std::vector<float>>& doc_embeddings,
-        const std::map<std::string, std::string>& kwargs = {}
+        const std::map<std::string, std::any>& kwargs = {}
     ) override;
     
     std::string get_name() const override { return "EuclideanDistance"; }
@@ -80,7 +82,7 @@ public:
     std::vector<float> calculate_similarity(
         const std::vector<float>& query_embedding,
         const std::vector<std::vector<float>>& doc_embeddings,
-        const std::map<std::string, std::string>& kwargs = {}
+        const std::map<std::string, std::any>& kwargs = {}
     ) override;
     
     std::string get_name() const override { return "DotProduct"; }
@@ -107,7 +109,7 @@ public:
     std::vector<float> calculate_similarity(
         const std::vector<float>& query_embedding,
         const std::vector<std::vector<float>>& doc_embeddings,
-        const std::map<std::string, std::string>& kwargs = {}
+        const std::map<std::string, std::any>& kwargs = {}
     ) override;
     
     std::string get_name() const override { return "BM25"; }
@@ -143,7 +145,7 @@ public:
     std::vector<float> calculate_similarity(
         const std::vector<float>& query_embedding,
         const std::vector<std::vector<float>>& doc_embeddings,
-        const std::map<std::string, std::string>& kwargs = {}
+        const std::map<std::string, std::any>& kwargs = {}
     ) override;
     
     std::string get_name() const override { return "Hybrid"; }
@@ -154,4 +156,20 @@ private:
     std::vector<float> normalize_scores(const std::vector<float>& scores) const;
 };
 
+/**
+ * Bayesian Similarity Strategy
+ * A simplified Bayesian-based similarity approach
+ */
+class BayesianSimilarityStrategy : public RetrievalStrategy {
+public:
+    std::vector<float> calculate_similarity(
+        const std::vector<float>& query_embedding,
+        const std::vector<std::vector<float>>& doc_embeddings,
+        const std::map<std::string, std::any>& kwargs = {}
+    ) override;
+    
+    std::string get_name() const override { return "BayesianSimilarity"; }
+};
+
 } // namespace Retrieval
+} // namespace TissLM

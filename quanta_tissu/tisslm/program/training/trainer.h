@@ -11,32 +11,30 @@
 #include <vector>
 #include <iostream>
 
-namespace TissDB {
 namespace TissLM {
-namespace Core {
+namespace Training {
 
 class Trainer {
 public:
     Trainer(
-        std::shared_ptr<Model> model,
+        std::shared_ptr<Core::Model> model,
         std::shared_ptr<Optimizer> optimizer,
         std::shared_ptr<LossFunction> loss_function
     );
 
     void train(
-        TissDB::TissLM::Training::TokenDataset& dataset, // Use TokenDataset
+        TokenDataset& dataset, // Use TokenDataset
         int epochs,
         int batch_size
     );
 
 private:
-    std::shared_ptr<Model> model_;
+    std::shared_ptr<Core::Model> model_;
     std::shared_ptr<Optimizer> optimizer_;
     std::shared_ptr<LossFunction> loss_function_;
 };
 
-} // namespace Core
+} // namespace Training
 } // namespace TissLM
-} // namespace TissDB
 
 #endif // TISSLM_TRAINER_H

@@ -34,6 +34,12 @@ cmake -DTOKENIZER_PATH_FROM_CMAKE=../../../test_tokenizer/test_tokenizer ..
 # Build the test executables
 echo "Building test executables..."
 cmake --build .
+if [ $? -ne 0 ]; then
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "!!! Build failed. Aborting tests."
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    exit 1
+fi
 
 # --- Test Execution and Summary Generation ---
 echo "Running test executables..."

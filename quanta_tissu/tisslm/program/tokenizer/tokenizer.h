@@ -6,6 +6,9 @@
 #include <map>
 #include <utility>
 
+namespace TissLM {
+namespace Tokenizer {
+
 class Tokenizer {
 public:
     Tokenizer(const std::string& prefix);
@@ -25,5 +28,8 @@ private:
     void load_vocab(const std::string& vocab_path);
     std::vector<int> bpe_encode(const std::vector<unsigned char>& bytes) const;
 };
+
+} // namespace Tokenizer
+} // namespace TissLM
 
 #endif // TOKENIZER_H

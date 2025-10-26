@@ -7,9 +7,8 @@
 #include <algorithm>
 #include <cctype>
 
-namespace TissDB {
 namespace TissLM {
-namespace Core {
+namespace Rules {
 
 class RuleEnforcer {
 public:
@@ -28,8 +27,7 @@ private:
     std::vector<std::string> split_into_words(const std::string& text) const;
 };
 
-} // namespace Core
+} // namespace Rules
 } // namespace TissLM
-} // namespace TissDB
 
 #endif // TISSLM_RULE_ENFORCER_H

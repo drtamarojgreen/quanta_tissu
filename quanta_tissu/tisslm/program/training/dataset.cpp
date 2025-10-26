@@ -1,7 +1,6 @@
 #include "dataset.h"
 #include <stdexcept>
 
-namespace TissDB {
 namespace TissLM {
 namespace Training {
 
@@ -34,4 +33,3 @@ std::pair<TissNum::Matrix, TissNum::Matrix> TokenDataset::get_item(size_t index)
 
 } // namespace Training
 } // namespace TissLM
-} // namespace TissDB

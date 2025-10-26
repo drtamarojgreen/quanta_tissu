@@ -3,7 +3,6 @@
 #include <vector>
 #include "../core/matrix.h"
 
-namespace TissDB {
 namespace TissLM {
 namespace Training {
 
@@ -21,4 +20,3 @@ private:
 
 } // namespace Training
 } // namespace TissLM
-} // namespace TissDB

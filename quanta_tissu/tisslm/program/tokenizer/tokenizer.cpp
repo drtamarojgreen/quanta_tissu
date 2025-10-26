@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <set>
 
+namespace TissLM {
+namespace Tokenizer {
+
 // Helper function to find consecutive pairs of IDs in a list.
 std::set<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
     std::set<std::pair<int, int>> pairs;
@@ -18,7 +21,7 @@ std::set<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
 // A simple JSON parser for the vocabulary
 std::map<int, std::vector<unsigned char>> parse_vocab_from_json(const std::string& content) {
     std::map<int, std::vector<unsigned char>> vocab;
-    std::regex re_pair("\"(\\d+)\": \\[(\\d+(?:, \\d+)*)\\]");
+    std::regex re_pair(R"((\d+)\s*:\s*\[([\s\d,]*)\])");
     std::smatch match;
     std::string::const_iterator search_start(content.cbegin());
 
@@ -29,12 +32,12 @@ std::map<int, std::vector<unsigned char>> parse_vocab_from_json(const std::strin
         std::stringstream ss(byte_str);
         std::string byte_val;
         while (std::getline(ss, byte_val, ',')) {
-            // Trim leading spaces
-            size_t first = byte_val.find_first_not_of(" \t");
-            if (std::string::npos != first) {
-                byte_val = byte_val.substr(first);
+            // Trim leading/trailing whitespace from the number string
+            byte_val.erase(0, byte_val.find_first_not_of(" \t\n\r"));
+            byte_val.erase(byte_val.find_last_not_of(" \t\n\r") + 1);
+            if (!byte_val.empty()) {
+                bytes.push_back(static_cast<unsigned char>(std::stoi(byte_val)));
             }
-            bytes.push_back(static_cast<unsigned char>(std::stoi(byte_val)));
         }
         vocab[key] = bytes;
         search_start = match.suffix().first;
@@ -325,7 +328,7 @@ void Tokenizer::save(const std::string& prefix) {
             if (!first) {
                 vocab_file << ", ";
             }
-            vocab_file << "\"" << pair.first << "\": [";
+            vocab_file << \"" << pair.first << \"": [";
             bool first_byte = true;
             for (unsigned char byte : pair.second) {
                 if (!first_byte) {
@@ -348,3 +351,6 @@ void Tokenizer::save(const std::string& prefix) {
         }
     }
 }
+
+} // namespace Tokenizer
+} // namespace TissLM

@@ -37,7 +37,7 @@ void test_tokenizer() {
     // Test encode
     std::string text_to_encode = "ab cd";
     std::vector<int> encoded_ids = tokenizer.encode(text_to_encode);
-    std::vector<int> expected_ids = {4, 3, 5}; // 'ab' -> 4, ' ' -> 3, 'cd' -> 5
+    std::vector<int> expected_ids = {4, 32, 5}; // 'ab' -> 4, ' ' -> 32, 'cd' -> 5
 
     if (encoded_ids == expected_ids) {
         std::cout << "  Encode Passed\n";
@@ -98,7 +98,7 @@ void test_corpus_based_tokenizer() {
     std::cout << "\n=== Testing Corpus-Based Tokenizer Training ===" << std::endl;
 
     // 1. Read the corpus
-    std::string corpus_path = "../../../tests/test_corpus/cbt_corpus.txt";
+    std::string corpus_path = "../../../test_corpus/cbt_corpus.txt";
     std::string corpus = read_file_to_string(corpus_path);
     if (corpus.empty()) {
         throw std::runtime_error("Corpus file is empty or could not be read.");

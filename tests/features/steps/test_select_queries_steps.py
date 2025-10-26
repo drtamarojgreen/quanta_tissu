@@ -64,7 +64,14 @@ def register_steps(runner):
         for doc in result:
             if doc.get(key) == num_value or str(doc.get(key)) == str(num_value):
                 return
-        assert False, f"No document found with '{key}' = {num_value} in {context['query_result']}"
+    @runner.step(r'the query result should contain a document with "([^"*])" = "([^"*])" and "([^"*])" = "([^"*])"')
+    def result_should_contain_doc_with_two_kv_strings(context, key1, value1, key2, value2):
+        result = context.get('query_result')
+        assert result is not None, "Query result not found in context"
+        for doc in result:
+            if doc.get(key1) == value1 and doc.get(key2) == value2:
+                return
+        assert False, f"No document found with '{key1}' = '{value1}' and '{key2}' = '{value2}' in {context['query_result']}"
 
 
     @runner.step(r'^each document in the result should have the fields (.*)$')

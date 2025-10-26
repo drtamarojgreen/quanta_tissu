@@ -33,7 +33,7 @@ std::string like_to_regex(std::string pattern);
 bool evaluate_expression(const Expression& expr, const Document& doc, const std::vector<Literal>& params);
 Literal evaluate_update_expression(const Expression& expr, const Document& doc, const std::vector<Literal>& params);
 void process_aggregation(std::map<std::string, AggregateResult>& results_map, const std::string& result_key, const Document& doc, const AggregateFunction& agg_func);
-Document combine_documents(const Document& doc1, const std::string& collection1_name, const Document& doc2, const std::string& collection2_name);
+Document combine_documents(const Document& doc1, const std::string& alias1, const Document& doc2, const std::string& alias2);
 void extract_equality_conditions(const Expression& expr, std::map<std::string, std::string>& conditions);
 const Value* get_value_from_doc(const Document& doc, const std::string& key);
 std::string value_to_string(const Value& value);
