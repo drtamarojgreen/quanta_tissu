@@ -7,7 +7,6 @@
 #include <memory>
 #include <cmath>
 
-using namespace TissLM::Core;
 using namespace TissLM::Training;
 using namespace TissNum;
 
