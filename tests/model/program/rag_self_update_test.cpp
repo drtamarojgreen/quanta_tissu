@@ -15,12 +15,10 @@
 #include <chrono>
 #include <iomanip>
 #include <numeric>
-
-using namespace TissDB;
-using namespace TissLM::Core;
-using namespace TissLM::Generation;
-using namespace TissLM::Tokenizer;
 #include <set>
+
+// Corrected namespaces
+using namespace TissNum;
 
 // Helper function to get a field from a document
 std::string get_field(const TissDB::Document& doc, const std::string& key) {
@@ -80,8 +78,8 @@ const std::string evaluator_prompt = "Based on the context, evaluate the followi
 const std::string final_prompt = "Based on the context, answer the following query: ";
 
 // Helper function to generate text with the model
-std::string generate_with_model(std::shared_ptr<TransformerModel> model, Tokenizer& tokenizer, const std::string& prompt, int generation_length, const GenerationConfig& config) {
-    Generator generator(model, config);
+std::string generate_with_model(std::shared_ptr<TissLM::Core::TransformerModel> model, TissLM::Tokenizer::Tokenizer& tokenizer, const std::string& prompt, int generation_length, const TissLM::Generation::GenerationConfig& config) {
+    TissLM::Generation::Generator generator(model, config);
     std::vector<int> prompt_tokens = tokenizer.encode(prompt);
     std::vector<int> generated_tokens = generator.generate(prompt_tokens, generation_length);
     return tokenizer.decode(generated_tokens);
@@ -99,10 +97,10 @@ struct RAGTestResult {
 };
 
 RAGTestResult run_single_rag_test(
-    std::shared_ptr<TransformerModel> model,
-    Tokenizer& tokenizer,
-    TissDBClient& db_client,
-    MockEmbedder& embedder,
+    std::shared_ptr<TissLM::Core::TransformerModel> model,
+    TissLM::Tokenizer::Tokenizer& tokenizer,
+    TissDB::TissDBClient& db_client,
+    TissDB::TissLM::Core::MockEmbedder& embedder,
     const std::map<std::string, std::string>& scenario_config
 ) {
     RAGTestResult results;
@@ -125,7 +123,7 @@ RAGTestResult run_single_rag_test(
             std::vector<float> embedding(embedding_matrix.cols());
             for(int c=0; c<embedding_matrix.cols(); ++c) embedding[c] = embedding_matrix(0,c);
 
-            Document doc;
+            TissDB::Document doc;
             set_field(doc, "id", doc_id);
             set_field(doc, "content", content);
             // Store embedding as a string (simplified, needs proper serialization)
@@ -152,7 +150,7 @@ RAGTestResult run_single_rag_test(
 
         if (!expected_retrieval_ids.empty() && expected_retrieval_ids[0] != "None") {
             for (const std::string& doc_id : expected_retrieval_ids) {
-                Document retrieved_doc = db_client.get_document(collection_name, doc_id);
+                TissDB::Document retrieved_doc = db_client.get_document(collection_name, doc_id);
                 retrieved_docs_content.push_back(get_field(retrieved_doc, "content"));
                 actual_retrieved_ids.push_back(retrieved_doc.id);
             }
@@ -162,12 +160,12 @@ RAGTestResult run_single_rag_test(
         results.retrieval_correct = (actual_retrieved_ids == expected_retrieval_ids);
 
         // Evaluation (Sanitize context)
-        GenerationConfig eval_gen_config = GenerationConfig::greedy();
+        TissLM::Generation::GenerationConfig eval_gen_config = TissLM::Generation::GenerationConfig::greedy();
         std::string evaluator_prompt = "User Query: \"" + scenario_config.at("query") + "\"\n\nRetrieved Context:\n---" + retrieved_context_str + "\n---\n\nExtract verified facts relevant to the query.";
         std::string sanitized_context = generate_with_model(model, tokenizer, evaluator_prompt, 60, eval_gen_config);
 
         // Generation
-        GenerationConfig final_gen_config = GenerationConfig::greedy();
+        TissLM::Generation::GenerationConfig final_gen_config = TissLM::Generation::GenerationConfig::greedy();
         std::string final_prompt = "Information: \"" + sanitized_context + "\"\n\nQuestion: \"" + scenario_config.at("query") + "\"\n\nAnswer:";
         std::string final_answer = generate_with_model(model, tokenizer, final_prompt, 50, final_gen_config);
         results.final_answer = final_answer;
@@ -195,12 +193,12 @@ RAGTestResult run_single_rag_test(
         // Self-Update
         std::string new_doc_id = "self_update_" + scenario_config.at("id");
         std::string new_content = "Query: " + scenario_config.at("query") + "\nResponse: " + final_answer;
-        Document new_doc;
+        TissDB::Document new_doc;
         set_field(new_doc, "content", new_content);
         db_client.add_document(collection_name, new_doc, new_doc_id);
 
         // Verify update
-        Document verified_doc = db_client.get_document(collection_name, new_doc_id);
+        TissDB::Document verified_doc = db_client.get_document(collection_name, new_doc_id);
         results.self_update_correct = (get_field(verified_doc, "content") == new_content);
 
         results.success = results.retrieval_correct && results.generation_correct && results.self_update_correct;
@@ -216,10 +214,10 @@ void run_rag_self_update_evaluation() {
     std::cout << "=== Running RAG and Self-Updating KB Evaluation (C++) ===" << std::endl;
 
     // --- Setup Model, Tokenizer, Embedder ---
-    Tokenizer tokenizer(TestConfig::TokenizerPath);
+    TissLM::Tokenizer::Tokenizer tokenizer(TestConfig::TokenizerPath);
     int vocab_size = tokenizer.get_vocab_size();
 
-    std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(
+    std::shared_ptr<TissLM::Core::TransformerModel> model = std::make_shared<TissLM::Core::TransformerModel>(
         vocab_size,
         TestConfig::MaxSeqLen,
         TestConfig::EmbedDim,
@@ -228,8 +226,8 @@ void run_rag_self_update_evaluation() {
         TestConfig::DropoutRate,
         0 // LoraRank = 0 for this test
     );
-    TissDBClient db_client("127.0.0.1", 9876, "test_rag_db"); // Use a specific DB name for RAG tests
-    MockEmbedder embedder(TestConfig::EmbedDim);
+    TissDB::TissDBClient db_client("127.0.0.1", 9876, "test_rag_db"); // Use a specific DB name for RAG tests
+    TissDB::TissLM::Core::MockEmbedder embedder(TestConfig::EmbedDim);
 
     std::cout << "  Model, Tokenizer, DB Client, and Embedder initialized." << std::endl;
 
