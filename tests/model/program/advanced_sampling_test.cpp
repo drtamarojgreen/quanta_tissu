@@ -13,7 +13,9 @@
 #include <chrono>
 #include <iomanip>
 
-using namespace TissDB::TissLM::Core;
+using namespace TissLM::Core;
+using namespace TissLM::Generation;
+using namespace TissLM::Tokenizer;
 using namespace TissNum;
 
 // Helper to print generated tokens
@@ -51,7 +53,7 @@ void run_advanced_sampling_evaluation() {
         int length = 20;
         int beam_width = 3;
 
-        Generation::GenerationConfig config = Generation::GenerationConfig::greedy();
+        GenerationConfig config = GenerationConfig::greedy();
         config.method = "beam_search";
         config.beam_width = beam_width;
 
@@ -79,7 +81,7 @@ void run_advanced_sampling_evaluation() {
         int beam_width = 5;
         float alpha = 0.6;
 
-        Generation::GenerationConfig config;
+        GenerationConfig config;
         config.method = "contrastive_search";
         config.beam_width = beam_width;
         config.contrastive_alpha = alpha;
@@ -108,7 +110,7 @@ void run_advanced_sampling_evaluation() {
         float tau = 5.0;
         float eta = 0.1;
 
-        Generation::GenerationConfig config;
+        GenerationConfig config;
         config.method = "mirostat_sampling";
         config.mirostat_tau = tau;
         config.mirostat_eta = eta;
@@ -136,7 +138,7 @@ void run_advanced_sampling_evaluation() {
         int length = 10;
         int no_repeat_ngram_size = 4;
 
-        Generation::GenerationConfig config;
+        GenerationConfig config;
         config.no_repeat_ngram_size = no_repeat_ngram_size;
 
         Generator generator(model, config);
@@ -167,7 +169,7 @@ void run_advanced_sampling_evaluation() {
         // Force the next token to be "apple"
         int apple_token_id = tokenizer.encode(" apple")[0];
 
-        Generation::GenerationConfig config;
+        GenerationConfig config;
         config.logit_bias[apple_token_id] = 100.0; // Add a large bias to the token for "apple"
 
         Generator generator(model, config);
@@ -193,7 +195,7 @@ void run_advanced_sampling_evaluation() {
         std::string prompt = "The temperature is";
         int length = 10;
 
-        Generation::GenerationConfig config;
+        GenerationConfig config;
         config.temperature_schedule = {1.0, 0.5, 0.1};
 
         Generator generator(model, config);
@@ -219,7 +221,7 @@ void run_advanced_sampling_evaluation() {
         int length = 10;
         float top_a = 0.1;
 
-        Generation::GenerationConfig config;
+        GenerationConfig config;
         config.method = "top_a";
         config.top_a = top_a;
 
@@ -248,7 +250,7 @@ void run_advanced_sampling_evaluation() {
 
         // Test 1: suppress_eos = false
         {
-            Generation::GenerationConfig config;
+            GenerationConfig config;
             config.eos_ids = {eos_token_id};
             config.suppress_eos = false;
             config.logit_bias[eos_token_id] = 100.0; // Force EOS generation
@@ -266,7 +268,7 @@ void run_advanced_sampling_evaluation() {
 
         // Test 2: suppress_eos = true
         {
-            Generation::GenerationConfig config;
+            GenerationConfig config;
             config.eos_ids = {eos_token_id};
             config.suppress_eos = true;
             config.logit_bias[eos_token_id] = 100.0; // Force EOS generation
@@ -295,7 +297,7 @@ void run_advanced_sampling_evaluation() {
         };
         int length = 5;
 
-        Generation::GenerationConfig config;
+        GenerationConfig config;
         Generator generator(model, config);
 
         std::vector<std::vector<int>> prompt_tokens;
@@ -331,7 +333,7 @@ void run_advanced_sampling_evaluation() {
             TestConfig::DropoutRate
         );
 
-        Generation::GenerationConfig config;
+        GenerationConfig config;
         config.method = "speculative_sampling";
 
         Generator generator(model, draft_model, config);

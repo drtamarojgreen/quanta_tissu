@@ -15,7 +15,9 @@
 #include <numeric>
 #include <set> // For std::set
 
-using namespace TissDB::TissLM::Core;
+using namespace TissLM::Core;
+using namespace TissLM::Generation;
+using namespace TissLM::Tokenizer;
 using namespace TissNum;
 
 // Helper to print generated tokens
@@ -28,7 +30,7 @@ void print_tokens_int(const std::vector<int>& tokens, const std::string& prefix 
 }
 
 // Helper function to generate text with the model
-std::string generate_with_model(std::shared_ptr<TissDB::TissLM::Core::TransformerModel> model, Tokenizer& tokenizer, const std::string& prompt, int generation_length, const Generation::GenerationConfig& config) {
+std::string generate_with_model(std::shared_ptr<TransformerModel> model, Tokenizer& tokenizer, const std::string& prompt, int generation_length, const GenerationConfig& config) {
     Generator generator(model, config);
     std::vector<int> prompt_tokens = tokenizer.encode(prompt);
     std::vector<int> generated_tokens;
@@ -124,40 +126,40 @@ void run_standard_generation_evaluation() {
         std::string prompt;
         std::string method;
         int length;
-        Generation::GenerationConfig gen_config;
+        GenerationConfig gen_config;
     };
 
     std::vector<TestConfig> test_configurations = {
         // Greedy Method (baseline)
-        {"The definition of Cognitive Behavioral Therapy is", "greedy", 60, Generation::GenerationConfig::greedy()},
+        {"The definition of Cognitive Behavioral Therapy is", "greedy", 60, GenerationConfig::greedy()},
 
         // Nucleus Sampling: Temperature variations
-        {"To overcome negative thought patterns, one can", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 0.5f)},
-        {"To overcome negative thought patterns, one can", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 0.8f)},
-        {"To overcome negative thought patterns, one can", "nucleus", 70, Generation::GenerationConfig::nucleus(0.9f, 1.2f)},
+        {"To overcome negative thought patterns, one can", "nucleus", 70, GenerationConfig::nucleus(0.9f, 0.5f)},
+        {"To overcome negative thought patterns, one can", "nucleus", 70, GenerationConfig::nucleus(0.9f, 0.8f)},
+        {"To overcome negative thought patterns, one can", "nucleus", 70, GenerationConfig::nucleus(0.9f, 1.2f)},
 
         // Nucleus Sampling: Top-p variations
-        {"A cognitive distortion is a biased perspective on", "nucleus", 80, Generation::GenerationConfig::nucleus(0.7f, 0.8f)},
-        {"A cognitive distortion is a biased perspective on", "nucleus", 80, Generation::GenerationConfig::nucleus(0.9f, 0.8f)},
-        {"A cognitive distortion is a biased perspective on", "nucleus", 80, Generation::GenerationConfig::nucleus(0.99f, 0.8f)},
+        {"A cognitive distortion is a biased perspective on", "nucleus", 80, GenerationConfig::nucleus(0.7f, 0.8f)},
+        {"A cognitive distortion is a biased perspective on", "nucleus", 80, GenerationConfig::nucleus(0.9f, 0.8f)},
+        {"A cognitive distortion is a biased perspective on", "nucleus", 80, GenerationConfig::nucleus(0.99f, 0.8f)},
 
         // Different prompt types
-        {"To build a strong therapeutic alliance, a therapist must", "nucleus", 90, Generation::GenerationConfig::nucleus(0.9f, 0.9f)},
-        {"Once upon a time, in a therapy session, a client realized", "nucleus", 100, Generation::GenerationConfig::nucleus(0.95f, 0.85f)},
+        {"To build a strong therapeutic alliance, a therapist must", "nucleus", 90, GenerationConfig::nucleus(0.9f, 0.9f)},
+        {"Once upon a time, in a therapy session, a client realized", "nucleus", 100, GenerationConfig::nucleus(0.95f, 0.85f)},
 
         // Random Sampling
-        {"The patient sat on the", "random", 50, Generation::GenerationConfig::sampling(1.0f)},
+        {"The patient sat on the", "random", 50, GenerationConfig::sampling(1.0f)},
 
         // Repetition Penalty
         {"This is a test of challenging automatic thoughts. This is a test of challenging automatic thoughts.", "nucleus", 100, []() {
-            auto config = Generation::GenerationConfig::nucleus(0.9f, 0.8f);
+            auto config = GenerationConfig::nucleus(0.9f, 0.8f);
             config.repetition_penalty = 1.5f;
             return config;
         }()},
 
         // Logit Bias (assuming a relevant token for 'anxiety')
         {"A common symptom of social anxiety is", "greedy", 1, []() {
-            auto config = Generation::GenerationConfig::greedy();
+            auto config = GenerationConfig::greedy();
             // Assuming token 40 represents 'avoidance'
             config.logit_bias = {{40, 10.0f}};
             return config;
@@ -165,14 +167,14 @@ void run_standard_generation_evaluation() {
 
         // No-repeat N-gram
         {"This is a test of a behavioral experiment. This is a test of a behavioral experiment.", "nucleus", 50, []() {
-            auto config = Generation::GenerationConfig::nucleus(0.9f, 0.8f);
+            auto config = GenerationConfig::nucleus(0.9f, 0.8f);
             config.no_repeat_ngram_size = 3;
             return config;
         }()},
 
         // Beam Search
         {"The best way to practice mindfulness is", "beam_search", 50, []() {
-            auto config = Generation::GenerationConfig::greedy();
+            auto config = GenerationConfig::greedy();
             config.method = "beam_search";
             config.beam_width = 3;
             return config;
@@ -180,7 +182,7 @@ void run_standard_generation_evaluation() {
 
         // Contrastive Search
         {"The core belief behind impostor syndrome is", "contrastive_search", 60, []() {
-            auto config = Generation::GenerationConfig::greedy();
+            auto config = GenerationConfig::greedy();
             config.method = "contrastive_search";
             config.beam_width = 5;
             config.contrastive_alpha = 0.6f;
@@ -189,7 +191,7 @@ void run_standard_generation_evaluation() {
 
         // Mirostat Sampling
         {"In a session focused on exposure therapy,", "mirostat_sampling", 70, []() {
-            auto config = Generation::GenerationConfig::greedy();
+            auto config = GenerationConfig::greedy();
             config.method = "mirostat_sampling";
             config.mirostat_tau = 5.0f;
             config.mirostat_eta = 0.1f;
@@ -198,7 +200,7 @@ void run_standard_generation_evaluation() {
 
         // Speculative Sampling (placeholder)
         {"The journey to mental wellness begins with", "speculative_sampling", 40, []() {
-            auto config = Generation::GenerationConfig::greedy();
+            auto config = GenerationConfig::greedy();
             config.method = "speculative_sampling";
             return config;
         }()},
