@@ -21,7 +21,7 @@ std::set<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
 // A simple JSON parser for the vocabulary
 std::map<int, std::vector<unsigned char>> parse_vocab_from_json(const std::string& content) {
     std::map<int, std::vector<unsigned char>> vocab;
-    std::regex re_pair("((\\d+)\\s*:\\s*\\[([\\s\\d,]*)\\])");
+    std::regex re_pair(R"((\d+)\s*:\s*\[([\s\d,]*)\])");
     std::smatch match;
     std::string::const_iterator search_start(content.cbegin());
 
