@@ -5,7 +5,9 @@
 #include <iostream>
 #include <vector>
 
-using namespace TissDB::TissLM::Core;
+using namespace TissLM::Core;
+using namespace TissLM::Generation;
+using namespace TissLM::Tokenizer;
 
 int main() {
     try {
@@ -25,7 +27,7 @@ int main() {
         );
 
         // 2. Set up a generator with a bayesian_influenced config
-        Generation::GenerationConfig config;
+        GenerationConfig config;
         config.method = "bayesian_influenced";
         config.query_embedding = std::vector<float>(TestConfig::EmbedDim, 0.5f);
         config.eigenvalues = std::vector<float>(TestConfig::EmbedDim, 0.1f);

@@ -11,8 +11,8 @@
 #include <numeric>
 
 
-using namespace TissDB::TissLM::Core;
-using namespace TissDB::TissLM::Training;
+using namespace TissLM::Core;
+using namespace TissLM::Training;
 using namespace TissNum;
 
 // Helper to check if a file exists

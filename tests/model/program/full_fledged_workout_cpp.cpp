@@ -11,7 +11,9 @@
 #include <algorithm>
 #include <random>
 
-using namespace TissDB::TissLM::Core;
+using namespace TissLM::Core;
+using namespace TissLM::Generation;
+using namespace TissLM::Tokenizer;
 using namespace TissNum;
 
 // Helper to print generated tokens
@@ -58,7 +60,7 @@ void run_cpp_full_fledged_workout() {
     int max_new_tokens = 10;
 
     for (const auto& params_map : generation_params) {
-        Generation::GenerationConfig config;
+        GenerationConfig config;
         if (params_map.count("temperature")) config.temperature = params_map.at("temperature");
         if (params_map.count("top_k")) config.top_k = static_cast<int>(params_map.at("top_k"));
         config.eos_ids.push_back(0); // Assuming 0 is EOS for dummy tokenizer
