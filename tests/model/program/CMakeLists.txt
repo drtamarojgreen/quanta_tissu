@@ -99,6 +99,13 @@ target_link_libraries(tokenizer_test
     tisslm_tokenizer
 )
 
+add_executable(tokenizer_unicode_failure_test
+    tokenizer_unicode_failure_test.cpp
+)
+target_link_libraries(tokenizer_unicode_failure_test
+    tisslm_tokenizer
+)
+
 add_executable(training_test
     training_test.cpp
 )
