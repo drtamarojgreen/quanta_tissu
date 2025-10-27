@@ -99,10 +99,10 @@ target_link_libraries(tokenizer_test
     tisslm_tokenizer
 )
 
-add_executable(tokenizer_unicode_dilemma_test
-    tokenizer_unicode_dilemma_test.cpp
+add_executable(tokenizer_unicode_failure_test
+    tokenizer_unicode_failure_test.cpp
 )
-target_link_libraries(tokenizer_unicode_dilemma_test
+target_link_libraries(tokenizer_unicode_failure_test
     tisslm_tokenizer
 )
 
