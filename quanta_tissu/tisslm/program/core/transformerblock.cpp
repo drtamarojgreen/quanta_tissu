@@ -10,17 +10,17 @@ TransformerBlock::TransformerBlock(size_t d_model, size_t num_heads, size_t d_ff
       dropout1_(dropout_p),
       dropout2_(dropout_p) {}
 
-Matrix TransformerBlock::forward(const Matrix& x, const Matrix& mask, std::optional<std::pair<Matrix, Matrix>> past_kv, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache) {
+Matrix TransformerBlock::forward(const Matrix& x, const Matrix& mask, std::optional<std::pair<Matrix, Matrix>> past_kv, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache, bool training) {
     // Self-attention part
     Matrix attn_out = mha_.forward(x, x, x, mask, past_kv, new_kv_cache);
-    attn_out = dropout1_.forward(attn_out);
+    attn_out = dropout1_.forward(attn_out, training);
 
     Matrix x_plus_attn = x + attn_out;
     Matrix x_norm1 = ln1_.forward(x_plus_attn);
 
     // Feed-forward part
     Matrix ffn_out = ffn_.forward(x_norm1);
-    ffn_out = dropout2_.forward(ffn_out);
+    ffn_out = dropout2_.forward(ffn_out, training);
 
     Matrix x_plus_ffn = x_norm1 + ffn_out;
     Matrix x_norm2 = ln2_.forward(x_plus_ffn);
