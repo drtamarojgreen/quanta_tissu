@@ -641,7 +641,7 @@ void test_advanced_queries() {
         // Test JOIN
         std::string join_query = "SELECT c.name, o.item, o.amount FROM " + orders_collection + " o JOIN " + customers_collection + " c ON o.customer_id = c._id;";
         try {
-            std::string response = client.query(orders_collection, join_query);
+            std::string response = client.query("", join_query);
             if (response.find("Alice") != std::string::npos && response.find("Laptop") != std::string::npos && response.find("Bob") != std::string::npos) {
                 results.record_pass("JOIN query");
             } else {

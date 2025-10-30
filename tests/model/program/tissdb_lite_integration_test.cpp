@@ -40,6 +40,13 @@ void run_tissdb_lite_integration_evaluation() {
     std::cout << "  TissDBClient initialized." << std::endl;
 
     try {
+        client.delete_database();
+        client.create_database();
+    } catch (const std::exception& e) {
+        std::cerr << "  (Note: Initial DB setup failed, proceeding...)" << std::endl;
+    }
+
+    try {
         try {
             // Ensure DB setup
             client.ensure_db_setup({"myCollection"});

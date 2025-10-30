@@ -160,7 +160,11 @@ std::vector<TissDB::Document> TissDBClient::search_documents(const std::string& 
 }
 
 std::string TissDBClient::query(const std::string& collection, const std::string& query_string) {
-    std::string url = db_url_ + "/" + collection + "/_query";
+    std::string url = db_url_;
+    if (!collection.empty()) {
+        url += "/" + collection;
+    }
+    url += "/_query";
     TissDB::Json::JsonObject data;
     data["query"] = TissDB::Json::JsonValue(query_string);
     std::string query_json = TissDB::Json::JsonValue(data).serialize();

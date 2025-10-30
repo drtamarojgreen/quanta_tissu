@@ -7,6 +7,8 @@
 #include <vector>
 #include <string>
 
+#include <random>
+
 namespace TissLM {
 namespace Generation {
 
@@ -41,6 +43,7 @@ private:
     std::shared_ptr<TissLM::Core::Model> model_;
     std::shared_ptr<TissLM::Core::Model> draft_model_;
     Generation::GenerationConfig config_;
+    std::mt19937 gen_;
 };
 
 } // namespace Generation

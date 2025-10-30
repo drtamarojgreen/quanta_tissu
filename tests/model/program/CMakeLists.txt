@@ -56,6 +56,7 @@ add_library(tisslm_generation
 
 add_library(tisslm_tokenizer
     ../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.cpp
+    ../../../quanta_tissu/tisslm/program/tokenizer/pre_tokenizer.cpp
 )
 
 # Rules components library

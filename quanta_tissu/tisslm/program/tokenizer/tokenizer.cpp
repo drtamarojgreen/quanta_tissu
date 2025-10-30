@@ -1,4 +1,5 @@
 #include "tokenizer.h"
+#include "pre_tokenizer.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -159,15 +160,9 @@ std::vector<int> Tokenizer::encode(const std::string& text) {
         }
         return byte_ids;
     }
-    std::regex bpe_regex(R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[[:alpha:]][[:digit:]]]+|\s+(?!\S)|\s+)");
     std::vector<int> all_ids;
-
-    auto words_begin = std::sregex_iterator(text.begin(), text.end(), bpe_regex);
-    auto words_end = std::sregex_iterator();
-
-    for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-        std::smatch match = *i;
-        std::string word = match.str();
+    std::vector<std::string> words = pre_tokenize(text);
+    for (const auto& word : words) {
         std::vector<unsigned char> word_bytes(word.begin(), word.end());
         std::vector<int> word_ids = bpe_encode(word_bytes);
         all_ids.insert(all_ids.end(), word_ids.begin(), word_ids.end());
@@ -183,52 +178,7 @@ std::string Tokenizer::decode(const std::vector<int>& token_ids) {
             all_bytes.insert(all_bytes.end(), it->second.begin(), it->second.end());
         }
     }
-
-    std::string text;
-    text.reserve(all_bytes.size());
-    for (size_t i = 0; i < all_bytes.size(); ) {
-        unsigned char byte1 = all_bytes[i];
-        int num_bytes = 0;
-
-        if (byte1 < 0x80) { // 0xxxxxxx (ASCII)
-            num_bytes = 1;
-        } else if ((byte1 & 0xE0) == 0xC0) { // 110xxxxx
-            num_bytes = 2;
-        } else if ((byte1 & 0xF0) == 0xE0) { // 1110xxxx
-            num_bytes = 3;
-        } else if ((byte1 & 0xF8) == 0xF0) { // 11110xxx
-            num_bytes = 4;
-        } else {
-            // Invalid start byte, replace with replacement character
-            text += "\xEF\xBF\xBD";
-            i += 1;
-            continue;
-        }
-
-        if (i + num_bytes > all_bytes.size()) {
-            // Incomplete character at the end
-            text += "\xEF\xBF\xBD";
-            break;
-        }
-
-        // Check for valid continuation bytes
-        bool valid = true;
-        for (int j = 1; j < num_bytes; ++j) {
-            if ((all_bytes[i + j] & 0xC0) != 0x80) {
-                valid = false;
-                break;
-            }
-        }
-
-        if (valid) {
-            text.append(reinterpret_cast<const char*>(&all_bytes[i]), num_bytes);
-        } else {
-            text += "\xEF\xBF\xBD";
-        }
-        i += num_bytes;
-    }
-    
-    return text;
+    return std::string(all_bytes.begin(), all_bytes.end());
 }
 
 int Tokenizer::get_vocab_size() const {
@@ -241,14 +191,9 @@ void Tokenizer::train(const std::string& text, int vocab_size, bool verbose) {
     }
 
     // 1. Pre-tokenize the text
-    std::regex pre_tokenizer(R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[[:alpha:]][[:digit:]]]+|\s+(?!\S)|\s+)");
-    auto words_begin = std::sregex_iterator(text.begin(), text.end(), pre_tokenizer);
-    auto words_end = std::sregex_iterator();
-
+    std::vector<std::string> words = pre_tokenize(text);
     std::vector<std::vector<int>> word_byte_sequences;
-    for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-        std::smatch match = *i;
-        std::string word = match.str();
+    for (const auto& word : words) {
         std::vector<int> byte_sequence;
         for (char c : word) {
             byte_sequence.push_back(static_cast<unsigned char>(c));
