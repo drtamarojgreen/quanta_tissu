@@ -41,14 +41,14 @@ namespace {
 Generator::Generator(
     std::shared_ptr<TissLM::Core::Model> model,
     const GenerationConfig& config
-) : model_(model), config_(config) {
+) : model_(model), config_(config), gen_(config.seed.has_value() ? config.seed.value() : std::random_device()()) {
 }
 
 Generator::Generator(
     std::shared_ptr<TissLM::Core::Model> model,
     std::shared_ptr<TissLM::Core::Model> draft_model,
     const GenerationConfig& config
-) : model_(model), draft_model_(draft_model), config_(config) {
+) : model_(model), draft_model_(draft_model), config_(config), gen_(config.seed.has_value() ? config.seed.value() : std::random_device()()) {
 }
 
 std::vector<int> Generator::generate(const std::vector<int>& prompt_tokens, int max_new_tokens) {
@@ -187,10 +187,8 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
         for (int c = 0; c < probabilities.cols(); ++c) {
             probs_vec.push_back(probabilities(0, c));
         }
-        std::random_device rd;
-        std::mt19937 gen(rd());
         std::discrete_distribution<> d(probs_vec.begin(), probs_vec.end());
-        return d(gen);
+        return d(gen_);
     }
     
     // Collect all token probabilities and their indices
@@ -279,11 +277,9 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
             normalized_probs.push_back(p.first);
         }
 
-        std::random_device rd;
-        std::mt19937 gen(rd());
         std::discrete_distribution<> d(normalized_probs.begin(), normalized_probs.end());
 
-        int sampled_index = d(gen);
+        int sampled_index = d(gen_);
         return token_probs[sampled_index].second;
     }
 }
@@ -478,10 +474,8 @@ std::vector<int> Generator::mirostat_sampling(const std::vector<int>& prompt_tok
             nucleus_probs.push_back(token_probs[j].first / sum_nucleus_probs);
         }
 
-        std::random_device rd;
-        std::mt19937 gen(rd());
         std::discrete_distribution<> d(nucleus_probs.begin(), nucleus_probs.end());
-        int sampled_index = d(gen);
+        int sampled_index = d(gen_);
         int next_token = nucleus_indices[sampled_index];
 
         float observed_surprise = -std::log2(probabilities(0, next_token));

@@ -12,7 +12,7 @@ class TransformerBlock {
 public:
     TransformerBlock(size_t d_model, size_t num_heads, size_t d_ff, float dropout_p, int lora_rank = 0, const std::string& name = "");
 
-    Matrix forward(const Matrix& x, const Matrix& mask = Matrix(), std::optional<std::pair<Matrix, Matrix>> past_kv = std::nullopt, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache = nullptr);
+    Matrix forward(const Matrix& x, const Matrix& mask = Matrix(), std::optional<std::pair<Matrix, Matrix>> past_kv = std::nullopt, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache = nullptr, bool training = false);
     Matrix backward(const Matrix& d_out, const Matrix& cache);
 
     std::vector<Parameter*> parameters();

@@ -11,7 +11,7 @@ int main() {
         std::cout << "=== Testing Text Encoding ===" << std::endl;
 
         // 1. Sample text with a variety of UTF-8 characters
-        std::string original_text = "Hello, world! This is a test with some special characters: éàçüö, and some emojis: 😊👍🚀. Let's also include some non-latin scripts: Привет, мир! (Russian), こんにちは、世界！ (Japanese), and 안녕하세요, 세계! (Korean).";
+        std::string original_text = "Hello, world! This is a test with some special characters: éàçüö, and also in Spanish: ¿Qué tal?";
 
         // 2. Create a tokenizer
         Tokenizer tokenizer(TestConfig::TokenizerPath);

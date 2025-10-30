@@ -64,6 +64,9 @@ struct GenerationConfig {
     std::vector<float> eigenvalues;
     float bayesian_influence_scale = 1.0f;
     
+    // Optional seed for reproducibility
+    std::optional<int> seed = std::nullopt;
+    
     /**
      * Create default greedy config
      */
