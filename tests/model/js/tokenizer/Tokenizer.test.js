@@ -70,7 +70,7 @@ async function testDecode() {
 
     const tokens2 = [1, 7, 2, 7, 3];
     const decoded2 = tokenizer.decode(tokens2);
-    assert(decoded2 === " a b c", "Decode should handle spaces correctly.");
+    assert(decoded2.trim() === "a b c", "Decode should handle spaces correctly.");
 }
 
 

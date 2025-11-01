@@ -18,7 +18,7 @@ function testGenerator() {
             return [];
         },
         decode: (tokens) => {
-            return tokens.map(t => {
+             return tokens.map(t => {
                 if (t === 1) return "a";
                 if (t === 2) return "b";
                 if (t === 3) return "c";
@@ -34,16 +34,18 @@ function testGenerator() {
             // if input is [1], predict token 2
             // if input is [1, 2], predict token 3 (EOS)
             let nextTokenLogits;
-            if (tokens.join(',') === '1') {
-                nextTokenLogits = [0.1, 2.5, 0.2]; // Predicts token 2
-            } else if (tokens.join(',') === '1,2') {
-                 nextTokenLogits = [0.1, 0.2, 3.0]; // Predicts token 3
+            if (tokens.length === 1 && tokens[0] === 1) {
+                // To predict token ID 2, max logit must be at index 2
+                nextTokenLogits = [0.1, 0.2, 2.5, 0.1];
+            } else if (tokens.length === 2 && tokens[0] === 1 && tokens[1] === 2) {
+                 // To predict token ID 3, max logit must be at index 3
+                 nextTokenLogits = [0.1, 0.2, 0.1, 3.0];
             } else {
-                nextTokenLogits = [0, 0, 0];
+                nextTokenLogits = [0, 0, 0, 0];
             }
             // The model outputs logits for the whole sequence, so we create a dummy history
-            const dummyHistory = Matrix.zeros(tokens.length - 1, 3);
-            const finalLogits = new Matrix([...dummyHistory.data, nextTokenLogits]);
+            const historyData = tokens.length > 1 ? Matrix.zeros(tokens.length - 1, 4).data : [];
+            const finalLogits = new Matrix([...historyData, nextTokenLogits]);
             return finalLogits;
         }
     };
