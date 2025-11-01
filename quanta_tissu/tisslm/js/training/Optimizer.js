@@ -1,6 +1,7 @@
 // NOTE: This is a conceptual implementation. A real optimizer would need access
 // to model parameters and their gradients, which are not part of the current
 // simplified `Matrix` and model architecture.
+const { Matrix } = require('../core/Matrix.js');
 
 class SGDOptimizer {
     /**

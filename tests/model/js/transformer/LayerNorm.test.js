@@ -36,7 +36,7 @@ function testLayerNormForward() {
     // Normalized = [(1-2)/std, (2-2)/std, (3-2)/std] = [-1.22, 0, 1.22]
     // Scaled = [-1.83, 0, 1.83]
     // Shifted = [-1.33, 0.5, 2.33]
-    const expected = new Matrix([[-1.33484, 0.5, 2.33484]]);
+    const expected = new Matrix([[-1.3371035288625852, 0.5, 2.337103528862585]]);
 
     const output = ln.forward(input);
 

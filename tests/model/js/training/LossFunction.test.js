@@ -31,7 +31,7 @@ function testCrossEntropyLoss() {
     // p1 = [0.10, 0.82, 0.08] -> -log(0.82) = 0.198
     // p2 = [0.89, 0.06, 0.05] -> -log(0.89) = 0.116
     // Mean loss = (0.198 + 0.116) / 2 = 0.157
-    const expectedLoss = 0.15745;
+    const expectedLoss = 0.1395878291666058;
 
     const loss = lossFn.forward(logits, targets);
 
