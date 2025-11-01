@@ -52,7 +52,8 @@ function testApiGeneration() {
     console.log("Test: API Generation (conceptual)");
      const config = {
         tokenizerPath: 'dummy',
-        vocabSize: 4
+        vocabSize: 4,
+        dbUrl: 'http://localhost:8080' // Add the required dbUrl
     };
     const tisslm = new TissLM(config);
     tisslm.isInitialized = true; // Manually set for this test
