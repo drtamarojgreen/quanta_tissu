@@ -149,7 +149,7 @@ bool TissDBClient::test_connection() {
 }
 
 std::vector<TissDB::Document> TissDBClient::search_documents(const std::string& collection, const std::string& query_json) {
-    std::string url = db_url_ + "/" + collection + "/_search";
+    std::string url = db_url_ + "/" + collection + "/_query";
     std::string response_json = http_client_->post(url, query_json);
     TissDB::Json::JsonValue json = TissDB::Json::JsonValue::parse(response_json);
     std::vector<TissDB::Document> docs;

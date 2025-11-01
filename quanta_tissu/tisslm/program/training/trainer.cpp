@@ -64,15 +64,20 @@ void Trainer::train(
             // Forward pass
             TissNum::Matrix predictions = model_->forward(batch_input);
 
-            // Transpose target for loss computation
-            TissNum::Matrix transposed_target = batch_target.transpose();
+            // Reshape target for loss computation
+            TissNum::Matrix reshaped_target(batch_target.rows() * batch_target.cols(), 1);
+            for (int r = 0; r < batch_target.rows(); ++r) {
+                for (int c = 0; c < batch_target.cols(); ++c) {
+                    reshaped_target(r * batch_target.cols() + c, 0) = batch_target(r, c);
+                }
+            }
 
             // Compute loss
-            float loss = loss_function_->compute_loss(predictions, transposed_target);
+            float loss = loss_function_->compute_loss(predictions, reshaped_target);
             epoch_loss += loss;
 
             // Compute gradient of loss w.r.t. predictions
-            TissNum::Matrix grad_loss = loss_function_->compute_gradient(predictions, transposed_target);
+            TissNum::Matrix grad_loss = loss_function_->compute_gradient(predictions, reshaped_target);
 
             // Backward pass
             model_->backward(grad_loss);

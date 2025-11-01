@@ -95,7 +95,7 @@ void run_tissdb_lite_integration_evaluation() {
         // Search for items (using the new search_documents method)
         // This assumes TissDB's search endpoint can handle simple queries like this
         try {
-            std::string query_json = "{\"query\": \"value > 15\"}";
+            std::string query_json = "{\"query\": \"SELECT * FROM myCollection WHERE value > 15\"}";
             std::vector<Document> found_items = client.search_documents("myCollection", query_json);
             std::cout << "  Found " << found_items.size() << " items with value > 15." << std::endl;
             if (found_items.size() == 1 && get_field(found_items[0], "name") == "Test Item 2") {

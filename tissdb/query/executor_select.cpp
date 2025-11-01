@@ -174,17 +174,25 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
                 }
             }
 
-            bool can_use_index = !left_key.empty() && !right_key.empty() && storage_engine.has_index(join_clause.collection_name, {right_key});
+            auto get_unqualified = [](const std::string& s) {
+                if (auto dot_pos = s.find('.'); dot_pos != std::string::npos) {
+                    return s.substr(dot_pos + 1);
+                }
+                return s;
+            };
+
+            std::string unqualified_right_key = get_unqualified(right_key);
+            bool can_use_index = !left_key.empty() && !right_key.empty() && storage_engine.has_index(join_clause.collection_name, {unqualified_right_key});
 
             for (const auto& left_doc : all_docs) {
                 bool left_doc_matched = false;
                 std::vector<Document> right_docs_to_join;
 
                 if (can_use_index) {
-                    const auto* left_val_ptr = get_value_from_doc(left_doc, left_key);
+                    const auto* left_val_ptr = get_value_from_doc(left_doc, get_unqualified(left_key));
                     if (left_val_ptr) {
                         std::string val_str = value_to_string(*left_val_ptr);
-                        auto doc_ids = storage_engine.find_by_index(join_clause.collection_name, {right_key}, {val_str});
+                        auto doc_ids = storage_engine.find_by_index(join_clause.collection_name, {unqualified_right_key}, {val_str});
                         right_docs_to_join = storage_engine.get_many(join_clause.collection_name, doc_ids);
                     }
                 } else {
