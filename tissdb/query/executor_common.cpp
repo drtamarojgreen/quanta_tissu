@@ -69,7 +69,19 @@ std::optional<std::string> get_as_string(const Value& val) {
 
 Value resolve_expression_to_value(const Expression& expr, const Document& doc, const std::vector<Literal>& params) {
     if (const auto* ident_ptr = std::get_if<Identifier>(&expr)) {
-        const Value* val = get_value_from_doc(doc, ident_ptr->name);
+        std::string key = ident_ptr->name;
+        // Handle qualified names like 'c.name' by splitting them
+        std::string alias;
+        std::string field_name;
+        if (auto dot_pos = key.find('.'); dot_pos != std::string::npos) {
+            alias = key.substr(0, dot_pos);
+            field_name = key.substr(dot_pos + 1);
+        } else {
+            field_name = key;
+        }
+
+        // In a combined document, the key is already aliased, so we just look for it.
+        const Value* val = get_value_from_doc(doc, key);
         return val ? *val : Value{std::nullptr_t{}};
     }
     if (const auto* lit_ptr = std::get_if<Literal>(&expr)) {
