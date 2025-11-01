@@ -111,7 +111,21 @@ class Tokenizer {
 
         const invVocab = Object.fromEntries(Object.entries(this.vocab).map(([k, v]) => [v, k]));
 
-        return tokenIds.map(id => invVocab[id] || '').join('');
+        // Handle spaces correctly during decoding
+        let text = '';
+        for (const id of tokenIds) {
+            const token = invVocab[id] || '';
+            // This is a simplified logic. A more robust tokenizer would handle prefixes/suffixes.
+            if (token.startsWith(' ')) {
+                text += token;
+            } else if (text.endsWith(' ') || text.length === 0) {
+                 text += token;
+            }
+            else {
+                text += ' ' + token;
+            }
+        }
+        return text.replace(/ (?= )/g, ''); // Clean up potential double spaces
     }
 }
 

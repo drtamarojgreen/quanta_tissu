@@ -20,15 +20,27 @@ class Matrix {
         return new Matrix(data);
     }
 
-    // Element-wise addition
+    // Element-wise addition with broadcasting for row vectors
     add(other) {
-        if (this.rows !== other.rows || this.cols !== other.cols) {
-            throw new Error("Matrices must have the same dimensions for addition.");
+        // Standard case: A.add(B) where A and B are same size
+        if (this.rows === other.rows && this.cols === other.cols) {
+            const result = this.data.map((row, i) =>
+                row.map((val, j) => val + other.data[i][j])
+            );
+            return new Matrix(result);
         }
-        const result = this.data.map((row, i) =>
-            row.map((val, j) => val + other.data[i][j])
-        );
-        return new Matrix(result);
+        // Broadcasting case: A.add(v) where A is MxN and v is 1xN
+        else if (other.rows === 1 && this.cols === other.cols) {
+            const rowVector = other.data[0];
+            const result = this.data.map(row =>
+                row.map((val, j) => val + rowVector[j])
+            );
+            return new Matrix(result);
+        }
+        // Otherwise, invalid operation
+        else {
+            throw new Error(`Matrix dimension mismatch for addition: (${this.rows}x${this.cols}) vs (${other.rows}x${other.cols}). Broadcasting is only supported for a 1xN vector.`);
+        }
     }
 
     // Element-wise subtraction
@@ -42,15 +54,32 @@ class Matrix {
         return new Matrix(result);
     }
 
-    // Element-wise multiplication
+    // Element-wise multiplication with broadcasting for row vectors
     multiply(other) {
-        if (this.rows !== other.rows || this.cols !== other.cols) {
-            throw new Error("Matrices must have the same dimensions for element-wise multiplication.");
+        // Scalar multiplication
+        if (typeof other === 'number') {
+            const result = this.data.map(row => row.map(val => val * other));
+            return new Matrix(result);
         }
-        const result = this.data.map((row, i) =>
-            row.map((val, j) => val * other.data[i][j])
-        );
-        return new Matrix(result);
+        // Standard case: A.multiply(B) where A and B are same size
+        if (this.rows === other.rows && this.cols === other.cols) {
+            const result = this.data.map((row, i) =>
+                row.map((val, j) => val * other.data[i][j])
+            );
+            return new Matrix(result);
+        }
+        // Broadcasting case: A.multiply(v) where A is MxN and v is 1xN
+        else if (other.rows === 1 && this.cols === other.cols) {
+            const rowVector = other.data[0];
+            const result = this.data.map(row =>
+                row.map((val, j) => val * rowVector[j])
+            );
+            return new Matrix(result);
+        }
+        // Otherwise, invalid operation
+        else {
+            throw new Error(`Matrix dimension mismatch for multiplication: (${this.rows}x${this.cols}) vs (${other.rows}x${other.cols}). Broadcasting is only supported for a 1xN vector.`);
+        }
     }
 
     // Dot product
