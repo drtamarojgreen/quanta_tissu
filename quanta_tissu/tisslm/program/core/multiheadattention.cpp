@@ -75,42 +75,44 @@ Matrix MultiHeadAttention::scaled_dot_product_attention(const Matrix& q, const M
 Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const Matrix& v_in, const Matrix& mask, std::optional<std::pair<Matrix, Matrix>> past_kv, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache) {
     cached_q_ = q_in;
 
-    Matrix current_k = k_in;
-    Matrix current_v = v_in;
-
-    if (past_kv.has_value()) {
-        // Concatenate past keys and values with current ones
-        current_k = Matrix::concatenate(past_kv->first, current_k, 0); // Concatenate along sequence length dimension
-        current_v = Matrix::concatenate(past_kv->second, current_v, 0); // Concatenate along sequence length dimension
-    }
-
-    cached_k_ = current_k;
-    cached_v_ = current_v;
-
-    // Linear projections
+    // Project the new query, key, and value vectors from the input.
     Matrix q = Matrix::matmul(q_in, w_q_.value());
-    Matrix k = Matrix::matmul(current_k, w_k_.value());
-    Matrix v = Matrix::matmul(current_v, w_v_.value());
+    Matrix k_new = Matrix::matmul(k_in, w_k_.value());
+    Matrix v_new = Matrix::matmul(v_in, w_v_.value());
 
+    // Apply LoRA adjustments if enabled.
     if (use_lora_) {
         q = q + Matrix::matmul(Matrix::matmul(q_in, w_q_lora_a_.value().value()), w_q_lora_b_.value().value());
-        v = v + Matrix::matmul(Matrix::matmul(current_v, w_v_lora_a_.value().value()), w_v_lora_b_.value().value());
+        v_new = v_new + Matrix::matmul(Matrix::matmul(v_in, w_v_lora_a_.value().value()), w_v_lora_b_.value().value());
     }
 
-    // Reshape for multi-head attention (simplified - actual reshape is more complex)
-    // For now, assume q, k, v are already in the correct shape for scaled_dot_product_attention
+    Matrix k, v;
+    if (past_kv.has_value()) {
+        // If a cache is provided, concatenate the new K/V vectors with the cached ones.
+        k = Matrix::concatenate(past_kv->first, k_new, 0);
+        v = Matrix::concatenate(past_kv->second, v_new, 0);
+    } else {
+        // Otherwise, use the new K/V vectors as is.
+        k = k_new;
+        v = v_new;
+    }
 
+    // Update the cache with the new, full K/V sequences for the next step.
+    if (new_kv_cache != nullptr) {
+        *new_kv_cache = std::make_pair(k, v);
+    }
+
+    // Cache the K and V matrices for the backward pass.
+    cached_k_ = k;
+    cached_v_ = v;
+
+    // Perform scaled dot-product attention.
     Matrix scaled_attention_output = scaled_dot_product_attention(q, k, v, mask);
     cached_scaled_attention_ = scaled_attention_output;
 
-    // Concatenate and final linear layer
-    // (simplified - actual concatenation is more complex)
+    // Apply the final output projection.
     Matrix output = Matrix::matmul(scaled_attention_output, w_o_.value());
     cached_output_projection_input_ = scaled_attention_output;
-
-    if (new_kv_cache != nullptr) {
-        *new_kv_cache = std::make_pair(current_k, current_v);
-    }
 
     return output;
 }
