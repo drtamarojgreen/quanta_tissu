@@ -25,16 +25,13 @@ Matrix TransformerBlock::forward(const Matrix& x, const Matrix& mask, std::optio
     Matrix x_plus_ffn = x_norm1 + ffn_out;
     Matrix x_norm2 = ln2_.forward(x_plus_ffn);
 
-    // Cache for backward pass (simplified for now)
-    cached_x_for_ln1_ = x_plus_attn;
-    cached_x_for_ffn_ = x_plus_ffn;
 
     return x_norm2;
 }
 
-Matrix TransformerBlock::backward(const Matrix& d_out, const Matrix& cache) {
+Matrix TransformerBlock::backward(const Matrix& d_out) {
     // Backpropagate through ln2
-    Matrix dx_norm2 = ln2_.backward(d_out, cached_x_for_ffn_);
+    Matrix dx_norm2 = ln2_.backward(d_out);
 
     // Backpropagate through addition (x_norm1 + ffn_out)
     Matrix d_ffn_out = dx_norm2; // Gradient flowing to the ffn_out branch
@@ -44,13 +41,13 @@ Matrix TransformerBlock::backward(const Matrix& d_out, const Matrix& cache) {
     d_ffn_out = dropout2_.backward(d_ffn_out);
 
     // Backpropagate through ffn to get gradient contribution for x_norm1
-    Matrix dx_norm1_from_ffn = ffn_.backward(d_ffn_out, cached_x_for_ln1_);
+    Matrix dx_norm1_from_ffn = ffn_.backward(d_ffn_out);
 
     // Total gradient for x_norm1 is the sum from both branches
     Matrix total_dx_norm1 = dx_norm1_from_residual + dx_norm1_from_ffn;
 
     // Backpropagate through ln1
-    Matrix dx_plus_attn = ln1_.backward(total_dx_norm1, cached_x_for_ln1_);
+    Matrix dx_plus_attn = ln1_.backward(total_dx_norm1);
 
     // Backpropagate through addition (x + attn_out)
     Matrix d_attn_out = dx_plus_attn; // Gradient flowing to the attn_out branch
@@ -60,7 +57,7 @@ Matrix TransformerBlock::backward(const Matrix& d_out, const Matrix& cache) {
     d_attn_out = dropout1_.backward(d_attn_out);
 
     // Backpropagate through mha to get gradient contribution for x
-    Matrix dx_from_mha = mha_.backward(d_attn_out, cache);
+    Matrix dx_from_mha = mha_.backward(d_attn_out);
 
     // Total gradient for x is the sum from both branches
     Matrix dx_from_attn = dx_from_residual + dx_from_mha;

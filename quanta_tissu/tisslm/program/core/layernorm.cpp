@@ -11,6 +11,7 @@ LayerNorm::LayerNorm(size_t dim, const std::string& name, bool bias, float eps)
       has_bias_(bias) {}
 
 Matrix LayerNorm::forward(const Matrix& x) {
+    cached_x_ = x;
     // x shape: (batch_size, dim)
     Matrix mean = x.mean(1); // Mean across the feature dimension
     Matrix var = x.variance(1, mean); // Variance across the feature dimension
@@ -36,12 +37,12 @@ Matrix LayerNorm::forward(const Matrix& x) {
     return out;
 }
 
-Matrix LayerNorm::backward(const Matrix& d_out, const Matrix& cache) {
-    size_t N = cache.rows();
-    size_t D = cache.cols();
+Matrix LayerNorm::backward(const Matrix& d_out) {
+    size_t N = cached_x_.rows();
+    size_t D = cached_x_.cols();
 
-    Matrix mean = cache.mean(1);
-    Matrix var = cache.variance(1, mean);
+    Matrix mean = cached_x_.mean(1);
+    Matrix var = cached_x_.variance(1, mean);
     Matrix std_dev = Matrix::sqrt(var + eps_);
 
     Matrix x_norm(N, D);
@@ -49,7 +50,7 @@ Matrix LayerNorm::backward(const Matrix& d_out, const Matrix& cache) {
 
     for (size_t r = 0; r < N; ++r) {
         for (size_t c = 0; c < D; ++c) {
-            cache_centered(r, c) = cache(r, c) - mean(r, 0);
+            cache_centered(r, c) = cached_x_(r, c) - mean(r, 0);
             x_norm(r, c) = cache_centered(r, c) / std_dev(r, 0);
         }
     }

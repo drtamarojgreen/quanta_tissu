@@ -339,10 +339,12 @@ Document combine_documents(const Document& doc1, const std::string& alias1, cons
     Document combined_doc;
     combined_doc.id = doc1.id + "_" + doc2.id;
 
+    combined_doc.elements.push_back({alias1 + "._id", doc1.id});
     for (const auto& elem : doc1.elements) {
         combined_doc.elements.push_back({alias1 + "." + elem.key, elem.value});
     }
 
+    combined_doc.elements.push_back({alias2 + "._id", doc2.id});
     for (const auto& elem : doc2.elements) {
         combined_doc.elements.push_back({alias2 + "." + elem.key, elem.value});
     }
