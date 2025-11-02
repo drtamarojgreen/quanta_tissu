@@ -10,7 +10,7 @@ public:
     FeedForward(size_t d_model, size_t d_ff, const std::string& name = "");
 
     Matrix forward(const Matrix& x);
-    Matrix backward(const Matrix& d_out, const Matrix& cache);
+    Matrix backward(const Matrix& d_out);
 
     std::vector<Parameter*> parameters();
 

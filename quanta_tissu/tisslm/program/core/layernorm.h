@@ -10,7 +10,7 @@ public:
     LayerNorm(size_t dim, const std::string& name = "", bool bias = true, float eps = 1e-5);
 
     Matrix forward(const Matrix& x);
-    Matrix backward(const Matrix& d_out, const Matrix& cache);
+    Matrix backward(const Matrix& d_out);
 
     std::vector<Parameter*> parameters();
 
@@ -20,6 +20,7 @@ private:
     Parameter gamma_;
     Parameter beta_;
     bool has_bias_;
+    Matrix cached_x_;
 };
 
 } // namespace TissNum

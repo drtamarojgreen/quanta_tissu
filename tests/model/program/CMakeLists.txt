@@ -32,6 +32,7 @@ add_library(tisslm_core
     ../../../quanta_tissu/tisslm/program/core/transformer_model.cpp
     ../../../quanta_tissu/tisslm/program/core/mock_embedder.cpp
     ../../../quanta_tissu/tisslm/program/db/tissdb_client.cpp
+    ../../../quanta_tissu/tisslm/program/db/tissdb_lite_client.cpp
     ../../../quanta_tissu/tisslm/program/db/http_client.cpp
     ../../../tissdb/json/json.cpp
     ../../../tissdb/common/document.cpp
@@ -404,7 +405,16 @@ set(TEST_EXECUTABLES
     tissdb_lite_integration_test
     advanced_sampling_test
     bayesian_sampling_test
-    encoding_test)
+    encoding_test
+    dimension_integrity_test)
+
+add_executable(dimension_integrity_test
+    dimension_integrity_test.cpp
+)
+target_link_libraries(dimension_integrity_test
+    tisslm_core
+    tisslm_training
+)
 
 # Get the project root and pass it as a compile definition to all tests
 foreach(test_exe ${TEST_EXECUTABLES})

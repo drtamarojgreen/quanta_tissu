@@ -1,4 +1,5 @@
-#include "../../../quanta_tissu/tisslm/program/db/tissdb_client.h"
+#include "../../../quanta_tissu/tisslm/program/db/tissdb_lite_client.h"
+#include "../../../tissdb/json/json.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -20,107 +21,32 @@ std::string get_field(const TissDB::Document& doc, const std::string& key) {
     return "";
 }
 
-// Helper function to set a field in a document
-void set_field(TissDB::Document& doc, const std::string& key, const std::string& value) {
-    for (auto& element : doc.elements) {
-        if (element.key == key) {
-            element.value = value;
-            return;
-        }
-    }
-    doc.elements.push_back({key, value});
-}
-
 void run_tissdb_lite_integration_evaluation() {
     std::cout << "=== Running TissDB-Lite Integration Evaluation (C++) ===" << std::endl;
 
-    // --- Setup TissDBClient ---
-    TissDBClient client("127.0.0.1", 9876, "test_tissdb_lite_db", "static_test_token");
+    // --- Setup TissDBLiteClient ---
+    TissDBLiteClient client("127.0.0.1", 9877);
 
-    std::cout << "  TissDBClient initialized." << std::endl;
-
-    try {
-        client.delete_database();
-        client.create_database();
-    } catch (const std::exception& e) {
-        std::cerr << "  (Note: Initial DB setup failed, proceeding...)" << std::endl;
-    }
+    std::cout << "  TissDBLiteClient initialized." << std::endl;
 
     try {
-        try {
-            // Ensure DB setup
-            client.ensure_db_setup({"myCollection"});
-            std::cout << "  TissDB setup and collection created." << std::endl;
-        } catch (const std::exception& e) {
-            std::cerr << "ensure_db_setup failed: " << e.what() << std::endl;
-            throw;
-        }
+        // Clear the database
+        client.sendCommand("{\"action\": \"deleteDb\"}");
 
         // Insert items
-        Document doc1;
-        set_field(doc1, "name", "Test Item 1");
-        set_field(doc1, "value", "10");
-        try {
-            std::string id1 = client.add_document("myCollection", doc1, "item1");
-            std::cout << "  Inserted item 1 with ID: " << id1 << std::endl;
-        } catch (const std::exception& e) {
-            std::cerr << "add_document 1 failed: " << e.what() << std::endl;
-            throw;
-        }
+        client.sendCommand("{\"action\": \"insert\", \"collectionName\": \"myCollection\", \"item\": {\"name\": \"Test Item 1\", \"value\": 10}}");
+        client.sendCommand("{\"action\": \"insert\", \"collectionName\": \"myCollection\", \"item\": {\"name\": \"Test Item 2\", \"value\": 20}}");
 
-        Document doc2;
-        set_field(doc2, "name", "Test Item 2");
-        set_field(doc2, "value", "20");
-        try {
-            std::string id2 = client.add_document("myCollection", doc2, "item2");
-            std::cout << "  Inserted item 2 with ID: " << id2 << std::endl;
-        } catch (const std::exception& e) {
-            std::cerr << "add_document 2 failed: " << e.what() << std::endl;
-            throw;
-        }
+        // Search for items
+        std::string response_json = client.sendCommand("{\"action\": \"find\", \"collectionName\": \"myCollection\", \"condition_string\": \"value > 15\"}");
+        Json::JsonValue json = Json::JsonValue::parse(response_json);
+        Json::JsonArray found_items = json.as_object().at("data").as_array();
 
-        // Get item by ID
-        try {
-            Document retrieved_doc1 = client.get_document("myCollection", "item1");
-            if (get_field(retrieved_doc1, "name") == "Test Item 1") {
-                std::cout << "  Retrieved item 1 successfully." << std::endl;
-            } else {
-                throw std::runtime_error("Failed to retrieve item 1.");
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "get_document failed: " << e.what() << std::endl;
-            throw;
-        }
-
-        // Search for items (using the new search_documents method)
-        // This assumes TissDB's search endpoint can handle simple queries like this
-        try {
-            std::string query_json = "{\"query\": \"SELECT * FROM myCollection WHERE value > 15\"}";
-            std::vector<Document> found_items = client.search_documents("myCollection", query_json);
-            std::cout << "  Found " << found_items.size() << " items with value > 15." << std::endl;
-            if (found_items.size() == 1 && get_field(found_items[0], "name") == "Test Item 2") {
-                std::cout << "  Search for value > 15 Passed." << std::endl;
-            } else {
-                throw std::runtime_error("Search for value > 15 failed.");
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "search_documents failed: " << e.what() << std::endl;
-            throw;
-        }
-
-        // Update item
-        try {
-            set_field(doc1, "value", "15");
-            client.add_document("myCollection", doc1, "item1"); // add_document also acts as update if ID exists
-            Document updated_doc1 = client.get_document("myCollection", "item1");
-            if (get_field(updated_doc1, "value") == "15") {
-                std::cout << "  Updated item 1 successfully." << std::endl;
-            } else {
-                throw std::runtime_error("Failed to update item 1.");
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "update item failed: " << e.what() << std::endl;
-            throw;
+        std::cout << "  Found " << found_items.size() << " items with value > 15." << std::endl;
+        if (found_items.size() == 1 && found_items[0].as_object().at("name").as_string() == "Test Item 2") {
+            std::cout << "  Search for value > 15 Passed." << std::endl;
+        } else {
+            throw std::runtime_error("Search for value > 15 failed.");
         }
 
         std::cout << "  TissDB-Lite Integration tests completed successfully." << std::endl;

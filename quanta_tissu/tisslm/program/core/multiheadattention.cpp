@@ -115,7 +115,7 @@ Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const
     return output;
 }
 
-Matrix MultiHeadAttention::backward(const Matrix& d_out, const Matrix& cache) {
+Matrix MultiHeadAttention::backward(const Matrix& d_out) {
     // This is a highly simplified backward pass for MultiHeadAttention.
     // A full implementation would would involve backpropagating through all the reshapes, splits, and concatenations.
     // For now, this is a placeholder.

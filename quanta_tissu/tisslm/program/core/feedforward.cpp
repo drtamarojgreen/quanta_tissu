@@ -54,7 +54,7 @@ Matrix FeedForward::forward(const Matrix& x) {
     return output;
 }
 
-Matrix FeedForward::backward(const Matrix& d_out, const Matrix& cache) {
+Matrix FeedForward::backward(const Matrix& d_out) {
     // Backward pass for output layer
     Matrix d_output = d_out;
     w2_.grad() = Matrix::matmul(cached_hidden_.transpose(), d_output);
