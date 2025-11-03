@@ -70,8 +70,8 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
 
     // 2. Positional Encoding
     size_t current_position = 0;
-    if (!past_kv_cache.empty() && past_kv_cache[0].first.cols() > 0) {
-        current_position = past_kv_cache[0].first.cols();
+    if (!past_kv_cache.empty() && past_kv_cache[0].first.rows() > 0) {
+        current_position = past_kv_cache[0].first.rows();
     }
     x = positional_encoding_layer_.forward(x, current_position);
 
