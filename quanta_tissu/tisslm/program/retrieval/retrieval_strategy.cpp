@@ -316,13 +316,24 @@ std::vector<float> BayesianSimilarityStrategy::calculate_similarity(
     }
 
     std::vector<float> noisy_query = query_embedding;
-    std::random_device rd;
-    std::mt19937 gen(rd());
+
+    // Use the provided RNG if available, otherwise create a local one.
+    std::mt19937 local_gen(std::random_device{}());
+    std::mt19937* gen_ptr = &local_gen;
+
+    auto rng_it = kwargs.find("rng");
+    if (rng_it != kwargs.end()) {
+        try {
+            gen_ptr = std::any_cast<std::mt19937*>(rng_it->second);
+        } catch (const std::bad_any_cast& e) {
+            // Do nothing, just use the local generator.
+        }
+    }
 
     for (size_t i = 0; i < noisy_query.size(); ++i) {
         float variance = std::max(posterior_variance[i], 1e-9f);
         std::normal_distribution<> d(0, std::sqrt(variance));
-        noisy_query[i] += d(gen);
+        noisy_query[i] += d(*gen_ptr);
     }
 
     CosineSimilarityStrategy cosine_strategy;

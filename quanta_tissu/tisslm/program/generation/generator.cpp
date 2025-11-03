@@ -170,6 +170,7 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
         BayesianSimilarityStrategy strategy;
         std::map<std::string, std::any> kwargs;
         kwargs["eigenvalues"] = config_.eigenvalues;
+        kwargs["rng"] = &gen_; // Pass the generator's seeded RNG
         
         auto similarity_scores = strategy.calculate_similarity(config_.query_embedding, vocab_embeddings, kwargs);
 
