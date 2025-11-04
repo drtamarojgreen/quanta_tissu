@@ -108,15 +108,33 @@ std::vector<int> Generator::generate(const std::vector<int>& prompt_tokens, int 
 }
 
 int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int>& past_tokens, int current_step) {
-    // Apply temperature if configured
     TissNum::Matrix processed_logits = logits; // Assuming logits is (1, vocab_size)
+
+    // Apply logit bias early for greedy search with temp=0
+    for (const auto& pair : config_.logit_bias) {
+        if (pair.first < processed_logits.cols()) {
+            processed_logits(0, pair.first) += pair.second;
+        }
+    }
+
     float temperature = config_.temperature;
     if (!config_.temperature_schedule.empty()) {
         temperature = config_.temperature_schedule[std::min((size_t)current_step, config_.temperature_schedule.size() - 1)];
     }
-    if (temperature > 0.0f) {
-        processed_logits = processed_logits / temperature;
+
+    if (temperature == 0.0f || config_.method == "greedy") {
+        int max_idx = -1;
+        float max_logit = -std::numeric_limits<float>::infinity();
+        for (int c = 0; c < processed_logits.cols(); ++c) {
+            if (processed_logits(0, c) > max_logit) {
+                max_logit = processed_logits(0, c);
+                max_idx = c;
+            }
+        }
+        return max_idx;
     }
+
+    processed_logits = processed_logits / temperature;
 
     // Apply repetition penalty
     if (config_.repetition_penalty != 1.0f) {

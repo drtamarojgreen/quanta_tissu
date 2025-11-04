@@ -29,27 +29,36 @@ Matrix TransformerBlock::forward(const Matrix& x, const Matrix& mask, std::optio
 
     if (training) {
         cached_x_ = x;
+        cached_x_plus_attn_ = x_plus_attn;
         cached_x_norm1_ = x_norm1;
+        cached_x_plus_ffn_ = x_plus_ffn;
+        cached_x_norm2_ = x_norm2;
     }
 
     return x_norm2;
 }
 
 Matrix TransformerBlock::backward(const Matrix& d_out) {
-    // Backpropagate through the second layer norm and residual connection
-    Matrix dx_norm2 = ln2_.backward(d_out);
-    Matrix d_x_norm1_residual = dx_norm2;
-    Matrix d_ffn_out = dx_norm2;
+    // Backpropagate through the second layer norm
+    Matrix dx_plus_ffn = ln2_.backward(d_out);
+
+    // Backpropagate through the residual connection (x_norm1 + ffn_out)
+    Matrix d_x_norm1_residual = dx_plus_ffn;
+    Matrix d_ffn_out = dx_plus_ffn;
 
     // Backpropagate through the second dropout layer
     d_ffn_out = dropout2_.backward(d_ffn_out);
 
     // Backpropagate through the feed-forward network
     Matrix d_x_norm1_ffn = ffn_.backward(d_ffn_out);
+
+    // Combine gradients for x_norm1
     Matrix dx_norm1 = d_x_norm1_residual + d_x_norm1_ffn;
 
-    // Backpropagate through the first layer norm and residual connection
+    // Backpropagate through the first layer norm
     Matrix dx_plus_attn = ln1_.backward(dx_norm1);
+
+    // Backpropagate through the residual connection (x + attn_out)
     Matrix d_x_residual = dx_plus_attn;
     Matrix d_attn_out = dx_plus_attn;
 

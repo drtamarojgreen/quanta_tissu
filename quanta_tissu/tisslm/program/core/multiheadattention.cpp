@@ -6,91 +6,49 @@
 namespace TissNum {
 
 // Placeholder for Softmax activation
-Matrix softmax(const Matrix& x) {
-    Matrix result(x.rows(), x.cols());
-    for (size_t i = 0; i < x.rows(); ++i) {
-        float max_val = -std::numeric_limits<float>::infinity();
-        for (size_t j = 0; j < x.cols(); ++j) {
-            if (x(i, j) > max_val) {
-                max_val = x(i, j);
-            }
-        }
-
-        float sum_exp = 0.0f;
-        for (size_t j = 0; j < x.cols(); ++j) {
-            result(i, j) = std::exp(x(i, j) - max_val);
-            sum_exp += result(i, j);
-        }
-
-        for (size_t j = 0; j < x.cols(); ++j) {
-            result(i, j) /= sum_exp;
-        }
-    }
-    return result;
+Matrix softmax(const Matrix& x, int axis = -1) {
+    Matrix max_val = x.max(axis);
+    Matrix exp_x = Matrix::exp(x - max_val);
+    Matrix sum_exp_x = exp_x.sum(axis);
+    return exp_x / sum_exp_x;
 }
 
-MultiHeadAttention::MultiHeadAttention(size_t d_model, size_t num_heads, int lora_rank, const std::string& name)
-    : d_model_(d_model),
-      num_heads_(num_heads),
-      head_dim_(d_model / num_heads),
-      lora_rank_(lora_rank),
-      use_lora_(lora_rank > 0),
-      w_q_(Parameter(Matrix::random(d_model, d_model), name + ".wq")),
-      w_k_(Parameter(Matrix::random(d_model, d_model), name + ".wk")),
-      w_v_(Parameter(Matrix::random(d_model, d_model), name + ".wv")),
-      w_o_(Parameter(Matrix::random(d_model, d_model), name + ".wo")) {
-    if (d_model % num_heads != 0) {
-        throw std::invalid_argument("d_model must be divisible by num_heads");
-    }
-    if (use_lora_) {
-        w_q_lora_a_ = std::make_optional(Parameter(Matrix::random(d_model, lora_rank), name + ".wq.lora_a"));
-        w_q_lora_b_ = std::make_optional(Parameter(Matrix::zeros(lora_rank, d_model), name + ".wq.lora_b"));
-        w_v_lora_a_ = std::make_optional(Parameter(Matrix::random(d_model, lora_rank), name + ".wv.lora_a"));
-        w_v_lora_b_ = std::make_optional(Parameter(Matrix::zeros(lora_rank, d_model), name + ".wv.lora_b"));
-    }
+Matrix MultiHeadAttention::split_heads(const Matrix& x) {
+    size_t batch_size = x.rows();
+    size_t seq_len = x.cols() / d_model_;
+    return x.reshape({batch_size, seq_len, num_heads_, head_dim_}).transpose(1, 2);
 }
 
-Matrix MultiHeadAttention::scaled_dot_product_attention(const Matrix& q, const Matrix& k, const Matrix& v, const Matrix& mask) {
-    // q, k, v are (batch_size * num_heads, seq_len, head_dim)
-    // For simplicity, assume q, k, v are already reshaped for a single head
-    // and batch_size * num_heads is handled implicitly by matrix operations
-
-    // (seq_len, head_dim) @ (head_dim, seq_len) -> (seq_len, seq_len)
-    Matrix scores = Matrix::matmul(q, k.transpose());
-    scores = scores / std::sqrt(static_cast<float>(head_dim_));
-
-    if (mask.rows() > 0) {
-        // Apply mask (assuming mask is broadcastable)
-        // This is a simplified application of mask
-        scores = scores + mask;
-    }
-
-    Matrix attention_weights = softmax(scores);
-    cached_attn_weights_ = attention_weights;
-
-    Matrix output = Matrix::matmul(attention_weights, v);
-    return output;
+Matrix MultiHeadAttention::merge_heads(const Matrix& x) {
+    size_t batch_size = x.get_shape()[0];
+    size_t seq_len = x.get_shape()[2];
+    return x.transpose(1, 2).reshape({batch_size, seq_len, d_model_});
 }
 
 Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const Matrix& v_in, const Matrix& mask, std::optional<std::pair<Matrix, Matrix>> past_kv, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache) {
     cached_q_ = q_in;
 
     // Project the new query, key, and value vectors from the input.
-    Matrix q = Matrix::matmul(q_in, w_q_.value());
-    Matrix k_new = Matrix::matmul(k_in, w_k_.value());
-    Matrix v_new = Matrix::matmul(v_in, w_v_.value());
+    Matrix q_proj = Matrix::matmul(q_in, w_q_.value());
+    Matrix k_proj = Matrix::matmul(k_in, w_k_.value());
+    Matrix v_proj = Matrix::matmul(v_in, w_v_.value());
 
     // Apply LoRA adjustments if enabled.
     if (use_lora_) {
-        q = q + Matrix::matmul(Matrix::matmul(q_in, w_q_lora_a_.value().value()), w_q_lora_b_.value().value());
-        v_new = v_new + Matrix::matmul(Matrix::matmul(v_in, w_v_lora_a_.value().value()), w_v_lora_b_.value().value());
+        q_proj = q_proj + Matrix::matmul(Matrix::matmul(q_in, w_q_lora_a_.value().value()), w_q_lora_b_.value().value());
+        v_proj = v_proj + Matrix::matmul(Matrix::matmul(v_in, w_v_lora_a_.value().value()), w_v_lora_b_.value().value());
     }
+
+    // Split heads
+    Matrix q = split_heads(q_proj);
+    Matrix k_new = split_heads(k_proj);
+    Matrix v_new = split_heads(v_proj);
 
     Matrix k, v;
     if (past_kv.has_value()) {
         // If a cache is provided, concatenate the new K/V vectors with the cached ones.
-        k = Matrix::concatenate(past_kv->first, k_new, 0);
-        v = Matrix::concatenate(past_kv->second, v_new, 0);
+        k = Matrix::concatenate(past_kv->first, k_new, 2); // Concatenate along seq_len dimension
+        v = Matrix::concatenate(past_kv->second, v_new, 2);
     } else {
         // Otherwise, use the new K/V vectors as is.
         k = k_new;
@@ -110,40 +68,62 @@ Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const
     Matrix scaled_attention_output = scaled_dot_product_attention(q, k, v, mask);
     cached_scaled_attention_ = scaled_attention_output;
 
+    // Merge heads
+    Matrix merged_output = merge_heads(scaled_attention_output);
+
     // Apply the final output projection.
-    Matrix output = Matrix::matmul(scaled_attention_output, w_o_.value());
-    cached_output_projection_input_ = scaled_attention_output;
+    Matrix output = Matrix::matmul(merged_output, w_o_.value());
+    cached_output_projection_input_ = merged_output;
 
     return output;
 }
 
 Matrix MultiHeadAttention::backward(const Matrix& d_out) {
-    // This is a highly simplified backward pass for MultiHeadAttention.
-    // A full implementation would would involve backpropagating through all the reshapes, splits, and concatenations.
-    // For now, this is a placeholder.
-
-    // Backpropagate through output projection
+    // Backpropagate through the output projection.
     w_o_.grad() = Matrix::matmul(cached_output_projection_input_.transpose(), d_out);
-    Matrix d_scaled_attention_output = Matrix::matmul(d_out, w_o_.value().transpose());
+    Matrix d_merged_output = Matrix::matmul(d_out, w_o_.value().transpose());
 
-    // Backpropagate through scaled_dot_product_attention (simplified)
-    // This part is very complex and requires gradients for q, k, v, and attention weights
-    // For now, we'll just return d_scaled_attention_output as a placeholder for dx
+    // Backpropagate through merge_heads.
+    Matrix d_scaled_attention_output = merge_heads(d_merged_output); // merge_heads is its own inverse in terms of shape
 
-    // Placeholder for gradients of W_q, W_k, W_v
-    w_q_.grad() = Matrix::zeros(d_model_, d_model_);
-    w_k_.grad() = Matrix::zeros(d_model_, d_model_);
-    w_v_.grad() = Matrix::zeros(d_model_, d_model_);
+    // Backpropagate through the scaled dot-product attention.
+    Matrix d_attention_weights = Matrix::matmul(d_scaled_attention_output, cached_v_.transpose());
+    Matrix d_v_attention = Matrix::matmul(cached_attn_weights_.transpose(), d_scaled_attention_output);
+
+    Matrix d_scores = softmax_backward(d_attention_weights, cached_attn_weights_);
+
+    float scale = std::sqrt(static_cast<float>(head_dim_));
+    Matrix d_scores_scaled = d_scores / scale;
+
+    Matrix d_q_attention = Matrix::matmul(d_scores_scaled, cached_k_);
+    Matrix d_k_attention = Matrix::matmul(d_scores_scaled.transpose(), cached_q_);
+
+    // Backpropagate through split_heads.
+    Matrix d_q_proj = split_heads(d_q_attention); // split_heads is its own inverse in terms of shape
+    Matrix d_k_proj = split_heads(d_k_attention);
+    Matrix d_v_proj = split_heads(d_v_attention);
+
+    // Backpropagate through the input projections.
+    w_q_.grad() = Matrix::matmul(cached_q_.transpose(), d_q_proj);
+    w_k_.grad() = Matrix::matmul(cached_k_.transpose(), d_k_proj);
+    w_v_.grad() = Matrix::matmul(cached_v_.transpose(), d_v_proj);
+
+    Matrix dx = Matrix::matmul(d_q_proj, w_q_.value().transpose());
 
     if (use_lora_) {
-        // Placeholders for LoRA gradients
-        if (w_q_lora_a_.has_value()) w_q_lora_a_->grad() = Matrix::zeros(d_model_, lora_rank_);
-        if (w_q_lora_b_.has_value()) w_q_lora_b_->grad() = Matrix::zeros(lora_rank_, d_model_);
-        if (w_v_lora_a_.has_value()) w_v_lora_a_->grad() = Matrix::zeros(d_model_, lora_rank_);
-        if (w_v_lora_b_.has_value()) w_v_lora_b_->grad() = Matrix::zeros(lora_rank_, d_model_);
+        // Backpropagate through LoRA layers
+        Matrix d_lora_q_b = Matrix::matmul(cached_q_.transpose(), d_q_proj);
+        Matrix d_lora_q_a = Matrix::matmul(w_q_lora_b_.value().value().transpose(), d_lora_q_b);
+        w_q_lora_a_->grad() = d_lora_q_a;
+        w_q_lora_b_->grad() = d_lora_q_b;
+
+        Matrix d_lora_v_b = Matrix::matmul(cached_v_.transpose(), d_v_proj);
+        Matrix d_lora_v_a = Matrix::matmul(w_v_lora_b_.value().value().transpose(), d_lora_v_b);
+        w_v_lora_a_->grad() = d_lora_v_a;
+        w_v_lora_b_->grad() = d_lora_v_b;
     }
 
-    return d_scaled_attention_output; // Placeholder for dx
+    return dx;
 }
 
 std::vector<Parameter*> MultiHeadAttention::parameters() {

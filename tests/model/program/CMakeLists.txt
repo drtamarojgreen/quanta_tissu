@@ -416,10 +416,64 @@ target_link_libraries(dimension_integrity_test
     tisslm_training
 )
 
+add_executable(lora_test
+    lora_test.cpp
+)
+target_link_libraries(lora_test
+    tisslm_core
+)
+
+add_executable(forward_pass_test
+    forward_pass_test.cpp
+)
+target_link_libraries(forward_pass_test
+    tisslm_core
+)
+
+add_executable(backward_pass_test
+    backward_pass_test.cpp
+)
+target_link_libraries(backward_pass_test
+    tisslm_core
+)
+
+add_executable(training_checkpoint_test
+    training_checkpoint_test.cpp
+)
+target_link_libraries(training_checkpoint_test
+    tisslm_core
+    tisslm_training
+)
+
 # Get the project root and pass it as a compile definition to all tests
 foreach(test_exe ${TEST_EXECUTABLES})
     target_compile_definitions(${test_exe} PRIVATE "TOKENIZER_PATH_FROM_CMAKE=\"${TOKENIZER_PATH_FROM_CMAKE}\"")
 endforeach()
+
+add_test(NAME LoraTests COMMAND lora_test)
+add_test(NAME ForwardPassTests COMMAND forward_pass_test)
+add_test(NAME BackwardPassTests COMMAND backward_pass_test)
+add_test(NAME TrainingCheckpointTests COMMAND training_checkpoint_test)
+
+set_tests_properties(LoraTests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;lora"
+)
+
+set_tests_properties(ForwardPassTests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;forward_pass"
+)
+
+set_tests_properties(BackwardPassTests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;backward_pass"
+)
+
+set_tests_properties(TrainingCheckpointTests PROPERTIES
+    TIMEOUT 10
+    LABELS "integration;training;checkpoint"
+)
 
 # Print build information
 message(STATUS "Building TissLM Tests")
