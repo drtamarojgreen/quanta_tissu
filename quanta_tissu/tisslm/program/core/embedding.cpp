@@ -9,13 +9,13 @@ Embedding::Embedding(size_t vocab_size, size_t d_model, const std::string& name)
     
     // Initialize embedding weight matrix with random values
     // Using Xavier/Glorot initialization: scale by sqrt(1/d_model)
-    Matrix weight_matrix = Matrix::random(vocab_size, d_model);
+    Matrix weight_matrix = Matrix::random({vocab_size, d_model});
     
     // Scale the random values
     float scale = std::sqrt(1.0f / static_cast<float>(d_model));
     for (size_t i = 0; i < vocab_size; ++i) {
         for (size_t j = 0; j < d_model; ++j) {
-            weight_matrix(i, j) *= scale;
+            weight_matrix({i, j}) *= scale;
         }
     }
     
@@ -27,7 +27,7 @@ Matrix Embedding::forward(const std::vector<size_t>& input) {
     // output: (seq_len, d_model) matrix of embeddings
     
     size_t seq_len = input.size();
-    Matrix output(seq_len, d_model_);
+    Matrix output({seq_len, d_model_});
     
     // Look up embeddings for each token
     for (size_t i = 0; i < seq_len; ++i) {
@@ -39,7 +39,7 @@ Matrix Embedding::forward(const std::vector<size_t>& input) {
         
         // Copy the embedding vector for this token
         for (size_t j = 0; j < d_model_; ++j) {
-            output(i, j) = weight_->value()(token_id, j);
+            output({i, j}) = weight_->value()({token_id, j});
         }
     }
     
@@ -65,7 +65,7 @@ void Embedding::backward(const Matrix& d_out, const std::vector<size_t>& input) 
         
         // Accumulate gradient for this token's embedding
         for (size_t j = 0; j < d_model_; ++j) {
-            weight_->grad()(token_id, j) += d_out(i, j);
+            weight_->grad()({token_id, j}) += d_out({i, j});
         }
     }
 }
