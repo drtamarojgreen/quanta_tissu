@@ -24,6 +24,10 @@ private:
     LayerNorm ln2_;
     Dropout dropout1_;
     Dropout dropout2_;
+
+    // Cached matrices for backward pass (only used when training)
+    Matrix cached_x_;
+    Matrix cached_x_norm1_;
 };
 
 } // namespace TissNum

@@ -11,12 +11,14 @@ TransformerBlock::TransformerBlock(size_t d_model, size_t num_heads, size_t d_ff
       dropout2_(dropout_p) {}
 
 Matrix TransformerBlock::forward(const Matrix& x, const Matrix& mask, std::optional<std::pair<Matrix, Matrix>> past_kv, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache, bool training) {
+    Matrix x_norm1;
+
     // Self-attention part
     Matrix attn_out = mha_.forward(x, x, x, mask, past_kv, new_kv_cache);
     attn_out = dropout1_.forward(attn_out, training);
 
     Matrix x_plus_attn = x + attn_out;
-    Matrix x_norm1 = ln1_.forward(x_plus_attn);
+    x_norm1 = ln1_.forward(x_plus_attn);
 
     // Feed-forward part
     Matrix ffn_out = ffn_.forward(x_norm1);
@@ -25,44 +27,40 @@ Matrix TransformerBlock::forward(const Matrix& x, const Matrix& mask, std::optio
     Matrix x_plus_ffn = x_norm1 + ffn_out;
     Matrix x_norm2 = ln2_.forward(x_plus_ffn);
 
+    if (training) {
+        cached_x_ = x;
+        cached_x_norm1_ = x_norm1;
+    }
 
     return x_norm2;
 }
 
 Matrix TransformerBlock::backward(const Matrix& d_out) {
-    // Backpropagate through ln2
+    // Backpropagate through the second layer norm and residual connection
     Matrix dx_norm2 = ln2_.backward(d_out);
+    Matrix d_x_norm1_residual = dx_norm2;
+    Matrix d_ffn_out = dx_norm2;
 
-    // Backpropagate through addition (x_norm1 + ffn_out)
-    Matrix d_ffn_out = dx_norm2; // Gradient flowing to the ffn_out branch
-    Matrix dx_norm1_from_residual = dx_norm2; // Gradient flowing to the x_norm1 branch (residual connection)
-
-    // Backpropagate through dropout2
+    // Backpropagate through the second dropout layer
     d_ffn_out = dropout2_.backward(d_ffn_out);
 
-    // Backpropagate through ffn to get gradient contribution for x_norm1
-    Matrix dx_norm1_from_ffn = ffn_.backward(d_ffn_out);
+    // Backpropagate through the feed-forward network
+    Matrix d_x_norm1_ffn = ffn_.backward(d_ffn_out);
+    Matrix dx_norm1 = d_x_norm1_residual + d_x_norm1_ffn;
 
-    // Total gradient for x_norm1 is the sum from both branches
-    Matrix total_dx_norm1 = dx_norm1_from_residual + dx_norm1_from_ffn;
+    // Backpropagate through the first layer norm and residual connection
+    Matrix dx_plus_attn = ln1_.backward(dx_norm1);
+    Matrix d_x_residual = dx_plus_attn;
+    Matrix d_attn_out = dx_plus_attn;
 
-    // Backpropagate through ln1
-    Matrix dx_plus_attn = ln1_.backward(total_dx_norm1);
-
-    // Backpropagate through addition (x + attn_out)
-    Matrix d_attn_out = dx_plus_attn; // Gradient flowing to the attn_out branch
-    Matrix dx_from_residual = dx_plus_attn; // Gradient flowing to the x branch (residual connection)
-
-    // Backpropagate through dropout1
+    // Backpropagate through the first dropout layer
     d_attn_out = dropout1_.backward(d_attn_out);
 
-    // Backpropagate through mha to get gradient contribution for x
-    Matrix dx_from_mha = mha_.backward(d_attn_out);
+    // Backpropagate through the multi-head attention
+    Matrix dx_mha = mha_.backward(d_attn_out);
 
-    // Total gradient for x is the sum from both branches
-    Matrix dx_from_attn = dx_from_residual + dx_from_mha;
-
-    return dx_from_attn;
+    // Combine gradients for the final output
+    return d_x_residual + dx_mha;
 }
 
 std::vector<Parameter*> TransformerBlock::parameters() {
