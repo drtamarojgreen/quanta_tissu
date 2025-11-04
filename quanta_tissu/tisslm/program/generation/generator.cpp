@@ -284,15 +284,6 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
 
     // --- All other sampling methods ---
 
-    // Convert to probabilities for sampling
-    TissNum::Matrix probabilities = softmax(processed_logits);
-
-    // Collect all token probabilities and their indices
-    std::vector<std::pair<float, int>> token_probs;
-    for (int c = 0; c < probabilities.cols(); ++c) {
-        token_probs.push_back({probabilities(0, c), c});
-    }
-
     // Sort by probability in descending order
     std::sort(token_probs.rbegin(), token_probs.rend());
 
