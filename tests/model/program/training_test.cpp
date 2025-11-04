@@ -14,12 +14,12 @@ void test_adam_optimizer() {
     std::cout << "=== Testing Adam Optimizer ===" << std::endl;
 
     // Create dummy parameters
-    Parameter p1(Matrix::ones(2, 2), "p1");
-    Parameter p2(Matrix::zeros(2, 2), "p2");
+    Parameter p1(Matrix::ones({2, 2}), "p1");
+    Parameter p2(Matrix::zeros({2, 2}), "p2");
 
     // Set dummy gradients
-    p1.grad() = Matrix::ones(2, 2) * 0.1f;
-    p2.grad() = Matrix::ones(2, 2) * 0.2f;
+    p1.grad() = Matrix::ones({2, 2}) * 0.1f;
+    p2.grad() = Matrix::ones({2, 2}) * 0.2f;
 
     std::vector<Parameter*> params = {&p1, &p2};
 
@@ -31,11 +31,11 @@ void test_adam_optimizer() {
     // Expected values after one step (simplified check)
     // Actual values would be complex due to Adam's internal state (m, v, bias correction)
     // This test primarily checks if the update runs without crashing and parameters change
-    std::cout << "  Parameter p1 after update (top-left): " << p1.value()(0,0) << "\n";
-    std::cout << "  Parameter p2 after update (top-left): " << p2.value()(0,0) << "\n";
+    std::cout << "  Parameter p1 after update (top-left): " << p1.value()({0,0}) << "\n";
+    std::cout << "  Parameter p2 after update (top-left): " << p2.value()({0,0}) << "\n";
 
     // Basic check: values should have changed
-    if (std::abs(p1.value()(0,0) - 1.0f) > 1e-5 || std::abs(p2.value()(0,0) - 0.0f) > 1e-5) {
+    if (std::abs(p1.value()({0,0}) - 1.0f) > 1e-5 || std::abs(p2.value()({0,0}) - 0.0f) > 1e-5) {
         std::cout << "  Adam Optimizer Test Passed (values changed as expected)\n";
     } else {
         std::cout << "  Adam Optimizer Test FAILED (values did not change significantly)\n";
@@ -51,10 +51,10 @@ void test_cross_entropy_loss() {
     int vocab_size = 3;
 
     // Test case 1: Perfect prediction
-    Matrix predictions1(1, vocab_size);
-    predictions1(0,0) = 10.0f; predictions1(0,1) = 0.0f; predictions1(0,2) = 0.0f; // Logits
-    Matrix targets1(1, 1);
-    targets1(0, 0) = 0;
+    Matrix predictions1({1, (size_t)vocab_size});
+    predictions1({0,0}) = 10.0f; predictions1({0,1}) = 0.0f; predictions1({0,2}) = 0.0f; // Logits
+    Matrix targets1({1, 1});
+    targets1({0, 0}) = 0;
 
     float loss1 = loss_fn.compute_loss(predictions1, targets1);
     Matrix grad1 = loss_fn.compute_gradient(predictions1, targets1);
@@ -69,7 +69,7 @@ void test_cross_entropy_loss() {
     }
 
     // Expected gradient for perfect prediction (softmax_predictions - targets) should be close to 0
-    if (std::abs(grad1(0,0)) < 0.1f && std::abs(grad1(0,1)) < 0.1f && std::abs(grad1(0,2)) < 0.1f) {
+    if (std::abs(grad1({0,0})) < 0.1f && std::abs(grad1({0,1})) < 0.1f && std::abs(grad1({0,2})) < 0.1f) {
         std::cout << "  Gradient Test 1 Passed\n";
     } else {
         std::cout << "  Gradient Test 1 FAILED\n";
@@ -77,10 +77,10 @@ void test_cross_entropy_loss() {
     }
 
     // Test case 2: Imperfect prediction
-    Matrix predictions2(1, vocab_size);
-    predictions2(0,0) = 0.0f; predictions2(0,1) = 10.0f; predictions2(0,2) = 0.0f; // Logits
-    Matrix targets2(1, 1);
-    targets2(0, 0) = 0;
+    Matrix predictions2({1, (size_t)vocab_size});
+    predictions2({0,0}) = 0.0f; predictions2({0,1}) = 10.0f; predictions2({0,2}) = 0.0f; // Logits
+    Matrix targets2({1, 1});
+    targets2({0, 0}) = 0;
 
     float loss2 = loss_fn.compute_loss(predictions2, targets2);
     Matrix grad2 = loss_fn.compute_gradient(predictions2, targets2);

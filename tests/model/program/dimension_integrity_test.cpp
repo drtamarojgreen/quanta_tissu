@@ -19,7 +19,7 @@ void test_embedding_dimensions() {
     std::cout << "  --- Testing Embedding Layer Dimensions ---" << std::endl;
     Embedding layer(100, TestConfig::EmbedDim);
     std::vector<size_t> input_tokens = {1, 2, 3, 4, 5};
-    Matrix d_out = Matrix::random(5, TestConfig::EmbedDim);
+    Matrix d_out = Matrix::random({5, (size_t)TestConfig::EmbedDim});
 
     layer.forward(input_tokens);
     layer.backward(d_out, input_tokens);
@@ -33,8 +33,8 @@ void test_embedding_dimensions() {
 void test_layernorm_dimensions() {
     std::cout << "  --- Testing LayerNorm Layer Dimensions ---" << std::endl;
     LayerNorm layer(TestConfig::EmbedDim);
-    Matrix input = Matrix::random(5, TestConfig::EmbedDim);
-    Matrix d_out = Matrix::random(5, TestConfig::EmbedDim);
+    Matrix input = Matrix::random({5, (size_t)TestConfig::EmbedDim});
+    Matrix d_out = Matrix::random({5, (size_t)TestConfig::EmbedDim});
 
     layer.forward(input);
     layer.backward(d_out);
@@ -49,8 +49,8 @@ void test_layernorm_dimensions() {
 void test_feedforward_dimensions() {
     std::cout << "  --- Testing FeedForward Layer Dimensions ---" << std::endl;
     FeedForward layer(TestConfig::EmbedDim, TestConfig::FFNDim);
-    Matrix input = Matrix::random(5, TestConfig::EmbedDim);
-    Matrix d_out = Matrix::random(5, TestConfig::EmbedDim);
+    Matrix input = Matrix::random({5, (size_t)TestConfig::EmbedDim});
+    Matrix d_out = Matrix::random({5, (size_t)TestConfig::EmbedDim});
 
     layer.forward(input);
     layer.backward(d_out);
@@ -65,8 +65,8 @@ void test_feedforward_dimensions() {
 void test_attention_dimensions() {
     std::cout << "  --- Testing MultiHeadAttention Layer Dimensions ---" << std::endl;
     MultiHeadAttention layer(TestConfig::EmbedDim, TestConfig::NumHeads, 0);
-    Matrix input = Matrix::random(5, TestConfig::EmbedDim);
-    Matrix d_out = Matrix::random(5, TestConfig::EmbedDim);
+    Matrix input = Matrix::random({5, (size_t)TestConfig::EmbedDim});
+    Matrix d_out = Matrix::random({5, (size_t)TestConfig::EmbedDim});
 
     layer.forward(input, input, input);
     layer.backward(d_out);

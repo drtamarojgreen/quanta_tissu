@@ -26,12 +26,12 @@ void test_embedding() {
     std::cout << "Embedded shape: (" << embedded.rows() << ", " << embedded.cols() << ")" << std::endl;
     std::cout << "First embedding vector: ";
     for (size_t j = 0; j < embedded.cols(); ++j) {
-        std::cout << std::fixed << std::setprecision(4) << embedded(0, j) << " ";
+        std::cout << std::fixed << std::setprecision(4) << embedded({0, j}) << " ";
     }
     std::cout << std::endl;
     
     // Test backward pass
-    Matrix grad_out = Matrix::ones(tokens.size(), TestConfig::EmbedDim);
+    Matrix grad_out = Matrix::ones({tokens.size(), (size_t)TestConfig::EmbedDim});
     emb.backward(grad_out, tokens);
     
     std::cout << "Backward pass completed successfully" << std::endl;
@@ -45,10 +45,10 @@ void test_positional_encoding() {
     PositionalEncoding pe(TestConfig::EmbedDim, 100);
     
     // Create a simple input matrix (seq_len=3, d_model=4)
-    Matrix input(3, TestConfig::EmbedDim);
+    Matrix input({3, (size_t)TestConfig::EmbedDim});
     for (size_t i = 0; i < 3; ++i) {
         for (size_t j = 0; j < TestConfig::EmbedDim; ++j) {
-            input(i, j) = 1.0f;  // Fill with ones for simplicity
+            input({i, j}) = 1.0f;  // Fill with ones for simplicity
         }
     }
     
@@ -60,13 +60,13 @@ void test_positional_encoding() {
     std::cout << "Output shape: (" << output.rows() << ", " << output.cols() << ")" << std::endl;
     std::cout << "First position with encoding: ";
     for (size_t j = 0; j < output.cols(); ++j) {
-        std::cout << std::fixed << std::setprecision(4) << output(0, j) << " ";
+        std::cout << std::fixed << std::setprecision(4) << output({0, j}) << " ";
     }
     std::cout << std::endl;
     
     std::cout << "Second position with encoding: ";
     for (size_t j = 0; j < output.cols(); ++j) {
-        std::cout << std::fixed << std::setprecision(4) << output(1, j) << " ";
+        std::cout << std::fixed << std::setprecision(4) << output({1, j}) << " ";
     }
     std::cout << std::endl;
     
