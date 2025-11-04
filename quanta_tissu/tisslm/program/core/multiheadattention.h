@@ -43,6 +43,10 @@ private:
 
     // Helper for attention calculation
     Matrix scaled_dot_product_attention(const Matrix& q, const Matrix& k, const Matrix& v, const Matrix& mask);
+
+    // Helpers for reshaping matrices
+    Matrix split_heads(const Matrix& x);
+    Matrix merge_heads(const Matrix& x);
 };
 
 } // namespace TissNum

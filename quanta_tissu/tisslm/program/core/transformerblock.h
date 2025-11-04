@@ -27,7 +27,10 @@ private:
 
     // Cached matrices for backward pass (only used when training)
     Matrix cached_x_;
+    Matrix cached_x_plus_attn_;
     Matrix cached_x_norm1_;
+    Matrix cached_x_plus_ffn_;
+    Matrix cached_x_norm2_;
 };
 
 } // namespace TissNum

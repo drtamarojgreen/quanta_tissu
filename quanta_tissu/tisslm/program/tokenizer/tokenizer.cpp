@@ -171,14 +171,54 @@ std::vector<int> Tokenizer::encode(const std::string& text) {
 }
 
 std::string Tokenizer::decode(const std::vector<int>& token_ids) {
-    std::vector<unsigned char> all_bytes;
+    std::vector<unsigned char> byte_buffer;
     for (int id : token_ids) {
         auto it = vocab.find(id);
         if (it != vocab.end()) {
-            all_bytes.insert(all_bytes.end(), it->second.begin(), it->second.end());
+            byte_buffer.insert(byte_buffer.end(), it->second.begin(), it->second.end());
         }
     }
-    return std::string(all_bytes.begin(), all_bytes.end());
+
+    // This is a simplified UTF-8 decoder. A more robust implementation would handle invalid sequences.
+    std::string text;
+    for (size_t i = 0; i < byte_buffer.size(); ) {
+        unsigned char byte = byte_buffer[i];
+        if (byte < 0x80) { // 1-byte sequence
+            text += static_cast<char>(byte);
+            i += 1;
+        } else if ((byte & 0xE0) == 0xC0) { // 2-byte sequence
+            if (i + 1 < byte_buffer.size()) {
+                text += static_cast<char>(byte);
+                text += static_cast<char>(byte_buffer[i+1]);
+                i += 2;
+            } else {
+                i += 1; // Incomplete sequence
+            }
+        } else if ((byte & 0xF0) == 0xE0) { // 3-byte sequence
+            if (i + 2 < byte_buffer.size()) {
+                text += static_cast<char>(byte);
+                text += static_cast<char>(byte_buffer[i+1]);
+                text += static_cast<char>(byte_buffer[i+2]);
+                i += 3;
+            } else {
+                i += 1; // Incomplete sequence
+            }
+        } else if ((byte & 0xF8) == 0xF0) { // 4-byte sequence
+            if (i + 3 < byte_buffer.size()) {
+                text += static_cast<char>(byte);
+                text += static_cast<char>(byte_buffer[i+1]);
+                text += static_cast<char>(byte_buffer[i+2]);
+                text += static_cast<char>(byte_buffer[i+3]);
+                i += 4;
+            } else {
+                i += 1; // Incomplete sequence
+            }
+        } else {
+            // Invalid byte, skip it
+            i += 1;
+        }
+    }
+    return text;
 }
 
 int Tokenizer::get_vocab_size() const {
