@@ -4,6 +4,8 @@
 #include <iostream>
 #include <stdexcept>
 
+namespace TissNum {
+
 class Matrix {
 public:
     // Constructors
@@ -70,3 +72,5 @@ private:
     std::vector<size_t> shape_;
     std::vector<float> data_;
 };
+
+} // namespace TissNum
