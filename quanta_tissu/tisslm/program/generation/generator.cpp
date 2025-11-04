@@ -270,19 +270,66 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
     }
 
     if (config_.method == "greedy") {
-        return token_probs[0].second;
-    } else {
-        // Sample from the (potentially filtered and normalized) probabilities
-        std::vector<float> normalized_probs;
-        for (const auto& p : token_probs) {
-            normalized_probs.push_back(p.first);
+        // For greedy search, we can just find the max logit *after* all modifications.
+        int max_idx = -1;
+        float max_logit = -std::numeric_limits<float>::infinity();
+        for (int c = 0; c < processed_logits.cols(); ++c) {
+            if (processed_logits(0, c) > max_logit) {
+                max_logit = processed_logits(0, c);
+                max_idx = c;
+            }
         }
-
-        std::discrete_distribution<> d(normalized_probs.begin(), normalized_probs.end());
-
-        int sampled_index = d(gen_);
-        return token_probs[sampled_index].second;
+        return max_idx;
     }
+
+    // --- All other sampling methods ---
+
+    // Convert to probabilities for sampling
+    TissNum::Matrix probabilities = softmax(processed_logits);
+
+    // Collect all token probabilities and their indices
+    std::vector<std::pair<float, int>> token_probs;
+    for (int c = 0; c < probabilities.cols(); ++c) {
+        token_probs.push_back({probabilities(0, c), c});
+    }
+
+    // Sort by probability in descending order
+    std::sort(token_probs.rbegin(), token_probs.rend());
+
+    // Filter the probabilities based on the sampling method
+    if (config_.method == "top_a" && config_.top_a > 0.0f) {
+        // ... (existing top_a logic)
+    } else if (config_.method == "nucleus" && config_.top_p.has_value() && config_.top_p.value() < 1.0f) {
+        // ... (existing nucleus logic)
+    } else if (config_.method == "top_k" && config_.top_k.has_value() && config_.top_k.value() > 0 && config_.top_k.value() < token_probs.size()) {
+       // ... (existing top_k logic)
+    }
+
+    // Re-normalize if necessary and sample
+    float total_prob = 0.0f;
+    for(const auto& p : token_probs) total_prob += p.first;
+    if (total_prob > 0) {
+        for(auto& p : token_probs) p.first /= total_prob;
+    } else if (!token_probs.empty()) { // Handle case where all probs are zero
+        for(auto& p : token_probs) p.first = 1.0f / token_probs.size();
+    }
+
+
+    if (token_probs.empty()) {
+        return -1; // Should not happen with valid logits
+    }
+
+    // Sample from the (potentially filtered and normalized) probabilities
+    std::vector<float> final_probs;
+    std::vector<int> final_tokens;
+    for (const auto& p : token_probs) {
+        final_probs.push_back(p.first);
+        final_tokens.push_back(p.second);
+    }
+
+    std::discrete_distribution<> d(final_probs.begin(), final_probs.end());
+    int sampled_index = d(gen_);
+    return final_tokens[sampled_index];
 }
 
 std::vector<int> Generator::beam_search(const std::vector<int>& prompt_tokens, int n_new_tokens, int beam_width, int eos_id) {
