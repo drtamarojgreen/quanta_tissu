@@ -27,8 +27,8 @@ void test_transformer_model() {
     );
 
     // Test forward pass (training mode)
-    Matrix input_tokens_train(1, 5); // Batch size 1, sequence length 5
-    input_tokens_train(0,0) = 1.0f; input_tokens_train(0,1) = 2.0f; input_tokens_train(0,2) = 3.0f; input_tokens_train(0,3) = 4.0f; input_tokens_train(0,4) = 5.0f;
+    Matrix input_tokens_train({1, 5}); // Batch size 1, sequence length 5
+    input_tokens_train({0,0}) = 1.0f; input_tokens_train({0,1}) = 2.0f; input_tokens_train({0,2}) = 3.0f; input_tokens_train({0,3}) = 4.0f; input_tokens_train({0,4}) = 5.0f;
     Matrix output_train = model.forward(input_tokens_train);
     std::cout << "  TransformerModel forward (training) output shape: (" << output_train.rows() << ", " << output_train.cols() << ")\n";
     if (output_train.rows() == 5 && output_train.cols() == vocab_size) {
@@ -43,8 +43,8 @@ void test_transformer_model() {
     std::vector<std::pair<Matrix, Matrix>> past_kv_cache;
     std::vector<std::pair<Matrix, Matrix>> new_kv_cache;
 
-    Matrix first_token_input(1, 1);
-    first_token_input(0,0) = static_cast<float>(prompt_tokens[0]);
+    Matrix first_token_input({1, 1});
+    first_token_input({0,0}) = static_cast<float>(prompt_tokens[0]);
     Matrix logits_first = model.forward_inference(first_token_input, past_kv_cache, new_kv_cache);
     std::cout << "  Logits for first token shape: (" << logits_first.rows() << ", " << logits_first.cols() << ")\n";
     if (logits_first.rows() == 1 && logits_first.cols() == vocab_size) {
@@ -56,8 +56,8 @@ void test_transformer_model() {
     past_kv_cache = new_kv_cache;
     new_kv_cache.clear();
 
-    Matrix second_token_input(1, 1);
-    second_token_input(0,0) = static_cast<float>(prompt_tokens[1]);
+    Matrix second_token_input({1, 1});
+    second_token_input({0,0}) = static_cast<float>(prompt_tokens[1]);
     Matrix logits_second = model.forward_inference(second_token_input, past_kv_cache, new_kv_cache);
     std::cout << "  Logits for second token shape: (" << logits_second.rows() << ", " << logits_second.cols() << ")\n";
     if (logits_second.rows() == 1 && logits_second.cols() == vocab_size) {

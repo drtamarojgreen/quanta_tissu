@@ -29,23 +29,23 @@ void print_tokens_int(const std::vector<int>& tokens, const std::string& prefix 
 
 // Helper to convert logits to probabilities (softmax)
 Matrix softmax_cpp(const Matrix& input) {
-    Matrix output(input.rows(), input.cols());
-    for (int r = 0; r < input.rows(); ++r) {
+    Matrix output({(size_t)input.rows(), (size_t)input.cols()});
+    for (size_t r = 0; r < input.rows(); ++r) {
         float max_val = -std::numeric_limits<float>::infinity();
-        for (int c = 0; c < input.cols(); ++c) {
-            if (input(r, c) > max_val) {
-                max_val = input(r, c);
+        for (size_t c = 0; c < input.cols(); ++c) {
+            if (input({r, c}) > max_val) {
+                max_val = input({r, c});
             }
         }
 
         float sum_exp = 0.0f;
-        for (int c = 0; c < input.cols(); ++c) {
-            output(r, c) = std::exp(input(r, c) - max_val);
-            sum_exp += output(r, c);
+        for (size_t c = 0; c < input.cols(); ++c) {
+            output({r, c}) = std::exp(input({r, c}) - max_val);
+            sum_exp += output({r, c});
         }
 
-        for (int c = 0; c < input.cols(); ++c) {
-            output(r, c) = output(r, c) / sum_exp;
+        for (size_t c = 0; c < input.cols(); ++c) {
+            output({r, c}) = output({r, c}) / sum_exp;
         }
     }
     return output;
@@ -56,9 +56,9 @@ int sample_token_greedy(const Matrix& logits) {
     float max_logit = -std::numeric_limits<float>::infinity();
     int sampled_token = -1;
 
-    for (int c = 0; c < logits.cols(); ++c) {
-        if (logits(0, c) > max_logit) {
-            max_logit = logits(0, c);
+    for (size_t c = 0; c < logits.cols(); ++c) {
+        if (logits({0, c}) > max_logit) {
+            max_logit = logits({0, c});
             sampled_token = c;
         }
     }
@@ -97,15 +97,15 @@ KVCacheTestResult run_single_kv_cache_test(
     std::vector<int> current_tokens_no_cache = generated_tokens_no_cache_ids;
 
     for (int i = 0; i < n_new_tokens; ++i) {
-        Matrix input_token_matrix(1, current_tokens_no_cache.size());
+        Matrix input_token_matrix({1, current_tokens_no_cache.size()});
         for(size_t j=0; j<current_tokens_no_cache.size(); ++j) {
-            input_token_matrix(0, j) = static_cast<float>(current_tokens_no_cache[j]);
+            input_token_matrix({0, j}) = static_cast<float>(current_tokens_no_cache[j]);
         }
         
         Matrix logits = model->forward(input_token_matrix);
-        Matrix last_token_logits(1, logits.cols());
-        for (int c = 0; c < logits.cols(); ++c) {
-            last_token_logits(0, c) = logits(logits.rows() - 1, c);
+        Matrix last_token_logits({1, logits.cols()});
+        for (size_t c = 0; c < logits.cols(); ++c) {
+            last_token_logits({0, c}) = logits({logits.rows() - 1, c});
         }
         int next_token = sample_token_greedy(last_token_logits);
         generated_tokens_no_cache_ids.push_back(next_token);
@@ -123,8 +123,8 @@ KVCacheTestResult run_single_kv_cache_test(
 
     // Process prompt tokens to initialize KV cache
     for (size_t i = 0; i < generated_tokens_cache_ids.size(); ++i) {
-        Matrix input_token(1, 1);
-        input_token(0, 0) = static_cast<float>(generated_tokens_cache_ids[i]);
+        Matrix input_token({1, 1});
+        input_token({0, 0}) = static_cast<float>(generated_tokens_cache_ids[i]);
 
         std::vector<std::pair<Matrix, Matrix>> new_kv_cache_for_step;
         model->forward_inference(input_token, kv_cache, new_kv_cache_for_step);
@@ -134,8 +134,8 @@ KVCacheTestResult run_single_kv_cache_test(
     // Generate new tokens using cache
     Generator generator(model, config);
     for (int i = 0; i < n_new_tokens; ++i) {
-        Matrix input_token(1, 1);
-        input_token(0, 0) = static_cast<float>(generated_tokens_cache_ids.back());
+        Matrix input_token({1, 1});
+        input_token({0, 0}) = static_cast<float>(generated_tokens_cache_ids.back());
 
         std::vector<std::pair<Matrix, Matrix>> new_kv_cache_for_step;
         Matrix logits = model->forward_inference(input_token, kv_cache, new_kv_cache_for_step);

@@ -121,7 +121,7 @@ RAGTestResult run_single_rag_test(
             Matrix embedding_matrix = embedder.embed(content);
             // Convert Matrix to vector<float> for storage (simplified)
             std::vector<float> embedding(embedding_matrix.cols());
-            for(int c=0; c<embedding_matrix.cols(); ++c) embedding[c] = embedding_matrix(0,c);
+            for(size_t c=0; c<embedding_matrix.cols(); ++c) embedding[c] = embedding_matrix({0,c});
 
             TissDB::Document doc;
             set_field(doc, "id", doc_id);

@@ -9,8 +9,8 @@ TransformerModel::TransformerModel(int vocab_size, int max_seq_len, int embed_di
     : embedding_layer_(vocab_size, embed_dim),
       positional_encoding_layer_(embed_dim, max_seq_len),
       final_layer_norm_(embed_dim),
-      output_weight_(TissNum::Matrix::random(embed_dim, vocab_size), "output_weight"),
-      output_bias_(TissNum::Matrix::zeros(1, vocab_size), "output_bias"),
+      output_weight_(TissNum::Matrix::random({(size_t)embed_dim, (size_t)vocab_size}), "output_weight"),
+      output_bias_(TissNum::Matrix::zeros({1, (size_t)vocab_size}), "output_bias"),
       vocab_size_(vocab_size),
       embed_dim_(embed_dim),
       num_layers_(num_layers)
@@ -20,11 +20,60 @@ TransformerModel::TransformerModel(int vocab_size, int max_seq_len, int embed_di
     }
 }
 
+void TransformerModel::backward(const Matrix& grad_output) {
+    // 1. Backward through Output Linear Layer
+    TissNum::Matrix x_transpose = final_layer_norm_output_.transpose();
+    output_weight_.grad() = TissNum::Matrix::matmul(x_transpose, grad_output);
+    output_bias_.grad() = grad_output.sum(0);
+
+    // Gradient propagated back to the input of the output layer
+    TissNum::Matrix grad_x = TissNum::Matrix::matmul(grad_output, output_weight_.value().transpose());
+
+    // 2. Backward through Final Layer Norm
+    grad_x = final_layer_norm_.backward(grad_x);
+
+    // 3. Backward through Transformer Blocks (in reverse order)
+    for (int i = num_layers_ - 1; i >= 0; --i) {
+        grad_x = transformer_blocks_[i].backward(grad_x);
+    }
+
+    // 4. Backward through Positional Encoding (gradient passes through)
+    Matrix grad_embedded_input = grad_x;
+
+    // 5. Backward through Embedding layer
+    embedding_layer_.backward(grad_embedded_input, cached_token_ids_);
+}
+
+std::vector<std::shared_ptr<TissNum::Parameter>> TransformerModel::get_parameters() {
+    std::vector<std::shared_ptr<TissNum::Parameter>> params;
+
+    auto add_params_from_raw = [&](const std::vector<TissNum::Parameter*>& raw_params) {
+        for (auto* p : raw_params) {
+            // No-op deleter to prevent double-freeing
+            params.push_back(std::shared_ptr<TissNum::Parameter>(p, [](TissNum::Parameter*){}));
+        }
+    };
+
+    add_params_from_raw(embedding_layer_.parameters());
+
+    for (auto& block : transformer_blocks_) {
+        add_params_from_raw(block.parameters());
+    }
+
+    add_params_from_raw(final_layer_norm_.parameters());
+
+    // No-op deleters for member variables
+    params.push_back(std::shared_ptr<TissNum::Parameter>(&output_weight_, [](TissNum::Parameter*){}));
+    params.push_back(std::shared_ptr<TissNum::Parameter>(&output_bias_, [](TissNum::Parameter*){}));
+
+    return params;
+}
+
 Matrix TransformerModel::forward(const Matrix& input_tokens) {
     // 1. Embedding layer
     std::vector<size_t> token_ids(input_tokens.cols());
     for (size_t i = 0; i < input_tokens.cols(); ++i) {
-        token_ids[i] = static_cast<size_t>(input_tokens(0, i));
+        token_ids[i] = static_cast<size_t>(input_tokens({0, i}));
     }
     cached_token_ids_ = token_ids; // Store for backward pass
     embedded_input_ = embedding_layer_.forward(token_ids);
@@ -45,10 +94,10 @@ Matrix TransformerModel::forward(const Matrix& input_tokens) {
 
     // 5. Output Linear Layer
     TissNum::Matrix output_no_bias = TissNum::Matrix::matmul(final_layer_norm_output_, output_weight_.value());
-    TissNum::Matrix output(output_no_bias.rows(), output_no_bias.cols());
+    TissNum::Matrix output({output_no_bias.rows(), output_no_bias.cols()});
     for (size_t r = 0; r < output.rows(); ++r) {
         for (size_t c = 0; c < output.cols(); ++c) {
-            output(r, c) = output_no_bias(r, c) + output_bias_.value()(0, c);
+            output({r, c}) = output_no_bias({r, c}) + output_bias_.value()({0, c});
         }
     }
 
@@ -64,7 +113,7 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
     // 1. Embedding layer
     std::vector<size_t> token_ids_inference(input_tokens.cols());
     for (size_t i = 0; i < input_tokens.cols(); ++i) {
-        token_ids_inference[i] = static_cast<size_t>(input_tokens(0, i));
+        token_ids_inference[i] = static_cast<size_t>(input_tokens({0, i}));
     }
     TissNum::Matrix x = embedding_layer_.forward(token_ids_inference);
 
@@ -95,17 +144,15 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
 
     // 5. Output Linear Layer
     TissNum::Matrix output_no_bias = TissNum::Matrix::matmul(x, output_weight_.value());
-    TissNum::Matrix output(output_no_bias.rows(), output_no_bias.cols());
+    TissNum::Matrix output({output_no_bias.rows(), output_no_bias.cols()});
     for (size_t r = 0; r < output.rows(); ++r) {
         for (size_t c = 0; c < output.cols(); ++c) {
-            output(r, c) = output_no_bias(r, c) + output_bias_.value()(0, c);
+            output({r, c}) = output_no_bias({r, c}) + output_bias_.value()({0, c});
         }
     }
 
     return output;
 }
-
-Matrix TransformerModel::backward(const Matrix& grad_output) {
     // 1. Backward through Output Linear Layer
     TissNum::Matrix x_transpose = final_layer_norm_output_.transpose();
     output_weight_.grad() = TissNum::Matrix::matmul(x_transpose, grad_output);

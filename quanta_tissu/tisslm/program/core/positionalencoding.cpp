@@ -4,7 +4,7 @@
 namespace TissNum {
 
 PositionalEncoding::PositionalEncoding(size_t d_model, size_t max_len)
-    : d_model_(d_model), max_len_(max_len), pe_(max_len, d_model) {
+    : d_model_(d_model), max_len_(max_len), pe_({max_len, d_model}) {
     
     // Initialize positional encoding matrix
     // PE(pos, 2i) = sin(pos / 10000^(2i/d_model))
@@ -17,10 +17,10 @@ PositionalEncoding::PositionalEncoding(size_t d_model, size_t max_len)
             
             if (i % 2 == 0) {
                 // Even indices: sine
-                pe_(pos, i) = std::sin(angle);
+                pe_({pos, i}) = std::sin(angle);
             } else {
                 // Odd indices: cosine
-                pe_(pos, i) = std::cos(angle);
+                pe_({pos, i}) = std::cos(angle);
             }
         }
     }
@@ -42,12 +42,12 @@ Matrix PositionalEncoding::forward(const Matrix& x, size_t start_pos) {
     }
     
     // Create output matrix
-    Matrix output(seq_len, d_model_);
+    Matrix output({seq_len, d_model_});
     
     // Add positional encoding to input
     for (size_t i = 0; i < seq_len; ++i) {
         for (size_t j = 0; j < d_model_; ++j) {
-            output(i, j) = x(i, j) + pe_(start_pos + i, j);
+            output({i, j}) = x({i, j}) + pe_({start_pos + i, j});
         }
     }
     
