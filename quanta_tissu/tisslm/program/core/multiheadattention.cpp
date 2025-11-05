@@ -34,14 +34,16 @@ Matrix softmax_backward(const Matrix& d_out, const Matrix& softmax_output) {
 }
 
 Matrix MultiHeadAttention::split_heads(const Matrix& x) {
-    size_t batch_size = x.rows();
-    size_t seq_len = x.cols() / d_model_;
+    auto shape = x.get_shape();
+    size_t batch_size = shape[0];
+    size_t seq_len = shape[1];
     return x.reshape({batch_size, seq_len, num_heads_, head_dim_}).transpose(1, 2);
 }
 
 Matrix MultiHeadAttention::merge_heads(const Matrix& x) {
-    size_t batch_size = x.get_shape()[0];
-    size_t seq_len = x.get_shape()[2];
+    auto shape = x.get_shape();
+    size_t batch_size = shape[0];
+    size_t seq_len = shape[2];
     return x.transpose(1, 2).reshape({batch_size, seq_len, d_model_});
 }
 
