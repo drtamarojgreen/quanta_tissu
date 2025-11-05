@@ -13,6 +13,26 @@ Matrix softmax(const Matrix& x, int axis = -1) {
     return exp_x / sum_exp_x;
 }
 
+Matrix softmax_backward(const Matrix& d_out, const Matrix& softmax_output) {
+    Matrix d_input({d_out.rows(), d_out.cols()});
+    for (size_t i = 0; i < d_out.rows(); ++i) {
+        for (size_t j = 0; j < d_out.cols(); ++j) {
+            float s_ij = softmax_output({i, j});
+            float d_s_ij = 0;
+            for (size_t k = 0; k < d_out.cols(); ++k) {
+                float s_ik = softmax_output({i, k});
+                if (j == k) {
+                    d_s_ij += d_out({i, k}) * s_ik * (1 - s_ik);
+                } else {
+                    d_s_ij -= d_out({i, k}) * s_ik * s_ij;
+                }
+            }
+            d_input({i, j}) = d_s_ij;
+        }
+    }
+    return d_input;
+}
+
 Matrix MultiHeadAttention::split_heads(const Matrix& x) {
     size_t batch_size = x.rows();
     size_t seq_len = x.cols() / d_model_;
