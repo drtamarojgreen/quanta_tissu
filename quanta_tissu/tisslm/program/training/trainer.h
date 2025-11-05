@@ -28,6 +28,9 @@ public:
         int batch_size
     );
 
+    void save_checkpoint(const std::string& path) const;
+    void load_checkpoint(const std::string& path);
+
 private:
     std::shared_ptr<Core::Model> model_;
     std::shared_ptr<Optimizer> optimizer_;

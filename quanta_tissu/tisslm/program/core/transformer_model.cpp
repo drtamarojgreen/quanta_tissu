@@ -154,27 +154,6 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
     return output;
 }
 
-std::vector<TissNum::Parameter*> TransformerModel::get_parameters() {
-    std::vector<TissNum::Parameter*> params;
-
-    auto add_params_from_raw = [&](const std::vector<TissNum::Parameter*>& raw_params) {
-        params.insert(params.end(), raw_params.begin(), raw_params.end());
-    };
-
-    add_params_from_raw(embedding_layer_.parameters());
-
-    for (auto& block : transformer_blocks_) {
-        add_params_from_raw(block.parameters());
-    }
-
-    add_params_from_raw(final_layer_norm_.parameters());
-
-    params.push_back(&output_weight_);
-    params.push_back(&output_bias_);
-
-    return params;
-}
-
 const TissNum::Matrix& TransformerModel::get_embeddings() const {
     return embedding_layer_.get_weight();
 }
@@ -187,7 +166,7 @@ std::vector<std::vector<float>> TransformerModel::get_embeddings_as_vectors() co
         std::vector<float> row;
         row.reserve(embedding_matrix.cols());
         for (size_t j = 0; j < embedding_matrix.cols(); ++j) {
-            row.push_back(embedding_matrix(i, j));
+            row.push_back(embedding_matrix({i, j}));
         }
         embeddings.push_back(row);
     }

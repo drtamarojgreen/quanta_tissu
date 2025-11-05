@@ -15,23 +15,23 @@ using namespace Retrieval;
 namespace {
     // Softmax function
     TissNum::Matrix softmax(const TissNum::Matrix& input) {
-        TissNum::Matrix output(input.rows(), input.cols());
-        for (int r = 0; r < input.rows(); ++r) {
+        TissNum::Matrix output({input.rows(), input.cols()});
+        for (size_t r = 0; r < input.rows(); ++r) {
             float max_val = -std::numeric_limits<float>::infinity();
-            for (int c = 0; c < input.cols(); ++c) {
-                if (input(r, c) > max_val) {
-                    max_val = input(r, c);
+            for (size_t c = 0; c < input.cols(); ++c) {
+                if (input({r, c}) > max_val) {
+                    max_val = input({r, c});
                 }
             }
 
             float sum_exp = 0.0f;
-            for (int c = 0; c < input.cols(); ++c) {
-                output(r, c) = std::exp(input(r, c) - max_val);
-                sum_exp += output(r, c);
+            for (size_t c = 0; c < input.cols(); ++c) {
+                output({r, c}) = std::exp(input({r, c}) - max_val);
+                sum_exp += output({r, c});
             }
 
-            for (int c = 0; c < input.cols(); ++c) {
-                output(r, c) = output(r, c) / sum_exp;
+            for (size_t c = 0; c < input.cols(); ++c) {
+                output({r, c}) = output({r, c}) / sum_exp;
             }
         }
         return output;
@@ -60,23 +60,23 @@ std::vector<int> Generator::generate(const std::vector<int>& prompt_tokens, int 
 
     // 1. Process the prompt
     if (!prompt_tokens.empty()) {
-        TissNum::Matrix prompt_matrix(1, prompt_tokens.size());
+        TissNum::Matrix prompt_matrix({1, prompt_tokens.size()});
         for (size_t i = 0; i < prompt_tokens.size(); ++i) {
-            prompt_matrix(0, i) = static_cast<float>(prompt_tokens[i]);
+            prompt_matrix({0, i}) = static_cast<float>(prompt_tokens[i]);
         }
         std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>> new_kv_cache;
         TissNum::Matrix all_logits = transformer_model->forward_inference(prompt_matrix, kv_cache, new_kv_cache);
         kv_cache = new_kv_cache;
         // Get the logits for the last token
-        next_token_logits = TissNum::Matrix(1, all_logits.cols());
+        next_token_logits = TissNum::Matrix({1, all_logits.cols()});
         for (size_t c = 0; c < all_logits.cols(); ++c) {
-            next_token_logits(0, c) = all_logits(all_logits.rows() - 1, c);
+            next_token_logits({0, c}) = all_logits({all_logits.rows() - 1, c});
         }
     } else {
         // Handle empty prompt. For now, assume prompt is not empty.
         // A robust solution would need a start-of-sequence token and initial logits.
         // Let's create a zero matrix for logits to avoid crashing.
-        next_token_logits = TissNum::Matrix(1, model_->get_vocab_size());
+        next_token_logits = TissNum::Matrix({1, (size_t)model_->get_vocab_size()});
     }
 
     // 2. Unified generation loop
@@ -95,8 +95,8 @@ std::vector<int> Generator::generate(const std::vector<int>& prompt_tokens, int 
         }
 
         // Prepare the input for the next iteration
-        TissNum::Matrix input_token(1, 1);
-        input_token(0, 0) = static_cast<float>(next_token);
+        TissNum::Matrix input_token({1, 1});
+        input_token({0, 0}) = static_cast<float>(next_token);
 
         // Get the logits for the next token
         std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>> new_kv_cache;
@@ -113,7 +113,7 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
     // Apply logit bias early for greedy search with temp=0
     for (const auto& pair : config_.logit_bias) {
         if (pair.first < processed_logits.cols()) {
-            processed_logits(0, pair.first) += pair.second;
+            processed_logits({0, (size_t)pair.first}) += pair.second;
         }
     }
 
@@ -125,9 +125,9 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
     if (temperature == 0.0f || config_.method == "greedy") {
         int max_idx = -1;
         float max_logit = -std::numeric_limits<float>::infinity();
-        for (int c = 0; c < processed_logits.cols(); ++c) {
-            if (processed_logits(0, c) > max_logit) {
-                max_logit = processed_logits(0, c);
+        for (size_t c = 0; c < processed_logits.cols(); ++c) {
+            if (processed_logits({0, c}) > max_logit) {
+                max_logit = processed_logits({0, c});
                 max_idx = c;
             }
         }
@@ -140,10 +140,10 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
     if (config_.repetition_penalty != 1.0f) {
         for (int token_id : past_tokens) {
             if (token_id < processed_logits.cols()) {
-                if (processed_logits(0, token_id) > 0) {
-                    processed_logits(0, token_id) /= config_.repetition_penalty;
+                if (processed_logits({0, (size_t)token_id}) > 0) {
+                    processed_logits({0, (size_t)token_id}) /= config_.repetition_penalty;
                 } else {
-                    processed_logits(0, token_id) *= config_.repetition_penalty;
+                    processed_logits({0, (size_t)token_id}) *= config_.repetition_penalty;
                 }
             }
         }
@@ -163,7 +163,7 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
             if (match) {
                 int banned_token = past_tokens[i + config_.no_repeat_ngram_size - 1];
                 if (banned_token < processed_logits.cols()) {
-                    processed_logits(0, banned_token) = -std::numeric_limits<float>::infinity();
+                    processed_logits({0, (size_t)banned_token}) = -std::numeric_limits<float>::infinity();
                 }
             }
         }
@@ -172,7 +172,7 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
     // Apply logit bias
     for (const auto& pair : config_.logit_bias) {
         if (pair.first < processed_logits.cols()) {
-            processed_logits(0, pair.first) += pair.second;
+            processed_logits({0, (size_t)pair.first}) += pair.second;
         }
     }
 
@@ -194,7 +194,7 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
 
         for (size_t i = 0; i < similarity_scores.size(); ++i) {
             if (i < processed_logits.cols()) {
-                processed_logits(0, i) += similarity_scores[i] * config_.bayesian_influence_scale;
+                processed_logits({0, i}) += similarity_scores[i] * config_.bayesian_influence_scale;
             }
         }
     }
@@ -203,8 +203,8 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
 
     if (config_.method == "random" || config_.method == "sampling") {
         std::vector<float> probs_vec;
-        for (int c = 0; c < probabilities.cols(); ++c) {
-            probs_vec.push_back(probabilities(0, c));
+        for (size_t c = 0; c < probabilities.cols(); ++c) {
+            probs_vec.push_back(probabilities({0, c}));
         }
         std::discrete_distribution<> d(probs_vec.begin(), probs_vec.end());
         return d(gen_);
@@ -212,8 +212,8 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
     
     // Collect all token probabilities and their indices
     std::vector<std::pair<float, int>> token_probs;
-    for (int c = 0; c < probabilities.cols(); ++c) {
-        token_probs.push_back({probabilities(0, c), c});
+    for (size_t c = 0; c < probabilities.cols(); ++c) {
+        token_probs.push_back({probabilities({0, c}), c});
     }
 
     // Sort by probability in descending order
@@ -291,9 +291,9 @@ int Generator::sample_token(const TissNum::Matrix& logits, const std::vector<int
         // For greedy search, we can just find the max logit *after* all modifications.
         int max_idx = -1;
         float max_logit = -std::numeric_limits<float>::infinity();
-        for (int c = 0; c < processed_logits.cols(); ++c) {
-            if (processed_logits(0, c) > max_logit) {
-                max_logit = processed_logits(0, c);
+        for (size_t c = 0; c < processed_logits.cols(); ++c) {
+            if (processed_logits({0, c}) > max_logit) {
+                max_logit = processed_logits({0, c});
                 max_idx = c;
             }
         }
@@ -358,21 +358,21 @@ std::vector<int> Generator::beam_search(const std::vector<int>& prompt_tokens, i
 
             // NOTE: This is inefficient as it re-processes the whole sequence every time.
             // A proper implementation would use a KV cache for each beam.
-            TissNum::Matrix prompt_matrix(1, seq.size());
+            TissNum::Matrix prompt_matrix({1, seq.size()});
             for (size_t j = 0; j < seq.size(); ++j) {
-                prompt_matrix(0, j) = static_cast<float>(seq[j]);
+                prompt_matrix({0, j}) = static_cast<float>(seq[j]);
             }
             TissNum::Matrix logits = model_->forward(prompt_matrix);
-            TissNum::Matrix last_token_logits(1, logits.cols());
+            TissNum::Matrix last_token_logits({1, logits.cols()});
             for(size_t c = 0; c < logits.cols(); ++c) {
-                last_token_logits(0, c) = logits(logits.rows() - 1, c);
+                last_token_logits({0, c}) = logits({logits.rows() - 1, c});
             }
 
             TissNum::Matrix probabilities = softmax(last_token_logits);
 
             std::vector<std::pair<float, int>> token_probs;
-            for (int c = 0; c < probabilities.cols(); ++c) {
-                token_probs.push_back({probabilities(0, c), c});
+            for (size_t c = 0; c < probabilities.cols(); ++c) {
+                token_probs.push_back({probabilities({0, c}), c});
             }
             std::sort(token_probs.rbegin(), token_probs.rend());
 
@@ -401,21 +401,21 @@ std::vector<int> Generator::contrastive_search(const std::vector<int>& prompt_to
     auto transformer_model = static_cast<TransformerModel*>(model_.get());
 
     for (int i = 0; i < n_new_tokens; ++i) {
-        TissNum::Matrix prompt_matrix(1, current_tokens.size());
+        TissNum::Matrix prompt_matrix({1, current_tokens.size()});
         for (size_t j = 0; j < current_tokens.size(); ++j) {
-            prompt_matrix(0, j) = static_cast<float>(current_tokens[j]);
+            prompt_matrix({0, j}) = static_cast<float>(current_tokens[j]);
         }
         TissNum::Matrix logits = model_->forward(prompt_matrix);
-        TissNum::Matrix last_token_logits(1, logits.cols());
+        TissNum::Matrix last_token_logits({1, logits.cols()});
         for(size_t c = 0; c < logits.cols(); ++c) {
-            last_token_logits(0, c) = logits(logits.rows() - 1, c);
+            last_token_logits({0, c}) = logits({logits.rows() - 1, c});
         }
 
         TissNum::Matrix probabilities = softmax(last_token_logits);
 
         std::vector<std::pair<float, int>> token_probs;
-        for (int c = 0; c < probabilities.cols(); ++c) {
-            token_probs.push_back({probabilities(0, c), c});
+        for (size_t c = 0; c < probabilities.cols(); ++c) {
+            token_probs.push_back({probabilities({0, c}), c});
         }
         std::sort(token_probs.rbegin(), token_probs.rend());
 
@@ -426,10 +426,10 @@ std::vector<int> Generator::contrastive_search(const std::vector<int>& prompt_to
 
         const TissNum::Matrix& embeddings = transformer_model->get_embeddings();
 
-        TissNum::Matrix context_embeddings(current_tokens.size(), embeddings.cols());
+        TissNum::Matrix context_embeddings({current_tokens.size(), embeddings.cols()});
         for (size_t j = 0; j < current_tokens.size(); ++j) {
-            for (int k = 0; k < embeddings.cols(); ++k) {
-                context_embeddings(j, k) = embeddings(current_tokens[j], k);
+            for (size_t k = 0; k < embeddings.cols(); ++k) {
+                context_embeddings({j, k}) = embeddings({(size_t)current_tokens[j], k});
             }
         }
 
@@ -437,22 +437,22 @@ std::vector<int> Generator::contrastive_search(const std::vector<int>& prompt_to
         float max_score = -std::numeric_limits<float>::infinity();
 
         for (int token_id : top_k_indices) {
-            float model_confidence = probabilities(0, token_id);
+            float model_confidence = probabilities({0, (size_t)token_id});
 
-            TissNum::Matrix candidate_embedding(1, embeddings.cols());
-            for (int k = 0; k < embeddings.cols(); ++k) {
-                candidate_embedding(0, k) = embeddings(token_id, k);
+            TissNum::Matrix candidate_embedding({1, embeddings.cols()});
+            for (size_t k = 0; k < embeddings.cols(); ++k) {
+                candidate_embedding({0, k}) = embeddings({(size_t)token_id, k});
             }
 
             float max_sim = -1.0f;
-            for (int j = 0; j < context_embeddings.rows(); ++j) {
+            for (size_t j = 0; j < context_embeddings.rows(); ++j) {
                 float dot = 0.0f;
                 float norm_a = 0.0f;
                 float norm_b = 0.0f;
-                for (int k = 0; k < context_embeddings.cols(); ++k) {
-                    dot += context_embeddings(j, k) * candidate_embedding(0, k);
-                    norm_a += context_embeddings(j, k) * context_embeddings(j, k);
-                    norm_b += candidate_embedding(0, k) * candidate_embedding(0, k);
+                for (size_t k = 0; k < context_embeddings.cols(); ++k) {
+                    dot += context_embeddings({j, k}) * candidate_embedding({0, k});
+                    norm_a += context_embeddings({j, k}) * context_embeddings({j, k});
+                    norm_b += candidate_embedding({0, k}) * candidate_embedding({0, k});
                 }
                 float sim = dot / (std::sqrt(norm_a) * std::sqrt(norm_b));
                 if (sim > max_sim) {
@@ -486,21 +486,21 @@ std::vector<int> Generator::mirostat_sampling(const std::vector<int>& prompt_tok
     float max_surprise = 2 * tau;
 
     for (int i = 0; i < n_new_tokens; ++i) {
-        TissNum::Matrix prompt_matrix(1, current_tokens.size());
+        TissNum::Matrix prompt_matrix({1, current_tokens.size()});
         for (size_t j = 0; j < current_tokens.size(); ++j) {
-            prompt_matrix(0, j) = static_cast<float>(current_tokens[j]);
+            prompt_matrix({0, j}) = static_cast<float>(current_tokens[j]);
         }
         TissNum::Matrix logits = model_->forward(prompt_matrix);
-        TissNum::Matrix last_token_logits(1, logits.cols());
+        TissNum::Matrix last_token_logits({1, logits.cols()});
         for(size_t c = 0; c < logits.cols(); ++c) {
-            last_token_logits(0, c) = logits(logits.rows() - 1, c);
+            last_token_logits({0, c}) = logits({logits.rows() - 1, c});
         }
 
         TissNum::Matrix probabilities = softmax(last_token_logits);
 
         std::vector<std::pair<float, int>> token_probs;
-        for (int c = 0; c < probabilities.cols(); ++c) {
-            token_probs.push_back({probabilities(0, c), c});
+        for (size_t c = 0; c < probabilities.cols(); ++c) {
+            token_probs.push_back({probabilities({0, c}), c});
         }
         std::sort(token_probs.rbegin(), token_probs.rend());
 
@@ -535,7 +535,7 @@ std::vector<int> Generator::mirostat_sampling(const std::vector<int>& prompt_tok
         int sampled_index = d(gen_);
         int next_token = nucleus_indices[sampled_index];
 
-        float observed_surprise = -std::log2(probabilities(0, next_token));
+        float observed_surprise = -std::log2(probabilities({0, (size_t)next_token}));
         max_surprise -= eta * (observed_surprise - tau);
 
         if (next_token == eos_id) {
@@ -564,12 +564,12 @@ std::vector<int> Generator::speculative_sampling(const std::vector<int>& prompt_
         std::vector<int> draft_sequence;
         std::vector<int> current_sequence = generated_sequence;
         for (int k = 0; k < K; ++k) {
-            TissNum::Matrix input(1, current_sequence.size());
-            for(size_t j = 0; j < current_sequence.size(); ++j) input(0, j) = current_sequence[j];
+            TissNum::Matrix input({1, current_sequence.size()});
+            for(size_t j = 0; j < current_sequence.size(); ++j) input({0, j}) = current_sequence[j];
             
             TissNum::Matrix logits = draft_transformer_model->forward(input);
-            TissNum::Matrix last_logits(1, logits.cols());
-            for(size_t c=0; c<logits.cols(); ++c) last_logits(0,c) = logits(logits.rows()-1, c);
+            TissNum::Matrix last_logits({1, logits.cols()});
+            for(size_t c=0; c<logits.cols(); ++c) last_logits({0,c}) = logits({logits.rows()-1, c});
 
             int next_token = sample_token(last_logits, current_sequence, i+k);
             draft_sequence.push_back(next_token);
@@ -577,17 +577,17 @@ std::vector<int> Generator::speculative_sampling(const std::vector<int>& prompt_
         }
 
         // 2. Use the main model to verify the draft sequence
-        TissNum::Matrix main_model_input(1, generated_sequence.size() + K);
-        for(size_t j=0; j<generated_sequence.size(); ++j) main_model_input(0,j) = generated_sequence[j];
-        for(int k=0; k<K; ++k) main_model_input(0, generated_sequence.size()+k) = draft_sequence[k];
+        TissNum::Matrix main_model_input({1, generated_sequence.size() + K});
+        for(size_t j=0; j<generated_sequence.size(); ++j) main_model_input({0,j}) = generated_sequence[j];
+        for(int k=0; k<K; ++k) main_model_input({0, generated_sequence.size()+k}) = draft_sequence[k];
 
         TissNum::Matrix main_logits = main_transformer_model->forward(main_model_input);
 
         // 3. Compare and accept/reject tokens
         int accepted_count = 0;
         for (int k = 0; k < K; ++k) {
-            TissNum::Matrix draft_token_logits(1, main_logits.cols());
-            for(size_t c=0; c<main_logits.cols(); ++c) draft_token_logits(0,c) = main_logits(generated_sequence.size() -1 + k, c);
+            TissNum::Matrix draft_token_logits({1, main_logits.cols()});
+            for(size_t c=0; c<main_logits.cols(); ++c) draft_token_logits({0,c}) = main_logits({generated_sequence.size() -1 + k, c});
             
             int draft_token = draft_sequence[k];
             int main_model_token = sample_token(draft_token_logits, generated_sequence, i+k);

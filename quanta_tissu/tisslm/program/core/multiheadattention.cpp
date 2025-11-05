@@ -5,6 +5,27 @@
 
 namespace TissNum {
 
+MultiHeadAttention::MultiHeadAttention(size_t d_model, size_t num_heads, int lora_rank, const std::string& name)
+    : d_model_(d_model),
+      num_heads_(num_heads),
+      head_dim_(d_model / num_heads),
+      lora_rank_(lora_rank),
+      use_lora_(lora_rank > 0),
+      w_q_(Parameter(Matrix::random({d_model, d_model}), name + ".w_q")),
+      w_k_(Parameter(Matrix::random({d_model, d_model}), name + ".w_k")),
+      w_v_(Parameter(Matrix::random({d_model, d_model}), name + ".w_v")),
+      w_o_(Parameter(Matrix::random({d_model, d_model}), name + ".w_o")) {
+    if (d_model % num_heads != 0) {
+        throw std::invalid_argument("d_model must be divisible by num_heads");
+    }
+    if (use_lora_) {
+        w_q_lora_a_.emplace(Parameter(Matrix::random({d_model, (size_t)lora_rank}), name + ".w_q_lora_a"));
+        w_q_lora_b_.emplace(Parameter(Matrix::zeros({(size_t)lora_rank, d_model}), name + ".w_q_lora_b"));
+        w_v_lora_a_.emplace(Parameter(Matrix::random({d_model, (size_t)lora_rank}), name + ".w_v_lora_a"));
+        w_v_lora_b_.emplace(Parameter(Matrix::zeros({(size_t)lora_rank, d_model}), name + ".w_v_lora_b"));
+    }
+}
+
 // Placeholder for Softmax activation
 Matrix softmax(const Matrix& x, int axis = -1) {
     Matrix max_val = x.max(axis);
@@ -34,8 +55,8 @@ Matrix softmax_backward(const Matrix& d_out, const Matrix& softmax_output) {
 }
 
 Matrix MultiHeadAttention::split_heads(const Matrix& x) {
-    size_t batch_size = x.rows();
-    size_t seq_len = x.cols() / d_model_;
+    size_t batch_size = x.get_shape()[0];
+    size_t seq_len = x.get_shape()[1];
     return x.reshape({batch_size, seq_len, num_heads_, head_dim_}).transpose(1, 2);
 }
 
@@ -144,6 +165,17 @@ Matrix MultiHeadAttention::backward(const Matrix& d_out) {
     }
 
     return dx;
+}
+
+Matrix MultiHeadAttention::scaled_dot_product_attention(const Matrix& q, const Matrix& k, const Matrix& v, const Matrix& mask) {
+    Matrix scores = Matrix::batch_matmul(q, k.transpose(2, 3));
+    scores = scores / std::sqrt(static_cast<float>(head_dim_));
+    if (mask.rows() > 0) {
+        scores = scores + mask;
+    }
+    Matrix attn_weights = softmax(scores, -1);
+    cached_attn_weights_ = attn_weights;
+    return Matrix::batch_matmul(attn_weights, v);
 }
 
 std::vector<Parameter*> MultiHeadAttention::parameters() {

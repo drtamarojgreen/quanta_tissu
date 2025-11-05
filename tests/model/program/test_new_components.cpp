@@ -98,7 +98,7 @@ void test_combined() {
     
     std::cout << "First token representation (first 4 dims): ";
     for (size_t j = 0; j < 4; ++j) {
-        std::cout << std::fixed << std::setprecision(4) << output(0, j) << " ";
+        std::cout << std::fixed << std::setprecision(4) << output({0, j}) << " ";
     }
     std::cout << std::endl;
     

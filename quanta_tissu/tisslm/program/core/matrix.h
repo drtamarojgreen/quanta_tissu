@@ -3,6 +3,9 @@
 #include <vector>
 #include <iostream>
 #include <stdexcept>
+#include <numeric>
+#include <algorithm>
+#include <functional>
 
 namespace TissNum {
 
@@ -25,7 +28,7 @@ public:
     Matrix reshape(const std::vector<size_t>& new_shape) const;
     Matrix transpose(int dim1, int dim2) const;
 
-    // Basic matrix operations (placeholders for now)
+    // Basic matrix operations
     static Matrix random(const std::vector<size_t>& shape);
     static Matrix zeros(const std::vector<size_t>& shape);
     static Matrix ones(const std::vector<size_t>& shape);
@@ -61,16 +64,97 @@ public:
 
     // Matrix multiplication
     static Matrix matmul(const Matrix& a, const Matrix& b);
+    static Matrix batch_matmul(const Matrix& a, const Matrix& b);
 
     // Concatenation
     static Matrix concatenate(const Matrix& a, const Matrix& b, int axis);
 
     // Raw data access
     const float* get_data() const { return data_.data(); }
+    float* get_data() { return data_.data(); }
+    size_t data_size() const { return data_.size(); }
 
 private:
     std::vector<size_t> shape_;
     std::vector<float> data_;
+
+    static std::vector<size_t> get_broadcasted_shape(const std::vector<size_t>& shape1, const std::vector<size_t>& shape2) {
+        const auto& s1 = shape1.size() > shape2.size() ? shape1 : shape2;
+        const auto& s2 = shape1.size() > shape2.size() ? shape2 : shape1;
+        std::vector<size_t> result_shape(s1.size());
+        long diff = s1.size() - s2.size();
+
+        for (size_t i = 0; i < s1.size(); ++i) {
+            size_t dim1 = s1[i];
+            size_t dim2 = (i >= diff) ? s2[i - diff] : 1;
+            if (dim1 != dim2 && dim1 != 1 && dim2 != 1) {
+                throw std::invalid_argument("Matrix dimensions are not compatible for broadcasting.");
+            }
+            result_shape[i] = std::max(dim1, dim2);
+        }
+        return result_shape;
+    }
+
+    template<typename Func>
+    Matrix broadcast_op(const Matrix& other, Func op) const {
+        std::vector<size_t> result_shape = get_broadcasted_shape(shape_, other.shape_);
+        Matrix result(result_shape);
+
+        std::vector<size_t> this_strides(shape_.size());
+        if (!shape_.empty()) {
+            this_strides.back() = 1;
+            for (int i = shape_.size() - 2; i >= 0; --i) {
+                this_strides[i] = this_strides[i + 1] * shape_[i + 1];
+            }
+        }
+
+        std::vector<size_t> other_strides(other.shape_.size());
+        if (!other.shape_.empty()) {
+            other_strides.back() = 1;
+            for (int i = other.shape_.size() - 2; i >= 0; --i) {
+                other_strides[i] = other_strides[i + 1] * other.shape_[i + 1];
+            }
+        }
+
+        std::vector<size_t> result_strides(result_shape.size());
+        if (!result_shape.empty()) {
+            result_strides.back() = 1;
+            for (int i = result_shape.size() - 2; i >= 0; --i) {
+                result_strides[i] = result_strides[i + 1] * result_shape[i + 1];
+            }
+        }
+
+        long this_dim_offset = result_shape.size() - shape_.size();
+        long other_dim_offset = result_shape.size() - other.shape_.size();
+
+        for (size_t i = 0; i < result.data_.size(); ++i) {
+            size_t this_idx = 0;
+            size_t other_idx = 0;
+            size_t remaining_i = i;
+
+            for (size_t j = 0; j < result_shape.size(); ++j) {
+                size_t coord = remaining_i / result_strides[j];
+                remaining_i %= result_strides[j];
+
+                if (j >= this_dim_offset) {
+                    size_t this_j = j - this_dim_offset;
+                    if (shape_[this_j] != 1) {
+                        this_idx += coord * this_strides[this_j];
+                    }
+                }
+
+                if (j >= other_dim_offset) {
+                    size_t other_j = j - other_dim_offset;
+                    if (other.shape_[other_j] != 1) {
+                        other_idx += coord * other_strides[other_j];
+                    }
+                }
+            }
+            result.data_[i] = op(data_[this_idx], other.data_[other_idx]);
+        }
+
+        return result;
+    }
 };
 
 } // namespace TissNum

@@ -16,9 +16,9 @@ std::string QuantaTissu::generate(const std::string& prompt, int n_new_tokens) {
         // For simplicity, we'll use greedy sampling.
         int next_token_id = 0;
         float max_logit = -1e9;
-        for (int j = 0; j < logits.get_cols(); ++j) {
-            if (logits.at(logits.get_rows() - 1, j) > max_logit) {
-                max_logit = logits.at(logits.get_rows() - 1, j);
+        for (size_t j = 0; j < logits.cols(); ++j) {
+            if (logits({logits.rows() - 1, j}) > max_logit) {
+                max_logit = logits({logits.rows() - 1, j});
                 next_token_id = j;
             }
         }

@@ -31,16 +31,16 @@ float Evaluator::calculate_perplexity(
         int batch_end = std::min(batch_start + batch_size, num_samples);
         int current_batch_size = batch_end - batch_start;
 
-        Matrix batch_input(current_batch_size, eval_data[0].cols());
-        Matrix batch_target(current_batch_size, eval_labels[0].cols());
+        Matrix batch_input({(size_t)current_batch_size, eval_data[0].cols()});
+        Matrix batch_target({(size_t)current_batch_size, eval_labels[0].cols()});
 
         for (int i = 0; i < current_batch_size; ++i) {
             int sample_idx = batch_start + i;
-            for (int col = 0; col < eval_data[sample_idx].cols(); ++col) {
-                batch_input.set(i, col, eval_data[sample_idx].get(0, col));
+            for (size_t col = 0; col < eval_data[sample_idx].cols(); ++col) {
+                batch_input({(size_t)i, col}) = eval_data[sample_idx]({0, col});
             }
-            for (int col = 0; col < eval_labels[sample_idx].cols(); ++col) {
-                batch_target.set(i, col, eval_labels[sample_idx].get(0, col));
+            for (size_t col = 0; col < eval_labels[sample_idx].cols(); ++col) {
+                batch_target({(size_t)i, col}) = eval_labels[sample_idx]({0, col});
             }
         }
 

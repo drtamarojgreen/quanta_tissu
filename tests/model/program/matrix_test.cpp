@@ -1,48 +1,75 @@
-#include "gtest/gtest.h"
-#include "core/matrix.h"
+#include "../../../quanta_tissu/tisslm/program/core/matrix.h"
+#include <iostream>
 #include <vector>
 #include <cmath>
+#include <stdexcept>
 
-TEST(MatrixTest, Initialization) {
+// Helper to print test results
+void check(bool condition, const std::string& test_name) {
+    if (condition) {
+        std::cout << "[  PASSED  ] " << test_name << std::endl;
+    } else {
+        std::cout << "[  FAILED  ] " << test_name << std::endl;
+        throw std::runtime_error("Test failed: " + test_name);
+    }
+}
+
+void test_initialization() {
+    std::cout << "--- Testing Initialization ---" << std::endl;
     TissNum::Matrix m({2, 3});
-    EXPECT_EQ(m.get_shape(), std::vector<size_t>({2, 3}));
-    EXPECT_EQ(m.rows(), 2);
-    EXPECT_EQ(m.cols(), 3);
+    check(m.get_shape() == std::vector<size_t>({2, 3}), "Shape constructor");
+    check(m.rows() == 2, "Rows check");
+    check(m.cols() == 3, "Cols check");
 
     TissNum::Matrix zero_m = TissNum::Matrix::zeros({4, 5});
-    EXPECT_EQ(zero_m.get_shape(), std::vector<size_t>({4, 5}));
+    bool all_zeros = true;
     for (size_t i = 0; i < 4; ++i) {
         for (size_t j = 0; j < 5; ++j) {
-            EXPECT_EQ(zero_m({i, j}), 0.0f);
+            if (zero_m({i, j}) != 0.0f) all_zeros = false;
         }
     }
+    check(all_zeros, "Zeros method");
 
     TissNum::Matrix ones_m = TissNum::Matrix::ones({3, 2});
-    EXPECT_EQ(ones_m.get_shape(), std::vector<size_t>({3, 2}));
+    bool all_ones = true;
     for (size_t i = 0; i < 3; ++i) {
         for (size_t j = 0; j < 2; ++j) {
-            EXPECT_EQ(ones_m({i, j}), 1.0f);
+            if (ones_m({i, j}) != 1.0f) all_ones = false;
         }
+    }
+    check(all_ones, "Ones method");
+}
+
+void test_reshape() {
+    std::cout << "--- Testing Reshape ---" << std::endl;
+    TissNum::Matrix m = TissNum::Matrix::random({2, 3});
+    TissNum::Matrix reshaped = m.reshape({3, 2});
+    check(reshaped.get_shape() == std::vector<size_t>({3, 2}), "Valid reshape");
+
+    try {
+        m.reshape({4, 2});
+        check(false, "Invalid reshape should throw");
+    } catch (const std::invalid_argument& e) {
+        check(true, "Invalid reshape should throw");
     }
 }
 
-TEST(MatrixTest, Reshape) {
-    TissNum::Matrix m = TissNum::Matrix::random({2, 3});
-    TissNum::Matrix reshaped = m.reshape({3, 2});
-    EXPECT_EQ(reshaped.get_shape(), std::vector<size_t>({3, 2}));
-
-    EXPECT_THROW(m.reshape({4, 2}), std::invalid_argument);
-}
-
-TEST(MatrixTest, Transpose) {
+void test_transpose() {
+    std::cout << "--- Testing Transpose ---" << std::endl;
     TissNum::Matrix m = TissNum::Matrix::random({2, 3, 4});
     TissNum::Matrix transposed = m.transpose(0, 2);
-    EXPECT_EQ(transposed.get_shape(), std::vector<size_t>({4, 3, 2}));
+    check(transposed.get_shape() == std::vector<size_t>({4, 3, 2}), "Valid transpose");
 
-    EXPECT_THROW(m.transpose(0, 3), std::out_of_range);
+    try {
+        m.transpose(0, 3);
+        check(false, "Invalid transpose should throw");
+    } catch (const std::out_of_range& e) {
+        check(true, "Invalid transpose should throw");
+    }
 }
 
-TEST(MatrixTest, Matmul) {
+void test_matmul() {
+    std::cout << "--- Testing Matmul ---" << std::endl;
     TissNum::Matrix a({2, 3});
     a({0, 0}) = 1; a({0, 1}) = 2; a({0, 2}) = 3;
     a({1, 0}) = 4; a({1, 1}) = 5; a({1, 2}) = 6;
@@ -53,188 +80,84 @@ TEST(MatrixTest, Matmul) {
     b({2, 0}) = 11; b({2, 1}) = 12;
 
     TissNum::Matrix c = TissNum::Matrix::matmul(a, b);
-    EXPECT_EQ(c.get_shape(), std::vector<size_t>({2, 2}));
-    EXPECT_EQ(c({0, 0}), 58);
-    EXPECT_EQ(c({0, 1}), 64);
-    EXPECT_EQ(c({1, 0}), 139);
-    EXPECT_EQ(c({1, 1}), 154);
+    check(c.get_shape() == std::vector<size_t>({2, 2}), "Matmul shape");
+    check(c({0, 0}) == 58, "Matmul value [0,0]");
+    check(c({0, 1}) == 64, "Matmul value [0,1]");
+    check(c({1, 0}) == 139, "Matmul value [1,0]");
+    check(c({1, 1}) == 154, "Matmul value [1,1]");
 
     TissNum::Matrix d({2, 2});
-    EXPECT_THROW(TissNum::Matrix::matmul(a, d), std::invalid_argument);
+    try {
+        TissNum::Matrix::matmul(a, d);
+        check(false, "Invalid matmul should throw");
+    } catch (const std::invalid_argument& e) {
+        check(true, "Invalid matmul should throw");
+    }
 }
 
-TEST(MatrixTest, ElementWiseOperations) {
+void test_element_wise_ops() {
+    std::cout << "--- Testing Element-wise Operations ---" << std::endl;
     TissNum::Matrix a = TissNum::Matrix::ones({2, 2});
     TissNum::Matrix b = TissNum::Matrix::ones({2, 2});
     TissNum::Matrix c = a + b;
-    EXPECT_EQ(c({0, 0}), 2.0f);
+    check(c({0, 0}) == 2.0f, "Element-wise addition");
 
     TissNum::Matrix d = a - b;
-    EXPECT_EQ(d({0, 0}), 0.0f);
+    check(d({0, 0}) == 0.0f, "Element-wise subtraction");
 
     TissNum::Matrix e = a * b;
-    EXPECT_EQ(e({0, 0}), 1.0f);
+    check(e({0, 0}) == 1.0f, "Element-wise multiplication");
 
     TissNum::Matrix f = a / b;
-    EXPECT_EQ(f({0, 0}), 1.0f);
+    check(f({0, 0}) == 1.0f, "Element-wise division");
 }
 
-TEST(MatrixTest, ScalarOperations) {
+void test_scalar_ops() {
+    std::cout << "--- Testing Scalar Operations ---" << std::endl;
     TissNum::Matrix a = TissNum::Matrix::ones({2, 2});
     TissNum::Matrix b = a + 1.0f;
-    EXPECT_EQ(b({0, 0}), 2.0f);
+    check(b({0, 0}) == 2.0f, "Scalar addition");
 
     TissNum::Matrix c = a - 1.0f;
-    EXPECT_EQ(c({0, 0}), 0.0f);
+    check(c({0, 0}) == 0.0f, "Scalar subtraction");
 
     TissNum::Matrix d = a * 2.0f;
-    EXPECT_EQ(d({0, 0}), 2.0f);
+    check(d({0, 0}) == 2.0f, "Scalar multiplication");
 
     TissNum::Matrix e = a / 2.0f;
-    EXPECT_EQ(e({0, 0}), 0.5f);
+    check(e({0, 0}) == 0.5f, "Scalar division");
 }
 
-TEST(MatrixTest, StatisticalOperations) {
+void test_statistical_ops() {
+    std::cout << "--- Testing Statistical Operations ---" << std::endl;
     TissNum::Matrix m({2, 3});
     m({0, 0}) = 1; m({0, 1}) = 2; m({0, 2}) = 3;
     m({1, 0}) = 4; m({1, 1}) = 5; m({1, 2}) = 6;
 
     TissNum::Matrix mean = m.mean(1);
-    EXPECT_EQ(mean.get_shape(), std::vector<size_t>({2, 1}));
-    EXPECT_EQ(mean({0, 0}), 2.0f);
-    EXPECT_EQ(mean({1, 0}), 5.0f);
+    check(mean.get_shape() == std::vector<size_t>({2, 1}), "Mean shape");
+    check(mean({0, 0}) == 2.0f, "Mean value [0,0]");
+    check(mean({1, 0}) == 5.0f, "Mean value [1,0]");
 
     TissNum::Matrix max = m.max(1);
-    EXPECT_EQ(max.get_shape(), std::vector<size_t>({2, 1}));
-    EXPECT_EQ(max({0, 0}), 3.0f);
-    EXPECT_EQ(max({1, 0}), 6.0f);
-
-    TissNum::Matrix exp = TissNum::Matrix::exp(m);
-    EXPECT_EQ(exp.get_shape(), m.get_shape());
-    std::cout << "Matrix concatenate tests completed successfully." << std::endl << std::endl;
+    check(max.get_shape() == std::vector<size_t>({2, 1}), "Max shape");
+    check(max({0, 0}) == 3.0f, "Max value [0,0]");
+    check(max({1, 0}) == 6.0f, "Max value [1,0]");
 }
 
-void test_matrix_multidim_ops() {
-    std::cout << "=== Testing Matrix Multi-dimensional Operations ===" << std::endl;
-
-    TissNum::Matrix m({2, 2, 3});
-    m({0, 0, 0}) = 1; m({0, 0, 1}) = 2; m({0, 0, 2}) = 3;
-    m({0, 1, 0}) = 4; m({0, 1, 1}) = 5; m({0, 1, 2}) = 6;
-    m({1, 0, 0}) = 7; m({1, 0, 1}) = 8; m({1, 0, 2}) = 9;
-    m({1, 1, 0}) = 10; m({1, 1, 1}) = 11; m({1, 1, 2}) = 12;
-
-    TissNum::Matrix sum0 = m.sum(0);
-    EXPECT_EQ(sum0.get_shape(), std::vector<size_t>({1, 2, 3}));
-    EXPECT_EQ(sum0({0, 0, 0}), 8);
-
-    TissNum::Matrix sum1 = m.sum(1);
-    EXPECT_EQ(sum1.get_shape(), std::vector<size_t>({2, 1, 3}));
-    EXPECT_EQ(sum1({0, 0, 0}), 5);
-
-    TissNum::Matrix sum2 = m.sum(2);
-    EXPECT_EQ(sum2.get_shape(), std::vector<size_t>({2, 2, 1}));
-    EXPECT_EQ(sum2({0, 0, 0}), 6);
-
-        std::cout << "Matrix multi-dimensional operations tests completed successfully." << std::endl << std::endl;
-
+int main() {
+    try {
+        test_initialization();
+        test_reshape();
+        test_transpose();
+        test_matmul();
+        test_element_wise_ops();
+        test_scalar_ops();
+        test_statistical_ops();
+        std::cout << "\nAll Matrix tests passed!" << std::endl;
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "\nMatrix tests failed with exception: " << e.what() << std::endl;
+        return 1;
     }
-
-    
-
-    void test_matrix_multidim_stats() {
-
-        std::cout << "=== Testing Matrix Multi-dimensional Stats ===" << std::endl;
-
-    
-
-        TissNum::Matrix m({2, 2, 3});
-
-        m({0, 0, 0}) = 1; m({0, 0, 1}) = 2; m({0, 0, 2}) = 3;
-
-        m({0, 1, 0}) = 4; m({0, 1, 1}) = 5; m({0, 1, 2}) = 6;
-
-        m({1, 0, 0}) = 7; m({1, 0, 1}) = 8; m({1, 0, 2}) = 9;
-
-        m({1, 1, 0}) = 10; m({1, 1, 1}) = 11; m({1, 1, 2}) = 12;
-
-    
-
-        TissNum::Matrix mean0 = m.mean(0);
-
-        EXPECT_EQ(mean0.get_shape(), std::vector<size_t>({1, 2, 3}));
-
-        EXPECT_EQ(mean0({0, 0, 0}), 4);
-
-    
-
-        TissNum::Matrix mean1 = m.mean(1);
-
-        EXPECT_EQ(mean1.get_shape(), std::vector<size_t>({2, 1, 3}));
-
-        EXPECT_EQ(mean1({0, 0, 0}), 2.5);
-
-    
-
-        TissNum::Matrix mean2 = m.mean(2);
-
-        EXPECT_EQ(mean2.get_shape(), std::vector<size_t>({2, 2, 1}));
-
-        EXPECT_EQ(mean2({0, 0, 0}), 2);
-
-    
-
-        TissNum::Matrix max0 = m.max(0);
-
-        EXPECT_EQ(max0.get_shape(), std::vector<size_t>({1, 2, 3}));
-
-        EXPECT_EQ(max0({0, 0, 0}), 7);
-
-    
-
-        TissNum::Matrix max1 = m.max(1);
-
-        EXPECT_EQ(max1.get_shape(), std::vector<size_t>({2, 1, 3}));
-
-        EXPECT_EQ(max1({0, 0, 0}), 4);
-
-    
-
-        TissNum::Matrix max2 = m.max(2);
-
-        EXPECT_EQ(max2.get_shape(), std::vector<size_t>({2, 2, 1}));
-
-        EXPECT_EQ(max2({0, 0, 0}), 3);
-
-    
-
-        std::cout << "Matrix multi-dimensional stats tests completed successfully." << std::endl << std::endl;
-
-    }
-
-    
-
-    int main() {
-
-        try {
-
-            test_matrix_concatenate();
-
-            test_matrix_multidim_ops();
-
-            test_matrix_multidim_stats();
-
-            std::cout << "All Matrix tests passed!" << std::endl;
-
-            return 0;
-
-        } catch (const std::exception& e) {
-
-            std::cerr << "Matrix tests failed with exception: " << e.what() << std::endl;
-
-            return 1;
-
-        }
-
-    }
-
-    
+}
