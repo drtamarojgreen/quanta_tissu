@@ -20,12 +20,12 @@ std::pair<TissNum::Matrix, TissNum::Matrix> TokenDataset::get_item(size_t index)
         throw std::out_of_range("Index out of range in TokenDataset::get_item");
     }
 
-    TissNum::Matrix x(1, seq_len_);
-    TissNum::Matrix y(1, seq_len_);
+    TissNum::Matrix x({1, (size_t)seq_len_});
+    TissNum::Matrix y({1, (size_t)seq_len_});
 
-    for (int i = 0; i < seq_len_; ++i) {
-        x(0, i) = static_cast<float>(token_ids_[index + i]);
-        y(0, i) = static_cast<float>(token_ids_[index + i + 1]);
+    for (size_t i = 0; i < seq_len_; ++i) {
+        x({0, i}) = static_cast<float>(token_ids_[index + i]);
+        y({0, i}) = static_cast<float>(token_ids_[index + i + 1]);
     }
 
     return {x, y};

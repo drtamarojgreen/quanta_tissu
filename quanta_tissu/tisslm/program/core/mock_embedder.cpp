@@ -17,10 +17,10 @@ TissNum::Matrix MockEmbedder::embed(const std::string& text) {
     size_t seed = hasher(text);
     rng_.seed(seed);
 
-    TissNum::Matrix embedding(1, embedding_dim_);
+    TissNum::Matrix embedding({1, embedding_dim_});
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
     for (size_t i = 0; i < embedding_dim_; ++i) {
-        embedding(0, i) = dist(rng_);
+        embedding({0, i}) = dist(rng_);
     }
     return embedding;
 }

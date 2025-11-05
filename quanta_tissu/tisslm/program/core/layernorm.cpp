@@ -12,32 +12,67 @@ LayerNorm::LayerNorm(size_t dim, const std::string& name, bool bias, float eps)
 
 Matrix LayerNorm::forward(const Matrix& x) {
     cached_x_ = x;
-    // x shape: (batch_size, dim)
-    Matrix mean = x.mean(1); // Mean across the feature dimension
-    Matrix var = x.variance(1); // Variance across the feature dimension
+    if (x.get_shape().size() == 2) {
+        // x shape: (batch_size, dim)
+        Matrix mean = x.mean(1); // Mean across the feature dimension
+        Matrix var = x.variance(1); // Variance across the feature dimension
 
-    Matrix x_norm({x.rows(), x.cols()});
-    Matrix std_dev = Matrix::sqrt(var + eps_);
+        Matrix x_norm({x.rows(), x.cols()});
+        Matrix std_dev = Matrix::sqrt(var + eps_);
 
-    for (size_t r = 0; r < x.rows(); ++r) {
-        for (size_t c = 0; c < x.cols(); ++c) {
-            x_norm({r, c}) = (x({r, c}) - mean({r, 0})) / std_dev({r, 0});
-        }
-    }
-
-    Matrix out({x.rows(), x.cols()});
-    for (size_t r = 0; r < x.rows(); ++r) {
-        for (size_t c = 0; c < x.cols(); ++c) {
-            out({r, c}) = x_norm({r, c}) * gamma_.value()({0, c});
-            if (has_bias_) {
-                out({r, c}) += beta_.value()({0, c});
+        for (size_t r = 0; r < x.rows(); ++r) {
+            for (size_t c = 0; c < x.cols(); ++c) {
+                x_norm({r, c}) = (x({r, c}) - mean({r, 0})) / std_dev({r, 0});
             }
         }
+
+        Matrix out({x.rows(), x.cols()});
+        for (size_t r = 0; r < x.rows(); ++r) {
+            for (size_t c = 0; c < x.cols(); ++c) {
+                out({r, c}) = x_norm({r, c}) * gamma_.value()({0, c});
+                if (has_bias_) {
+                    out({r, c}) += beta_.value()({0, c});
+                }
+            }
+        }
+        return out;
+    } else if (x.get_shape().size() == 3) {
+        // x shape: (batch_size, seq_len, dim)
+        Matrix mean = x.mean(2); // Mean across the feature dimension
+        Matrix var = x.variance(2); // Variance across the feature dimension
+
+        Matrix x_norm(x.get_shape());
+        Matrix std_dev = Matrix::sqrt(var + eps_);
+
+        for (size_t i = 0; i < x.get_shape()[0]; ++i) {
+            for (size_t j = 0; j < x.get_shape()[1]; ++j) {
+                for (size_t k = 0; k < x.get_shape()[2]; ++k) {
+                    x_norm({i, j, k}) = (x({i, j, k}) - mean({i, j, 0})) / std_dev({i, j, 0});
+                }
+            }
+        }
+
+        Matrix out(x.get_shape());
+        for (size_t i = 0; i < x.get_shape()[0]; ++i) {
+            for (size_t j = 0; j < x.get_shape()[1]; ++j) {
+                for (size_t k = 0; k < x.get_shape()[2]; ++k) {
+                    out({i, j, k}) = x_norm({i, j, k}) * gamma_.value()({0, k});
+                    if (has_bias_) {
+                        out({i, j, k}) += beta_.value()({0, k});
+                    }
+                }
+            }
+        }
+        return out;
+    } else {
+        throw std::invalid_argument("LayerNorm::forward only supports 2D and 3D matrices.");
     }
-    return out;
 }
 
 Matrix LayerNorm::backward(const Matrix& d_out) {
+    if (cached_x_.get_shape().size() == 3) {
+        throw std::runtime_error("3D backward for layernorm not implemented");
+    }
     size_t N = cached_x_.rows();
     size_t D = cached_x_.cols();
 

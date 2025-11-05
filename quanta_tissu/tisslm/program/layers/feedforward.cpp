@@ -3,33 +3,33 @@
 #include <cmath>
 
 FeedForward::FeedForward(int d_model, int d_ff)
-    : w1(Matrix::random(d_model, d_ff)),
-      b1(Matrix::zeros(1, d_ff)),
-      w2(Matrix::random(d_ff, d_model)),
-      b2(Matrix::zeros(1, d_model)) {}
+    : w1(Matrix::random({(size_t)d_model, (size_t)d_ff})),
+      b1(Matrix::zeros({1, (size_t)d_ff})),
+      w2(Matrix::random({(size_t)d_ff, (size_t)d_model})),
+      b2(Matrix::zeros({1, (size_t)d_model})) {}
 
 Matrix FeedForward::forward(const Matrix& x) {
     // First linear layer
-    Matrix z = x.dot(w1);
-    for (int i = 0; i < z.get_rows(); ++i) {
-        for (int j = 0; j < z.get_cols(); ++j) {
-            z.at(i, j) += b1.at(0, j);
+    Matrix z = Matrix::matmul(x, w1);
+    for (size_t i = 0; i < z.rows(); ++i) {
+        for (size_t j = 0; j < z.cols(); ++j) {
+            z({i, j}) += b1({0, j});
         }
     }
 
     // ReLU activation
-    Matrix h(z.get_rows(), z.get_cols());
-    for (int i = 0; i < z.get_rows(); ++i) {
-        for (int j = 0; j < z.get_cols(); ++j) {
-            h.at(i, j) = std::max(0.0f, z.at(i, j));
+    Matrix h({z.rows(), z.cols()});
+    for (size_t i = 0; i < z.rows(); ++i) {
+        for (size_t j = 0; j < z.cols(); ++j) {
+            h({i, j}) = std::max(0.0f, z({i, j}));
         }
     }
 
     // Second linear layer
-    Matrix y = h.dot(w2);
-    for (int i = 0; i < y.get_rows(); ++i) {
-        for (int j = 0; j < y.get_cols(); ++j) {
-            y.at(i, j) += b2.at(0, j);
+    Matrix y = Matrix::matmul(h, w2);
+    for (size_t i = 0; i < y.rows(); ++i) {
+        for (size_t j = 0; j < y.cols(); ++j) {
+            y({i, j}) += b2({0, j});
         }
     }
 
