@@ -79,7 +79,15 @@ Matrix TransformerModel::forward(const Matrix& input_tokens) {
     embedded_input_ = embedding_layer_.forward(token_ids);
 
     // 2. Positional Encoding
-    Matrix x = positional_encoding_layer_.forward(embedded_input_);
+    Matrix x_2d = positional_encoding_layer_.forward(embedded_input_);
+
+    // Create a new 3D matrix with a batch size of 1
+    Matrix x({1, x_2d.rows(), x_2d.cols()});
+    for (size_t r = 0; r < x_2d.rows(); ++r) {
+        for (size_t c = 0; c < x_2d.cols(); ++c) {
+            x({0, r, c}) = x_2d({r, c});
+        }
+    }
 
     // 3. Transformer Blocks
     transformer_block_outputs_.clear();
