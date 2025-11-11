@@ -15,6 +15,12 @@ public:
     Matrix(const std::vector<size_t>& shape);
     Matrix() : shape_({0, 0}) {}
 
+    // Copy/Move Semantics
+    Matrix(const Matrix&) = default;
+    Matrix(Matrix&&) noexcept = default;
+    Matrix& operator=(const Matrix&) = default;
+    Matrix& operator=(Matrix&&) noexcept = default;
+
     // Accessors
     const std::vector<size_t>& get_shape() const { return shape_; }
     size_t rows() const { return shape_.size() > 0 ? shape_[0] : 0; }
@@ -78,6 +84,14 @@ private:
     std::vector<size_t> shape_;
     std::vector<float> data_;
 
+    inline void assert_size_match(size_t old_size, size_t new_size) const {
+        if (old_size != new_size) {
+            std::cerr << "[ERROR] Shape mismatch: old size=" << old_size
+                      << " new size=" << new_size << std::endl;
+            throw std::runtime_error("Total size of new shape must match old shape.");
+        }
+    }
+
     static std::vector<size_t> get_broadcasted_shape(const std::vector<size_t>& shape1, const std::vector<size_t>& shape2) {
         const auto& s1 = shape1.size() > shape2.size() ? shape1 : shape2;
         const auto& s2 = shape1.size() > shape2.size() ? shape2 : shape1;
@@ -127,32 +141,34 @@ private:
         long this_dim_offset = result_shape.size() - shape_.size();
         long other_dim_offset = result_shape.size() - other.shape_.size();
 
-        for (size_t i = 0; i < result.data_.size(); ++i) {
-            size_t this_idx = 0;
-            size_t other_idx = 0;
-            size_t remaining_i = i;
-
-            for (size_t j = 0; j < result_shape.size(); ++j) {
-                size_t coord = remaining_i / result_strides[j];
-                remaining_i %= result_strides[j];
-
-                if (j >= this_dim_offset) {
-                    size_t this_j = j - this_dim_offset;
-                    if (shape_[this_j] != 1) {
-                        this_idx += coord * this_strides[this_j];
-                    }
-                }
-
-                if (j >= other_dim_offset) {
-                    size_t other_j = j - other_dim_offset;
-                    if (other.shape_[other_j] != 1) {
-                        other_idx += coord * other_strides[other_j];
-                    }
-                }
+        std::function<void(int, size_t, size_t, size_t)> recurse_broadcast = 
+            [&](int dim, size_t current_this_idx, size_t current_other_idx, size_t current_result_idx) {
+            if (dim == result_shape.size()) {
+                result.data_[current_result_idx] = op(data_[current_this_idx], other.data_[current_other_idx]);
+                return;
             }
-            result.data_[i] = op(data_[this_idx], other.data_[other_idx]);
-        }
 
+            for (size_t i = 0; i < result_shape[dim]; ++i) {
+                size_t next_this_idx = current_this_idx;
+                size_t next_other_idx = current_other_idx;
+                size_t next_result_idx = current_result_idx + i * result_strides[dim];
+
+                if (dim >= this_dim_offset) {
+                    size_t this_dim = dim - this_dim_offset;
+                    if (shape_[this_dim] != 1) {
+                        next_this_idx += i * this_strides[this_dim];
+                    }
+                }
+                if (dim >= other_dim_offset) {
+                    size_t other_dim = dim - other_dim_offset;
+                    if (other.shape_[other_dim] != 1) {
+                        next_other_idx += i * other_strides[other_dim];
+                    }
+                }
+                recurse_broadcast(dim + 1, next_this_idx, next_other_idx, next_result_idx);
+            }
+        };
+        recurse_broadcast(0, 0, 0, 0);
         return result;
     }
 };

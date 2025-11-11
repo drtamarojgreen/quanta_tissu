@@ -35,44 +35,129 @@ Matrix softmax(const Matrix& x, int axis = -1) {
 }
 
 Matrix softmax_backward(const Matrix& d_out, const Matrix& softmax_output) {
-    Matrix d_input({d_out.rows(), d_out.cols()});
-    for (size_t i = 0; i < d_out.rows(); ++i) {
-        for (size_t j = 0; j < d_out.cols(); ++j) {
-            float s_ij = softmax_output({i, j});
-            float d_s_ij = 0;
-            for (size_t k = 0; k < d_out.cols(); ++k) {
-                float s_ik = softmax_output({i, k});
-                if (j == k) {
-                    d_s_ij += d_out({i, k}) * s_ik * (1 - s_ik);
-                } else {
-                    d_s_ij -= d_out({i, k}) * s_ik * s_ij;
+    Matrix d_input(d_out.get_shape());
+
+    if (d_out.get_shape().size() == 2) {
+        size_t rows = d_out.rows();
+        size_t cols = d_out.cols();
+        for (size_t i = 0; i < rows; ++i) {
+            for (size_t j = 0; j < cols; ++j) {
+                float s_ij = softmax_output({i, j});
+                float d_s_ij = 0;
+                for (size_t k = 0; k < cols; ++k) {
+                    float s_ik = softmax_output({i, k});
+                    if (j == k) {
+                        d_s_ij += d_out({i, k}) * s_ik * (1 - s_ik);
+                    } else {
+                        d_s_ij -= d_out({i, k}) * s_ik * s_ij;
+                    }
+                }
+                d_input({i, j}) = d_s_ij;
+            }
+        }
+    } else if (d_out.get_shape().size() == 4) {
+        size_t batch_size = d_out.get_shape()[0];
+        size_t num_heads = d_out.get_shape()[1];
+        size_t seq_len_q = d_out.get_shape()[2];
+        size_t seq_len_k = d_out.get_shape()[3];
+
+        for (size_t b = 0; b < batch_size; ++b) {
+            for (size_t h = 0; h < num_heads; ++h) {
+                for (size_t i = 0; i < seq_len_q; ++i) {
+                    for (size_t j = 0; j < seq_len_k; ++j) {
+                        float s_ij = softmax_output({b, h, i, j});
+                        float d_s_ij = 0;
+                        for (size_t k = 0; k < seq_len_k; ++k) {
+                            float s_ik = softmax_output({b, h, i, k});
+                            if (j == k) {
+                                d_s_ij += d_out({b, h, i, k}) * s_ik * (1 - s_ik);
+                            } else {
+                                d_s_ij -= d_out({b, h, i, k}) * s_ik * s_ij;
+                            }
+                        }
+                        d_input({b, h, i, j}) = d_s_ij;
+                    }
                 }
             }
-            d_input({i, j}) = d_s_ij;
         }
+    } else {
+        throw std::invalid_argument("softmax_backward not implemented for this shape.");
     }
     return d_input;
 }
 
 Matrix MultiHeadAttention::split_heads(const Matrix& x) {
+    std::cout << "split_heads: input shape: ";
+    for (size_t s : x.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+
     size_t batch_size = x.get_shape()[0];
     size_t seq_len = x.get_shape()[1];
-    return x.reshape({batch_size, seq_len, num_heads_, head_dim_}).transpose(1, 2);
+    Matrix reshaped = x.reshape({batch_size, seq_len, num_heads_, head_dim_});
+
+    std::cout << "split_heads: after reshape shape: ";
+    for (size_t s : reshaped.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+
+    Matrix transposed = reshaped.transpose(1, 2);
+
+    std::cout << "split_heads: after transpose shape: ";
+    for (size_t s : transposed.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+
+    return transposed;
 }
 
 Matrix MultiHeadAttention::merge_heads(const Matrix& x) {
+    std::cout << "merge_heads: input shape: ";
+    for (size_t s : x.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+
     size_t batch_size = x.get_shape()[0];
     size_t seq_len = x.get_shape()[2];
-    return x.transpose(1, 2).reshape({batch_size, seq_len, d_model_});
+
+    Matrix transposed = x.transpose(1, 2);
+
+    std::cout << "merge_heads: after transpose shape: ";
+    for (size_t s : transposed.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+
+    Matrix reshaped = transposed.reshape({batch_size, seq_len, d_model_});
+
+    std::cout << "merge_heads: after reshape shape: ";
+    for (size_t s : reshaped.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+
+    return reshaped;
 }
 
 Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const Matrix& v_in, const Matrix& mask, std::optional<std::pair<Matrix, Matrix>> past_kv, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache) {
     cached_q_ = q_in;
 
+    std::cout << "MHA Forward: q_in shape: ";
+    for (size_t s : q_in.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+    std::cout << "MHA Forward: k_in shape: ";
+    for (size_t s : k_in.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+    std::cout << "MHA Forward: v_in shape: ";
+    for (size_t s : v_in.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+
     // Project the new query, key, and value vectors from the input.
     Matrix q_proj = Matrix::matmul(q_in, w_q_.value());
     Matrix k_proj = Matrix::matmul(k_in, w_k_.value());
     Matrix v_proj = Matrix::matmul(v_in, w_v_.value());
+
+    std::cout << "MHA Forward: q_proj shape: ";
+    for (size_t s : q_proj.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+    std::cout << "MHA Forward: k_proj shape: ";
+    for (size_t s : k_proj.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+    std::cout << "MHA Forward: v_proj shape: ";
+    for (size_t s : v_proj.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
 
     // Apply LoRA adjustments if enabled.
     if (use_lora_) {
@@ -85,6 +170,16 @@ Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const
     Matrix k_new = split_heads(k_proj);
     Matrix v_new = split_heads(v_proj);
 
+    std::cout << "MHA Forward: q split shape: ";
+    for (size_t s : q.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+    std::cout << "MHA Forward: k_new split shape: ";
+    for (size_t s : k_new.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+    std::cout << "MHA Forward: v_new split shape: ";
+    for (size_t s : v_new.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+
     Matrix k, v;
     if (past_kv.has_value()) {
         // If a cache is provided, concatenate the new K/V vectors with the cached ones.
@@ -95,6 +190,13 @@ Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const
         k = k_new;
         v = v_new;
     }
+
+    std::cout << "MHA Forward: k final shape: ";
+    for (size_t s : k.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+    std::cout << "MHA Forward: v final shape: ";
+    for (size_t s : v.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
 
     // Update the cache with the new, full K/V sequences for the next step.
     if (new_kv_cache != nullptr) {
@@ -109,12 +211,24 @@ Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const
     Matrix scaled_attention_output = scaled_dot_product_attention(q, k, v, mask);
     cached_scaled_attention_ = scaled_attention_output;
 
+    std::cout << "MHA Forward: scaled_attention_output shape: ";
+    for (size_t s : scaled_attention_output.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
+
     // Merge heads
     Matrix merged_output = merge_heads(scaled_attention_output);
+
+    std::cout << "MHA Forward: merged_output shape: ";
+    for (size_t s : merged_output.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
 
     // Apply the final output projection.
     Matrix output = Matrix::matmul(merged_output, w_o_.value());
     cached_output_projection_input_ = merged_output;
+
+    std::cout << "MHA Forward: final output shape: ";
+    for (size_t s : output.get_shape()) std::cout << s << " ";
+    std::cout << std::endl;
 
     return output;
 }
@@ -125,7 +239,9 @@ Matrix MultiHeadAttention::backward(const Matrix& d_out) {
     Matrix d_merged_output = Matrix::matmul(d_out, w_o_.value().transpose());
 
     // Backpropagate through merge_heads.
-    Matrix d_scaled_attention_output = merge_heads(d_merged_output); // merge_heads is its own inverse in terms of shape
+    // The forward pass used merge_heads to combine the attention outputs.
+    // To backpropagate the gradient, we must apply the inverse operation, which is split_heads.
+    Matrix d_scaled_attention_output = split_heads(d_merged_output);
 
     // Backpropagate through the scaled dot-product attention.
     Matrix d_attention_weights = Matrix::matmul(d_scaled_attention_output, cached_v_.transpose());
@@ -140,9 +256,11 @@ Matrix MultiHeadAttention::backward(const Matrix& d_out) {
     Matrix d_k_attention = Matrix::matmul(d_scores_scaled.transpose(), cached_q_);
 
     // Backpropagate through split_heads.
-    Matrix d_q_proj = split_heads(d_q_attention); // split_heads is its own inverse in terms of shape
-    Matrix d_k_proj = split_heads(d_k_attention);
-    Matrix d_v_proj = split_heads(d_v_attention);
+    // The forward pass used split_heads on the Q, K, and V projections.
+    // To backpropagate the gradients, we must apply the inverse operation, which is merge_heads.
+    Matrix d_q_proj = merge_heads(d_q_attention);
+    Matrix d_k_proj = merge_heads(d_k_attention);
+    Matrix d_v_proj = merge_heads(d_v_attention);
 
     // Backpropagate through the input projections.
     w_q_.grad() = Matrix::matmul(cached_q_.transpose(), d_q_proj);
