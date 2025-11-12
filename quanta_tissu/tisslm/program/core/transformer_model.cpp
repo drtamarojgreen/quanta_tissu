@@ -73,7 +73,7 @@ Matrix TransformerModel::forward(const Matrix& input_tokens) {
     // 1. Embedding layer
     std::vector<size_t> token_ids(input_tokens.cols());
     for (size_t i = 0; i < input_tokens.cols(); ++i) {
-        token_ids[i] = static_cast<size_t>(input_tokens({0, i}));
+        token_ids[i] = static_cast<size_t>(input_tokens({ {0, i} }));
     }
     cached_token_ids_ = token_ids; // Store for backward pass
     embedded_input_ = embedding_layer_.forward(token_ids);
@@ -85,7 +85,7 @@ Matrix TransformerModel::forward(const Matrix& input_tokens) {
     Matrix x({1, x_2d.rows(), x_2d.cols()});
     for (size_t r = 0; r < x_2d.rows(); ++r) {
         for (size_t c = 0; c < x_2d.cols(); ++c) {
-            x({0, r, c}) = x_2d({r, c});
+            x({ {0, r, c} }) = x_2d({ {r, c} });
         }
     }
 
@@ -101,15 +101,18 @@ Matrix TransformerModel::forward(const Matrix& input_tokens) {
     final_layer_norm_output_ = final_layer_norm_.forward(x);
 
     // 5. Output Linear Layer
-    TissNum::Matrix output_no_bias = TissNum::Matrix::matmul(final_layer_norm_output_, output_weight_.value());
-    TissNum::Matrix output({output_no_bias.rows(), output_no_bias.cols()});
-    for (size_t r = 0; r < output.rows(); ++r) {
-        for (size_t c = 0; c < output.cols(); ++c) {
-            output({r, c}) = output_no_bias({r, c}) + output_bias_.value()({0, c});
+    TissNum::Matrix output_3d = TissNum::Matrix::matmul(final_layer_norm_output_, output_weight_.value());
+    output_3d = output_3d + output_bias_.value(); // Broadcasting addition
+
+    // Remove batch dimension to return a 2D matrix
+    Matrix output_2d({output_3d.get_shape()[1], output_3d.get_shape()[2]});
+    for (size_t r = 0; r < output_2d.rows(); ++r) {
+        for (size_t c = 0; c < output_2d.cols(); ++c) {
+            output_2d({ {r, c} }) = output_3d({ {0, r, c} });
         }
     }
 
-    return output;
+    return output_2d;
 }
 
 Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std::vector<std::pair<Matrix, Matrix>>& past_kv_cache, std::vector<std::pair<Matrix, Matrix>>& new_kv_cache) {
@@ -121,16 +124,24 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
     // 1. Embedding layer
     std::vector<size_t> token_ids_inference(input_tokens.cols());
     for (size_t i = 0; i < input_tokens.cols(); ++i) {
-        token_ids_inference[i] = static_cast<size_t>(input_tokens({0, i}));
+        token_ids_inference[i] = static_cast<size_t>(input_tokens({ {0, i} }));
     }
-    TissNum::Matrix x = embedding_layer_.forward(token_ids_inference);
+    TissNum::Matrix x_2d = embedding_layer_.forward(token_ids_inference);
 
     // 2. Positional Encoding
     size_t current_position = 0;
-    if (!past_kv_cache.empty() && past_kv_cache[0].first.rows() > 0) {
-        current_position = past_kv_cache[0].first.rows();
+    if (!past_kv_cache.empty() && !past_kv_cache[0].first.get_shape().empty()) {
+        current_position = past_kv_cache[0].first.get_shape()[2];
     }
-    x = positional_encoding_layer_.forward(x, current_position);
+    x_2d = positional_encoding_layer_.forward(x_2d, current_position);
+
+    // Create a new 3D matrix with a batch size of 1
+    Matrix x({1, x_2d.rows(), x_2d.cols()});
+    for (size_t r = 0; r < x_2d.rows(); ++r) {
+        for (size_t c = 0; c < x_2d.cols(); ++c) {
+            x({ {0, r, c} }) = x_2d({ {r, c} });
+        }
+    }
 
     // 3. Transformer Blocks
     for (int i = 0; i < num_layers_; ++i) {
@@ -151,15 +162,18 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
     x = final_layer_norm_.forward(x);
 
     // 5. Output Linear Layer
-    TissNum::Matrix output_no_bias = TissNum::Matrix::matmul(x, output_weight_.value());
-    TissNum::Matrix output({output_no_bias.rows(), output_no_bias.cols()});
-    for (size_t r = 0; r < output.rows(); ++r) {
-        for (size_t c = 0; c < output.cols(); ++c) {
-            output({r, c}) = output_no_bias({r, c}) + output_bias_.value()({0, c});
+    TissNum::Matrix output_3d = TissNum::Matrix::matmul(x, output_weight_.value());
+    output_3d = output_3d + output_bias_.value(); // Broadcasting addition
+
+    // Remove batch dimension to return a 2D matrix
+    Matrix output_2d({output_3d.get_shape()[1], output_3d.get_shape()[2]});
+    for (size_t r = 0; r < output_2d.rows(); ++r) {
+        for (size_t c = 0; c < output_2d.cols(); ++c) {
+            output_2d({ {r, c} }) = output_3d({ {0, r, c} });
         }
     }
 
-    return output;
+    return output_2d;
 }
 
 const TissNum::Matrix& TransformerModel::get_embeddings() const {
@@ -174,7 +188,7 @@ std::vector<std::vector<float>> TransformerModel::get_embeddings_as_vectors() co
         std::vector<float> row;
         row.reserve(embedding_matrix.cols());
         for (size_t j = 0; j < embedding_matrix.cols(); ++j) {
-            row.push_back(embedding_matrix({i, j}));
+            row.push_back(embedding_matrix({ {i, j} }));
         }
         embeddings.push_back(row);
     }

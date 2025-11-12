@@ -5,22 +5,46 @@ namespace TissNum {
 
 // Placeholder for ReLU activation
 Matrix relu(const Matrix& x) {
-    Matrix result({x.rows(), x.cols()});
-    for (size_t i = 0; i < x.rows(); ++i) {
-        for (size_t j = 0; j < x.cols(); ++j) {
-            result({i, j}) = std::max(0.0f, x({i, j}));
+    Matrix result(x.get_shape());
+    if (x.get_shape().size() == 2) {
+        for (size_t i = 0; i < x.rows(); ++i) {
+            for (size_t j = 0; j < x.cols(); ++j) {
+                result({i, j}) = std::max(0.0f, x({i, j}));
+            }
         }
+    } else if (x.get_shape().size() == 3) {
+        for (size_t i = 0; i < x.get_shape()[0]; ++i) {
+            for (size_t j = 0; j < x.get_shape()[1]; ++j) {
+                for (size_t k = 0; k < x.get_shape()[2]; ++k) {
+                    result({i, j, k}) = std::max(0.0f, x({i, j, k}));
+                }
+            }
+        }
+    } else {
+        throw std::invalid_argument("ReLU supports only 2D and 3D matrices.");
     }
     return result;
 }
 
 // Placeholder for ReLU backward
 Matrix relu_backward(const Matrix& d_out, const Matrix& x) {
-    Matrix result({x.rows(), x.cols()});
-    for (size_t i = 0; i < x.rows(); ++i) {
-        for (size_t j = 0; j < x.cols(); ++j) {
-            result({i, j}) = (x({i, j}) > 0) ? d_out({i, j}) : 0.0f;
+    Matrix result(x.get_shape());
+    if (x.get_shape().size() == 2) {
+        for (size_t i = 0; i < x.rows(); ++i) {
+            for (size_t j = 0; j < x.cols(); ++j) {
+                result({i, j}) = (x({i, j}) > 0) ? d_out({i, j}) : 0.0f;
+            }
         }
+    } else if (x.get_shape().size() == 3) {
+        for (size_t i = 0; i < x.get_shape()[0]; ++i) {
+            for (size_t j = 0; j < x.get_shape()[1]; ++j) {
+                for (size_t k = 0; k < x.get_shape()[2]; ++k) {
+                    result({i, j, k}) = (x({i, j, k}) > 0) ? d_out({i, j, k}) : 0.0f;
+                }
+            }
+        }
+    } else {
+        throw std::invalid_argument("ReLU backward supports only 2D and 3D matrices.");
     }
     return result;
 }
@@ -34,23 +58,13 @@ FeedForward::FeedForward(size_t d_model, size_t d_ff, const std::string& name)
 Matrix FeedForward::forward(const Matrix& x) {
     cached_x_ = x;
 
-    Matrix hidden_no_bias = Matrix::matmul(x, w1_.value());
-    Matrix hidden({hidden_no_bias.rows(), hidden_no_bias.cols()});
-    for (size_t r = 0; r < hidden.rows(); ++r) {
-        for (size_t c = 0; c < hidden.cols(); ++c) {
-            hidden({r, c}) = hidden_no_bias({r, c}) + b1_.value()({0, c});
-        }
-    }
+    Matrix hidden = Matrix::matmul(x, w1_.value());
+    hidden = hidden + b1_.value();
     cached_hidden_ = hidden;
     hidden = relu(hidden);
 
-    Matrix output_no_bias = Matrix::matmul(hidden, w2_.value());
-    Matrix output({output_no_bias.rows(), output_no_bias.cols()});
-    for (size_t r = 0; r < output.rows(); ++r) {
-        for (size_t c = 0; c < output.cols(); ++c) {
-            output({r, c}) = output_no_bias({r, c}) + b2_.value()({0, c});
-        }
-    }
+    Matrix output = Matrix::matmul(hidden, w2_.value());
+    output = output + b2_.value();
     return output;
 }
 

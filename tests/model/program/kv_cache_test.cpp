@@ -27,124 +27,257 @@ void print_tokens_int(const std::vector<int>& tokens, const std::string& prefix 
     std::cout << std::endl;
 }
 
+void print_progress(int current, int total, float elapsed_time) {
+    int bar_width = 50;
+    float progress = (float)current / total;
+    int pos = bar_width * progress;
+
+    std::cout << "[";
+    for (int i = 0; i < bar_width; ++i) {
+        if (i < pos) std::cout << "=";
+        else if (i == pos) std::cout << ">";
+        else std::cout << " ";
+    }
+    std::cout << "] " << int(progress * 100.0) << " % "
+              << current << "/" << total
+              << " tokens. Elapsed: " << std::fixed << std::setprecision(2) << elapsed_time << "s\r";
+    std::cout.flush();
+}
+
 // Helper to convert logits to probabilities (softmax)
+
 Matrix softmax_cpp(const Matrix& input) {
+
     Matrix output({(size_t)input.rows(), (size_t)input.cols()});
+
     for (size_t r = 0; r < input.rows(); ++r) {
+
         float max_val = -std::numeric_limits<float>::infinity();
+
         for (size_t c = 0; c < input.cols(); ++c) {
-            if (input({r, c}) > max_val) {
-                max_val = input({r, c});
+
+            if (input({ {r, c} }) > max_val) {
+
+                max_val = input({ {r, c} });
+
             }
+
         }
+
+
 
         float sum_exp = 0.0f;
-        for (size_t c = 0; c < input.cols(); ++c) {
-            output({r, c}) = std::exp(input({r, c}) - max_val);
-            sum_exp += output({r, c});
-        }
 
         for (size_t c = 0; c < input.cols(); ++c) {
-            output({r, c}) = output({r, c}) / sum_exp;
+
+            output({ {r, c} }) = std::exp(input({ {r, c} }) - max_val);
+
+            sum_exp += output({ {r, c} });
+
         }
+
+
+
+        for (size_t c = 0; c < input.cols(); ++c) {
+
+            output({ {r, c} }) = output({ {r, c} }) / sum_exp;
+
+        }
+
     }
+
     return output;
+
 }
+
+
 
 // --- Simplified sampling for no-cache version ---
+
 int sample_token_greedy(const Matrix& logits) {
+
     float max_logit = -std::numeric_limits<float>::infinity();
+
     int sampled_token = -1;
 
+
+
     for (size_t c = 0; c < logits.cols(); ++c) {
-        if (logits({0, c}) > max_logit) {
-            max_logit = logits({0, c});
+
+        if (logits({ {0, c} }) > max_logit) {
+
+            max_logit = logits({ {0, c} });
+
             sampled_token = c;
+
         }
+
     }
+
     return sampled_token;
+
 }
 
+
+
 // --- Single KV Cache Test ---
+
 struct KVCacheTestResult {
+
     std::string prompt;
+
     int n_new_tokens;
+
     std::string method;
+
     float time_no_cache;
+
     float time_cache;
+
     std::vector<int> generated_tokens_no_cache;
+
+    
+
     std::vector<int> generated_tokens_cache;
+
     bool correctness;
+
     float speedup_percent;
+
 };
 
+
+
 KVCacheTestResult run_single_kv_cache_test(
+
     std::shared_ptr<TransformerModel> model,
+
     Tokenizer& tokenizer,
+
     const std::string& prompt,
+
     int n_new_tokens,
+
     const GenerationConfig& config
+
 ) {
+
     KVCacheTestResult results;
+
     results.prompt = prompt;
+
     results.n_new_tokens = n_new_tokens;
+
     results.method = (config.top_k.value_or(0) <= 1) ? "greedy" : "top_k";
 
+
+
     // --- 1. Baseline Generation (No Cache) ---
+
     auto start_time_no_cache = std::chrono::high_resolution_clock::now();
+    std::cout << "      Running baseline (no cache)..." << std::endl;
+
 
     std::vector<int> generated_tokens_no_cache_ids = tokenizer.encode(prompt);
+
     std::vector<int> current_tokens_no_cache = generated_tokens_no_cache_ids;
 
+    Generator generator_no_cache(model, config);
+
+
     for (int i = 0; i < n_new_tokens; ++i) {
+
         Matrix input_token_matrix({1, current_tokens_no_cache.size()});
+
         for(size_t j=0; j<current_tokens_no_cache.size(); ++j) {
-            input_token_matrix({0, j}) = static_cast<float>(current_tokens_no_cache[j]);
+
+            input_token_matrix({ {0, j} }) = static_cast<float>(current_tokens_no_cache[j]);
+
         }
+
         
+
         Matrix logits = model->forward(input_token_matrix);
+
+        
+
         Matrix last_token_logits({1, logits.cols()});
+
         for (size_t c = 0; c < logits.cols(); ++c) {
-            last_token_logits({0, c}) = logits({logits.rows() - 1, c});
+
+            last_token_logits({ {0, c} }) = logits({ {logits.rows() - 1, c} });
+
         }
-        int next_token = sample_token_greedy(last_token_logits);
+
+        int next_token = generator_no_cache.sample_token(last_token_logits, generated_tokens_no_cache_ids, i);
+
         generated_tokens_no_cache_ids.push_back(next_token);
+
         current_tokens_no_cache.push_back(next_token);
+
+        auto current_time = std::chrono::high_resolution_clock::now();
+        float elapsed = std::chrono::duration<float>(current_time - start_time_no_cache).count();
+        print_progress(i + 1, n_new_tokens, elapsed);
     }
+    std::cout << std::endl;
     auto end_time_no_cache = std::chrono::high_resolution_clock::now();
+
     results.time_no_cache = std::chrono::duration<float>(end_time_no_cache - start_time_no_cache).count();
+
     results.generated_tokens_no_cache = generated_tokens_no_cache_ids;
 
+
+
     // --- 2. Cached Generation ---
+
     auto start_time_cache = std::chrono::high_resolution_clock::now();
+    std::cout << "      Running cached generation..." << std::endl;
+
 
     std::vector<int> generated_tokens_cache_ids = tokenizer.encode(prompt);
+
     std::vector<std::pair<Matrix, Matrix>> kv_cache;
+    Matrix logits;
 
-    // Process prompt tokens to initialize KV cache
-    for (size_t i = 0; i < generated_tokens_cache_ids.size(); ++i) {
-        Matrix input_token({1, 1});
-        input_token({0, 0}) = static_cast<float>(generated_tokens_cache_ids[i]);
-
+    if (!generated_tokens_cache_ids.empty()) {
+        Matrix prompt_matrix({1, generated_tokens_cache_ids.size()});
+        for (size_t i = 0; i < generated_tokens_cache_ids.size(); ++i) {
+            prompt_matrix({0, i}) = static_cast<float>(generated_tokens_cache_ids[i]);
+        }
+        
         std::vector<std::pair<Matrix, Matrix>> new_kv_cache_for_step;
-        model->forward_inference(input_token, kv_cache, new_kv_cache_for_step);
+        Matrix all_logits = model->forward_inference(prompt_matrix, kv_cache, new_kv_cache_for_step);
         kv_cache = new_kv_cache_for_step;
+
+        logits = Matrix({1, all_logits.cols()});
+        for (size_t c = 0; c < all_logits.cols(); ++c) {
+            logits({0, c}) = all_logits({all_logits.rows() - 1, c});
+        }
+    } else {
+        logits = Matrix({1, (size_t)model->get_vocab_size()});
     }
+
 
     // Generate new tokens using cache
+
     Generator generator(model, config);
+
     for (int i = 0; i < n_new_tokens; ++i) {
-        Matrix input_token({1, 1});
-        input_token({0, 0}) = static_cast<float>(generated_tokens_cache_ids.back());
-
-        std::vector<std::pair<Matrix, Matrix>> new_kv_cache_for_step;
-        Matrix logits = model->forward_inference(input_token, kv_cache, new_kv_cache_for_step);
-        kv_cache = new_kv_cache_for_step;
-
         int next_token = generator.sample_token(logits, generated_tokens_cache_ids, i);
         generated_tokens_cache_ids.push_back(next_token);
-    }
 
+        Matrix input_token({1, 1});
+        input_token({ {0, 0} }) = static_cast<float>(next_token);
+
+        std::vector<std::pair<Matrix, Matrix>> new_kv_cache_for_step;
+        logits = model->forward_inference(input_token, kv_cache, new_kv_cache_for_step);
+        kv_cache = new_kv_cache_for_step;
+
+        auto current_time = std::chrono::high_resolution_clock::now();
+        float elapsed = std::chrono::duration<float>(current_time - start_time_cache).count();
+        print_progress(i + 1, n_new_tokens, elapsed);
+    }
+    std::cout << std::endl;
     auto end_time_cache = std::chrono::high_resolution_clock::now();
     results.time_cache = std::chrono::duration<float>(end_time_cache - start_time_cache).count();
     results.generated_tokens_cache = generated_tokens_cache_ids;
@@ -156,7 +289,8 @@ KVCacheTestResult run_single_kv_cache_test(
     return results;
 }
 
-void run_kv_cache_evaluation() {
+bool run_kv_cache_evaluation() {
+    bool success = true;
     std::cout << "=== Running KV Cache Evaluation (C++) ===" << std::endl;
 
     // --- Setup Model and Tokenizer ---
@@ -173,8 +307,6 @@ void run_kv_cache_evaluation() {
         0 // LoraRank = 0 for this test
     );
 
-    std::cout << "  Model and Tokenizer initialized." << std::endl;
-
     // --- Test Scenarios ---
     std::vector<std::tuple<std::string, int, std::string>> kv_cache_test_scenarios = {
         {"A core principle of Cognitive Behavioral Therapy is that", 80, "Short CBT Intro"},
@@ -184,7 +316,11 @@ void run_kv_cache_evaluation() {
 
     std::vector<GenerationConfig> generation_methods = {
         GenerationConfig::greedy(),
-        GenerationConfig::with_top_k(10, 1.0f) // Top-k with temperature 1.0
+        [] {
+            auto config = GenerationConfig::with_top_k(10, 1.0f);
+            config.seed = 1234;
+            return config;
+        }()
     };
 
     std::vector<KVCacheTestResult> all_results;
@@ -218,6 +354,7 @@ void run_kv_cache_evaluation() {
                 }
             } catch (const std::exception& e) {
                 std::cerr << "      [ERROR] Test failed: " << e.what() << std::endl;
+                success = false;
             }
         }
     }
@@ -243,12 +380,13 @@ void run_kv_cache_evaluation() {
     }
 
     std::cout << "\n=== KV Cache Evaluation (C++) Completed ===" << std::endl;
+    return success;
 }
 
 int main() {
     try {
-        run_kv_cache_evaluation();
-        return 0;
+        bool success = run_kv_cache_evaluation();
+        return success ? 0 : 1;
     } catch (const std::exception& e) {
         std::cerr << "KV Cache Evaluation failed with exception: " << e.what() << std::endl;
         return 1;

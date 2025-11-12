@@ -21,13 +21,15 @@ float& Matrix::operator()(const std::vector<size_t>& indices) {
         throw std::out_of_range("Index dimension mismatch.");
     }
     size_t index = 0;
-    size_t stride = 1;
-    for (int i = shape_.size() - 1; i >= 0; --i) {
+    for (size_t i = 0; i < shape_.size(); ++i) {
         if (indices[i] >= shape_[i]) {
             throw std::out_of_range("Index out of range.");
         }
+        size_t stride = 1;
+        for (size_t j = i + 1; j < shape_.size(); ++j) {
+            stride *= shape_[j];
+        }
         index += indices[i] * stride;
-        stride *= shape_[i];
     }
     return data_[index];
 }
@@ -37,13 +39,15 @@ const float& Matrix::operator()(const std::vector<size_t>& indices) const {
         throw std::out_of_range("Index dimension mismatch.");
     }
     size_t index = 0;
-    size_t stride = 1;
-    for (int i = shape_.size() - 1; i >= 0; --i) {
+    for (size_t i = 0; i < shape_.size(); ++i) {
         if (indices[i] >= shape_[i]) {
             throw std::out_of_range("Index out of range.");
         }
+        size_t stride = 1;
+        for (size_t j = i + 1; j < shape_.size(); ++j) {
+            stride *= shape_[j];
+        }
         index += indices[i] * stride;
-        stride *= shape_[i];
     }
     return data_[index];
 }
@@ -77,18 +81,10 @@ Matrix Matrix::transpose() const {
 }
 
 Matrix Matrix::reshape(const std::vector<size_t>& new_shape) const {
-    std::cout << "--- Reshape --- old shape: ";
-    for (size_t s : shape_) std::cout << s << " ";
-    std::cout << ", new shape: ";
-    for (size_t s : new_shape) std::cout << s << " ";
-    std::cout << std::endl;
-
     size_t total_size = 1;
     for (size_t dim : new_shape) {
         total_size *= dim;
     }
-
-    std::cout << "old size: " << data_.size() << ", new size: " << total_size << std::endl;
 
     if (total_size != data_.size()) {
         assert_size_match(data_.size(), total_size);
@@ -478,12 +474,6 @@ Matrix Matrix::element_wise_sqrt() const {
 }
 
 Matrix Matrix::concatenate(const Matrix& a, const Matrix& b, int axis) {
-    std::cout << "--- Concatenate --- a.shape: ";
-    for (size_t i = 0; i < a.shape_.size(); ++i) std::cout << a.shape_[i] << " ";
-    std::cout << ", b.shape: ";
-    for (size_t i = 0; i < b.shape_.size(); ++i) std::cout << b.shape_[i] << " ";
-    std::cout << ", axis: " << axis << std::endl;
-
     if (a.shape_.size() != b.shape_.size()) {
         throw std::invalid_argument("Matrices must have the same number of dimensions to concatenate.");
     }
@@ -509,8 +499,6 @@ Matrix Matrix::concatenate(const Matrix& a, const Matrix& b, int axis) {
     for (size_t i = axis + 1; i < a.shape_.size(); ++i) {
         inner_dims *= a.shape_[i];
     }
-
-    std::cout << "outer_dims: " << outer_dims << ", a_axis_size: " << a_axis_size << ", b_axis_size: " << b_axis_size << ", inner_dims: " << inner_dims << std::endl;
 
     for (size_t i = 0; i < outer_dims; ++i) {
         float* dest_ptr = result.get_data() + i * (a_axis_size + b_axis_size) * inner_dims;
@@ -558,6 +546,90 @@ Matrix Matrix::batch_matmul(const Matrix& a, const Matrix& b) {
                     }
                     result({i, j, l, m}) = sum;
                 }
+            }
+        }
+    }
+    return result;
+}
+
+Matrix Matrix::matmul(const Matrix& other) const {
+    if (shape_.size() == 2 && other.shape_.size() == 2) {
+        if (shape_[1] != other.shape_[0]) {
+            throw std::invalid_argument("Matrix dimensions are not compatible for 2D multiplication.");
+        }
+        Matrix result({shape_[0], other.shape_[1]});
+        for (size_t i = 0; i < shape_[0]; ++i) {
+            for (size_t j = 0; j < other.shape_[1]; ++j) {
+                float sum = 0;
+                for (size_t k = 0; k < shape_[1]; ++k) {
+                    sum += (*this)({i, k}) * other({k, j});
+                }
+                result({i, j}) = sum;
+            }
+        }
+        return result;
+    } else if (shape_.size() == 3 && other.shape_.size() == 2) {
+        if (shape_[2] != other.shape_[0]) {
+            throw std::invalid_argument("Matrix dimensions are not compatible for 3D x 2D multiplication.");
+        }
+        Matrix result({shape_[0], shape_[1], other.shape_[1]});
+        for (size_t b = 0; b < shape_[0]; ++b) {
+            for (size_t i = 0; i < shape_[1]; ++i) {
+                for (size_t j = 0; j < other.shape_[1]; ++j) {
+                    float sum = 0;
+                    for (size_t k = 0; k < shape_[2]; ++k) {
+                        sum += (*this)({b, i, k}) * other({k, j});
+                    }
+                    result({b, i, j}) = sum;
+                }
+            }
+        }
+        return result;
+    } else if (shape_.size() == 3 && other.shape_.size() == 3) {
+        if (shape_[0] != other.shape_[0]) {
+            throw std::invalid_argument("Batch sizes must be equal for batch matrix multiplication.");
+        }
+        if (shape_[2] != other.shape_[1]) {
+            throw std::invalid_argument("Matrix dimensions are not compatible for batch multiplication.");
+        }
+        Matrix result({shape_[0], shape_[1], other.shape_[2]});
+        for (size_t b = 0; b < shape_[0]; ++b) {
+            for (size_t i = 0; i < shape_[1]; ++i) {
+                for (size_t j = 0; j < other.shape_[2]; ++j) {
+                    float sum = 0;
+                    for (size_t k = 0; k < shape_[2]; ++k) {
+                        sum += (*this)({b, i, k}) * other({b, k, j});
+                    }
+                    result({b, i, j}) = sum;
+                }
+            }
+        }
+        return result;
+    } else {
+        throw std::invalid_argument("Unsupported matrix multiplication dimensions.");
+    }
+}
+
+Matrix Matrix::batch_matmul(const Matrix& other) const {
+    if (shape_.size() != 3 || other.shape_.size() != 3) {
+        throw std::invalid_argument("Batch matrix multiplication (batch_matmul) is only supported for 3D matrices.");
+    }
+    if (shape_[0] != other.shape_[0]) {
+        throw std::invalid_argument("Batch sizes must be equal for batch matrix multiplication.");
+    }
+    if (shape_[2] != other.shape_[1]) {
+        throw std::invalid_argument("Matrix dimensions are not compatible for batch multiplication.");
+    }
+
+    Matrix result({shape_[0], shape_[1], other.shape_[2]});
+    for (size_t b = 0; b < shape_[0]; ++b) {
+        for (size_t i = 0; i < shape_[1]; ++i) {
+            for (size_t j = 0; j < other.shape_[2]; ++j) {
+                float sum = 0;
+                for (size_t k = 0; k < shape_[2]; ++k) {
+                    sum += (*this)({b, i, k}) * other({b, k, j});
+                }
+                result({b, i, j}) = sum;
             }
         }
     }

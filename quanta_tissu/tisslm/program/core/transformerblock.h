@@ -17,6 +17,14 @@ public:
 
     std::vector<Parameter*> parameters();
 
+    // Getters for intermediate values (for testing/debugging)
+    const Matrix& get_attn_out() const { return attn_out_; }
+    const Matrix& get_x_plus_attn() const { return x_plus_attn_; }
+    const Matrix& get_x_norm1() const { return x_norm1_; }
+    const Matrix& get_ffn_out() const { return ffn_out_; }
+    const Matrix& get_x_plus_ffn() const { return x_plus_ffn_; }
+    const Matrix& get_x_norm2() const { return x_norm2_; }
+
 private:
     MultiHeadAttention mha_;
     FeedForward ffn_;
@@ -24,6 +32,14 @@ private:
     LayerNorm ln2_;
     Dropout dropout1_;
     Dropout dropout2_;
+
+    // Intermediate values (for testing/debugging)
+    Matrix attn_out_;
+    Matrix x_plus_attn_;
+    Matrix x_norm1_;
+    Matrix ffn_out_;
+    Matrix x_plus_ffn_;
+    Matrix x_norm2_;
 
     // Cached matrices for backward pass (only used when training)
     Matrix cached_x_;
