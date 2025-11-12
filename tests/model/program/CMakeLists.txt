@@ -406,7 +406,12 @@ set(TEST_EXECUTABLES
     advanced_sampling_test
     bayesian_sampling_test
     encoding_test
-    dimension_integrity_test)
+    dimension_integrity_test
+    lora_test
+    forward_pass_test
+    backward_pass_test
+    training_checkpoint_test
+    transformer_block_test)
 
 add_executable(dimension_integrity_test
     dimension_integrity_test.cpp
@@ -445,6 +450,13 @@ target_link_libraries(training_checkpoint_test
     tisslm_training
 )
 
+add_executable(transformer_block_test
+    transformer_block_test.cpp
+)
+target_link_libraries(transformer_block_test
+    tisslm_core
+)
+
 # Get the project root and pass it as a compile definition to all tests
 foreach(test_exe ${TEST_EXECUTABLES})
     target_compile_definitions(${test_exe} PRIVATE "TOKENIZER_PATH_FROM_CMAKE=\"${TOKENIZER_PATH_FROM_CMAKE}\"")
@@ -454,6 +466,8 @@ add_test(NAME LoraTests COMMAND lora_test)
 add_test(NAME ForwardPassTests COMMAND forward_pass_test)
 add_test(NAME BackwardPassTests COMMAND backward_pass_test)
 add_test(NAME TrainingCheckpointTests COMMAND training_checkpoint_test)
+add_test(NAME TransformerBlockTests
+         COMMAND transformer_block_test)
 
 set_tests_properties(LoraTests PROPERTIES
     TIMEOUT 10
@@ -472,7 +486,12 @@ set_tests_properties(BackwardPassTests PROPERTIES
 
 set_tests_properties(TrainingCheckpointTests PROPERTIES
     TIMEOUT 10
-    LABELS "integration;training;checkpoint"
+    LABELS "unit;training;checkpoint"
+)
+
+set_tests_properties(TransformerBlockTests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;transformer_block"
 )
 
 # Print build information

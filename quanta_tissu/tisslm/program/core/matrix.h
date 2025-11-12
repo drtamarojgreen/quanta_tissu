@@ -39,6 +39,10 @@ public:
     static Matrix zeros(const std::vector<size_t>& shape);
     static Matrix ones(const std::vector<size_t>& shape);
     Matrix transpose() const;
+    static Matrix matmul(const Matrix& a, const Matrix& b);
+    Matrix matmul(const Matrix& other) const;
+    static Matrix batch_matmul(const Matrix& a, const Matrix& b);
+    Matrix batch_matmul(const Matrix& other) const;
 
     // Statistical operations
     Matrix mean(int axis = -1) const;
@@ -67,10 +71,6 @@ public:
     // Friend functions for scalar operations
     friend Matrix operator*(float scalar, const Matrix& m);
     friend Matrix operator/(float scalar, const Matrix& m);
-
-    // Matrix multiplication
-    static Matrix matmul(const Matrix& a, const Matrix& b);
-    static Matrix batch_matmul(const Matrix& a, const Matrix& b);
 
     // Concatenation
     static Matrix concatenate(const Matrix& a, const Matrix& b, int axis);

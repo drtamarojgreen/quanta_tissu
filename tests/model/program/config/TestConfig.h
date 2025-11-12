@@ -8,7 +8,7 @@
 
 struct TestConfig {
     static constexpr const char* TokenizerPath = TOKENIZER_PATH_FROM_CMAKE;
-    static constexpr int MaxSeqLen = 512;
+    static constexpr int MaxSeqLen = 1024;
     static constexpr int EmbedDim = 32;
     static constexpr int NumHeads = 4;
     static constexpr int NumLayers = 2;

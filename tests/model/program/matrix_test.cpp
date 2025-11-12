@@ -49,7 +49,7 @@ void test_reshape() {
     try {
         m.reshape({4, 2});
         check(false, "Invalid reshape should throw");
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::runtime_error& e) {
         check(true, "Invalid reshape should throw");
     }
 }
@@ -224,7 +224,7 @@ void test_concatenate_4d() {
     TissNum::Matrix c = TissNum::Matrix::concatenate(a, b, 2);
     check(c.get_shape() == std::vector<size_t>({1, 2, 2, 3}), "Concatenate 4D shape");
 
-    std::vector<float> expected_data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    std::vector<float> expected_data = {1, 2, 3, 7, 8, 9, 4, 5, 6, 10, 11, 12};
     std::vector<float> actual_data(c.get_data(), c.get_data() + c.data_size());
     check(actual_data == expected_data, "Concatenate 4D data permutation");
 }
