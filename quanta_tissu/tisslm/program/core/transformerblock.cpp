@@ -24,105 +24,80 @@ TransformerBlock::TransformerBlock(size_t d_model, size_t num_heads, size_t d_ff
 // This function takes an input matrix 'x' and processes it through the block's layers.
 // It supports attention masking and KV caching for efficient inference.
 Matrix TransformerBlock::forward(const Matrix& x, const Matrix& mask, std::optional<std::pair<Matrix, Matrix>> past_kv, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache, bool training) {
-    // Declare a matrix to hold the output of the first layer normalization.
-    Matrix x_norm1;
-
-    // This section handles the self-attention mechanism.
-    // It is the first sub-layer of the transformer block.
-    // The multi-head attention layer is called with the input 'x' for query, key, and value.
-    Matrix attn_out = mha_.forward(x, x, x, mask, past_kv, new_kv_cache);
-    // Assign the value of 'attn_out' to the member variable 'attn_out_'.
-    attn_out_ = attn_out;
-    // Dropout is applied to the output of the attention layer.
-    attn_out = dropout1_.forward(attn_out, training);
-
-    // The first residual connection (Add).
-    // The original input 'x' is added to the output of the attention sub-layer.
-    Matrix x_plus_attn = x + attn_out;
-    // Assign the value of 'x_plus_attn' to the member variable 'x_plus_attn_'.
-    x_plus_attn_ = x_plus_attn;
-    // The first layer normalization (Norm).
-    // The result of the residual connection is normalized.
-    x_norm1 = ln1_.forward(x_plus_attn);
-    // Assign the value of 'x_norm1' to the member variable 'x_norm1_'.
+    // 1. Pre-Normalization before MHA
+    Matrix x_norm1 = ln1_.forward(x);
     x_norm1_ = x_norm1;
 
-    // This section handles the feed-forward network.
-    // It is the second sub-layer of the transformer block.
-    // The feed-forward network is applied to the output of the first layer normalization.
-    Matrix ffn_out = ffn_.forward(x_norm1);
-    // Assign the value of 'ffn_out' to the member variable 'ffn_out_'.
+    // 2. Multi-Head Attention
+    Matrix attn_out = mha_.forward(x_norm1, x_norm1, x_norm1, mask, past_kv, new_kv_cache);
+    attn_out_ = attn_out;
+    attn_out = dropout1_.forward(attn_out, training);
+
+    // 3. First Residual Connection
+    Matrix x_plus_attn = x + attn_out;
+    x_plus_attn_ = x_plus_attn;
+
+    // 4. Pre-Normalization before FFN
+    Matrix x_norm2 = ln2_.forward(x_plus_attn);
+    x_norm2_ = x_norm2;
+
+    // 5. Feed-Forward Network
+    Matrix ffn_out = ffn_.forward(x_norm2);
     ffn_out_ = ffn_out;
-    // Dropout is applied to the output of the feed-forward network.
     ffn_out = dropout2_.forward(ffn_out, training);
 
-    // The second residual connection (Add).
-    // The output of the feed-forward network is added to the output of the first residual connection.
+    // 6. Second Residual Connection
     Matrix x_plus_ffn = x_plus_attn + ffn_out;
-    // Assign the value of 'x_plus_ffn' to the member variable 'x_plus_ffn_'.
     x_plus_ffn_ = x_plus_ffn;
-    // The second layer normalization (Norm).
-    // The result of the second residual connection is normalized.
-    Matrix x_norm2 = ln2_.forward(x_plus_ffn);
-    // Assign the value of 'x_norm2' to the member variable 'x_norm2_'.
-    x_norm2_ = x_norm2;
 
     // This block caches intermediate values if the model is in training mode.
     // These cached values are needed for the backward pass (backpropagation).
     if (training) {
         // Cache the original input.
         cached_x_ = x;
-        // Cache the result of the first residual connection.
-        cached_x_plus_attn_ = x_plus_attn;
         // Cache the result of the first layer normalization.
         cached_x_norm1_ = x_norm1;
-        // Cache the result of the second residual connection.
-        cached_x_plus_ffn_ = x_plus_ffn;
-        // Cache the final normalized output.
+        // Cache the result of the first residual connection.
+        cached_x_plus_attn_ = x_plus_attn;
+        // Cache the result of the second layer normalization.
         cached_x_norm2_ = x_norm2;
+        // Cache the final output.
+        cached_x_plus_ffn_ = x_plus_ffn;
     }
 
     // The final output of the transformer block's forward pass is returned.
-    return x_norm2;
+    return x_plus_ffn;
 }
 
 // Performs the backward pass of the TransformerBlock for backpropagation.
 // This function calculates the gradients with respect to the block's inputs
 // based on the gradients from the subsequent layer (d_out).
 Matrix TransformerBlock::backward(const Matrix& d_out) {
-    // Backpropagate through the second layer normalization.
-    Matrix dx_plus_ffn = ln2_.backward(d_out);
+    // 1. Backprop through second residual
+    Matrix d_x_plus_attn = d_out;
+    Matrix d_ffn_out = d_out;
 
-    // Backpropagate through the second residual connection.
-    // The gradient is passed to both branches of the addition.
-    Matrix d_x_norm1_residual = dx_plus_ffn;
-    Matrix d_ffn_out = dx_plus_ffn;
-
-    // Backpropagate through the second dropout layer.
+    // 2. Backprop through FFN
     d_ffn_out = dropout2_.backward(d_ffn_out);
+    Matrix d_x_norm2 = ffn_.backward(d_ffn_out);
 
-    // Backpropagate through the feed-forward network.
-    Matrix d_x_norm1_ffn = ffn_.backward(d_ffn_out);
+    // 3. Backprop through second norm
+    Matrix d_x_plus_attn_from_norm = ln2_.backward(d_x_norm2);
+    d_x_plus_attn += d_x_plus_attn_from_norm;
 
-    // Combine the gradients for x_norm1 from the two paths.
-    Matrix dx_norm1 = d_x_norm1_residual + d_x_norm1_ffn;
+    // 4. Backprop through first residual
+    Matrix d_x = d_x_plus_attn;
+    Matrix d_attn_out = d_x_plus_attn;
 
-    // Backpropagate through the first layer normalization.
-    Matrix dx_plus_attn = ln1_.backward(dx_norm1);
-
-    // Backpropagate through the first residual connection.
-    // The gradient is passed to both branches of the addition.
-    Matrix d_x_residual = dx_plus_attn;
-    Matrix d_attn_out = dx_plus_attn;
-
-    // Backpropagate through the first dropout layer.
+    // 5. Backprop through MHA
     d_attn_out = dropout1_.backward(d_attn_out);
+    Matrix d_x_norm1 = mha_.backward(d_attn_out);
 
-    // Backpropagate through the multi-head attention layer.
-    Matrix dx_mha = mha_.backward(d_attn_out);
+    // 6. Backprop through first norm
+    Matrix d_x_from_norm = ln1_.backward(d_x_norm1);
+    d_x += d_x_from_norm;
 
-    // Combine the gradients for the final output.
-    return d_x_residual + dx_mha;
+    return d_x;
 }
 
 // Retrieves all learnable parameters from the sub-modules of this block.
