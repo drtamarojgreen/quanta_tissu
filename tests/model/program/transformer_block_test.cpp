@@ -341,8 +341,42 @@ void run_comprehensive_transformer_block_test_suite() {
 }
 
 
+// Returns true if the test passes, false otherwise.
+bool run_kv_cache_initialization_test() {
+    std::cout << "\n\n=== Running KV Cache Initialization Test ===" << std::endl;
+
+    // --- Setup ---
+    size_t d_model = TestConfig::EmbedDim;
+    size_t num_heads = TestConfig::NumHeads;
+    size_t d_ff = TestConfig::FFNDim;
+    TransformerBlock block(d_model, num_heads, d_ff, 0.0f, 0, "init_test_block");
+    Matrix x_single = Matrix::random({1, 1, d_model});
+
+    // --- Run 1 & 2: Non-cached vs. first-step cached ---
+    Matrix output_non_cached = block.forward(x_single, create_causal_mask(1));
+    std::optional<std::pair<Matrix, Matrix>> new_kv_cache;
+    Matrix output_cached = block.forward(x_single, Matrix(), std::nullopt, &new_kv_cache);
+
+    // --- Comparison ---
+    bool success = matrices_almost_equal(output_non_cached, output_cached, 1e-5);
+
+    if (success) {
+        std::cout << "[  PASSED  ] First-token processing is consistent with and without the caching mechanism." << std::endl;
+    } else {
+        std::cout << "[  FAILED  ] First-token processing is INCONSISTENT when the caching mechanism is engaged." << std::endl;
+    }
+    std::cout << "=== KV Cache Initialization Test Completed ===" << std::endl;
+    return success;
+}
+
 int main() {
     run_transformer_block_test();
     run_comprehensive_transformer_block_test_suite();
+
+    // New diagnostic test. Its result determines the exit code.
+    if (!run_kv_cache_initialization_test()) {
+        return 1; // Indicate failure
+    }
+
     return 0;
 }
