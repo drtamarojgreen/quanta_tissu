@@ -61,6 +61,7 @@ public:
     Matrix operator-(const Matrix& other) const;
     Matrix operator*(const Matrix& other) const; // Element-wise multiplication
     Matrix operator/(const Matrix& other) const; // Element-wise division
+    Matrix& operator+=(const Matrix& other);
     
     // Scalar operations
     Matrix operator+(float scalar) const;
@@ -80,6 +81,7 @@ public:
     float* get_data() { return data_.data(); }
     size_t data_size() const { return data_.size(); }
 
+    void print(const std::string& title = "") const;
 private:
     std::vector<size_t> shape_;
     std::vector<float> data_;
@@ -129,7 +131,7 @@ private:
                 other_strides[i] = other_strides[i + 1] * other.shape_[i + 1];
             }
         }
-
+        
         std::vector<size_t> result_strides(result_shape.size());
         if (!result_shape.empty()) {
             result_strides.back() = 1;
@@ -141,34 +143,30 @@ private:
         long this_dim_offset = result_shape.size() - shape_.size();
         long other_dim_offset = result_shape.size() - other.shape_.size();
 
-        std::function<void(int, size_t, size_t, size_t)> recurse_broadcast = 
-            [&](int dim, size_t current_this_idx, size_t current_other_idx, size_t current_result_idx) {
-            if (dim == result_shape.size()) {
-                result.data_[current_result_idx] = op(data_[current_this_idx], other.data_[current_other_idx]);
-                return;
-            }
+        for (size_t i = 0; i < result.data_size(); ++i) {
+            size_t this_idx = 0;
+            size_t other_idx = 0;
+            size_t temp_i = i;
 
-            for (size_t i = 0; i < result_shape[dim]; ++i) {
-                size_t next_this_idx = current_this_idx;
-                size_t next_other_idx = current_other_idx;
-                size_t next_result_idx = current_result_idx + i * result_strides[dim];
+            for (size_t d = 0; d < result_shape.size(); ++d) {
+                size_t index_in_dim = temp_i / result_strides[d];
+                temp_i %= result_strides[d];
 
-                if (dim >= this_dim_offset) {
-                    size_t this_dim = dim - this_dim_offset;
+                if (d >= this_dim_offset) {
+                    size_t this_dim = d - this_dim_offset;
                     if (shape_[this_dim] != 1) {
-                        next_this_idx += i * this_strides[this_dim];
+                        this_idx += index_in_dim * this_strides[this_dim];
                     }
                 }
-                if (dim >= other_dim_offset) {
-                    size_t other_dim = dim - other_dim_offset;
+                if (d >= other_dim_offset) {
+                    size_t other_dim = d - other_dim_offset;
                     if (other.shape_[other_dim] != 1) {
-                        next_other_idx += i * other_strides[other_dim];
+                        other_idx += index_in_dim * other_strides[other_dim];
                     }
                 }
-                recurse_broadcast(dim + 1, next_this_idx, next_other_idx, next_result_idx);
             }
-        };
-        recurse_broadcast(0, 0, 0, 0);
+            result.data_[i] = op(data_[this_idx], other.data_[other_idx]);
+        }
         return result;
     }
 };

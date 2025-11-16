@@ -182,6 +182,16 @@ Matrix Matrix::operator/(const Matrix& other) const {
     return broadcast_op(other, std::divides<float>());
 }
 
+Matrix& Matrix::operator+=(const Matrix& other) {
+    if (shape_ != other.shape_) {
+        throw std::invalid_argument("Matrix shapes must be the same for in-place addition.");
+    }
+    for (size_t i = 0; i < data_.size(); ++i) {
+        data_[i] += other.data_[i];
+    }
+    return *this;
+}
+
 Matrix Matrix::matmul(const Matrix& a, const Matrix& b) {
     if (a.get_shape().size() == 2 && b.get_shape().size() == 2) {
         if (a.cols() != b.rows()) {
@@ -289,17 +299,24 @@ Matrix Matrix::sum(int axis) const {
     Matrix result(new_shape);
     result.data_.assign(result.data_.size(), 0.0f);
 
-    std::vector<size_t> indices(shape_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-        size_t temp_i = i;
-        for (int d = shape_.size() - 1; d >= 0; --d) {
-            indices[d] = temp_i % shape_[d];
-            temp_i /= shape_[d];
-        }
+    size_t outer_dims = 1;
+    for (int i = 0; i < axis; ++i) {
+        outer_dims *= shape_[i];
+    }
+    size_t axis_dim = shape_[axis];
+    size_t inner_dims = 1;
+    for (size_t i = axis + 1; i < shape_.size(); ++i) {
+        inner_dims *= shape_[i];
+    }
 
-        std::vector<size_t> new_indices = indices;
-        new_indices[axis] = 0;
-        result(new_indices) += data_[i];
+    for (size_t i = 0; i < outer_dims; ++i) {
+        for (size_t j = 0; j < inner_dims; ++j) {
+            float sum = 0;
+            for (size_t k = 0; k < axis_dim; ++k) {
+                sum += data_[i * axis_dim * inner_dims + k * inner_dims + j];
+            }
+            result.data_[i * inner_dims + j] = sum;
+        }
     }
     return result;
 }
@@ -367,18 +384,23 @@ Matrix Matrix::max(int axis) const {
     Matrix result(new_shape);
     result.data_.assign(result.data_.size(), -std::numeric_limits<float>::infinity());
 
-    std::vector<size_t> indices(shape_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-        size_t temp_i = i;
-        for (int d = shape_.size() - 1; d >= 0; --d) {
-            indices[d] = temp_i % shape_[d];
-            temp_i /= shape_[d];
-        }
+    size_t outer_dims = 1;
+    for (int i = 0; i < axis; ++i) {
+        outer_dims *= shape_[i];
+    }
+    size_t axis_dim = shape_[axis];
+    size_t inner_dims = 1;
+    for (size_t i = axis + 1; i < shape_.size(); ++i) {
+        inner_dims *= shape_[i];
+    }
 
-        std::vector<size_t> new_indices = indices;
-        new_indices[axis] = 0;
-        if (data_[i] > result(new_indices)) {
-            result(new_indices) = data_[i];
+    for (size_t i = 0; i < outer_dims; ++i) {
+        for (size_t j = 0; j < inner_dims; ++j) {
+            float max_val = -std::numeric_limits<float>::infinity();
+            for (size_t k = 0; k < axis_dim; ++k) {
+                max_val = std::max(max_val, data_[i * axis_dim * inner_dims + k * inner_dims + j]);
+            }
+            result.data_[i * inner_dims + j] = max_val;
         }
     }
     return result;
@@ -634,6 +656,22 @@ Matrix Matrix::batch_matmul(const Matrix& other) const {
         }
     }
     return result;
+}
+
+void Matrix::print(const std::string& title) const {
+    if (!title.empty()) {
+        std::cout << title << std::endl;
+    }
+    std::cout << "Shape: (";
+    for (size_t i = 0; i < shape_.size(); ++i) {
+        std::cout << shape_[i] << (i == shape_.size() - 1 ? "" : ", ");
+    }
+    std::cout << ")" << std::endl;
+    std::cout << "Data:" << std::endl;
+    for (size_t i = 0; i < data_.size(); ++i) {
+        std::cout << data_[i] << " ";
+    }
+    std::cout << std::endl;
 }
 
 } // namespace TissNum

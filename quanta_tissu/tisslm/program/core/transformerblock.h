@@ -25,6 +25,8 @@ public:
     const Matrix& get_x_plus_ffn() const { return x_plus_ffn_; }
     const Matrix& get_x_norm2() const { return x_norm2_; }
 
+    const MultiHeadAttention& get_mha() const { return mha_; }
+
 private:
     MultiHeadAttention mha_;
     FeedForward ffn_;
