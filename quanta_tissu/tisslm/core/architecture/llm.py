@@ -13,8 +13,8 @@ class TransformerBlock:
     A single block of the Transformer model.
     This version's forward pass returns a cache for backpropagation.
     """
-    def __init__(self, d_model, num_heads, d_ff, dropout_p, name="", moe_config=None, bias=True):
-        self.mha = MultiHeadAttention(d_model, num_heads, name=f"{name}.mha")
+    def __init__(self, d_model, num_heads, d_ff, dropout_p, name="", moe_config=None, bias=True, attention_mode='STANDARD'):
+        self.mha = MultiHeadAttention(d_model, num_heads, name=f"{name}.mha", mode=attention_mode)
         if moe_config:
             self.ffn = MoE(d_model, d_ff, moe_config['num_experts'], moe_config['top_k'], name=f"{name}.moe")
         else:
@@ -212,10 +212,11 @@ class Model:
         d_model = config["n_embd"]
         vocab_size = config["vocab_size"]
         n_head = config["n_head"]
-        d_ff = config["d_ff"]
+        d_ff = config.get("d_ff", d_model * 2)
         n_layer = config["n_layer"]
-        dropout_p = config.get("dropout_p", 0.0) # Get dropout probability from config, default to 0
+        dropout_p = config.get("dropout_p", 0.0)
         moe_config = config.get("moe", None)
+        attention_mode = config.get("attention_mode", "MULTI_QUERY")
         self.tie_weights = config.get("tie_weights", False)
         bias = config.get("bias", True)
         use_conv_attention = config.get("use_conv_attention", False)
@@ -227,7 +228,7 @@ class Model:
         if use_conv_attention:
             self.transformer_blocks = [ConvTransformerBlock(d_model, d_ff, kernel_size, dropout_p, name=f"transformer_blocks.{i}", bias=bias) for i in range(n_layer)]
         else:
-            self.transformer_blocks = [TransformerBlock(d_model, n_head, d_ff, dropout_p, name=f"transformer_blocks.{i}", moe_config=moe_config, bias=bias) for i in range(n_layer)]
+            self.transformer_blocks = [TransformerBlock(d_model, n_head, d_ff, dropout_p, name=f"transformer_blocks.{i}", moe_config=moe_config, bias=bias, attention_mode=attention_mode) for i in range(n_layer)]
         
         if self.tie_weights:
             self.output_proj = self.embeddings

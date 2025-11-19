@@ -6,9 +6,14 @@
 
 namespace TissNum {
 
+enum class AttentionMode {
+    STANDARD,
+    MULTI_QUERY
+};
+
 class MultiHeadAttention {
 public:
-    MultiHeadAttention(size_t d_model, size_t num_heads, int lora_rank = 0, const std::string& name = "");
+    MultiHeadAttention(size_t d_model, size_t num_heads, int lora_rank = 0, const std::string& name = "", AttentionMode mode = AttentionMode::STANDARD);
 
     Matrix forward(const Matrix& q, const Matrix& k, const Matrix& v, const Matrix& mask = Matrix(), std::optional<std::pair<Matrix, Matrix>> past_kv = std::nullopt, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache = nullptr);
     Matrix backward(const Matrix& d_out);
@@ -20,6 +25,7 @@ private:
     size_t num_heads_;
     size_t head_dim_;
     int lora_rank_;
+    AttentionMode mode_;
     bool use_lora_;
 
     Parameter w_q_;
