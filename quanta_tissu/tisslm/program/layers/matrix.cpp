@@ -1,143 +1,173 @@
 #include "matrix.h"
 #include <stdexcept>
-#include <random>
+#include <iostream>
 #include <numeric>
-#include <functional>
 
-Matrix::Matrix(const std::vector<size_t>& shape) : shape_(shape) {
-    size_t total_size = 1;
-    for (size_t dim : shape) {
-        total_size *= dim;
-    }
-    data_.resize(total_size, 0.0f);
-}
+// --- Helper Functions ---
 
-float& Matrix::operator()(const std::vector<size_t>& indices) {
-    size_t index = 0;
-    size_t stride = 1;
-    for (int i = shape_.size() - 1; i >= 0; --i) {
-        index += indices[i] * stride;
-        stride *= shape_[i];
-    }
-    return data_[index];
-}
-
-const float& Matrix::operator()(const std::vector<size_t>& indices) const {
-    size_t index = 0;
-    size_t stride = 1;
-    for (int i = shape_.size() - 1; i >= 0; --i) {
-        index += indices[i] * stride;
-        stride *= shape_[i];
-    }
-    return data_[index];
-}
-
-Matrix Matrix::random(const std::vector<size_t>& shape) {
-    Matrix m(shape);
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::normal_distribution<float> dist(0.0f, 1.0f);
-    for (size_t i = 0; i < m.data_.size(); ++i) {
-        m.data_[i] = dist(gen);
-    }
-    return m;
-}
-
-Matrix Matrix::zeros(const std::vector<size_t>& shape) {
-    return Matrix(shape);
-}
-
-Matrix Matrix::transpose() const {
-    if (shape_.size() != 2) {
-        throw std::invalid_argument("Default transpose is only supported for 2D matrices.");
-    }
-    return transpose(0, 1);
-}
-
-Matrix Matrix::reshape(const std::vector<size_t>& new_shape) const {
-    size_t total_size = 1;
-    for (size_t dim : new_shape) {
-        total_size *= dim;
-    }
-    if (total_size != data_.size()) {
-        throw std::invalid_argument("Total size of new shape must match old shape.");
-    }
-    Matrix result(new_shape);
-    result.data_ = data_;
-    return result;
-}
-
-Matrix Matrix::transpose(int dim1, int dim2) const {
-    if (dim1 >= shape_.size() || dim2 >= shape_.size()) {
-        throw std::out_of_range("Invalid dimensions for transpose.");
-    }
-    std::vector<size_t> new_shape = shape_;
-    std::swap(new_shape[dim1], new_shape[dim2]);
-    Matrix result(new_shape);
-
-    std::vector<size_t> old_indices(shape_.size());
-    std::function<void(int)> recurse = 
-        [&](int k) {
-        if (k == shape_.size()) {
-            std::vector<size_t> new_indices = old_indices;
-            std::swap(new_indices[dim1], new_indices[dim2]);
-            result(new_indices) = (*this)(old_indices);
-            return;
+void Matrix::build_tensor(TensorNode& node, const std::vector<int>& shape, size_t dim_idx) {
+    if (dim_idx == shape.size() - 1) {
+        // Last dimension, create leaf nodes (floats)
+        std::vector<TensorNode> leaf_nodes(shape[dim_idx]);
+        for (int i = 0; i < shape[dim_idx]; ++i) {
+            leaf_nodes[i].data = 0.0f; // Initialize with zero
         }
-        for (size_t i = 0; i < shape_[k]; ++i) {
-            old_indices[k] = i;
-            recurse(k + 1);
+        node.data = std::move(leaf_nodes);
+    } else {
+        // Create branch nodes
+        std::vector<TensorNode> branch_nodes(shape[dim_idx]);
+        for (int i = 0; i < shape[dim_idx]; ++i) {
+            build_tensor(branch_nodes[i], shape, dim_idx + 1);
+        }
+        node.data = std::move(branch_nodes);
+    }
+}
+
+TensorNode* Matrix::get_node(const std::vector<int>& indices) {
+    if (indices.size() != shape_.size()) {
+        throw std::invalid_argument("Incorrect number of indices provided.");
+    }
+    std::vector<TensorNode>* current_level = &root_;
+    for (size_t i = 0; i < indices.size() -1; ++i) {
+        int index = indices[i];
+        if (index < 0 || index >= current_level->size()) {
+             throw std::out_of_range("Index out of range.");
+        }
+        TensorNode& node = (*current_level)[index];
+        current_level = std::get_if<std::vector<TensorNode>>(&node.data);
+         if (!current_level) {
+            throw std::runtime_error("Invalid tensor structure.");
+        }
+    }
+    int last_index = indices.back();
+    if(last_index < 0 || last_index >= current_level->size()){
+         throw std::out_of_range("Index out of range.");
+    }
+    return &(*current_level)[last_index];
+}
+
+
+const TensorNode* Matrix::get_node(const std::vector<int>& indices) const {
+     if (indices.size() != shape_.size()) {
+        throw std::invalid_argument("Incorrect number of indices provided.");
+    }
+    const std::vector<TensorNode>* current_level = &root_;
+    for (size_t i = 0; i < indices.size() -1; ++i) {
+        int index = indices[i];
+        if (index < 0 || index >= current_level->size()) {
+             throw std::out_of_range("Index out of range.");
+        }
+        const TensorNode& node = (*current_level)[index];
+        current_level = std::get_if<std::vector<TensorNode>>(&node.data);
+         if (!current_level) {
+            throw std::runtime_error("Invalid tensor structure.");
+        }
+    }
+     int last_index = indices.back();
+    if(last_index < 0 || last_index >= current_level->size()){
+         throw std::out_of_range("Index out of range.");
+    }
+    return &(*current_level)[last_index];
+}
+
+
+void Matrix::flatten(const TensorNode& node, std::vector<float>& out) const {
+    if (const float* val = std::get_if<float>(&node.data)) {
+        out.push_back(*val);
+    } else if (const std::vector<TensorNode>* vec = std::get_if<std::vector<TensorNode>>(&node.data)) {
+        for (const auto& child_node : *vec) {
+            flatten(child_node, out);
+        }
+    }
+}
+
+
+// --- Constructors ---
+
+Matrix::Matrix(const std::vector<int>& shape) : shape_(shape) {
+    if (shape.empty()) return;
+    root_.resize(shape[0]);
+    for(int i = 0; i < shape[0]; ++i){
+        build_tensor(root_[i], shape, 1);
+    }
+}
+
+
+// --- Public Methods ---
+
+std::vector<int> Matrix::shape() const {
+    return shape_;
+}
+
+float& Matrix::at(const std::vector<int>& indices) {
+    TensorNode* node = get_node(indices);
+    float* val = std::get_if<float>(&node->data);
+    if (!val) {
+        throw std::runtime_error("Element is not a float value.");
+    }
+    return *val;
+}
+
+const float& Matrix::at(const std::vector<int>& indices) const {
+    const TensorNode* node = get_node(indices);
+    const float* val = std::get_if<const float>(&node->data);
+     if (!val) {
+        throw std::runtime_error("Element is not a float value.");
+    }
+    return *val;
+}
+
+void Matrix::reshape(const std::vector<int>& new_shape) {
+    // 1. Flatten the entire data structure
+    std::vector<float> flat_data;
+    for(const auto& node : root_){
+        flatten(node, flat_data);
+    }
+
+    // 2. Check if the new shape is compatible
+    long long new_size = 1;
+    for (int dim : new_shape) {
+        new_size *= dim;
+    }
+    if (new_size != flat_data.size()) {
+        throw std::invalid_argument("New shape size is incompatible with the number of elements.");
+    }
+
+    // 3. Rebuild the tensor with the new shape
+    shape_ = new_shape;
+    root_.clear();
+    root_.resize(shape_[0]);
+     for(int i = 0; i < shape_[0]; ++i){
+        build_tensor(root_[i], shape_, 1);
+    }
+
+    // 4. Repopulate the new structure with the flattened data
+    int flat_idx = 0;
+    std::function<void(TensorNode&)> repopulate =
+        [&](TensorNode& node) {
+        if (std::holds_alternative<float>(node.data)) {
+            node.data = flat_data[flat_idx++];
+        } else {
+            for (auto& child : std::get<std::vector<TensorNode>>(node.data)) {
+                repopulate(child);
+            }
         }
     };
 
-    recurse(0);
-    return result;
+    for(auto& node : root_){
+         repopulate(node);
+    }
 }
 
-Matrix Matrix::operator+(const Matrix& other) const {
-    if (shape_ != other.shape_) {
-        throw std::invalid_argument("Matrix dimensions must match for addition.");
+void Matrix::print() const {
+    // This is a simplified print for debugging. A full implementation would need
+    // to handle multi-dimensional formatting.
+    std::vector<float> flat_data;
+    for(const auto& node : root_){
+        flatten(node, flat_data);
     }
-    Matrix result(shape_);
-    for (size_t i = 0; i < data_.size(); ++i) {
-        result.data_[i] = data_[i] + other.data_[i];
+    for(float val : flat_data){
+        std::cout << val << " ";
     }
-    return result;
-}
-
-Matrix Matrix::operator-(const Matrix& other) const {
-    if (shape_ != other.shape_) {
-        throw std::invalid_argument("Matrix dimensions must match for subtraction.");
-    }
-    Matrix result(shape_);
-    for (size_t i = 0; i < data_.size(); ++i) {
-        result.data_[i] = data_[i] - other.data_[i];
-    }
-    return result;
-}
-
-Matrix Matrix::operator*(const Matrix& other) const {
-    if (shape_ != other.shape_) {
-        throw std::invalid_argument("Matrix dimensions must match for element-wise multiplication.");
-    }
-    Matrix result(shape_);
-    for (size_t i = 0; i < data_.size(); ++i) {
-        result.data_[i] = data_[i] * other.data_[i];
-    }
-    return result;
-}
-
-Matrix Matrix::matmul(const Matrix& a, const Matrix& b) {
-    if (a.cols() != b.rows()) {
-        throw std::invalid_argument("Matrix dimensions are not compatible for multiplication.");
-    }
-    Matrix result({a.rows(), b.cols()});
-    for (size_t i = 0; i < a.rows(); ++i) {
-        for (size_t j = 0; j < b.cols(); ++j) {
-            for (size_t k = 0; k < a.cols(); ++k) {
-                result({i, j}) += a({i, k}) * b({k, j});
-            }
-        }
-    }
-    return result;
+    std::cout << std::endl;
 }
