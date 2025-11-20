@@ -1,0 +1,41 @@
+Guaranteed to be running from repository root: /app
+Cleaning existing build directory: tests/model/program/build
+Creating new build directory: tests/model/program/build
+Configuring with CMake...
+-- The C compiler identification is GNU 13.3.0
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (0.6s)
+-- Generating done (0.0s)
+-- Build files have been written to: /app/tests/model/program/build
+Building test executables...
+[ 12%] Building CXX object CMakeFiles/tisslm_core.dir/app/quanta_tissu/tisslm/program/core/matrix.cpp.o
+[ 25%] Building CXX object CMakeFiles/tisslm_core.dir/app/quanta_tissu/tisslm/program/core/parameter.cpp.o
+[ 37%] Building CXX object CMakeFiles/tisslm_core.dir/app/quanta_tissu/tisslm/program/core/layernorm.cpp.o
+[ 50%] Building CXX object CMakeFiles/tisslm_core.dir/app/quanta_tissu/tisslm/program/core/dropout.cpp.o
+[ 62%] Building CXX object CMakeFiles/tisslm_core.dir/app/quanta_tissu/tisslm/program/core/feedforward.cpp.o
+[ 75%] Building CXX object CMakeFiles/tisslm_core.dir/app/quanta_tissu/tisslm/program/core/configurableattention.cpp.o
+[ 87%] Building CXX object CMakeFiles/tisslm_core.dir/app/quanta_tissu/tisslm/program/core/transformerblock.cpp.o
+[100%] Linking CXX static library libtisslm_core.a
+[100%] Built target tisslm_core
+Running test executables...
+
+========================================================================================================================
+                                           TissLM C++ Test Suite: Executive Summary
+========================================================================================================================
+Test Executable                     | Description                                                  | Status   | Details
+------------------------------------------------------------------------------------------------------------------------
+========================================================================================================================
+Overall Result: 0 / 0 tests passed.
+========================================================================================================================
+
+All tests completed successfully. Great work!
