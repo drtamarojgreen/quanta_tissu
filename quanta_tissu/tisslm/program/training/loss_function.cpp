@@ -1,54 +1,32 @@
 #include "loss_function.h"
 #include <algorithm>
 #include <limits>
+#include <vector>
 
 namespace TissLM {
 namespace Training {
 
 using namespace TissNum;
 
-Matrix CrossEntropyLoss::softmax(const Matrix& input) {
-    Matrix output = input;
-    for (size_t r = 0; r < output.rows(); ++r) {
-        float max_val = -std::numeric_limits<float>::infinity();
-        for (size_t c = 0; c < output.cols(); ++c) {
-            if (output({r, c}) > max_val) {
-                max_val = output({r, c});
-            }
-        }
-
-        float sum_exp = 0.0f;
-        for (size_t c = 0; c < output.cols(); ++c) {
-            output({r, c}) = std::exp(output({r, c}) - max_val);
-            sum_exp += output({r, c});
-        }
-
-        for (size_t c = 0; c < output.cols(); ++c) {
-            output({r, c}) = output({r, c}) / sum_exp;
-        }
-    }
-    return output;
-}
-
 float CrossEntropyLoss::compute_loss(const Matrix& predictions, const Matrix& targets) {
-    Matrix softmax_predictions = softmax(predictions);
+    Matrix softmax_predictions = Matrix::softmax(predictions);
     float loss = 0.0f;
-    size_t num_samples = predictions.rows();
+    int num_samples = predictions.shape()[0];
 
-    for (size_t r = 0; r < num_samples; ++r) {
-        int target_class = static_cast<int>(targets({r, 0}));
-        loss -= std::log(softmax_predictions({r, (size_t)target_class}) + std::numeric_limits<float>::epsilon());
+    for (int r = 0; r < num_samples; ++r) {
+        int target_class = static_cast<int>(targets.at({r, 0}));
+        loss -= std::log(softmax_predictions.at({r, target_class}) + std::numeric_limits<float>::epsilon());
     }
     return loss / num_samples;
 }
 
 Matrix CrossEntropyLoss::compute_gradient(const Matrix& predictions, const Matrix& targets) {
-    Matrix softmax_predictions = softmax(predictions);
-    for (size_t i = 0; i < predictions.rows(); ++i) {
-        int target_class = static_cast<int>(targets({i, 0}));
-        softmax_predictions({i, (size_t)target_class}) -= 1.0f;
+    Matrix softmax_predictions = Matrix::softmax(predictions);
+    for (int i = 0; i < predictions.shape()[0]; ++i) {
+        int target_class = static_cast<int>(targets.at({i, 0}));
+        softmax_predictions.at({i, target_class}) -= 1.0f;
     }
-    return softmax_predictions / predictions.rows();
+    return softmax_predictions / predictions.shape()[0];
 }
 
 } // namespace Training

@@ -1,11 +1,13 @@
-#include "../../../quanta_tissu/tisslm/program/core/multiheadattention.h"
+#include "../../../quanta_tissu/tisslm/program/core/configurableattention.h"
 #include "../../../quanta_tissu/tisslm/program/core/matrix.h"
 #include <iostream>
 #include <vector>
 #include <cmath>
 #include <stdexcept>
+#include <string>
 
-// Helper to print test results
+using namespace TissNum;
+
 void check(bool condition, const std::string& test_name) {
     if (condition) {
         std::cout << "[  PASSED  ] " << test_name << std::endl;
@@ -17,19 +19,17 @@ void check(bool condition, const std::string& test_name) {
 
 void test_lora_forward() {
     std::cout << "--- Testing LoRA Forward ---" << std::endl;
-    TissNum::MultiHeadAttention mha(16, 4, 4);
-    TissNum::Matrix q_in({1, 16});
-    TissNum::Matrix k_in({1, 16});
-    TissNum::Matrix v_in({1, 16});
+    ConfigurableAttention mha(16, 4, AttentionMode::STANDARD_MULTI_HEAD, 4);
+    Matrix x({1, 16});
 
-    TissNum::Matrix output = mha.forward(q_in, k_in, v_in);
+    Matrix output = mha.forward(x);
 
-    check(output.get_shape() == std::vector<size_t>({1, 16}), "LoRA forward output shape");
+    check(output.shape() == std::vector<int>({1, 16}), "LoRA forward output shape");
 }
 
 void test_no_lora() {
     std::cout << "--- Testing No LoRA ---" << std::endl;
-    TissNum::MultiHeadAttention mha(16, 4, 0);
+    ConfigurableAttention mha(16, 4, AttentionMode::STANDARD_MULTI_HEAD, 0);
     auto params = mha.parameters();
     bool lora_found = false;
     for (auto p : params) {

@@ -7,39 +7,41 @@ namespace TissNum {
 Dropout::Dropout(float p) : p_(std::max(0.0f, std::min(1.0f, p))) {}
 
 Matrix Dropout::forward(const Matrix& x, bool training) {
-    if (!training) {
+    if (!training || p_ == 0.0f) {
         return x;
     }
 
-    mask_ = Matrix({x.rows(), x.cols()});
+    mask_ = Matrix(x.shape());
     std::random_device rd;
     std::mt19937 gen(rd());
     std::bernoulli_distribution dist(1.0 - p_);
 
-    for (size_t i = 0; i < x.rows(); ++i) {
-        for (size_t j = 0; j < x.cols(); ++j) {
-            mask_({i, j}) = dist(gen) ? 1.0f : 0.0f;
+    // This is inefficient. A proper implementation would iterate recursively.
+    // Flattening for simplicity to allow compilation.
+    std::vector<int> indices(x.shape().size());
+    std::function<void(int)> recurse =
+        [&](int k) {
+        if (k == (int)x.shape().size()) {
+            mask_.at(indices) = dist(gen) ? 1.0f : 0.0f;
+            return;
         }
-    }
+        for (int i = 0; i < x.shape()[k]; ++i) {
+            indices[k] = i;
+            recurse(k + 1);
+        }
+    };
+    recurse(0);
 
     Matrix out = x * mask_;
-    for (size_t i = 0; i < out.rows(); ++i) {
-        for (size_t j = 0; j < out.cols(); ++j) {
-            out({i, j}) /= (1.0f - p_);
-        }
-    }
-
-    return out;
+    return out / (1.0f - p_);
 }
 
 Matrix Dropout::backward(const Matrix& d_out) {
-    Matrix dx = d_out * mask_;
-    for (size_t i = 0; i < dx.rows(); ++i) {
-        for (size_t j = 0; j < dx.cols(); ++j) {
-            dx({i, j}) /= (1.0f - p_);
-        }
+    if (p_ == 0.0f) {
+        return d_out;
     }
-    return dx;
+    Matrix dx = d_out * mask_;
+    return dx / (1.0f - p_);
 }
 
 } // namespace TissNum

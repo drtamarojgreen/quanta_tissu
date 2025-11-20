@@ -1,0 +1,24 @@
+--- Testing Initialization ---
+[  PASSED  ] Shape constructor
+[  PASSED  ] Zeros initialization
+[  PASSED  ] Ones method
+--- Testing Reshape ---
+[  PASSED  ] Valid reshape
+[  PASSED  ] Invalid reshape should throw
+--- Testing Transpose ---
+[  PASSED  ] Valid transpose
+[  PASSED  ] Invalid transpose should throw
+--- Testing Matmul ---
+[  PASSED  ] Matmul shape
+[  PASSED  ] Matmul value [0,0]
+[  PASSED  ] Matmul value [0,1]
+[  PASSED  ] Matmul value [1,0]
+[  PASSED  ] Matmul value [1,1]
+[  PASSED  ] Invalid matmul should throw
+--- Testing Element-wise Operations ---
+[  PASSED  ] Element-wise addition
+--- Testing Scalar Operations ---
+[  PASSED  ] Scalar addition
+[  PASSED  ] Scalar division
+
+All Matrix tests passed!
