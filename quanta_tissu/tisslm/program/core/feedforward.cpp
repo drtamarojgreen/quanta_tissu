@@ -1,87 +1,74 @@
 #include "feedforward.h"
 #include <algorithm>
+#include <functional>
 
 namespace TissNum {
 
-// Placeholder for ReLU activation
 Matrix relu(const Matrix& x) {
-    Matrix result(x.get_shape());
-    if (x.get_shape().size() == 2) {
-        for (size_t i = 0; i < x.rows(); ++i) {
-            for (size_t j = 0; j < x.cols(); ++j) {
-                result({i, j}) = std::max(0.0f, x({i, j}));
-            }
+    Matrix result(x.shape());
+    std::vector<int> indices(x.shape().size());
+    std::function<void(int)> recurse =
+        [&](int k) {
+        if (k == (int)x.shape().size()) {
+            result.at(indices) = std::max(0.0f, x.at(indices));
+            return;
         }
-    } else if (x.get_shape().size() == 3) {
-        for (size_t i = 0; i < x.get_shape()[0]; ++i) {
-            for (size_t j = 0; j < x.get_shape()[1]; ++j) {
-                for (size_t k = 0; k < x.get_shape()[2]; ++k) {
-                    result({i, j, k}) = std::max(0.0f, x({i, j, k}));
-                }
-            }
+        for (int i = 0; i < x.shape()[k]; ++i) {
+            indices[k] = i;
+            recurse(k + 1);
         }
-    } else {
-        throw std::invalid_argument("ReLU supports only 2D and 3D matrices.");
-    }
+    };
+    recurse(0);
     return result;
 }
 
-// Placeholder for ReLU backward
 Matrix relu_backward(const Matrix& d_out, const Matrix& x) {
-    Matrix result(x.get_shape());
-    if (x.get_shape().size() == 2) {
-        for (size_t i = 0; i < x.rows(); ++i) {
-            for (size_t j = 0; j < x.cols(); ++j) {
-                result({i, j}) = (x({i, j}) > 0) ? d_out({i, j}) : 0.0f;
-            }
+    Matrix result(x.shape());
+     std::vector<int> indices(x.shape().size());
+    std::function<void(int)> recurse =
+        [&](int k) {
+        if (k == (int)x.shape().size()) {
+            result.at(indices) = (x.at(indices) > 0) ? d_out.at(indices) : 0.0f;
+            return;
         }
-    } else if (x.get_shape().size() == 3) {
-        for (size_t i = 0; i < x.get_shape()[0]; ++i) {
-            for (size_t j = 0; j < x.get_shape()[1]; ++j) {
-                for (size_t k = 0; k < x.get_shape()[2]; ++k) {
-                    result({i, j, k}) = (x({i, j, k}) > 0) ? d_out({i, j, k}) : 0.0f;
-                }
-            }
+        for (int i = 0; i < x.shape()[k]; ++i) {
+            indices[k] = i;
+            recurse(k + 1);
         }
-    } else {
-        throw std::invalid_argument("ReLU backward supports only 2D and 3D matrices.");
-    }
+    };
+    recurse(0);
     return result;
 }
 
 FeedForward::FeedForward(size_t d_model, size_t d_ff, const std::string& name)
-    : w1_(Parameter(Matrix::random({d_model, d_ff}), name + ".w1")),
-      b1_(Parameter(Matrix::zeros({1, d_ff}), name + ".b1")),
-      w2_(Parameter(Matrix::random({d_ff, d_model}), name + ".w2")),
-      b2_(Parameter(Matrix::zeros({1, d_model}), name + ".b2")) {}
+    : w1_(Parameter(Matrix::random({(int)d_model, (int)d_ff}), name + ".w1")),
+      b1_(Parameter(Matrix({1, (int)d_ff}), name + ".b1")),
+      w2_(Parameter(Matrix::random({(int)d_ff, (int)d_model}), name + ".w2")),
+      b2_(Parameter(Matrix({1, (int)d_model}), name + ".b2")) {}
 
 Matrix FeedForward::forward(const Matrix& x) {
     cached_x_ = x;
-
     Matrix hidden = Matrix::matmul(x, w1_.value());
-    hidden = hidden + b1_.value();
+    hidden = hidden + b1_.value(); // Broadcasting needed here
     cached_hidden_ = hidden;
     hidden = relu(hidden);
-
     Matrix output = Matrix::matmul(hidden, w2_.value());
-    output = output + b2_.value();
+    output = output + b2_.value(); // Broadcasting needed here
     return output;
 }
 
 Matrix FeedForward::backward(const Matrix& d_out) {
-    // Backward pass for output layer
     Matrix d_output = d_out;
-    w2_.grad() = Matrix::matmul(cached_hidden_.transpose(), d_output);
-    b2_.grad() = d_output.sum(0); // Sum along batch dimension
+    w2_.grad() = Matrix::matmul(cached_hidden_.transpose(0, 1), d_output);
+    b2_.grad() = d_output.sum(0);
 
-    Matrix d_hidden = Matrix::matmul(d_output, w2_.value().transpose());
+    Matrix d_hidden = Matrix::matmul(d_output, w2_.value().transpose(0, 1));
     d_hidden = relu_backward(d_hidden, cached_hidden_);
 
-    // Backward pass for hidden layer
-    w1_.grad() = Matrix::matmul(cached_x_.transpose(), d_hidden);
-    b1_.grad() = d_hidden.sum(0); // Sum along batch dimension
+    w1_.grad() = Matrix::matmul(cached_x_.transpose(0, 1), d_hidden);
+    b1_.grad() = d_hidden.sum(0);
 
-    Matrix dx = Matrix::matmul(d_hidden, w1_.value().transpose());
+    Matrix dx = Matrix::matmul(d_hidden, w1_.value().transpose(0, 1));
     return dx;
 }
 

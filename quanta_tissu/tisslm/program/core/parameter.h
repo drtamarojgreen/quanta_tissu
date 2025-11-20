@@ -1,13 +1,15 @@
 #pragma once
 
 #include "matrix.h"
+#include <string>
 
 namespace TissNum {
 
 class Parameter {
 public:
     // Constructor
-    Parameter(const Matrix& value, const std::string& name = "") : value_(value), grad_(Matrix::zeros({value.rows(), value.cols()})), name_(name) {}
+    Parameter(const Matrix& value, const std::string& name = "")
+        : value_(value), grad_(Matrix(value.shape())), name_(name) {}
 
     // Accessors
     Matrix& value() { return value_; }
