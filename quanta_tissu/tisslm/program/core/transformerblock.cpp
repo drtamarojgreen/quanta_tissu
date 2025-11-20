@@ -7,8 +7,8 @@ namespace TissNum {
 // Initializes the sub-modules of the transformer block.
 TransformerBlock::TransformerBlock(size_t d_model, size_t num_heads, size_t d_ff, float dropout_p, int lora_rank, const std::string& name)
     // Initializer list begins.
-    // Initialize the Multi-Head Attention layer.
-    : mha_(d_model, num_heads, lora_rank, name + ".mha"),
+    // Initialize the Configurable Attention layer. Defaulting to STANDARD_MULTI_HEAD to preserve behavior.
+    : mha_(d_model, num_heads, AttentionMode::STANDARD_MULTI_HEAD, lora_rank, name + ".mha"),
       // Initialize the Feed-Forward Network layer.
       ffn_(d_model, d_ff, name + ".ffn"),
       // Initialize the first Layer Normalization layer.

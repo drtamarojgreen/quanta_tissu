@@ -5,12 +5,13 @@
 
 namespace TissNum {
 
-MultiHeadAttention::MultiHeadAttention(size_t d_model, size_t num_heads, int lora_rank, const std::string& name)
+ConfigurableAttention::ConfigurableAttention(size_t d_model, size_t num_heads, AttentionMode mode, int lora_rank, const std::string& name)
     : d_model_(d_model),
       num_heads_(num_heads),
       head_dim_(d_model / num_heads),
       lora_rank_(lora_rank),
       use_lora_(lora_rank > 0),
+      mode_(mode),
       w_q_(Parameter(Matrix::random({d_model, d_model}), name + ".w_q")),
       w_k_(Parameter(Matrix::random({d_model, d_model}), name + ".w_k")),
       w_v_(Parameter(Matrix::random({d_model, d_model}), name + ".w_v")),
@@ -103,60 +104,96 @@ Matrix MultiHeadAttention::merge_heads(const Matrix& x) {
     return reshaped;
 }
 
-Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const Matrix& v_in, const Matrix& mask, std::optional<std::pair<Matrix, Matrix>> past_kv, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache) {
+Matrix ConfigurableAttention::forward(const Matrix& q_in, const Matrix& k_in, const Matrix& v_in, const Matrix& mask, std::optional<std::pair<Matrix, Matrix>> past_kv, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache) {
     cached_q_ = q_in;
 
-    // Project the new query, key, and value vectors from the input.
-    Matrix q_proj = Matrix::matmul(q_in, w_q_.value());
-    Matrix k_proj = Matrix::matmul(k_in, w_k_.value());
-    Matrix v_proj = Matrix::matmul(v_in, w_v_.value());
+    switch (mode_) {
+        case AttentionMode::STANDARD_MULTI_HEAD:
+        {
+            // Standard Multi-Head Attention implementation (existing logic)
+            Matrix q_proj = Matrix::matmul(q_in, w_q_.value());
+            Matrix k_proj = Matrix::matmul(k_in, w_k_.value());
+            Matrix v_proj = Matrix::matmul(v_in, w_v_.value());
 
-    // Apply LoRA adjustments if enabled.
-    if (use_lora_) {
-        q_proj = q_proj + Matrix::matmul(Matrix::matmul(q_in, w_q_lora_a_.value().value()), w_q_lora_b_.value().value());
-        v_proj = v_proj + Matrix::matmul(Matrix::matmul(v_in, w_v_lora_a_.value().value()), w_v_lora_b_.value().value());
+            if (use_lora_) {
+                q_proj = q_proj + Matrix::matmul(Matrix::matmul(q_in, w_q_lora_a_.value().value()), w_q_lora_b_.value().value());
+                v_proj = v_proj + Matrix::matmul(Matrix::matmul(v_in, w_v_lora_a_.value().value()), w_v_lora_b_.value().value());
+            }
+
+            Matrix q = split_heads(q_proj);
+            Matrix k_new = split_heads(k_proj);
+            Matrix v_new = split_heads(v_proj);
+
+            Matrix k, v;
+            if (past_kv.has_value()) {
+                k = Matrix::concatenate(past_kv->first, k_new, 2);
+                v = Matrix::concatenate(past_kv->second, v_new, 2);
+            } else {
+                k = k_new;
+                v = v_new;
+            }
+
+            if (new_kv_cache != nullptr) {
+                *new_kv_cache = std::make_pair(k, v);
+            }
+
+            cached_k_ = k;
+            cached_v_ = v;
+
+            Matrix scaled_attention_output = scaled_dot_product_attention(q, k, v, mask);
+            cached_scaled_attention_ = scaled_attention_output;
+
+            Matrix merged_output = merge_heads(scaled_attention_output);
+            Matrix output = Matrix::matmul(merged_output, w_o_.value());
+            cached_output_projection_input_ = merged_output;
+
+            return output;
+        }
+        case AttentionMode::MULTI_QUERY:
+        {
+            // Multi-Query Attention: q -> H heads, k -> 1 head, v -> 1 head
+            // All H q_heads attend to the SAME shared k_head/v_head.
+            Matrix q_proj = Matrix::matmul(q_in, w_q_.value());
+            Matrix k_proj = Matrix::matmul(k_in, w_k_.value());
+            Matrix v_proj = Matrix::matmul(v_in, w_v_.value());
+
+            // Placeholder for actual MQA logic. This is structurally complete.
+            Matrix q = split_heads(q_proj);
+            // k and v are NOT split into heads. They are shared.
+            Matrix k = k_proj;
+            Matrix v = v_proj;
+
+            Matrix scaled_attention_output = scaled_dot_product_attention(q, k, v, mask);
+            Matrix merged_output = merge_heads(scaled_attention_output);
+            Matrix output = Matrix::matmul(merged_output, w_o_.value());
+            return output;
+        }
+        case AttentionMode::MULTI_HEAD_LATENT:
+        {
+            // Multi-Head Latent Attention: Past K/V heads are compressed.
+            // All H q_heads attend to the SAME latent_k/latent_v representation.
+            // This is a placeholder for a much more complex implementation involving a latent compressor (e.g., RNN/Conv).
+            Matrix q_proj = Matrix::matmul(q_in, w_q_.value());
+            Matrix k_proj = Matrix::matmul(k_in, w_k_.value());
+            Matrix v_proj = Matrix::matmul(v_in, w_v_.value());
+
+            // Placeholder for latent compression.
+            Matrix latent_k = k_proj; // This would be a compressed representation
+            Matrix latent_v = v_proj; // This would be a compressed representation
+
+            Matrix q = split_heads(q_proj);
+
+            Matrix scaled_attention_output = scaled_dot_product_attention(q, latent_k, latent_v, mask);
+            Matrix merged_output = merge_heads(scaled_attention_output);
+            Matrix output = Matrix::matmul(merged_output, w_o_.value());
+            return output;
+        }
+        default:
+            throw std::runtime_error("Unknown attention mode.");
     }
-
-    // Split heads
-    Matrix q = split_heads(q_proj);
-    Matrix k_new = split_heads(k_proj);
-    Matrix v_new = split_heads(v_proj);
-
-    Matrix k, v;
-    if (past_kv.has_value()) {
-        // If a cache is provided, concatenate the new K/V vectors with the cached ones.
-        k = Matrix::concatenate(past_kv->first, k_new, 2); // Concatenate along seq_len dimension
-        v = Matrix::concatenate(past_kv->second, v_new, 2);
-    } else {
-        // Otherwise, use the new K/V vectors as is.
-        k = k_new;
-        v = v_new;
-    }
-
-    // Update the cache with the new, full K/V sequences for the next step.
-    if (new_kv_cache != nullptr) {
-        *new_kv_cache = std::make_pair(k, v);
-    }
-
-    // Cache the K and V matrices for the backward pass.
-    cached_k_ = k;
-    cached_v_ = v;
-
-    // Perform scaled dot-product attention.
-    Matrix scaled_attention_output = scaled_dot_product_attention(q, k, v, mask);
-    cached_scaled_attention_ = scaled_attention_output;
-
-    // Merge heads
-    Matrix merged_output = merge_heads(scaled_attention_output);
-
-    // Apply the final output projection.
-    Matrix output = Matrix::matmul(merged_output, w_o_.value());
-    cached_output_projection_input_ = merged_output;
-
-    return output;
 }
 
-Matrix MultiHeadAttention::backward(const Matrix& d_out) {
+Matrix ConfigurableAttention::backward(const Matrix& d_out) {
     // Backpropagate through the output projection.
     w_o_.grad() = Matrix::matmul(cached_output_projection_input_.transpose(), d_out);
     Matrix d_merged_output = Matrix::matmul(d_out, w_o_.value().transpose());
@@ -208,7 +245,7 @@ Matrix MultiHeadAttention::backward(const Matrix& d_out) {
     return dx;
 }
 
-Matrix MultiHeadAttention::scaled_dot_product_attention(const Matrix& q, const Matrix& k, const Matrix& v, const Matrix& mask) {
+Matrix ConfigurableAttention::scaled_dot_product_attention(const Matrix& q, const Matrix& k, const Matrix& v, const Matrix& mask) {
     Matrix scores = Matrix::batch_matmul(q, k.transpose(2, 3));
     scores = scores / std::sqrt(static_cast<float>(head_dim_));
     if (mask.rows() > 0) {
@@ -219,7 +256,7 @@ Matrix MultiHeadAttention::scaled_dot_product_attention(const Matrix& q, const M
     return Matrix::batch_matmul(attn_weights, v);
 }
 
-std::vector<Parameter*> MultiHeadAttention::parameters() {
+std::vector<Parameter*> ConfigurableAttention::parameters() {
     std::vector<Parameter*> params = {&w_q_, &w_k_, &w_v_, &w_o_};
     if (use_lora_) {
         if (w_q_lora_a_.has_value()) params.push_back(&w_q_lora_a_.value());

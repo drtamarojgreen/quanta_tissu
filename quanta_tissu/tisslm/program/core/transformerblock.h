@@ -1,6 +1,6 @@
 #pragma once
 
-#include "multiheadattention.h"
+#include "configurableattention.h"
 #include "feedforward.h"
 #include "layernorm.h"
 #include "dropout.h"
@@ -26,7 +26,7 @@ public:
     const Matrix& get_x_norm2() const { return x_norm2_; }
 
 private:
-    MultiHeadAttention mha_;
+    ConfigurableAttention mha_;
     FeedForward ffn_;
     LayerNorm ln1_;
     LayerNorm ln2_;

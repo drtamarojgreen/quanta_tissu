@@ -3,12 +3,21 @@
 #include "matrix.h"
 #include "parameter.h"
 #include <optional>
+#include <string>
 
 namespace TissNum {
 
-class MultiHeadAttention {
+// As per the provided architecture, this block can be configured to operate in one of three modes.
+enum class AttentionMode {
+    STANDARD_MULTI_HEAD,
+    MULTI_QUERY,
+    MULTI_HEAD_LATENT
+};
+
+class ConfigurableAttention {
 public:
-    MultiHeadAttention(size_t d_model, size_t num_heads, int lora_rank = 0, const std::string& name = "");
+    // Constructor is updated to select the attention mode.
+    ConfigurableAttention(size_t d_model, size_t num_heads, AttentionMode mode, int lora_rank = 0, const std::string& name = "");
 
     Matrix forward(const Matrix& q, const Matrix& k, const Matrix& v, const Matrix& mask = Matrix(), std::optional<std::pair<Matrix, Matrix>> past_kv = std::nullopt, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache = nullptr);
     Matrix backward(const Matrix& d_out);
@@ -21,6 +30,7 @@ private:
     size_t head_dim_;
     int lora_rank_;
     bool use_lora_;
+    AttentionMode mode_;
 
     Parameter w_q_;
     Parameter w_k_;

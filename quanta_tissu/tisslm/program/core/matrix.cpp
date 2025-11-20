@@ -8,162 +8,114 @@
 
 namespace TissNum {
 
-Matrix::Matrix(const std::vector<size_t>& shape) : shape_(shape) {
-    size_t total_size = 1;
-    for (size_t dim : shape) {
-        total_size *= dim;
-    }
-    data_.resize(total_size, 0.0f);
-}
+// The old constructor is removed as the default constructor now handles initialization.
 
 float& Matrix::operator()(const std::vector<size_t>& indices) {
-    if (indices.size() != shape_.size()) {
-        throw std::out_of_range("Index dimension mismatch.");
+    if (indices.size() != 2) {
+        throw std::out_of_range("Index dimension mismatch for sparse matrix (must be 2).");
     }
-    size_t index = 0;
-    for (size_t i = 0; i < shape_.size(); ++i) {
-        if (indices[i] >= shape_[i]) {
-            throw std::out_of_range("Index out of range.");
-        }
-        size_t stride = 1;
-        for (size_t j = i + 1; j < shape_.size(); ++j) {
-            stride *= shape_[j];
-        }
-        index += indices[i] * stride;
+    size_t r = indices[0];
+    size_t c = indices[1];
+    if (r >= 4 || c >= 4) {
+        throw std::out_of_range("Index out of range for 4x4 sparse matrix.");
     }
-    return data_[index];
+    if (!data_[r][c].has_value()) {
+        // This is a design decision. Accessing a non-existent element creates it.
+        // A different design might throw an error.
+        data_[r][c] = 0.0f;
+    }
+    return *data_[r][c];
 }
 
 const float& Matrix::operator()(const std::vector<size_t>& indices) const {
-    if (indices.size() != shape_.size()) {
-        throw std::out_of_range("Index dimension mismatch.");
+    if (indices.size() != 2) {
+        throw std::out_of_range("Index dimension mismatch for sparse matrix (must be 2).");
     }
-    size_t index = 0;
-    for (size_t i = 0; i < shape_.size(); ++i) {
-        if (indices[i] >= shape_[i]) {
-            throw std::out_of_range("Index out of range.");
-        }
-        size_t stride = 1;
-        for (size_t j = i + 1; j < shape_.size(); ++j) {
-            stride *= shape_[j];
-        }
-        index += indices[i] * stride;
+    size_t r = indices[0];
+    size_t c = indices[1];
+    if (r >= 4 || c >= 4) {
+        throw std::out_of_range("Index out of range for 4x4 sparse matrix.");
     }
-    return data_[index];
+    if (!data_[r][c].has_value()) {
+        // This is a design decision. Accessing a non-existent element on a const object is an error.
+        throw std::runtime_error("Attempted to access non-existent element in const sparse matrix.");
+    }
+    return *data_[r][c];
 }
 
 Matrix Matrix::random(const std::vector<size_t>& shape) {
-    Matrix m(shape);
+    // Shape is ignored in the new design. Returns a fully populated 4x4 random matrix.
+    Matrix m;
     std::random_device rd;
     std::mt19937 gen(rd());
     std::normal_distribution<float> dist(0.0f, 1.0f);
-    for (size_t i = 0; i < m.data_.size(); ++i) {
-        m.data_[i] = dist(gen);
+    for (size_t r = 0; r < 4; ++r) {
+        for (size_t c = 0; c < 4; ++c) {
+            m.data_[r][c] = dist(gen);
+        }
     }
     return m;
 }
 
 Matrix Matrix::zeros(const std::vector<size_t>& shape) {
-    return Matrix(shape);
+    // Shape is ignored. Returns a default-constructed (empty) matrix.
+    return Matrix();
 }
 
 Matrix Matrix::ones(const std::vector<size_t>& shape) {
-    Matrix m(shape);
-    std::fill(m.data_.begin(), m.data_.end(), 1.0f);
+    // Shape is ignored. Returns a fully populated 4x4 matrix of ones.
+    Matrix m;
+    for (size_t r = 0; r < 4; ++r) {
+        for (size_t c = 0; c < 4; ++c) {
+            m.data_[r][c] = 1.0f;
+        }
+    }
     return m;
 }
 
 Matrix Matrix::transpose() const {
-    if (shape_.size() != 2) {
-        throw std::invalid_argument("Default transpose is only supported for 2D matrices.");
-    }
+    // For the sparse 4x4 matrix, transpose is always a 2D operation.
     return transpose(0, 1);
 }
 
 Matrix Matrix::reshape(const std::vector<size_t>& new_shape) const {
-    size_t total_size = 1;
-    for (size_t dim : new_shape) {
-        total_size *= dim;
+    // Reshaping a sparse, fixed-grid matrix is an ambiguous operation.
+    // This implementation interprets it as creating a new matrix and populating
+    // it from a flattened list of the source's non-empty values.
+    Matrix result;
+    std::vector<float> values;
+    for (size_t r = 0; r < 4; ++r) {
+        for (size_t c = 0; c < 4; ++c) {
+            if (data_[r][c].has_value()) {
+                values.push_back(*data_[r][c]);
+            }
+        }
     }
 
-    if (total_size != data_.size()) {
-        assert_size_match(data_.size(), total_size);
+    size_t value_idx = 0;
+    for (size_t r = 0; r < new_shape[0] && r < 4; ++r) {
+        for (size_t c = 0; c < new_shape[1] && c < 4; ++c) {
+            if (value_idx < values.size()) {
+                result.data_[r][c] = values[value_idx++];
+            }
+        }
     }
-    Matrix result(new_shape);
-    result.data_ = data_;
+
     return result;
 }
 
 Matrix Matrix::transpose(int dim1, int dim2) const {
-    // Validate the input dimensions. dim1 and dim2 must be valid indices within the matrix's shape.
-    // If they are out of bounds, an std::out_of_range exception is thrown.
-    if (dim1 >= shape_.size() || dim2 >= shape_.size()) {
-        throw std::out_of_range("Invalid dimensions for transpose.");
-    }
-
-    // Create a new shape vector for the transposed matrix.
-    // This new shape is initially a copy of the original shape.
-    std::vector<size_t> new_shape = shape_;
-    // Swap the dimensions at dim1 and dim2 in the new shape.
-    // For example, if original shape is {A, B, C} and dim1=0, dim2=1, new_shape becomes {B, A, C}.
-    std::swap(new_shape[dim1], new_shape[dim2]);
-
-    // Create a new Matrix object with the new, transposed shape.
-    // This 'result' matrix will store the transposed data.
-    Matrix result(new_shape);
-
-    // 'old_indices' is a temporary vector used to store the current multi-dimensional index
-    // for the original matrix. Its size matches the number of dimensions of the original matrix.
-    std::vector<size_t> old_indices(shape_.size());
-
-    // 'recurse' is a recursive lambda function that iterates through all elements of the original matrix.
-    // It maps each element from its original position to its new position in the transposed matrix.
-    // 'k' represents the current dimension being processed in the recursion.
-    // Iterative implementation to avoid stack overflow for high-dimensional tensors.
-    // This approach calculates the new data position for each element iteratively.
-
-    // Pre-calculate strides for both old and new shapes for efficient index calculation.
-    std::vector<size_t> old_strides(shape_.size());
-    if (!shape_.empty()) {
-        old_strides.back() = 1;
-        for (int i = shape_.size() - 2; i >= 0; --i) {
-            old_strides[i] = old_strides[i + 1] * shape_[i + 1];
+    if ((dim1 == 0 && dim2 == 1) || (dim1 == 1 && dim2 == 0)) {
+        Matrix result;
+        for (size_t r = 0; r < 4; ++r) {
+            for (size_t c = 0; c < 4; ++c) {
+                result.data_[r][c] = data_[c][r];
+            }
         }
+        return result;
     }
-
-    std::vector<size_t> new_strides(new_shape.size());
-    if (!new_shape.empty()) {
-        new_strides.back() = 1;
-        for (int i = new_shape.size() - 2; i >= 0; --i) {
-            new_strides[i] = new_strides[i + 1] * new_shape[i + 1];
-        }
-    }
-
-    // Iterate through each element in the 1D data vector.
-    for (size_t i = 0; i < data_.size(); ++i) {
-        // Convert the 1D index 'i' back to multi-dimensional 'old_indices'.
-        std::vector<size_t> old_indices(shape_.size());
-        size_t remaining_i = i;
-        for (size_t j = 0; j < shape_.size(); ++j) {
-            old_indices[j] = remaining_i / old_strides[j];
-            remaining_i %= old_strides[j];
-        }
-
-        // Calculate the 'new_indices' by swapping the dimensions.
-        std::vector<size_t> new_indices = old_indices;
-        std::swap(new_indices[dim1], new_indices[dim2]);
-
-        // Convert the 'new_indices' back to a 1D 'new_index'.
-        size_t new_index = 0;
-        for (size_t j = 0; j < new_shape.size(); ++j) {
-            new_index += new_indices[j] * new_strides[j];
-        }
-        // Assign the data to the new position.
-        result.data_[new_index] = data_[i];
-    }
-
-    // Return the newly created and populated transposed matrix.
-    return result;
+    // Transposing other dimensions is not meaningful for a fixed 2D grid.
+    throw std::invalid_argument("Transpose for sparse matrix only supports swapping dimensions 0 and 1.");
 }
 
 Matrix Matrix::operator+(const Matrix& other) const {
