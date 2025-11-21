@@ -101,30 +101,45 @@ def backward_scaled_dot_product_attention(d_out, Q, K, V, scores, weights, mask=
 
     return d_Q, d_K, d_V
 
+
+def repeat_kv_heads(x, n_rep):
+    """
+    Repeats the key-value heads to enable Grouped-Query Attention.
+    The input shape is (batch, n_kv_heads, seq, d_k), and the output shape is (batch, n_kv_heads * n_rep, seq, d_k).
+    """
+    if n_rep == 1:
+        return x
+    return np.repeat(x, n_rep, axis=1)
+
+
 class MultiHeadAttention:
     """
     Multi-Head Attention layer.
     This version's forward pass returns a cache for backpropagation.
     """
-    def __init__(self, d_model, num_heads, name="", use_lora=False, lora_rank=4):
+    def __init__(self, d_model, num_heads, name="", use_lora=False, lora_rank=4, num_kv_heads=None):
         assert d_model % num_heads == 0
         self.num_heads = num_heads
+        self.num_kv_heads = num_kv_heads if num_kv_heads is not None else num_heads
+        self.num_queries_per_kv = self.num_heads // self.num_kv_heads
         self.d_k = d_model // self.num_heads
         self.name = name
         self.use_lora = use_lora
 
         self.Wq = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name=f"{name}.Wq")
-        self.Wk = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name=f"{name}.Wk")
-        self.Wv = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name=f"{name}.Wv")
+        self.Wk = Parameter(np.random.randn(d_model, self.d_k * self.num_kv_heads) / np.sqrt(d_model), name=f"{name}.Wk")
+        self.Wv = Parameter(np.random.randn(d_model, self.d_k * self.num_kv_heads) / np.sqrt(d_model), name=f"{name}.Wv")
         self.Wo = Parameter(np.random.randn(d_model, d_model) / np.sqrt(d_model), name=f"{name}.Wo")
 
         if self.use_lora:
             self.lora_q = LoRALayer(d_model, d_model, lora_rank, name=f"{name}.lora_q")
             self.lora_v = LoRALayer(d_model, d_model, lora_rank, name=f"{name}.lora_v")
 
-    def split_heads(self, x):
+    def split_heads(self, x, num_heads):
         batch_size, seq_len, d_model = x.shape
-        return x.reshape(batch_size, seq_len, self.num_heads, self.d_k).transpose(0, 2, 1, 3)
+        if d_model != self.d_k * num_heads:
+            raise ValueError(f"Cannot split {d_model} into {num_heads} heads of size {self.d_k}")
+        return x.reshape(batch_size, seq_len, num_heads, self.d_k).transpose(0, 2, 1, 3)
 
     def combine_heads(self, x):
         batch_size, _, seq_len, _ = x.shape
@@ -144,7 +159,9 @@ class MultiHeadAttention:
             Q += self.lora_q(x)
             V_proj += self.lora_v(x)
 
-        Qh, Kh_new, Vh_new = self.split_heads(Q), self.split_heads(K_proj), self.split_heads(V_proj)
+        Qh = self.split_heads(Q, self.num_heads)
+        Kh_new = self.split_heads(K_proj, self.num_kv_heads)
+        Vh_new = self.split_heads(V_proj, self.num_kv_heads)
 
         if kv_cache is not None:
             if 'kh' in kv_cache:
@@ -156,6 +173,9 @@ class MultiHeadAttention:
         else:
             Kh, Vh = Kh_new, Vh_new
         
+        Kh = repeat_kv_heads(Kh, self.num_queries_per_kv)
+        Vh = repeat_kv_heads(Vh, self.num_queries_per_kv)
+
         attended, attention_weights = scaled_dot_product_attention(Qh, Kh, Vh, mask=mask)
         combined = self.combine_heads(attended)
         output = combined @ Wo_val

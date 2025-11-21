@@ -10,7 +10,7 @@ namespace TissNum {
 
 class TransformerBlock {
 public:
-    TransformerBlock(size_t d_model, size_t num_heads, size_t d_ff, float dropout_p, int lora_rank = 0, const std::string& name = "");
+    TransformerBlock(size_t d_model, size_t num_heads, size_t d_ff, float dropout_p, int lora_rank = 0, const std::string& name = "", AttentionMode attention_mode = AttentionMode::STANDARD);
 
     Matrix forward(const Matrix& x, const Matrix& mask = Matrix(), std::optional<std::pair<Matrix, Matrix>> past_kv = std::nullopt, std::optional<std::pair<Matrix, Matrix>>* new_kv_cache = nullptr, bool training = false);
     Matrix backward(const Matrix& d_out);
@@ -24,8 +24,6 @@ public:
     const Matrix& get_ffn_out() const { return ffn_out_; }
     const Matrix& get_x_plus_ffn() const { return x_plus_ffn_; }
     const Matrix& get_x_norm2() const { return x_norm2_; }
-
-    const MultiHeadAttention& get_mha() const { return mha_; }
 
 private:
     MultiHeadAttention mha_;
