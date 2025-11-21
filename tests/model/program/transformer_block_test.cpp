@@ -60,7 +60,7 @@ void run_transformer_block_test() {
     // Instantiate multiple TransformerBlocks
     std::vector<TransformerBlock> blocks;
     for (size_t i = 0; i < num_layers; ++i) {
-        blocks.emplace_back(d_model, num_heads, d_ff, dropout_p, lora_rank, "test_block_" + std::to_string(i));
+        blocks.emplace_back(d_model, num_heads, d_ff, dropout_p, lora_rank, "test_block_" + std::to_string(i), AttentionMode::MULTI_QUERY);
     }
 
     // Test case 1: Full sequence processing (mimicking non-cached run)

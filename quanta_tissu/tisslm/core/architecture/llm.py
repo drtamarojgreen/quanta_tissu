@@ -13,8 +13,8 @@ class TransformerBlock:
     A single block of the Transformer model.
     This version's forward pass returns a cache for backpropagation.
     """
-    def __init__(self, d_model, num_heads, d_ff, dropout_p, name="", moe_config=None, bias=True):
-        self.mha = MultiHeadAttention(d_model, num_heads, name=f"{name}.mha")
+    def __init__(self, d_model, num_heads, d_ff, dropout_p, name="", moe_config=None, bias=True, num_kv_heads=None):
+        self.mha = MultiHeadAttention(d_model, num_heads, name=f"{name}.mha", num_kv_heads=num_kv_heads)
         if moe_config:
             self.ffn = MoE(d_model, d_ff, moe_config['num_experts'], moe_config['top_k'], name=f"{name}.moe")
         else:
@@ -227,7 +227,8 @@ class Model:
         if use_conv_attention:
             self.transformer_blocks = [ConvTransformerBlock(d_model, d_ff, kernel_size, dropout_p, name=f"transformer_blocks.{i}", bias=bias) for i in range(n_layer)]
         else:
-            self.transformer_blocks = [TransformerBlock(d_model, n_head, d_ff, dropout_p, name=f"transformer_blocks.{i}", moe_config=moe_config, bias=bias) for i in range(n_layer)]
+            num_kv_heads = config.get("num_kv_heads", n_head)
+            self.transformer_blocks = [TransformerBlock(d_model, n_head, d_ff, dropout_p, name=f"transformer_blocks.{i}", moe_config=moe_config, bias=bias, num_kv_heads=num_kv_heads) for i in range(n_layer)]
         
         if self.tie_weights:
             self.output_proj = self.embeddings

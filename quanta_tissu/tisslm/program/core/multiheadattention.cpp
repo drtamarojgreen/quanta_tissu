@@ -5,15 +5,16 @@
 
 namespace TissNum {
 
-MultiHeadAttention::MultiHeadAttention(size_t d_model, size_t num_heads, int lora_rank, const std::string& name)
+MultiHeadAttention::MultiHeadAttention(size_t d_model, size_t num_heads, int lora_rank, const std::string& name, AttentionMode mode)
     : d_model_(d_model),
       num_heads_(num_heads),
       head_dim_(d_model / num_heads),
       lora_rank_(lora_rank),
       use_lora_(lora_rank > 0),
+      mode_(mode),
       w_q_(Parameter(Matrix::random({d_model, d_model}), name + ".w_q")),
-      w_k_(Parameter(Matrix::random({d_model, d_model}), name + ".w_k")),
-      w_v_(Parameter(Matrix::random({d_model, d_model}), name + ".w_v")),
+      w_k_(Parameter(Matrix::random({d_model, mode == AttentionMode::MULTI_QUERY ? head_dim_ : d_model}), name + ".w_k")),
+      w_v_(Parameter(Matrix::random({d_model, mode == AttentionMode::MULTI_QUERY ? head_dim_ : d_model}), name + ".w_v")),
       w_o_(Parameter(Matrix::random({d_model, d_model}), name + ".w_o")) {
     if (d_model % num_heads != 0) {
         throw std::invalid_argument("d_model must be divisible by num_heads");

@@ -5,10 +5,10 @@ namespace TissNum {
 
 // Constructor for the TransformerBlock class.
 // Initializes the sub-modules of the transformer block.
-TransformerBlock::TransformerBlock(size_t d_model, size_t num_heads, size_t d_ff, float dropout_p, int lora_rank, const std::string& name)
+TransformerBlock::TransformerBlock(size_t d_model, size_t num_heads, size_t d_ff, float dropout_p, int lora_rank, const std::string& name, AttentionMode attention_mode)
     // Initializer list begins.
     // Initialize the Multi-Head Attention layer.
-    : mha_(d_model, num_heads, lora_rank, name + ".mha"),
+    : mha_(d_model, num_heads, lora_rank, name + ".mha", attention_mode),
       // Initialize the Feed-Forward Network layer.
       ffn_(d_model, d_ff, name + ".ffn"),
       // Initialize the first Layer Normalization layer.
@@ -83,7 +83,7 @@ Matrix TransformerBlock::backward(const Matrix& d_out) {
 
     // 3. Backprop through second norm
     Matrix d_x_plus_attn_from_norm = ln2_.backward(d_x_norm2);
-    d_x_plus_attn += d_x_plus_attn_from_norm;
+    d_x_plus_attn = d_x_plus_attn + d_x_plus_attn_from_norm;
 
     // 4. Backprop through first residual
     Matrix d_x = d_x_plus_attn;
@@ -95,7 +95,7 @@ Matrix TransformerBlock::backward(const Matrix& d_out) {
 
     // 6. Backprop through first norm
     Matrix d_x_from_norm = ln1_.backward(d_x_norm1);
-    d_x += d_x_from_norm;
+    d_x = d_x + d_x_from_norm;
 
     return d_x;
 }

@@ -494,6 +494,25 @@ set_tests_properties(TransformerBlockTests PROPERTIES
     LABELS "unit;transformer_block"
 )
 
+add_executable(concatenate_test concatenate_test.cpp)
+target_link_libraries(concatenate_test tisslm_core)
+add_test(NAME ConcatenateTests COMMAND concatenate_test)
+set_tests_properties(ConcatenateTests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;core;concatenate"
+)
+
+add_executable(mqa_test mqa_test.cpp)
+target_link_libraries(mqa_test tisslm_core)
+
+add_executable(mha_backward_test mha_backward_test.cpp)
+target_link_libraries(mha_backward_test tisslm_core)
+add_test(NAME MQATests COMMAND mqa_test)
+set_tests_properties(MQATests PROPERTIES
+    TIMEOUT 10
+    LABELS "unit;core;mqa"
+)
+
 # Print build information
 message(STATUS "Building TissLM Tests")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
