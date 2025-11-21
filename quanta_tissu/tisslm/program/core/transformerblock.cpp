@@ -5,10 +5,10 @@ namespace TissNum {
 
 // Constructor for the TransformerBlock class.
 // Initializes the sub-modules of the transformer block.
-TransformerBlock::TransformerBlock(size_t d_model, size_t num_heads, size_t d_ff, float dropout_p, int lora_rank, const std::string& name)
+TransformerBlock::TransformerBlock(size_t d_model, size_t num_heads, size_t d_ff, float dropout_p, int lora_rank, const std::string& name, AttentionMode attention_mode)
     // Initializer list begins.
     // Initialize the Multi-Head Attention layer.
-    : mha_(d_model, num_heads, lora_rank, name + ".mha"),
+    : mha_(d_model, num_heads, lora_rank, name + ".mha", attention_mode),
       // Initialize the Feed-Forward Network layer.
       ffn_(d_model, d_ff, name + ".ffn"),
       // Initialize the first Layer Normalization layer.
