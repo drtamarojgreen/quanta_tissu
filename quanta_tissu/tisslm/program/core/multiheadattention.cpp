@@ -5,15 +5,16 @@
 
 namespace TissNum {
 
-MultiHeadAttention::MultiHeadAttention(size_t d_model, size_t num_heads, int lora_rank, const std::string& name)
+MultiHeadAttention::MultiHeadAttention(size_t d_model, size_t num_heads, int lora_rank, const std::string& name, AttentionMode mode)
     : d_model_(d_model),
       num_heads_(num_heads),
       head_dim_(d_model / num_heads),
       lora_rank_(lora_rank),
       use_lora_(lora_rank > 0),
+      mode_(mode),
       w_q_(Parameter(Matrix::random({d_model, d_model}), name + ".w_q")),
-      w_k_(Parameter(Matrix::random({d_model, d_model}), name + ".w_k")),
-      w_v_(Parameter(Matrix::random({d_model, d_model}), name + ".w_v")),
+      w_k_(Parameter(Matrix::random({d_model, mode == AttentionMode::MULTI_QUERY ? head_dim_ : d_model}), name + ".w_k")),
+      w_v_(Parameter(Matrix::random({d_model, mode == AttentionMode::MULTI_QUERY ? head_dim_ : d_model}), name + ".w_v")),
       w_o_(Parameter(Matrix::random({d_model, d_model}), name + ".w_o")) {
     if (d_model % num_heads != 0) {
         throw std::invalid_argument("d_model must be divisible by num_heads");
@@ -117,10 +118,20 @@ Matrix MultiHeadAttention::forward(const Matrix& q_in, const Matrix& k_in, const
         v_proj = v_proj + Matrix::matmul(Matrix::matmul(v_in, w_v_lora_a_.value().value()), w_v_lora_b_.value().value());
     }
 
-    // Split heads
     Matrix q = split_heads(q_proj);
-    Matrix k_new = split_heads(k_proj);
-    Matrix v_new = split_heads(v_proj);
+    Matrix k_new, v_new;
+
+    if (mode_ == AttentionMode::MULTI_QUERY) {
+        // Multi-Query Attention: Reshape K and V to be shared across heads.
+        size_t batch_size = k_proj.get_shape()[0];
+        size_t seq_len = k_proj.get_shape()[1];
+        k_new = k_proj.reshape({batch_size, 1, seq_len, head_dim_});
+        v_new = v_proj.reshape({batch_size, 1, seq_len, head_dim_});
+    } else {
+        // Standard Multi-Head Attention: Split K and V into heads.
+        k_new = split_heads(k_proj);
+        v_new = split_heads(v_proj);
+    }
 
     Matrix k, v;
     if (past_kv.has_value()) {
