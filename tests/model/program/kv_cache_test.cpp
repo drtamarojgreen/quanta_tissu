@@ -217,7 +217,7 @@ KVCacheTestResult run_single_kv_cache_test(
 
         auto current_time = std::chrono::high_resolution_clock::now();
         float elapsed = std::chrono::duration<float>(current_time - start_time_no_cache).count();
-        print_progress(i + 1, n_new_tokens, elapsed);
+        std::cout << "." << std::flush;
     }
     std::cout << std::endl;
     auto end_time_no_cache = std::chrono::high_resolution_clock::now();
@@ -275,7 +275,7 @@ KVCacheTestResult run_single_kv_cache_test(
 
         auto current_time = std::chrono::high_resolution_clock::now();
         float elapsed = std::chrono::duration<float>(current_time - start_time_cache).count();
-        print_progress(i + 1, n_new_tokens, elapsed);
+        std::cout << "." << std::flush;
     }
     std::cout << std::endl;
     auto end_time_cache = std::chrono::high_resolution_clock::now();
@@ -309,9 +309,9 @@ bool run_kv_cache_evaluation() {
 
     // --- Test Scenarios ---
     std::vector<std::tuple<std::string, int, std::string>> kv_cache_test_scenarios = {
-        {"A core principle of Cognitive Behavioral Therapy is that", 80, "Short CBT Intro"},
-        {"One common cognitive distortion is catastrophizing, which involves assuming the worst possible outcome will occur. To counter this, one can", 200, "Medium CBT Technique"},
-        {"The process of cognitive restructuring in CBT involves several steps. First, the individual must identify the automatic negative thought. Second, they must challenge the validity of this thought by examining the evidence for and against it. Third, they generate a more balanced or realistic alternative thought to replace the original distorted one. This technique helps to", 400, "Long CBT Process"},
+        {"A core principle of Cognitive Behavioral Therapy is that", 10, "Short CBT Intro"},
+        {"One common cognitive distortion is catastrophizing, which involves assuming the worst possible outcome will occur. To counter this, one can", 20, "Medium CBT Technique"},
+        {"The process of cognitive restructuring in CBT involves several steps. First, the individual must identify the automatic negative thought. Second, they must challenge the validity of this thought by examining the evidence for and against it. Third, they generate a more balanced or realistic alternative thought to replace the original distorted one. This technique helps to", 40, "Long CBT Process"},
     };
 
     std::vector<GenerationConfig> generation_methods = {

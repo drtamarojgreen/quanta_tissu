@@ -1,4 +1,5 @@
 #include "transformer_model.h"
+#include <limits>
 
 namespace TissLM {
 namespace Core {
@@ -89,11 +90,21 @@ Matrix TransformerModel::forward(const Matrix& input_tokens) {
         }
     }
 
+    // Create causal mask
+    size_t seq_len = x.get_shape()[1];
+    Matrix mask = Matrix::zeros({1, 1, seq_len, seq_len});
+    float neg_inf = -std::numeric_limits<float>::infinity();
+    for (size_t i = 0; i < seq_len; ++i) {
+        for (size_t j = i + 1; j < seq_len; ++j) {
+            mask({0, 0, i, j}) = neg_inf;
+        }
+    }
+
     // 3. Transformer Blocks
     transformer_block_outputs_.clear();
     transformer_block_outputs_.push_back(x); // Store input to first block
     for (auto& block : transformer_blocks_) {
-        x = block.forward(x);
+        x = block.forward(x, mask);
         transformer_block_outputs_.push_back(x); // Store output of each block
     }
 
@@ -143,6 +154,26 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
         }
     }
 
+    // Create mask if processing more than one token
+    size_t seq_len = x.get_shape()[1];
+    Matrix mask;
+    if (seq_len > 1) {
+        size_t past_len = 0;
+        if (!past_kv_cache.empty() && !past_kv_cache[0].first.get_shape().empty()) {
+            past_len = past_kv_cache[0].first.get_shape()[2];
+        }
+        size_t total_len = past_len + seq_len;
+        
+        mask = Matrix::zeros({1, 1, seq_len, total_len});
+        float neg_inf = -std::numeric_limits<float>::infinity();
+        
+        for (size_t i = 0; i < seq_len; ++i) {
+            for (size_t j = past_len + i + 1; j < total_len; ++j) {
+                mask({0, 0, i, j}) = neg_inf;
+            }
+        }
+    }
+
     // 3. Transformer Blocks
     for (int i = 0; i < num_layers_; ++i) {
         std::optional<std::pair<Matrix, Matrix>> current_past_kv = std::nullopt;
@@ -151,7 +182,7 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
         }
         
         std::optional<std::pair<Matrix, Matrix>> current_new_kv;
-        x = transformer_blocks_[i].forward(x, Matrix(), current_past_kv, &current_new_kv);
+        x = transformer_blocks_[i].forward(x, mask, current_past_kv, &current_new_kv);
         
         if (current_new_kv.has_value()) {
             new_kv_cache[i] = current_new_kv.value();
