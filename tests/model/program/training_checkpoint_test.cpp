@@ -9,9 +9,7 @@
 #include <memory>
 
 void check(bool condition, const std::string& test_name) {
-    if (condition) {
-        std::cout << "[  PASSED  ] " << test_name << std::endl;
-    } else {
+    if (!condition) {
         std::cout << "[  FAILED  ] " << test_name << std::endl;
         throw std::runtime_error("Test failed: " + test_name);
     }
@@ -49,6 +47,7 @@ void test_save_and_load() {
         }
         check(values_match, "Parameter value match for param " + std::to_string(i));
     }
+    std::cout << "All parameters matched successfully." << std::endl;
 }
 
 int main() {
