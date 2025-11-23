@@ -73,7 +73,7 @@ void test_tokenizer_training() {
 
     // 1. Train a new tokenizer
     TissLM::Tokenizer::Tokenizer tokenizer1(""); // Create an empty tokenizer
-    tokenizer1.train(corpus, vocab_size, true);
+    tokenizer1.train(corpus, vocab_size, false);
 
     // 2. Save the tokenizer
     tokenizer1.save(prefix);

@@ -24,11 +24,13 @@ void test_embedding() {
     std::cout << std::endl;
     
     std::cout << "Embedded shape: (" << embedded.rows() << ", " << embedded.cols() << ")" << std::endl;
+    /*
     std::cout << "First embedding vector: ";
     for (size_t j = 0; j < embedded.cols(); ++j) {
         std::cout << std::fixed << std::setprecision(4) << embedded({0, j}) << " ";
     }
     std::cout << std::endl;
+    */
     
     // Test backward pass
     Matrix grad_out = Matrix::ones({tokens.size(), (size_t)TestConfig::EmbedDim});
@@ -58,6 +60,7 @@ void test_positional_encoding() {
     Matrix output = pe.forward(input, 0);
     
     std::cout << "Output shape: (" << output.rows() << ", " << output.cols() << ")" << std::endl;
+    /*
     std::cout << "First position with encoding: ";
     for (size_t j = 0; j < output.cols(); ++j) {
         std::cout << std::fixed << std::setprecision(4) << output({0, j}) << " ";
@@ -69,6 +72,7 @@ void test_positional_encoding() {
         std::cout << std::fixed << std::setprecision(4) << output({1, j}) << " ";
     }
     std::cout << std::endl;
+    */
     
     std::cout << "Combined test completed successfully" << std::endl;
     std::cout << std::endl;
@@ -96,11 +100,13 @@ void test_combined() {
     Matrix output = pe.forward(embedded, 0);
     std::cout << "After positional encoding shape: (" << output.rows() << ", " << output.cols() << ")" << std::endl;
     
+    /*
     std::cout << "First token representation (first 4 dims): ";
     for (size_t j = 0; j < 4; ++j) {
         std::cout << std::fixed << std::setprecision(4) << output({0, j}) << " ";
     }
     std::cout << std::endl;
+    */
     
     std::cout << "Combined test completed successfully" << std::endl;
     std::cout << std::endl;

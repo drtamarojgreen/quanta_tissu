@@ -6,9 +6,7 @@
 
 // Helper to print test results
 void check(bool condition, const std::string& test_name) {
-    if (condition) {
-        std::cout << "[  PASSED  ] " << test_name << std::endl;
-    } else {
+    if (!condition) {
         std::cout << "[  FAILED  ] " << test_name << std::endl;
         throw std::runtime_error("Test failed: " + test_name);
     }
