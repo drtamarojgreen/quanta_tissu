@@ -46,6 +46,8 @@ private:
     Matrix cached_attn_weights_;
     Matrix cached_scaled_attention_;
     Matrix cached_output_projection_input_;
+    Matrix cached_k_in_;
+    Matrix cached_v_in_;
 
     // Helper for attention calculation
     Matrix scaled_dot_product_attention(const Matrix& q, const Matrix& k, const Matrix& v, const Matrix& mask);

@@ -159,7 +159,7 @@ bool comprehensive_matrices_almost_equal(const Matrix& m1, const Matrix& m2, con
             return false;
         }
     }
-    std::cout << "[  PASSED  ] " << name << " matches at step " << step << ", layer " << layer << std::endl;
+    // Success print removed for brevity
     return true;
 }
 
@@ -203,7 +203,7 @@ ComprehensiveTestResult run_single_comprehensive_test_case(const std::string& te
     std::vector<std::optional<std::pair<Matrix, Matrix>>> kv_caches(num_layers, std::nullopt);
 
     for (size_t step = 0; step < seq_len; ++step) {
-        std::cout << "\n--- Step " << step << " ---" << std::endl;
+        // Step print removed for brevity
         Matrix x_single = get_token_slice(x_full, step, d_model);
         Matrix current_x_cached = x_single;
         std::vector<std::optional<std::pair<Matrix, Matrix>>> new_kv_caches_for_step(num_layers);
