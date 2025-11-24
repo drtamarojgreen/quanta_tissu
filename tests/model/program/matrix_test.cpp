@@ -1,19 +1,22 @@
 #include "../../../quanta_tissu/tisslm/program/core/matrix.h"
+#include "test_summary.h"
 #include <iostream>
 #include <vector>
 #include <cmath>
 #include <stdexcept>
 
-// Helper to print test results
+TestResults results;
+
 void check(bool condition, const std::string& test_name) {
-    if (!condition) {
-        std::cout << "[  FAILED  ] " << test_name << std::endl;
-        throw std::runtime_error("Test failed: " + test_name);
+    if (condition) {
+        results.record_pass(test_name);
+    } else {
+        results.record_fail(test_name, "Assertion failed");
     }
 }
 
 void test_initialization() {
-    std::cout << "--- Testing Initialization ---" << std::endl;
+    std::cout << "\n=== Testing Initialization ===" << std::endl;
     TissNum::Matrix m({2, 3});
     check(m.get_shape() == std::vector<size_t>({2, 3}), "Shape constructor");
     check(m.rows() == 2, "Rows check");
@@ -39,7 +42,7 @@ void test_initialization() {
 }
 
 void test_reshape() {
-    std::cout << "--- Testing Reshape ---" << std::endl;
+    std::cout << "\n=== Testing Reshape ===" << std::endl;
     TissNum::Matrix m = TissNum::Matrix::random({2, 3});
     TissNum::Matrix reshaped = m.reshape({3, 2});
     check(reshaped.get_shape() == std::vector<size_t>({3, 2}), "Valid reshape");
@@ -53,7 +56,7 @@ void test_reshape() {
 }
 
 void test_transpose() {
-    std::cout << "--- Testing Transpose ---" << std::endl;
+    std::cout << "\n=== Testing Transpose ===" << std::endl;
     TissNum::Matrix m = TissNum::Matrix::random({2, 3, 4});
     TissNum::Matrix transposed = m.transpose(0, 2);
     check(transposed.get_shape() == std::vector<size_t>({4, 3, 2}), "Valid transpose");
@@ -67,7 +70,7 @@ void test_transpose() {
 }
 
 void test_matmul() {
-    std::cout << "--- Testing Matmul ---" << std::endl;
+    std::cout << "\n=== Testing Matmul ===" << std::endl;
     TissNum::Matrix a({2, 3});
     a({0, 0}) = 1; a({0, 1}) = 2; a({0, 2}) = 3;
     a({1, 0}) = 4; a({1, 1}) = 5; a({1, 2}) = 6;
@@ -94,7 +97,7 @@ void test_matmul() {
 }
 
 void test_element_wise_ops() {
-    std::cout << "--- Testing Element-wise Operations ---" << std::endl;
+    std::cout << "\n=== Testing Element-wise Operations ===" << std::endl;
     TissNum::Matrix a = TissNum::Matrix::ones({2, 2});
     TissNum::Matrix b = TissNum::Matrix::ones({2, 2});
     TissNum::Matrix c = a + b;
@@ -111,7 +114,7 @@ void test_element_wise_ops() {
 }
 
 void test_scalar_ops() {
-    std::cout << "--- Testing Scalar Operations ---" << std::endl;
+    std::cout << "\n=== Testing Scalar Operations ===" << std::endl;
     TissNum::Matrix a = TissNum::Matrix::ones({2, 2});
     TissNum::Matrix b = a + 1.0f;
     check(b({0, 0}) == 2.0f, "Scalar addition");
@@ -127,7 +130,7 @@ void test_scalar_ops() {
 }
 
 void test_statistical_ops() {
-    std::cout << "--- Testing Statistical Operations ---" << std::endl;
+    std::cout << "\n=== Testing Statistical Operations ===" << std::endl;
     TissNum::Matrix m({2, 3});
     m({0, 0}) = 1; m({0, 1}) = 2; m({0, 2}) = 3;
     m({1, 0}) = 4; m({1, 1}) = 5; m({1, 2}) = 6;
@@ -144,34 +147,20 @@ void test_statistical_ops() {
 }
 
 void test_transpose_data_permutation() {
-    std::cout << "--- Testing Transpose Data Permutation ---" << std::endl;
+    std::cout << "\n=== Testing Transpose Data Permutation ===" << std::endl;
     TissNum::Matrix m({2, 3});
     m({0, 0}) = 1.0f; m({0, 1}) = 2.0f; m({0, 2}) = 3.0f;
     m({1, 0}) = 4.0f; m({1, 1}) = 5.0f; m({1, 2}) = 6.0f;
 
-    std::cout << "Original matrix data: ";
-    const float* original_data_ptr = m.get_data();
-    for(size_t i = 0; i < m.data_size(); ++i) {
-        std::cout << original_data_ptr[i] << " ";
-    }
-    std::cout << std::endl;
-
     TissNum::Matrix transposed = m.transpose(0, 1);
-
-    std::cout << "Transposed matrix data: ";
     const float* transposed_data_ptr = transposed.get_data();
-    for(size_t i = 0; i < transposed.data_size(); ++i) {
-        std::cout << transposed_data_ptr[i] << " ";
-    }
-    std::cout << std::endl;
-
     std::vector<float> expected_data = {1.0f, 4.0f, 2.0f, 5.0f, 3.0f, 6.0f};
     std::vector<float> actual_data(transposed_data_ptr, transposed_data_ptr + transposed.data_size());
     check(actual_data == expected_data, "Transpose data permutation");
 }
 
 void test_concatenate_data_permutation() {
-    std::cout << "--- Testing Concatenate Data Permutation ---" << std::endl;
+    std::cout << "\n=== Testing Concatenate Data Permutation ===" << std::endl;
     TissNum::Matrix a({1, 2, 2});
     a({0, 0, 0}) = 1.0f; a({0, 0, 1}) = 2.0f;
     a({0, 1, 0}) = 3.0f; a({0, 1, 1}) = 4.0f;
@@ -182,13 +171,7 @@ void test_concatenate_data_permutation() {
 
     TissNum::Matrix c = TissNum::Matrix::concatenate(a, b, 2);
 
-    std::cout << "Concatenated matrix data: ";
     const float* c_data_ptr = c.get_data();
-    for(size_t i = 0; i < c.data_size(); ++i) {
-        std::cout << c_data_ptr[i] << " ";
-    }
-    std::cout << std::endl;
-
     std::vector<float> expected_data = {1.0f, 2.0f, 5.0f, 6.0f, 7.0f, 3.0f, 4.0f, 8.0f, 9.0f, 10.0f};
     std::vector<float> actual_data(c_data_ptr, c_data_ptr + c.data_size());
     check(c.get_shape() == std::vector<size_t>({1, 2, 5}), "Concatenate shape");
@@ -196,7 +179,7 @@ void test_concatenate_data_permutation() {
 }
 
 void test_transpose_4d() {
-    std::cout << "--- Testing Transpose 4D ---" << std::endl;
+    std::cout << "\n=== Testing Transpose 4D ===" << std::endl;
     TissNum::Matrix m({1, 2, 2, 3});
     // Data: 1-12
     float* m_data = m.get_data();
@@ -211,7 +194,7 @@ void test_transpose_4d() {
 }
 
 void test_concatenate_4d() {
-    std::cout << "--- Testing Concatenate 4D ---" << std::endl;
+    std::cout << "\n=== Testing Concatenate 4D ===" << std::endl;
     TissNum::Matrix a({1, 2, 1, 3});
     float* a_data = a.get_data();
     for(size_t i=0; i<6; ++i) a_data[i] = i+1;
@@ -228,7 +211,7 @@ void test_concatenate_4d() {
 }
 
 void test_attention_sequence() {
-    std::cout << "--- Testing Attention Sequence ---" << std::endl;
+    std::cout << "\n=== Testing Attention Sequence ===" << std::endl;
     TissNum::Matrix x({1, 10, 16});
     TissNum::Matrix w = TissNum::Matrix::random({16, 16});
 
@@ -247,7 +230,7 @@ void test_attention_sequence() {
 }
 
 void test_transpose_edge_cases() {
-    std::cout << "--- Testing Transpose Edge Cases ---" << std::endl;
+    std::cout << "\n=== Testing Transpose Edge Cases ===" << std::endl;
     TissNum::Matrix m1({1, 10});
     TissNum::Matrix t1 = m1.transpose(0, 1);
     check(t1.get_shape() == std::vector<size_t>({10, 1}), "Transpose with dim size 1");
@@ -262,7 +245,7 @@ void test_transpose_edge_cases() {
 }
 
 void test_concatenate_edge_cases() {
-    std::cout << "--- Testing Concatenate Edge Cases ---" << std::endl;
+    std::cout << "\n=== Testing Concatenate Edge Cases ===" << std::endl;
     TissNum::Matrix a({1, 2, 2});
     TissNum::Matrix b({1, 2, 0});
     TissNum::Matrix c = TissNum::Matrix::concatenate(a, b, 2);
@@ -278,7 +261,7 @@ void test_concatenate_edge_cases() {
 }
 
 void test_reshape_edge_cases() {
-    std::cout << "--- Testing Reshape Edge Cases ---" << std::endl;
+    std::cout << "\n=== Testing Reshape Edge Cases ===" << std::endl;
     TissNum::Matrix m({2, 3, 4});
     TissNum::Matrix r1 = m.reshape({24});
     check(r1.get_shape() == std::vector<size_t>({24}), "Reshape to different num dims");
@@ -288,7 +271,7 @@ void test_reshape_edge_cases() {
 }
 
 void test_matmul_edge_cases() {
-    std::cout << "--- Testing Matmul Edge Cases ---" << std::endl;
+    std::cout << "\n=== Testing Matmul Edge Cases ===" << std::endl;
     TissNum::Matrix a({2, 0});
     TissNum::Matrix b({0, 3});
     TissNum::Matrix c = TissNum::Matrix::matmul(a, b);
@@ -305,7 +288,7 @@ void test_matmul_edge_cases() {
 }
 
 void test_operator_edge_cases() {
-    std::cout << "--- Testing Operator Edge Cases ---" << std::endl;
+    std::cout << "\n=== Testing Operator Edge Cases ===" << std::endl;
     TissNum::Matrix m({2, 3});
     try {
         m({0, 0, 0});
@@ -323,14 +306,14 @@ void test_operator_edge_cases() {
 }
 
 void test_statistical_ops_edge_cases() {
-    std::cout << "--- Testing Statistical Ops Edge Cases ---" << std::endl;
+    std::cout << "\n=== Testing Statistical Ops Edge Cases ===" << std::endl;
     TissNum::Matrix m({0, 3});
     TissNum::Matrix mean = m.mean(1);
     check(mean.get_shape() == std::vector<size_t>({0, 1}), "Mean of empty matrix");
 }
 
 void test_element_wise_ops_edge_cases() {
-    std::cout << "--- Testing Element-wise Ops Edge Cases ---" << std::endl;
+    std::cout << "\n=== Testing Element-wise Ops Edge Cases ===" << std::endl;
     TissNum::Matrix a({2, 3});
     TissNum::Matrix b({3, 2});
     try {
@@ -342,6 +325,10 @@ void test_element_wise_ops_edge_cases() {
 }
 
 int main() {
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "TissLM C++ Matrix Test Suite" << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+
     try {
         test_initialization();
         test_reshape();
@@ -362,10 +349,11 @@ int main() {
         test_operator_edge_cases();
         test_statistical_ops_edge_cases();
         test_element_wise_ops_edge_cases();
-        std::cout << "\nAll Matrix tests passed!" << std::endl;
-        return 0;
+
+        results.print_summary();
+        return (results.failed == 0) ? 0 : 1;
     } catch (const std::exception& e) {
-        std::cerr << "\nMatrix tests failed with exception: " << e.what() << std::endl;
+        std::cerr << "\nMatrix tests failed with unhandled exception: " << e.what() << std::endl;
         return 1;
     }
 }
