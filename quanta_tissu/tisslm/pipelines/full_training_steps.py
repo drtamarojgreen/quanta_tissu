@@ -65,6 +65,10 @@ def train_model(tokenizer, corpus, save_dir, seq_len=128, batch_size=32, epochs=
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
 
+    # Save tokenizer
+    tokenizer.save(os.path.join(save_dir, "tokenizer"))
+    logging.info("Tokenizer saved.")
+
     step = 0
     for epoch in range(epochs):
         for x, y in dataloader:
@@ -88,14 +92,11 @@ def train_model(tokenizer, corpus, save_dir, seq_len=128, batch_size=32, epochs=
     torch.save(model.state_dict(), final_model_path)
     logging.info(f"Training complete. Final model saved: {final_model_path}")
 
-    # Save tokenizer
-    tokenizer.save(os.path.join(save_dir, "tokenizer"))
-    logging.info("Tokenizer saved.")
 
 # ---------- Main ----------
 if __name__ == "__main__":
     CORPUS_PATH = "./corpus"
-    SAVE_DIR = "./training_output"
+    SAVE_DIR = "./training_output3"
     VOCAB_SIZE = 5000
 
     # 1. Load corpus
