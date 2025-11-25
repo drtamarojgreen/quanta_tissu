@@ -2,19 +2,18 @@
 #include <iostream>
 #include <numeric>
 
-namespace TissDB {
 namespace TissLM {
-namespace Core {
+namespace Training {
 
 Evaluator::Evaluator(
-    std::shared_ptr<Model> model,
-    std::shared_ptr<LossFunction> loss_function
+    std::shared_ptr<TissLM::Core::Model> model,
+    std::shared_ptr<TissLM::Training::LossFunction> loss_function
 ) : model_(model), loss_function_(loss_function) {
 }
 
 float Evaluator::calculate_perplexity(
-    const std::vector<Matrix>& eval_data,
-    const std::vector<Matrix>& eval_labels,
+    const std::vector<TissNum::Matrix>& eval_data,
+    const std::vector<TissNum::Matrix>& eval_labels,
     int batch_size
 ) {
     int num_samples = eval_data.size();
@@ -31,8 +30,8 @@ float Evaluator::calculate_perplexity(
         int batch_end = std::min(batch_start + batch_size, num_samples);
         int current_batch_size = batch_end - batch_start;
 
-        Matrix batch_input({(size_t)current_batch_size, eval_data[0].cols()});
-        Matrix batch_target({(size_t)current_batch_size, eval_labels[0].cols()});
+        TissNum::Matrix batch_input({(size_t)current_batch_size, eval_data[0].cols()});
+        TissNum::Matrix batch_target({(size_t)current_batch_size, eval_labels[0].cols()});
 
         for (int i = 0; i < current_batch_size; ++i) {
             int sample_idx = batch_start + i;
@@ -44,7 +43,7 @@ float Evaluator::calculate_perplexity(
             }
         }
 
-        Matrix predictions = model_->forward(batch_input);
+        TissNum::Matrix predictions = model_->forward(batch_input);
         total_loss += loss_function_->compute_loss(predictions, batch_target);
     }
 
@@ -52,6 +51,5 @@ float Evaluator::calculate_perplexity(
     return std::exp(average_loss);
 }
 
-} // namespace Core
+} // namespace Training
 } // namespace TissLM
-} // namespace TissDB
