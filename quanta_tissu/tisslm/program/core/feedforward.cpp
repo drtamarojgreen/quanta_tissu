@@ -71,19 +71,54 @@ Matrix FeedForward::forward(const Matrix& x) {
 Matrix FeedForward::backward(const Matrix& d_out) {
     // Backward pass for output layer
     Matrix d_output = d_out;
-    w2_.grad() = Matrix::matmul(cached_hidden_.transpose(), d_output);
-    b2_.grad() = d_output.sum(0); // Sum along batch dimension
+    
+    size_t batch_size = d_output.get_shape()[0];
+    
+    if (d_output.get_shape().size() == 3) {
+        size_t seq_len = d_output.get_shape()[1];
+        
+        // Reshape to 2D for matmul
+        Matrix cached_hidden_reshaped = cached_hidden_.reshape({batch_size * seq_len, cached_hidden_.get_shape()[2]});
+        Matrix d_output_reshaped = d_output.reshape({batch_size * seq_len, d_output.get_shape()[2]});
+        
+        w2_.grad() = Matrix::matmul(cached_hidden_reshaped.transpose(), d_output_reshaped);
+        
+        // Bias gradient: sum over batch and sequence
+        // d_output is (B, L, D). sum(0) -> (L, D). sum(0) of that -> (D).
+        // TissNum::Matrix::sum(axis) returns a Matrix.
+        // Let's assume we can chain or just sum the reshaped (N, D) over axis 0.
+        b2_.grad() = d_output_reshaped.sum(0); 
+        
+        Matrix d_hidden_reshaped = Matrix::matmul(d_output_reshaped, w2_.value().transpose());
+        Matrix d_hidden = d_hidden_reshaped.reshape({batch_size, seq_len, cached_hidden_.get_shape()[2]});
+        
+        d_hidden = relu_backward(d_hidden, cached_hidden_);
+        
+        // Hidden layer
+        Matrix cached_x_reshaped = cached_x_.reshape({batch_size * seq_len, cached_x_.get_shape()[2]});
+        d_hidden_reshaped = d_hidden.reshape({batch_size * seq_len, d_hidden.get_shape()[2]});
+        
+        w1_.grad() = Matrix::matmul(cached_x_reshaped.transpose(), d_hidden_reshaped);
+        b1_.grad() = d_hidden_reshaped.sum(0);
+        
+        Matrix dx_reshaped = Matrix::matmul(d_hidden_reshaped, w1_.value().transpose());
+        return dx_reshaped.reshape({batch_size, seq_len, cached_x_.get_shape()[2]});
+        
+    } else {
+        // 2D case
+        w2_.grad() = Matrix::matmul(cached_hidden_.transpose(), d_output);
+        b2_.grad() = d_output.sum(0);
 
-    Matrix d_hidden = Matrix::matmul(d_output, w2_.value().transpose());
-    d_hidden = relu_backward(d_hidden, cached_hidden_);
+        Matrix d_hidden = Matrix::matmul(d_output, w2_.value().transpose());
+        d_hidden = relu_backward(d_hidden, cached_hidden_);
 
-    // Backward pass for hidden layer
-    w1_.grad() = Matrix::matmul(cached_x_.transpose(), d_hidden);
-    b1_.grad() = d_hidden.sum(0); // Sum along batch dimension
+        w1_.grad() = Matrix::matmul(cached_x_.transpose(), d_hidden);
+        b1_.grad() = d_hidden.sum(0);
 
-    Matrix dx = Matrix::matmul(d_hidden, w1_.value().transpose());
-    return dx;
+        return Matrix::matmul(d_hidden, w1_.value().transpose());
+    }
 }
+
 
 std::vector<Parameter*> FeedForward::parameters() {
     return {&w1_, &b1_, &w2_, &b2_};

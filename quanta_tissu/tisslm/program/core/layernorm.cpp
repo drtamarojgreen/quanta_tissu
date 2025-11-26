@@ -70,14 +70,25 @@ Matrix LayerNorm::forward(const Matrix& x) {
 }
 
 Matrix LayerNorm::backward(const Matrix& d_out) {
-    if (cached_x_.get_shape().size() == 3) {
-        throw std::runtime_error("3D backward for layernorm not implemented");
-    }
-    size_t N = cached_x_.rows();
-    size_t D = cached_x_.cols();
+    Matrix x_in = cached_x_;
+    Matrix d_out_in = d_out;
+    bool is_3d = false;
+    std::vector<size_t> original_shape = x_in.get_shape();
 
-    Matrix mean = cached_x_.mean(1);
-    Matrix var = cached_x_.variance(1);
+    if (x_in.get_shape().size() == 3) {
+        is_3d = true;
+        size_t B = x_in.get_shape()[0];
+        size_t L = x_in.get_shape()[1];
+        size_t D = x_in.get_shape()[2];
+        x_in = x_in.reshape({B * L, D});
+        d_out_in = d_out_in.reshape({B * L, D});
+    }
+
+    size_t N = x_in.rows();
+    size_t D = x_in.cols();
+
+    Matrix mean = x_in.mean(1);
+    Matrix var = x_in.variance(1);
     Matrix std_dev = Matrix::sqrt(var + eps_);
 
     Matrix x_norm({N, D});
@@ -85,22 +96,22 @@ Matrix LayerNorm::backward(const Matrix& d_out) {
 
     for (size_t r = 0; r < N; ++r) {
         for (size_t c = 0; c < D; ++c) {
-            cache_centered({r, c}) = cached_x_({r, c}) - mean({r, 0});
+            cache_centered({r, c}) = x_in({r, c}) - mean({r, 0});
             x_norm({r, c}) = cache_centered({r, c}) / std_dev({r, 0});
         }
     }
 
     // Gradients for gamma and beta
-    gamma_.grad() = (d_out * x_norm).sum(0);
+    gamma_.grad() = (d_out_in * x_norm).sum(0);
     if (has_bias_) {
-        beta_.grad() = d_out.sum(0);
+        beta_.grad() = d_out_in.sum(0);
     }
 
     // Gradient for the input x
     Matrix dx_norm({N, D});
     for (size_t r = 0; r < N; ++r) {
         for (size_t c = 0; c < D; ++c) {
-            dx_norm({r, c}) = d_out({r, c}) * gamma_.value()({0, c});
+            dx_norm({r, c}) = d_out_in({r, c}) * gamma_.value()({0, c});
         }
     }
 
@@ -138,6 +149,9 @@ Matrix LayerNorm::backward(const Matrix& d_out) {
         }
     }
 
+    if (is_3d) {
+        return dx.reshape(original_shape);
+    }
     return dx;
 }
 
