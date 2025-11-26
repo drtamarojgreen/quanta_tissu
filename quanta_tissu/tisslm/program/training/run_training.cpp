@@ -12,15 +12,54 @@
 #include "dataset.h"
 #include "trainer.h"
 
-std::string load_corpus(const std::string& corpus_path) {
-    std::ifstream file(corpus_path);
-    if (!file.is_open()) {
-        std::cerr << "Error: Could not open corpus file " << corpus_path << std::endl;
-        return "";
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+std::string load_corpus(const std::string& path) {
+    std::string content;
+    
+    std::cout << "Debug: Current working directory: " << fs::current_path() << std::endl;
+    std::cout << "Debug: Input path: " << path << std::endl;
+    try {
+        std::cout << "Debug: Absolute path: " << fs::absolute(path) << std::endl;
+        std::cout << "Debug: Exists: " << (fs::exists(path) ? "Yes" : "No") << std::endl;
+        std::cout << "Debug: Is directory: " << (fs::is_directory(path) ? "Yes" : "No") << std::endl;
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
     }
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
+
+    if (fs::is_directory(path)) {
+        std::cout << "Loading corpus from directory: " << path << std::endl;
+        int file_count = 0;
+        for (const auto& entry : fs::recursive_directory_iterator(path)) {
+            if (entry.is_regular_file()) {
+                std::ifstream file(entry.path());
+                if (file.is_open()) {
+                    std::stringstream buffer;
+                    buffer << file.rdbuf();
+                    content += buffer.str() + "\n"; // Add newline between files
+                    file_count++;
+                } else {
+                    std::cerr << "Warning: Could not open file " << entry.path() << std::endl;
+                }
+            }
+        }
+        std::cout << "Loaded " << file_count << " files from " << path << std::endl;
+    } else {
+        std::cout << "Loading corpus from file: " << path << std::endl;
+        std::ifstream file(path);
+        if (!file.is_open()) {
+            std::cerr << "Error: Could not open corpus file " << path << std::endl;
+            return "";
+        }
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        content = buffer.str();
+    }
+    
+    std::cout << "Total corpus size: " << content.size() << " bytes" << std::endl;
+    return content;
 }
 
 int main(int argc, char* argv[]) {
@@ -33,7 +72,7 @@ int main(int argc, char* argv[]) {
     const int VOCAB_SIZE = 5000;
     const int SEQ_LEN = 128;
     const int BATCH_SIZE = 32;
-    const int EPOCHS = 5;
+    const int EPOCHS = 1; // Reduced for verification
     const float LEARNING_RATE = 1e-3f;
 
     // 1. Load corpus
@@ -43,16 +82,32 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // 2. Train tokenizer
-    TissLM::Tokenizer::Tokenizer tokenizer("");
-    tokenizer.train(corpus, VOCAB_SIZE, true);
-    // Create save directory
-    std::string mkdir_cmd = "mkdir -p " + SAVE_DIR;
-    system(mkdir_cmd.c_str());
-    tokenizer.save(SAVE_DIR + "/tokenizer");
+    // 2. Train or Load tokenizer
+    std::unique_ptr<TissLM::Tokenizer::Tokenizer> tokenizer;
+    std::string tokenizer_prefix = SAVE_DIR + "/tokenizer";
+    
+    if (fs::exists(tokenizer_prefix + "_vocab.json")) {
+        std::cout << "Loading existing tokenizer from " << tokenizer_prefix << std::endl;
+        tokenizer = std::make_unique<TissLM::Tokenizer::Tokenizer>(tokenizer_prefix);
+    } else {
+        std::cout << "Training tokenizer..." << std::endl;
+        tokenizer = std::make_unique<TissLM::Tokenizer::Tokenizer>("");
+        tokenizer->train(corpus, VOCAB_SIZE, true);
+        // Create save directory
+        std::string mkdir_cmd = "mkdir -p " + SAVE_DIR;
+        system(mkdir_cmd.c_str());
+        tokenizer->save(tokenizer_prefix);
+    }
 
     // 3. Create dataset
-    std::vector<int> token_ids = tokenizer.encode(corpus);
+    std::vector<int> token_ids = tokenizer->encode(corpus);
+    
+    // Limit dataset size for verification purposes
+    if (token_ids.size() > 10000) {
+        std::cout << "Limiting dataset to 10,000 tokens for verification." << std::endl;
+        token_ids.resize(10000);
+    }
+
     TissLM::Training::TokenDataset dataset(token_ids, SEQ_LEN);
 
     // 4. Create model, loss, and optimizer
@@ -81,7 +136,7 @@ int main(int argc, char* argv[]) {
     // 6. Generate text
     std::string prompt = "The quick brown fox";
     std::cout << "\nGenerating text for prompt: '" << prompt << "'" << std::endl;
-    std::vector<int> input_ids = tokenizer.encode(prompt);
+    std::vector<int> input_ids = tokenizer->encode(prompt);
 
     for (int i = 0; i < 20; ++i) {
         TissNum::Matrix input_mat({1, input_ids.size()});
@@ -105,7 +160,7 @@ int main(int argc, char* argv[]) {
         }
 
         input_ids.push_back(best_token_id);
-        std::cout << tokenizer.decode({best_token_id}) << std::flush;
+        std::cout << tokenizer->decode({best_token_id}) << std::flush;
     }
     std::cout << std::endl;
 

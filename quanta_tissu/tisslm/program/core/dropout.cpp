@@ -23,22 +23,14 @@ Matrix Dropout::forward(const Matrix& x, bool training) {
     }
 
     Matrix out = x * mask_;
-    for (size_t i = 0; i < out.rows(); ++i) {
-        for (size_t j = 0; j < out.cols(); ++j) {
-            out({i, j}) /= (1.0f - p_);
-        }
-    }
+    out = out / (1.0f - p_);
 
     return out;
 }
 
 Matrix Dropout::backward(const Matrix& d_out) {
     Matrix dx = d_out * mask_;
-    for (size_t i = 0; i < dx.rows(); ++i) {
-        for (size_t j = 0; j < dx.cols(); ++j) {
-            dx({i, j}) /= (1.0f - p_);
-        }
-    }
+    dx = dx / (1.0f - p_);
     return dx;
 }
 

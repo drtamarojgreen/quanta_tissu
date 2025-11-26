@@ -44,6 +44,10 @@ void Trainer::train(
             size_t batch_end = std::min((size_t)batch_start + batch_size, num_samples);
             size_t current_batch_size = batch_end - batch_start;
 
+            if (b % 10 == 0) {
+                std::cout << "Epoch " << epoch + 1 << ", Batch " << b << "/" << num_batches << std::endl;
+            }
+
             TissNum::Matrix batch_input({current_batch_size, dataset.get_item(0).first.cols()});
             TissNum::Matrix batch_target({current_batch_size, dataset.get_item(0).second.cols()});
 

@@ -23,7 +23,15 @@ TransformerModel::TransformerModel(int vocab_size, int max_seq_len, int embed_di
 
 void TransformerModel::backward(const Matrix& grad_output) {
     // 1. Backward through Output Linear Layer
-    TissNum::Matrix x_transpose = final_layer_norm_output_.transpose();
+    // final_layer_norm_output_ is 3D: [1, seq_len, embed_dim]
+    // We need to reshape it to 2D: [seq_len, embed_dim] for transpose
+    size_t seq_len = final_layer_norm_output_.get_shape()[1];
+    size_t embed_dim = final_layer_norm_output_.get_shape()[2];
+    
+    // Create a view or copy as 2D
+    TissNum::Matrix x_2d = final_layer_norm_output_.reshape({seq_len, embed_dim});
+    
+    TissNum::Matrix x_transpose = x_2d.transpose();
     output_weight_.grad() = TissNum::Matrix::matmul(x_transpose, grad_output);
     output_bias_.grad() = grad_output.sum(0);
 
@@ -40,6 +48,13 @@ void TransformerModel::backward(const Matrix& grad_output) {
 
     // 4. Backward through Positional Encoding (gradient passes through)
     Matrix grad_embedded_input = grad_x;
+    
+    // Reshape to 2D if necessary (Embedding layer expects 2D gradient matching input tokens)
+    if (grad_embedded_input.get_shape().size() == 3) {
+        size_t seq_len = grad_embedded_input.get_shape()[1];
+        size_t embed_dim = grad_embedded_input.get_shape()[2];
+        grad_embedded_input = grad_embedded_input.reshape({seq_len, embed_dim});
+    }
 
     // 5. Backward through Embedding layer
     embedding_layer_.backward(grad_embedded_input, cached_token_ids_);
@@ -104,7 +119,7 @@ Matrix TransformerModel::forward(const Matrix& input_tokens) {
     transformer_block_outputs_.clear();
     transformer_block_outputs_.push_back(x); // Store input to first block
     for (auto& block : transformer_blocks_) {
-        x = block.forward(x, mask);
+        x = block.forward(x, mask, std::nullopt, nullptr, true);
         transformer_block_outputs_.push_back(x); // Store output of each block
     }
 
