@@ -35,7 +35,7 @@ public:
     Matrix transpose(int dim1, int dim2) const;
 
     // Basic matrix operations
-    static Matrix random(const std::vector<size_t>& shape);
+    static Matrix random(const std::vector<size_t>& shape, float mean = 0.0f, float stddev = 1.0f);
     static Matrix zeros(const std::vector<size_t>& shape);
     static Matrix ones(const std::vector<size_t>& shape);
     Matrix transpose() const;
@@ -88,8 +88,6 @@ private:
 
     inline void assert_size_match(size_t old_size, size_t new_size) const {
         if (old_size != new_size) {
-            std::cerr << "[ERROR] Shape mismatch: old size=" << old_size
-                      << " new size=" << new_size << std::endl;
             throw std::runtime_error("Total size of new shape must match old shape.");
         }
     }

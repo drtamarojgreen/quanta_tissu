@@ -18,7 +18,7 @@ class TransformerModel : public Model {
 public:
     TransformerModel(int vocab_size, int max_seq_len, int embed_dim, int num_heads, int num_layers, int d_ff, float dropout_rate, int lora_rank = 0);
 
-    TissNum::Matrix forward(const TissNum::Matrix& input_tokens) override; // input_tokens would be a batch of token IDs
+    TissNum::Matrix forward(const TissNum::Matrix& input_tokens, bool training = true) override; // input_tokens would be a batch of token IDs
     TissNum::Matrix forward_inference(const TissNum::Matrix& input_tokens, const std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>>& past_kv_cache, std::vector<std::pair<TissNum::Matrix, TissNum::Matrix>>& new_kv_cache);
     void backward(const TissNum::Matrix& grad_output) override;
     std::vector<std::shared_ptr<TissNum::Parameter>> get_parameters() override;

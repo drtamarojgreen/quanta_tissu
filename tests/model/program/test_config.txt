@@ -1,0 +1,29 @@
+test_db_and_retrieval|Database CRUD, search, and retrieval strategies.
+test_new_components|Core model layers (Embedding, Positional Encoding).
+matrix_test|Low-level matrix operations and broadcasting.
+tokenizer_test|BPE Tokenizer encoding, decoding, and training.
+tokenizer_unicode_test|Unicode handling in tokenizer.
+training_test|Optimizer and Loss Function implementation.
+model_generation_test|Full Transformer Model forward pass and text generation.
+full_fledged_workout_cpp|End-to-end model workout with various parameters.
+kv_cache_test|Performance and correctness of the KV Cache.
+rag_self_update_test|RAG pipeline and knowledge base self-updating.
+experimental_sampling_test|Experimental text generation sampling methods.
+standard_generation_test|Standard text generation sampling methods.
+rule_enforcement_test|Grammar and style rule enforcement on generated text.
+advanced_analysis_test|Advanced text analysis and understanding.
+tissdb_lite_integration_test|Integration with the TissDB-Lite database.
+advanced_sampling_test|Advanced, unimplemented sampling methods.
+bayesian_sampling_test|Bayesian sampling methods.
+encoding_test|Tokenizer encoding verification.
+checkpoint_test|Model checkpointing and restoration.
+dimension_integrity_test|Matrix dimension consistency checks.
+lora_test|LoRA (Low-Rank Adaptation) implementation.
+forward_pass_test|Model forward pass verification.
+backward_pass_test|Model backward pass verification.
+training_checkpoint_test|Training state checkpointing.
+transformer_block_test|Transformer block component tests.
+concatenate_test|Matrix concatenation operations.
+mqa_test|Multi-Query Attention implementation.
+mha_backward_test|Multi-Head Attention backward pass.
+bug_fix_verification_test|Regression tests for specific bug fixes.

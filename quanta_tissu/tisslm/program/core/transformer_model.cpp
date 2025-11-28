@@ -1,5 +1,6 @@
 #include "transformer_model.h"
 #include <limits>
+#include <cmath>
 
 namespace TissLM {
 namespace Core {
@@ -10,7 +11,7 @@ TransformerModel::TransformerModel(int vocab_size, int max_seq_len, int embed_di
     : embedding_layer_(vocab_size, embed_dim),
       positional_encoding_layer_(embed_dim, max_seq_len),
       final_layer_norm_(embed_dim),
-      output_weight_(TissNum::Matrix::random({(size_t)embed_dim, (size_t)vocab_size}), "output_weight"),
+      output_weight_(TissNum::Matrix::random({(size_t)embed_dim, (size_t)vocab_size}, 0.0f, 1.0f / std::sqrt((float)embed_dim)), "output_weight"),
       output_bias_(TissNum::Matrix::zeros({1, (size_t)vocab_size}), "output_bias"),
       vocab_size_(vocab_size),
       embed_dim_(embed_dim),
@@ -85,7 +86,7 @@ std::vector<std::shared_ptr<TissNum::Parameter>> TransformerModel::get_parameter
     return params;
 }
 
-Matrix TransformerModel::forward(const Matrix& input_tokens) {
+Matrix TransformerModel::forward(const Matrix& input_tokens, bool training) {
     // 1. Embedding layer
     std::vector<size_t> token_ids(input_tokens.cols());
     for (size_t i = 0; i < input_tokens.cols(); ++i) {
@@ -119,7 +120,7 @@ Matrix TransformerModel::forward(const Matrix& input_tokens) {
     transformer_block_outputs_.clear();
     transformer_block_outputs_.push_back(x); // Store input to first block
     for (auto& block : transformer_blocks_) {
-        x = block.forward(x, mask, std::nullopt, nullptr, true);
+        x = block.forward(x, mask, std::nullopt, nullptr, training);
         transformer_block_outputs_.push_back(x); // Store output of each block
     }
 

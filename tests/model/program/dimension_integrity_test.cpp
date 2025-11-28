@@ -66,9 +66,11 @@ void test_attention_dimensions() {
     std::cout << "  --- Testing MultiHeadAttention Layer Dimensions ---" << std::endl;
     MultiHeadAttention layer(TestConfig::EmbedDim, TestConfig::NumHeads, 0);
     Matrix input = Matrix::random({5, (size_t)TestConfig::EmbedDim});
-    input.reshape({1, 5, (size_t)TestConfig::EmbedDim});
+    // Fix: Assign result of reshape back to input
+    input = input.reshape({1, 5, (size_t)TestConfig::EmbedDim});
     Matrix d_out = Matrix::random({5, (size_t)TestConfig::EmbedDim});
-    d_out.reshape({1, 5, (size_t)TestConfig::EmbedDim});
+    // Fix: Assign result of reshape back to d_out
+    d_out = d_out.reshape({1, 5, (size_t)TestConfig::EmbedDim});
 
     layer.forward(input, input, input);
     layer.backward(d_out);

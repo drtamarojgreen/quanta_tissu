@@ -1,5 +1,6 @@
 #include "feedforward.h"
 #include <algorithm>
+#include <cmath>
 
 namespace TissNum {
 
@@ -50,9 +51,9 @@ Matrix relu_backward(const Matrix& d_out, const Matrix& x) {
 }
 
 FeedForward::FeedForward(size_t d_model, size_t d_ff, const std::string& name)
-    : w1_(Parameter(Matrix::random({d_model, d_ff}), name + ".w1")),
+    : w1_(Parameter(Matrix::random({d_model, d_ff}, 0.0f, 1.0f / std::sqrt((float)d_model)), name + ".w1")),
       b1_(Parameter(Matrix::zeros({1, d_ff}), name + ".b1")),
-      w2_(Parameter(Matrix::random({d_ff, d_model}), name + ".w2")),
+      w2_(Parameter(Matrix::random({d_ff, d_model}, 0.0f, 1.0f / std::sqrt((float)d_ff)), name + ".w2")),
       b2_(Parameter(Matrix::zeros({1, d_model}), name + ".b2")) {}
 
 Matrix FeedForward::forward(const Matrix& x) {

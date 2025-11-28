@@ -52,11 +52,11 @@ const float& Matrix::operator()(const std::vector<size_t>& indices) const {
     return data_[index];
 }
 
-Matrix Matrix::random(const std::vector<size_t>& shape) {
+Matrix Matrix::random(const std::vector<size_t>& shape, float mean, float stddev) {
     Matrix m(shape);
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::normal_distribution<float> dist(0.0f, 1.0f);
+    std::normal_distribution<float> dist(mean, stddev);
     for (size_t i = 0; i < m.data_.size(); ++i) {
         m.data_[i] = dist(gen);
     }

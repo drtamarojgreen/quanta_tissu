@@ -11,15 +11,16 @@ Matrix Dropout::forward(const Matrix& x, bool training) {
         return x;
     }
 
-    mask_ = Matrix({x.rows(), x.cols()});
+    mask_ = Matrix(x.get_shape());
     std::random_device rd;
     std::mt19937 gen(rd());
     std::bernoulli_distribution dist(1.0 - p_);
 
-    for (size_t i = 0; i < x.rows(); ++i) {
-        for (size_t j = 0; j < x.cols(); ++j) {
-            mask_({i, j}) = dist(gen) ? 1.0f : 0.0f;
-        }
+    size_t total_elements = x.data_size();
+    float* mask_data = mask_.get_data();
+
+    for (size_t i = 0; i < total_elements; ++i) {
+        mask_data[i] = dist(gen) ? 1.0f : 0.0f;
     }
 
     Matrix out = x * mask_;

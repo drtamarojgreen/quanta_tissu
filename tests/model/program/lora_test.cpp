@@ -4,51 +4,115 @@
 #include <vector>
 #include <cmath>
 #include <stdexcept>
+#include <chrono>
+#include <iomanip>
 
-// Helper to print test results
-void check(bool condition, const std::string& test_name) {
-    if (condition) {
-        std::cout << "[  PASSED  ] " << test_name << std::endl;
-    } else {
-        std::cout << "[  FAILED  ] " << test_name << std::endl;
-        throw std::runtime_error("Test failed: " + test_name);
+// Test result tracking
+struct TestResults {
+    int passed = 0;
+    int failed = 0;
+    std::vector<std::string> failures;
+    
+    void record_pass(const std::string& test_name, double duration_ms) {
+        passed++;
+        std::cout << "  ✓ " << test_name << " (" << std::fixed << std::setprecision(2) << duration_ms << " ms)" << std::endl;
     }
-}
-
-void test_lora_forward() {
-    std::cout << "--- Testing LoRA Forward ---" << std::endl;
-    TissNum::MultiHeadAttention mha(16, 4, 4);
-    TissNum::Matrix q_in({1, 16});
-    TissNum::Matrix k_in({1, 16});
-    TissNum::Matrix v_in({1, 16});
-
-    TissNum::Matrix output = mha.forward(q_in, k_in, v_in);
-
-    check(output.get_shape() == std::vector<size_t>({1, 16}), "LoRA forward output shape");
-}
-
-void test_no_lora() {
-    std::cout << "--- Testing No LoRA ---" << std::endl;
-    TissNum::MultiHeadAttention mha(16, 4, 0);
-    auto params = mha.parameters();
-    bool lora_found = false;
-    for (auto p : params) {
-        if (p->name().find("lora") != std::string::npos) {
-            lora_found = true;
-            break;
+    
+    void record_fail(const std::string& test_name, const std::string& reason, double duration_ms) {
+        failed++;
+        failures.push_back(test_name + ": " + reason);
+        std::cout << "  ✗ " << test_name << " - " << reason << " (" << std::fixed << std::setprecision(2) << duration_ms << " ms)" << std::endl;
+    }
+    
+    void print_summary() {
+        std::cout << "\n" << std::string(60, '=') << std::endl;
+        std::cout << "Test Summary" << std::endl;
+        std::cout << std::string(60, '=') << std::endl;
+        std::cout << "Passed: " << passed << std::endl;
+        std::cout << "Failed: " << failed << std::endl;
+        std::cout << "Total:  " << (passed + failed) << std::endl;
+        
+        if (failed > 0) {
+            std::cout << "\nFailed Tests:" << std::endl;
+            for (const auto& failure : failures) {
+                std::cout << "  - " << failure << std::endl;
+            }
+            std::cout << "\nActionable Recommendations:" << std::endl;
+            std::cout << "  - Review the failed tests and check for shape mismatches or logic errors." << std::endl;
         }
+        std::cout << std::string(60, '=') << std::endl;
     }
-    check(!lora_found, "No LoRA parameters when rank is 0");
+};
+
+void test_lora_forward(TestResults& results) {
+    auto start = std::chrono::high_resolution_clock::now();
+    std::string test_name = "LoRA Forward Pass";
+    
+    try {
+        TissNum::MultiHeadAttention mha(16, 4, 4);
+        TissNum::Matrix q_in({1, 1, 16});
+        TissNum::Matrix k_in({1, 1, 16});
+        TissNum::Matrix v_in({1, 1, 16});
+
+        TissNum::Matrix output = mha.forward(q_in, k_in, v_in);
+
+        if (output.get_shape() == std::vector<size_t>({1, 1, 16})) {
+            auto end = std::chrono::high_resolution_clock::now();
+            double duration = std::chrono::duration<double, std::milli>(end - start).count();
+            results.record_pass(test_name, duration);
+        } else {
+            auto end = std::chrono::high_resolution_clock::now();
+            double duration = std::chrono::duration<double, std::milli>(end - start).count();
+            results.record_fail(test_name, "Output shape mismatch", duration);
+        }
+    } catch (const std::exception& e) {
+        auto end = std::chrono::high_resolution_clock::now();
+        double duration = std::chrono::duration<double, std::milli>(end - start).count();
+        results.record_fail(test_name, std::string("Exception: ") + e.what(), duration);
+    }
+}
+
+void test_no_lora(TestResults& results) {
+    auto start = std::chrono::high_resolution_clock::now();
+    std::string test_name = "No LoRA Parameters";
+    
+    try {
+        TissNum::MultiHeadAttention mha(16, 4, 0);
+        auto params = mha.parameters();
+        bool lora_found = false;
+        for (auto p : params) {
+            if (p->name().find("lora") != std::string::npos) {
+                lora_found = true;
+                break;
+            }
+        }
+        
+        auto end = std::chrono::high_resolution_clock::now();
+        double duration = std::chrono::duration<double, std::milli>(end - start).count();
+        
+        if (!lora_found) {
+            results.record_pass(test_name, duration);
+        } else {
+            results.record_fail(test_name, "LoRA parameters found when rank is 0", duration);
+        }
+    } catch (const std::exception& e) {
+        auto end = std::chrono::high_resolution_clock::now();
+        double duration = std::chrono::duration<double, std::milli>(end - start).count();
+        results.record_fail(test_name, std::string("Exception: ") + e.what(), duration);
+    }
 }
 
 int main() {
-    try {
-        test_lora_forward();
-        test_no_lora();
-        std::cout << "\nAll LoRA tests passed!" << std::endl;
-        return 0;
-    } catch (const std::exception& e) {
-        std::cerr << "\nLoRA tests failed with exception: " << e.what() << std::endl;
-        return 1;
-    }
+    TestResults results;
+    
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "LoRA Test Suite" << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+
+    test_lora_forward(results);
+    test_no_lora(results);
+    
+    results.print_summary();
+    
+    return (results.failed == 0) ? 0 : 1;
 }
