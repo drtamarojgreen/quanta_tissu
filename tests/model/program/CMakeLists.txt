@@ -513,6 +513,18 @@ set_tests_properties(MQATests PROPERTIES
     LABELS "unit;core;mqa"
 )
 
+add_executable(bug_fix_verification_test bug_fix_verification_test.cpp)
+target_link_libraries(bug_fix_verification_test tisslm_core)
+add_test(NAME BugFixVerificationTests COMMAND bug_fix_verification_test)
+
 # Print build information
 message(STATUS "Building TissLM Tests")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
+
+# --- Test Runner ---
+add_executable(test_runner test_runner.cpp)
+target_link_libraries(test_runner) # No extra libs needed, just standard C++
+
+# --- Overfit Test ---
+add_executable(overfit_test overfit_test.cpp)
+target_link_libraries(overfit_test tisslm_core tisslm_training)

@@ -217,7 +217,7 @@ KVCacheTestResult run_single_kv_cache_test(
 
         auto current_time = std::chrono::high_resolution_clock::now();
         float elapsed = std::chrono::duration<float>(current_time - start_time_no_cache).count();
-        std::cout << "." << std::flush;
+        print_progress(i + 1, n_new_tokens, elapsed);
     }
     std::cout << std::endl;
     auto end_time_no_cache = std::chrono::high_resolution_clock::now();
@@ -275,7 +275,7 @@ KVCacheTestResult run_single_kv_cache_test(
 
         auto current_time = std::chrono::high_resolution_clock::now();
         float elapsed = std::chrono::duration<float>(current_time - start_time_cache).count();
-        std::cout << "." << std::flush;
+        print_progress(i + 1, n_new_tokens, elapsed);
     }
     std::cout << std::endl;
     auto end_time_cache = std::chrono::high_resolution_clock::now();

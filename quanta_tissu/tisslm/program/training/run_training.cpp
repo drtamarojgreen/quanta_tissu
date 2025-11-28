@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
     const int VOCAB_SIZE = 5000;
     const int SEQ_LEN = 128;
     const int BATCH_SIZE = 32;
-    const int EPOCHS = 1; // Reduced for verification
+    const int EPOCHS = 5; // Increased for better convergence
     const float LEARNING_RATE = 1e-3f;
 
     // 1. Load corpus
@@ -120,23 +120,32 @@ int main(int argc, char* argv[]) {
     // 5. Create trainer and train
     TissLM::Training::Trainer trainer(model, optimizer, loss_fn);
     
-    for (int epoch = 0; epoch < EPOCHS; ++epoch) {
-        std::cout << "Starting Epoch " << epoch + 1 << "/" << EPOCHS << std::endl;
-        trainer.train(dataset, 1, BATCH_SIZE);
-
-        std::string checkpoint_path = SAVE_DIR + "/checkpoint_epoch_" + std::to_string(epoch + 1) + ".pt";
-        trainer.save_checkpoint(checkpoint_path);
-        std::cout << "Saved checkpoint: " << checkpoint_path << std::endl;
-    }
-
     std::string final_model_path = SAVE_DIR + "/final_model.pt";
-    trainer.save_checkpoint(final_model_path);
-    std::cout << "Training complete. Final model saved: " << final_model_path << std::endl;
+    
+    if (fs::exists(final_model_path)) {
+        std::cout << "Found existing model at " << final_model_path << ". Loading..." << std::endl;
+        trainer.load_checkpoint(final_model_path);
+    } else {
+        for (int epoch = 0; epoch < EPOCHS; ++epoch) {
+            std::cout << "Starting Epoch " << epoch + 1 << "/" << EPOCHS << std::endl;
+            trainer.train(dataset, 1, BATCH_SIZE);
+
+            std::string checkpoint_path = SAVE_DIR + "/checkpoint_epoch_" + std::to_string(epoch + 1) + ".pt";
+            trainer.save_checkpoint(checkpoint_path);
+            std::cout << "Saved checkpoint: " << checkpoint_path << std::endl;
+        }
+        trainer.save_checkpoint(final_model_path);
+        std::cout << "Training complete. Final model saved: " << final_model_path << std::endl;
+    }
 
     // 6. Generate text
     std::string prompt = "The quick brown fox";
     std::cout << "\nGenerating text for prompt: '" << prompt << "'" << std::endl;
     std::vector<int> input_ids = tokenizer->encode(prompt);
+    
+    std::cout << "Debug: Encoded prompt IDs: ";
+    for (int id : input_ids) std::cout << id << " ";
+    std::cout << std::endl;
 
     for (int i = 0; i < 20; ++i) {
         TissNum::Matrix input_mat({1, input_ids.size()});
@@ -144,7 +153,7 @@ int main(int argc, char* argv[]) {
             input_mat({0, j}) = (float)input_ids[j];
         }
 
-        TissNum::Matrix logits = model->forward(input_mat);
+        TissNum::Matrix logits = model->forward(input_mat, false);
 
         size_t last_token_idx = input_ids.size() - 1;
         float max_logit = -1e9;
@@ -160,7 +169,9 @@ int main(int argc, char* argv[]) {
         }
 
         input_ids.push_back(best_token_id);
-        std::cout << tokenizer->decode({best_token_id}) << std::flush;
+        std::string decoded_token = tokenizer->decode({best_token_id});
+        std::cout << "Debug: Step " << i << ", Best Token ID: " << best_token_id << ", Logit: " << max_logit << ", Decoded: '" << decoded_token << "'" << std::endl;
+        // std::cout << decoded_token << std::flush;
     }
     std::cout << std::endl;
 
