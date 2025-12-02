@@ -83,7 +83,9 @@ get_description() {
         ./concatenate_test) echo "Matrix concatenation operations." ;;
         ./mqa_test) echo "Multi-Query Attention implementation." ;;
         ./mha_backward_test) echo "Multi-Head Attention backward pass." ;;
+        ./mha_backward_test) echo "Multi-Head Attention backward pass." ;;
         ./bug_fix_verification_test) echo "Regression tests for specific bug fixes." ;;
+        ./checkpoint_comparison_test) echo "Comparison of generated text across training checkpoints." ;;
         *) echo "Description not available." ;;
     esac
 }
@@ -112,8 +114,15 @@ analyze_failure() {
 
 TEMP_OUTPUT_FILE="test_output.log"
 
-# Run all tests found in the directory
+# Run tests
+# If an argument is provided, filter tests by name
+FILTER="$1"
+
 for test_exe in $(find . -maxdepth 1 -type f -executable -not -name "*.*" | sort); do
+    # Skip if filter is set and doesn't match
+    if [ -n "$FILTER" ] && [[ "$test_exe" != *"$FILTER"* ]]; then
+        continue
+    fi
     TEST_COUNT=$((TEST_COUNT + 1))
     test_names+=("$test_exe")
     test_descriptions+=("$(get_description "$test_exe")")

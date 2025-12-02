@@ -457,6 +457,22 @@ target_link_libraries(transformer_block_test
     tisslm_core
 )
 
+add_executable(checkpoint_comparison_test
+    checkpoint_comparison_test.cpp
+)
+target_link_libraries(checkpoint_comparison_test
+    tisslm_core
+    tisslm_training
+    tisslm_generation
+    tisslm_tokenizer
+    retrieval_strategies
+)
+add_test(NAME CheckpointComparisonTests COMMAND checkpoint_comparison_test)
+set_tests_properties(CheckpointComparisonTests PROPERTIES
+    TIMEOUT 60
+    LABELS "integration;checkpoint;comparison"
+)
+
 # Get the project root and pass it as a compile definition to all tests
 foreach(test_exe ${TEST_EXECUTABLES})
     target_compile_definitions(${test_exe} PRIVATE "TOKENIZER_PATH_FROM_CMAKE=\"${TOKENIZER_PATH_FROM_CMAKE}\"")
@@ -528,3 +544,6 @@ target_link_libraries(test_runner) # No extra libs needed, just standard C++
 # --- Overfit Test ---
 add_executable(overfit_test overfit_test.cpp)
 target_link_libraries(overfit_test tisslm_core tisslm_training)
+
+# Copy test_config.txt to build directory
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/test_config.txt ${CMAKE_CURRENT_BINARY_DIR}/test_config.txt COPYONLY)
