@@ -27,3 +27,4 @@ concatenate_test|Matrix concatenation operations.
 mqa_test|Multi-Query Attention implementation.
 mha_backward_test|Multi-Head Attention backward pass.
 bug_fix_verification_test|Regression tests for specific bug fixes.
+checkpoint_comparison_test|Comparison of generated text across training checkpoints.
