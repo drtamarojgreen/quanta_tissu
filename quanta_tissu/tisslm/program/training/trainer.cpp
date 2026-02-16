@@ -21,7 +21,9 @@ Trainer::Trainer(
 void Trainer::train(
     TokenDataset& dataset,
     int epochs,
-    int batch_size
+    int batch_size,
+    int checkpoint_every_n_batches,
+    const std::string& checkpoint_dir
 ) {
     size_t num_samples = dataset.size();
     if (num_samples == 0) {
@@ -48,6 +50,13 @@ void Trainer::train(
                 std::cout << "Epoch " << epoch + 1 << ", Batch " << b << "/" << num_batches << std::endl;
             }
 
+            if (checkpoint_every_n_batches > 0 && b > 0 && b % checkpoint_every_n_batches == 0) {
+                std::string checkpoint_path = (checkpoint_dir.empty() ? "" : checkpoint_dir + "/") + 
+                                              "checkpoint_epoch_" + std::to_string(epoch) + "_batch_" + std::to_string(b) + ".bin";
+                save_checkpoint(checkpoint_path);
+                std::cout << "Saved checkpoint to " << checkpoint_path << std::endl;
+            }
+
             TissNum::Matrix batch_input({current_batch_size, dataset.get_item(0).first.cols()});
             TissNum::Matrix batch_target({current_batch_size, dataset.get_item(0).second.cols()});
 
@@ -71,6 +80,13 @@ void Trainer::train(
                 for (size_t c = 0; c < batch_target.cols(); ++c) {
                     reshaped_target({r * batch_target.cols() + c, 0}) = batch_target({r, c});
                 }
+            }
+
+            // Add shape assertion
+            if (predictions.rows() != reshaped_target.rows()) {
+                throw std::runtime_error("Shape mismatch between predictions and targets: " + 
+                                         std::to_string(predictions.rows()) + " != " + 
+                                         std::to_string(reshaped_target.rows()));
             }
 
             // Compute loss

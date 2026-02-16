@@ -66,43 +66,10 @@ echo "TissDB running with PID: $TISSDB_PID"
 # Give TissDB time to initialize
 sleep 2
 
-# --- Step 3: Train Dummy Tokenizer (Necessary for Workout) ---
-echo "[3/4] Preparing Tokenizer..."
-cat <<EOF > train_tokenizer_temp.cpp
-#include "tokenizer.h"
-#include <iostream>
-#include <fstream>
-#include <string>
-
-int main() {
-    std::ofstream v("tokenizer_vocab.json"); v << "{\"<PAD>\":0, \"<UNK>\":1, \"<BOS>\":2, \"<EOS>\":3}"; v.close();
-    std::ofstream m("tokenizer_merges.txt"); m.close();
-    try {
-        TissLM::Tokenizer::Tokenizer tokenizer("tokenizer");
-        tokenizer.train("Cognitive Behavioral Therapy focuses on a common cognitive distortion is", 256);
-        tokenizer.save("tokenizer");
-        std::cout << "Tokenizer trained with dummy corpus." << std::endl;
-    } catch (const std::exception& e) {
-        std::cerr << "Tokenizer training failed: " << e.what() << std::endl;
-        return 1;
-    }
-    return 0;
-}
-EOF
-
-g++ -std=c++17 -o train_tokenizer_exe \
-    train_tokenizer_temp.cpp \
-    quanta_tissu/tisslm/program/tokenizer/tokenizer.cpp \
-    quanta_tissu/tisslm/program/tokenizer/pre_tokenizer.cpp \
-    -Iquanta_tissu/tisslm/program/tokenizer \
-    -Iquanta_tissu/tisslm/program
-
-./train_tokenizer_exe
-
-# --- Step 4: Compile and Run Full-Fledged Workout ---
-echo "[4/4] Compiling and Running Full-Fledged Workout..."
-g++ -std=c++17 -o full_fledged_workout_exe \
-    tests/model/program/full_fledged_workout_cpp.cpp \
+# --- Step 3: Compile and Run Training ---
+echo "[3/4] Compiling and Running Training..."
+g++ -std=c++17 -o train_model_exe \
+    tests/model/program/train_model.cpp \
     quanta_tissu/tisslm/program/core/matrix.cpp \
     quanta_tissu/tisslm/program/core/parameter.cpp \
     quanta_tissu/tisslm/program/core/layernorm.cpp \
@@ -113,7 +80,6 @@ g++ -std=c++17 -o full_fledged_workout_exe \
     quanta_tissu/tisslm/program/core/positionalencoding.cpp \
     quanta_tissu/tisslm/program/core/embedding.cpp \
     quanta_tissu/tisslm/program/core/transformer_model.cpp \
-    quanta_tissu/tisslm/program/core/mock_embedder.cpp \
     quanta_tissu/tisslm/program/generation/generator.cpp \
     quanta_tissu/tisslm/program/tokenizer/tokenizer.cpp \
     quanta_tissu/tisslm/program/tokenizer/pre_tokenizer.cpp \
@@ -121,25 +87,18 @@ g++ -std=c++17 -o full_fledged_workout_exe \
     quanta_tissu/tisslm/program/training/loss_function.cpp \
     quanta_tissu/tisslm/program/training/trainer.cpp \
     quanta_tissu/tisslm/program/training/dataset.cpp \
-    quanta_tissu/tisslm/program/db/tissdb_client.cpp \
-    quanta_tissu/tisslm/program/db/tissdb_lite_client.cpp \
-    quanta_tissu/tisslm/program/db/http_client.cpp \
     quanta_tissu/tisslm/program/retrieval/retrieval_strategy.cpp \
     tissdb/json/json.cpp \
-    tissdb/common/document.cpp \
     -Itests/model/program \
     -Iquanta_tissu/tisslm/program \
     -Iquanta_tissu/tisslm/program/core \
     -Iquanta_tissu/tisslm/program/generation \
     -Iquanta_tissu/tisslm/program/tokenizer \
     -Iquanta_tissu/tisslm/program/training \
-    -Iquanta_tissu/tisslm/program/db \
-    -Iquanta_tissu/tisslm/program/retrieval \
-    -Itissdb/json \
-    -Itissdb/common \
-    -DTOKENIZER_PATH_FROM_CMAKE=\"tokenizer\" \
+    -I. \
     -lpthread
 
-./full_fledged_workout_exe
+./train_model_exe
+
 
 echo "Workflow complete."

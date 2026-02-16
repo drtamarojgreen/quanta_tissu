@@ -21,6 +21,7 @@ public:
 
 private:
     std::map<std::pair<int, int>, int> merges;
+    std::vector<std::pair<int, int>> ranked_merges;
     std::map<int, std::vector<unsigned char>> vocab;
     std::map<std::vector<unsigned char>, int> reverse_vocab;
 

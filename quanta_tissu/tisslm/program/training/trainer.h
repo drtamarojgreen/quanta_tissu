@@ -25,7 +25,9 @@ public:
     void train(
         TokenDataset& dataset, // Use TokenDataset
         int epochs,
-        int batch_size
+        int batch_size,
+        int checkpoint_every_n_batches = 0,
+        const std::string& checkpoint_dir = ""
     );
 
     void save_checkpoint(const std::string& path) const;
