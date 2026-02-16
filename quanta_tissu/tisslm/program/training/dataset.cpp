@@ -12,7 +12,7 @@ size_t TokenDataset::size() const {
     if (token_ids_.size() <= seq_len_) {
         return 0;
     }
-    return token_ids_.size() - seq_len_ - 1;
+    return token_ids_.size() - seq_len_;
 }
 
 std::pair<TissNum::Matrix, TissNum::Matrix> TokenDataset::get_item(size_t index) const {

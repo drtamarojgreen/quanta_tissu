@@ -107,4 +107,4 @@ if __name__ == "__main__":
     tokenizer.train(corpus, vocab_size=VOCAB_SIZE, verbose=True)
 
     # 3. Train model with checkpoints
-    train_model(tokenizer, corpus, SAVE_DIR)
+    train_model(tokenizer, corpus, SAVE_DIR, checkpoint_every=100)

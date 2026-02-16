@@ -11,10 +11,11 @@ namespace TissLM {
 namespace Tokenizer {
 
 // Helper function to find consecutive pairs of IDs in a list.
-std::set<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
-    std::set<std::pair<int, int>> pairs;
+std::vector<std::pair<int, int>> get_pairs(const std::vector<int>& ids) {
+    std::vector<std::pair<int, int>> pairs;
+    if (ids.size() < 2) return pairs;
     for (size_t i = 0; i < ids.size() - 1; ++i) {
-        pairs.insert({ids[i], ids[i+1]});
+        pairs.emplace_back(ids[i], ids[i+1]);
     }
     return pairs;
 }
@@ -252,7 +253,8 @@ void Tokenizer::train(const std::string& text, int vocab_size, bool verbose) {
     for (int i = 0; i < num_merges; ++i) {
         std::map<std::pair<int, int>, int> pair_counts;
         for (const auto& sequence : word_byte_sequences) {
-            for (const auto& pair : get_pairs(sequence)) {
+            auto pairs = get_pairs(sequence);
+            for (const auto& pair : pairs) {
                 pair_counts[pair]++;
             }
         }
@@ -267,7 +269,10 @@ void Tokenizer::train(const std::string& text, int vocab_size, bool verbose) {
             })->first;
 
         int new_token_id = 256 + i;
-        this->merges[best_pair] = new_token_id;
+        int rank = i;
+        this->merges[best_pair] = rank;
+        this->ranked_merges.push_back(best_pair); // Store merges in rank order
+
         std::vector<unsigned char> new_token_bytes = this->vocab[best_pair.first];
         new_token_bytes.insert(new_token_bytes.end(), this->vocab[best_pair.second].begin(), this->vocab[best_pair.second].end());
         this->vocab[new_token_id] = new_token_bytes;
@@ -331,8 +336,8 @@ void Tokenizer::save(const std::string& prefix) {
     // Save merges
     std::ofstream merges_file(merges_path);
     if (merges_file.is_open()) {
-        for (const auto& pair : this->merges) {
-            merges_file << pair.first.first << " " << pair.first.second << std::endl;
+        for (const auto& pair : this->ranked_merges) {
+            merges_file << pair.first << " " << pair.second << std::endl;
         }
     }
 }
