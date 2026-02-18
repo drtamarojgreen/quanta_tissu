@@ -26,7 +26,7 @@ JSON_EVENTS=false
 MENU_MODE=false
 TIMEOUT_SECONDS=3600 # 1 hour default
 
-# Color codes
+# Color codes & special characters
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -34,12 +34,106 @@ BLUE='\033[0;34m'
 MAGENTA='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
+BOLD='\033[1m'
+DIM='\033[2m'
+CHECK="✓"
+CROSS="✗"
+ARROW="→"
+SPINNER="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 
 # --- Logging Functions ---
-log()     { [[ "${QUIET:-false}" == "true" ]] || echo -e "${BLUE}[INFO]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
-success() { echo -e "${GREEN}[SUCCESS]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
-warn()    { echo -e "${YELLOW}[WARN]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2; }
-error()   { echo -e "${RED}[ERROR]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2; }
+log()     { [[ "${QUIET:-false}" == "true" ]] || echo -e "${CYAN}${BOLD}[INFO]${NC}   $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
+success() { echo -e "${GREEN}${BOLD}[SUCCESS]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
+warn()    { echo -e "${YELLOW}${BOLD}[WARN]${NC}   $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2; }
+error()   { echo -e "${RED}${BOLD}[ERROR]${NC}  $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2; }
+
+# --- UI Functions ---
+display_header() {
+    echo -e "${MAGENTA}${BOLD}"
+    echo "================================================================"
+    echo "    QuantaTissu Frontier - Integrated Workout Workflow v$VERSION"
+    echo "================================================================"
+    echo -e "${NC}"
+}
+
+draw_progress_bar() {
+    local -r _w=50 _p=$1 _t=$2
+    # Ensure we don't divide by zero
+    if [[ $_t -eq 0 ]]; then return; fi
+    local _c=$((_p*100/_t))
+    local -r _s=8 _l=$((_w-_s-5)) _n=$((_c*_l/100)) _m=$((_l-_n))
+    local _bar
+    _bar=$(printf "%${_n}s" | tr ' ' '█')
+    local _space
+    _space=$(printf "%${_m}s")
+    printf "\r [%s%s] %3d%%" "$_bar" "$_space" "$_c" > /dev/tty
+}
+
+display_checklist() {
+    clear
+    display_header
+    echo -e "${BOLD}Workflow Stages:${NC}"
+    for i in "${!STAGES[@]}"; do
+        local stage="${STAGES[$i]}"
+        local status_char=" "
+        local color=$DIM
+        local status_text="PENDING"
+        local status=$(get_stage_status "$stage")
+
+        if [[ "$status" == "COMPLETED" ]]; then
+            status_char="$CHECK"
+            color=$GREEN
+            status_text="COMPLETED"
+        elif [[ "$status" == "FAILED" ]]; then
+            status_char="$CROSS"
+            color=$RED
+            status_text="FAILED"
+        elif [[ "${CURRENT_STAGE:-}" == "$stage" ]]; then
+            status_char="$ARROW"
+            color=$CYAN
+            status_text="IN PROGRESS"
+        fi
+
+        echo -e "${color}${BOLD}[$status_char] Stage $((i+1))/${NUM_STAGES}: ${stage} - ${status_text}${NC}"
+    done
+    echo "----------------------------------------------------------------"
+}
+
+run_with_spinner() {
+    local -r msg="$1"
+    local -r cmd="$2"
+    local -r log_file="$3"
+    
+    echo -e "${CYAN}${BOLD}$msg${NC}"
+    
+    (
+        set -o pipefail
+        $cmd &> "$log_file"
+    ) &
+    local pid=$!
+
+    local i=0
+    local start_time=$(date +%s)
+    while kill -0 $pid 2>/dev/null; do
+        i=$(( (i+1) % ${#SPINNER} ))
+        local elapsed=$(($(date +%s) - start_time))
+        printf "\r ${SPINNER:$i:1} Running for ${elapsed}s..."
+        sleep 0.1
+    done
+    
+    wait $pid
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
+        printf "\r ${GREEN}${CHECK}${NC} Done in $(($(date +%s) - start_time))s.      \n"
+    else
+        printf "\r ${RED}${CROSS}${NC} Failed after $(($(date +%s) - start_time))s.    \n"
+        error "Command failed. View log for details: $log_file"
+        cat "$log_file" >&2
+        exit $exit_code
+    fi
+}
+
 
 # --- Error Handling ---
 on_error() {
@@ -97,24 +191,39 @@ retry() {
     done
 }
 
-# --- Heartbeat & Progress ---
-start_heartbeat() {
-    local stage=$1
-    (
-        while true; do
-            sleep "$PROGRESS_INTERVAL"
-            local elapsed=$(($(date +%s) - START_TIME))
-            log "Heartbeat [$stage]: Running for ${elapsed}s..."
-        done
-    ) &
-    HEARTBEAT_PID=$!
-}
+run_stage() {
+    local idx=$1
+    local stage=${STAGES[$idx]}
+    local func=$2
+    local stage_num=$((idx + 1))
+    
+    CURRENT_STAGE="$stage"
 
-stop_heartbeat() {
-    if [[ -n "${HEARTBEAT_PID:-}" ]]; then
-        kill "$HEARTBEAT_PID" 2>/dev/null || true
-        HEARTBEAT_PID=""
+    if is_skip_stage "$stage"; then
+        display_checklist
+        log "[$stage_num/$NUM_STAGES] Skipping $stage (already completed)."
+        sleep 1
+        return
     fi
+    
+    display_checklist
+    
+    local start_ts=$(date +%s)
+    local log_file="temp_log_$(date +%s).log"
+    
+    run_with_spinner "[$stage_num/$NUM_STAGES] Running $stage..." "$func" "$log_file"
+
+    local end_ts=$(date +%s)
+    local duration=$((end_ts - start_ts))
+    local mem_usage=$(free -m | awk 'NR==2{print $3}')
+    
+    set_checkpoint "$stage" "COMPLETED" "{\"duration\": $duration, \"mem_mb\": $mem_usage}"
+    
+    # Update checklist to show completion
+    display_checklist
+    success "[$stage_num/$NUM_STAGES] $stage completed in ${duration}s."
+    rm -f "$log_file"
+    sleep 1 # Pause to let user see the checkmark
 }
 
 # --- State Management ---
@@ -172,28 +281,31 @@ parse_args() {
 # --- Visibility Filters ---
 process_training_output() {
     local line
+    tput civis # Hide cursor
     while IFS= read -r line; do
+        # Log every line from the training process
         echo "$(date '+%Y-%m-%d %H:%M:%S.%3N') $line" >> "$EVENTS_LOG"
-        if [[ "$line" =~ Merge\ ([0-9]+)/([0-9]+):\ \(([0-9]+),\ ([0-9]+)\)\ -\>\ ([0-9]+) ]]; then
+
+        if [[ "$line" =~ Merge\ ([0-9]+)/([0-9]+) ]]; then
             local current=${BASH_REMATCH[1]}
             local total=${BASH_REMATCH[2]}
-            local p1=${BASH_REMATCH[3]}
-            local p2=${BASH_REMATCH[4]}
-            local nt=${BASH_REMATCH[5]}
-            if [[ "${JSON_EVENTS:-false}" == "true" ]]; then
-                echo "{\"event\": \"merge\", \"step\": $current, \"total\": $total, \"pair\": [$p1, $p2], \"new_token\": $nt}"
-            fi
+            
+            # Decide whether to show verbose merge info or a progress bar
             if [[ "${VERBOSE_MERGES:-false}" == "true" ]]; then
-                echo -e "${MAGENTA}[MERGE]${NC} Step $current/$total: ($p1, $p2) → Token $nt"
-            elif [[ $((current % 100)) -eq 0 ]]; then
-                 echo -en "\r${CYAN}[PROGRESS]${NC} Merging: $current/$total tokens created..."
+                echo -e "\r\033[K${MAGENTA}[MERGE]${NC} $line" > /dev/tty
+            else
+                # Overwrite the spinner from run_with_spinner with a progress bar
+                printf "\r\033[K" > /dev/tty
+                draw_progress_bar "$current" "$total"
             fi
         elif [[ "${VERBOSE_TOKENS:-false}" == "true" ]]; then
-             echo -e "${CYAN}[TOKEN]${NC} $line"
-        else
-            echo "$line"
+             # Show individual token details if verbose
+             echo -e "\r\033[K${CYAN}[TOKEN]${NC} $line" > /dev/tty
         fi
+        # Non-matching lines are logged but not displayed to keep the UI clean
     done
+    tput cnorm # Restore cursor
+    echo "" > /dev/tty # Ensure a new line after the progress bar finishes
 }
 
 # --- Preflight Checks ---
@@ -272,116 +384,75 @@ is_skip_stage() {
     return 1
 }
 
-run_stage() {
-    local idx=$1
-    local stage=${STAGES[$idx]}
-    local func=$2
-    local stage_num=$((idx + 1))
-    CURRENT_STAGE="$stage"
-    if is_skip_stage "$stage"; then
-        log "[$stage_num/$NUM_STAGES] Skipping $stage."
-        return
-    fi
-    log "[$stage_num/$NUM_STAGES] Starting $stage..."
-    local start_ts=$(date +%s)
-    start_heartbeat "$stage"
+# --- Command Definitions ---
+COMPILE_TISSDB_CMD="retry timeout $TIMEOUT_SECONDS g++ -std=c++17 -Wall -Wextra -g -march=native \
+    -Itissdb -Iquanta_tissu/tisslm/program -I. \
+    tissdb/main.cpp tissdb/api/http_server.cpp tissdb/audit/audit_logger.cpp \
+    tissdb/auth/rbac.cpp tissdb/auth/token_manager.cpp tissdb/common/binary_stream_buffer.cpp \
+    tissdb/common/checksum.cpp tissdb/common/document.cpp tissdb/common/schema_validator.cpp \
+    tissdb/common/serialization.cpp tissdb/crypto/kms.cpp tissdb/json/json.cpp \
+    tissdb/query/executor.cpp tissdb/query/executor_common.cpp tissdb/query/executor_delete.cpp \
+    tissdb/query/executor_insert.cpp tissdb/query/executor_select.cpp tissdb/query/executor_update.cpp \
+    tissdb/query/join_algorithms.cpp tissdb/query/parser.cpp tissdb/storage/collection.cpp \
+    tissdb/storage/database_manager.cpp tissdb/storage/indexer.cpp tissdb/storage/lsm_tree.cpp \
+    tissdb/storage/memtable.cpp tissdb/storage/native_b_tree.cpp tissdb/storage/sstable.cpp \
+    tissdb/storage/transaction_manager.cpp tissdb/storage/wal.cpp \
+    quanta_tissu/tisslm/program/ddl_parser.cpp quanta_tissu/tisslm/program/schema_manager.cpp \
+    quanta_tissu/tisslm/program/tissu_sinew.cpp tests/db/http_client.cpp \
+    -latomic -lpthread -o tissdb_exe"
 
-    # Run the function in the CURRENT shell to preserve variables and background PIDs
-    $func
+START_TISSDB_CMD="./tissdb_exe"
 
-    stop_heartbeat
-    local end_ts=$(date +%s)
-    local duration=$((end_ts - start_ts))
-    local mem_usage=$(free -m | awk 'NR==2{print $3}')
-    set_checkpoint "$stage" "COMPLETED" "{\"duration\": $duration, \"mem_mb\": $mem_usage}"
-    success "[$stage_num/$NUM_STAGES] $stage completed in ${duration}s."
-}
+COMPILE_TRAINING_CMD="retry timeout $TIMEOUT_SECONDS g++ -std=c++17 -o train_model_exe \
+    tests/model/program/train_model.cpp \
+    quanta_tissu/tisslm/program/core/matrix.cpp quanta_tissu/tisslm/program/core/parameter.cpp \
+    quanta_tissu/tisslm/program/core/layernorm.cpp quanta_tissu/tisslm/program/core/dropout.cpp \
+    quanta_tissu/tisslm/program/core/feedforward.cpp quanta_tissu/tisslm/program/core/multiheadattention.cpp \
+    quanta_tissu/tisslm/program/core/transformerblock.cpp quanta_tissu/tisslm/program/core/positionalencoding.cpp \
+    quanta_tissu/tisslm/program/core/embedding.cpp quanta_tissu/tisslm/program/core/transformer_model.cpp \
+    quanta_tissu/tisslm/program/generation/generator.cpp quanta_tissu/tisslm/program/tokenizer/tokenizer.cpp \
+    quanta_tissu/tisslm/program/tokenizer/pre_tokenizer.cpp quanta_tissu/tisslm/program/training/optimizer.cpp \
+    quanta_tissu/tisslm/program/training/loss_function.cpp quanta_tissu/tisslm/program/training/trainer.cpp \
+    quanta_tissu/tisslm/program/training/dataset.cpp quanta_tissu/tisslm/program/retrieval/retrieval_strategy.cpp \
+    tissdb/json/json.cpp \
+    -Itests/model/program -Iquanta_tissu/tisslm/program -Iquanta_tissu/tisslm/program/core \
+    -Iquanta_tissu/tisslm/program/generation -Iquanta_tissu/tisslm/program/tokenizer \
+    -Iquanta_tissu/tisslm/program/training -I. -lpthread"
 
-do_compile_tissdb() {
-    if [[ "${DRY_RUN:-false}" == "false" ]]; then
-        retry timeout "$TIMEOUT_SECONDS" g++ -std=c++17 -Wall -Wextra -g -march=native \
-            -Itissdb -Iquanta_tissu/tisslm/program -I. \
-            tissdb/main.cpp tissdb/api/http_server.cpp tissdb/audit/audit_logger.cpp \
-            tissdb/auth/rbac.cpp tissdb/auth/token_manager.cpp tissdb/common/binary_stream_buffer.cpp \
-            tissdb/common/checksum.cpp tissdb/common/document.cpp tissdb/common/schema_validator.cpp \
-            tissdb/common/serialization.cpp tissdb/crypto/kms.cpp tissdb/json/json.cpp \
-            tissdb/query/executor.cpp tissdb/query/executor_common.cpp tissdb/query/executor_delete.cpp \
-            tissdb/query/executor_insert.cpp tissdb/query/executor_select.cpp tissdb/query/executor_update.cpp \
-            tissdb/query/join_algorithms.cpp tissdb/query/parser.cpp tissdb/storage/collection.cpp \
-            tissdb/storage/database_manager.cpp tissdb/storage/indexer.cpp tissdb/storage/lsm_tree.cpp \
-            tissdb/storage/memtable.cpp tissdb/storage/native_b_tree.cpp tissdb/storage/sstable.cpp \
-            tissdb/storage/transaction_manager.cpp tissdb/storage/wal.cpp \
-            quanta_tissu/tisslm/program/ddl_parser.cpp quanta_tissu/tisslm/program/schema_manager.cpp \
-            quanta_tissu/tisslm/program/tissu_sinew.cpp tests/db/http_client.cpp \
-            -latomic -lpthread -o tissdb_exe
-    else
-        log "[DRY-RUN] Would compile TissDB"
-    fi
-}
-
-do_start_tissdb() {
-    if [[ "${DRY_RUN:-false}" == "false" ]]; then
-        ./tissdb_exe &
-        TISSDB_PID=$!
-        log "TissDB started with PID: $TISSDB_PID"
-        sleep 2
-    else
-        log "[DRY-RUN] Would start TissDB"
-    fi
-}
-
-do_compile_training() {
-    if [[ "${DRY_RUN:-false}" == "false" ]]; then
-        retry timeout "$TIMEOUT_SECONDS" g++ -std=c++17 -o train_model_exe \
-            tests/model/program/train_model.cpp \
-            quanta_tissu/tisslm/program/core/matrix.cpp quanta_tissu/tisslm/program/core/parameter.cpp \
-            quanta_tissu/tisslm/program/core/layernorm.cpp quanta_tissu/tisslm/program/core/dropout.cpp \
-            quanta_tissu/tisslm/program/core/feedforward.cpp quanta_tissu/tisslm/program/core/multiheadattention.cpp \
-            quanta_tissu/tisslm/program/core/transformerblock.cpp quanta_tissu/tisslm/program/core/positionalencoding.cpp \
-            quanta_tissu/tisslm/program/core/embedding.cpp quanta_tissu/tisslm/program/core/transformer_model.cpp \
-            quanta_tissu/tisslm/program/generation/generator.cpp quanta_tissu/tisslm/program/tokenizer/tokenizer.cpp \
-            quanta_tissu/tisslm/program/tokenizer/pre_tokenizer.cpp quanta_tissu/tisslm/program/training/optimizer.cpp \
-            quanta_tissu/tisslm/program/training/loss_function.cpp quanta_tissu/tisslm/program/training/trainer.cpp \
-            quanta_tissu/tisslm/program/training/dataset.cpp quanta_tissu/tisslm/program/retrieval/retrieval_strategy.cpp \
-            tissdb/json/json.cpp \
-            -Itests/model/program -Iquanta_tissu/tisslm/program -Iquanta_tissu/tisslm/program/core \
-            -Iquanta_tissu/tisslm/program/generation -Iquanta_tissu/tisslm/program/tokenizer \
-            -Iquanta_tissu/tisslm/program/training -I. -lpthread
-    else
-        log "[DRY-RUN] Would compile training"
-    fi
-}
-
-do_run_training() {
-    if [[ "${DRY_RUN:-false}" == "false" ]]; then
-        timeout "$TIMEOUT_SECONDS" ./train_model_exe | process_training_output
-    else
-        log "[DRY-RUN] Would run training"
-    fi
-}
+RUN_TRAINING_CMD="timeout $TIMEOUT_SECONDS ./train_model_exe | process_training_output"
 
 # --- Report Generator ---
 generate_report() {
     log "Generating final report..."
     local end_time=$(date +%s)
     local total_duration=$((end_time - START_TIME))
-    echo "===================================================="
-    echo "   QuantaTissu Workout Final Report"
-    echo "===================================================="
-    echo "Total Duration: ${total_duration}s"
-    echo "Ecosystem Version: $VERSION"
+    
+    echo -e "${MAGENTA}${BOLD}================================================================${NC}"
+    echo -e "${MAGENTA}${BOLD}   QuantaTissu Workout Final Report${NC}"
+    echo -e "${MAGENTA}${BOLD}================================================================${NC}"
+    echo -e "${BOLD}Total Duration:${NC} ${total_duration}s"
+    echo -e "${BOLD}Ecosystem Version:${NC} $VERSION"
     if [[ -d .git ]]; then
-        echo "Git Hash: $(git rev-parse HEAD)"
+        echo -e "${BOLD}Git Hash:${NC} $(git rev-parse --short HEAD)"
     fi
-    echo "----------------------------------------------------"
-    printf "%-20s | %-10s | %-10s\n" "Stage" "Status" "Duration"
-    echo "----------------------------------------------------"
+    echo -e "${DIM}----------------------------------------------------------------${NC}"
+    printf "${BOLD}%-20s | %-15s | %-10s\n${NC}" "Stage" "Status" "Duration"
+    echo -e "${DIM}----------------------------------------------------------------${NC}"
+    
     for stage in "${STAGES[@]}"; do
         local status=$(jq -r ".stages[\"$stage\"].status // \"UNKNOWN\"" "$STATE_FILE")
         local dur=$(jq -r ".stages[\"$stage\"].metadata.duration // \"-\"" "$STATE_FILE")
-        printf "%-20s | %-10s | %-10ss\n" "$stage" "$status" "$dur"
+        local color=$NC
+        
+        case "$status" in
+            "COMPLETED") color=$GREEN ;;
+            "FAILED") color=$RED ;;
+            "UNKNOWN") color=$DIM ;;
+        esac
+        
+        printf "${color}%-20s | %-15s | %-10s s\n${NC}" "$stage" "$status" "$dur"
     done
-    echo "===================================================="
+    echo -e "${MAGENTA}${BOLD}================================================================${NC}"
 }
 
 # --- Menu ---
@@ -424,11 +495,88 @@ show_menu() {
     done
 }
 
+run_stage() {
+    local idx=$1
+    local stage=${STAGES[$idx]}
+    local cmd_string=$2
+    local stage_num=$((idx + 1))
+    
+    CURRENT_STAGE="$stage"
+
+    if is_skip_stage "$stage"; then
+        display_checklist
+        log "[$stage_num/$NUM_STAGES] Skipping $stage (already completed)."
+        sleep 1
+        return
+    fi
+    
+    display_checklist
+    
+    local start_ts=$(date +%s)
+    local log_file="temp_log_$(date +%s).log"
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log "[DRY-RUN] Would run: $cmd_string"
+        sleep 1
+    else
+        run_with_spinner "[$stage_num/$NUM_STAGES] Running $stage..." "$cmd_string" "$log_file"
+    fi
+
+    local end_ts=$(date +%s)
+    local duration=$((end_ts - start_ts))
+    local mem_usage=$(free -m | awk 'NR==2{print $3}')
+    
+    set_checkpoint "$stage" "COMPLETED" "{\"duration\": $duration, \"mem_mb\": $mem_usage}"
+    
+    display_checklist
+    success "[$stage_num/$NUM_STAGES] $stage completed in ${duration}s."
+    rm -f "$log_file"
+    sleep 1 # Pause to let user see the checkmark
+}
+
 main_workflow() {
-    run_stage 0 do_compile_tissdb
-    run_stage 1 do_start_tissdb
-    run_stage 2 do_compile_training
-    run_stage 3 do_run_training
+    display_checklist
+    run_stage 0 "$COMPILE_TISSDB_CMD"
+    
+    # --- Stage 2: START_TISSDB ---
+    CURRENT_STAGE="START_TISSDB"
+    if ! is_skip_stage "START_TISSDB"; then
+        display_checklist
+        log "[2/4] Starting START_TISSDB..."
+        if [[ "${DRY_RUN:-false}" == "false" ]]; then
+            $START_TISSDB_CMD &
+            TISSDB_PID=$!
+            log "TissDB started with PID: $TISSDB_PID"
+            
+            local i=0
+            local start_time=$(date +%s)
+            local wait_msg="Waiting for TissDB to be ready..."
+            printf "${CYAN}${BOLD}$wait_msg${NC}\n"
+            while ! curl -s http://localhost:8080/ping > /dev/null; do
+                i=$(( (i+1) % ${#SPINNER} ))
+                local elapsed=$(($(date +%s) - start_time))
+                printf "\r ${SPINNER:$i:1} Running for ${elapsed}s..."
+                sleep 0.5
+                if (( elapsed > 60 )); then
+                    error "TissDB failed to start in 60s."
+                    exit 1
+                fi
+            done
+            printf "\r ${GREEN}${CHECK}${NC} Done in $(($(date +%s) - start_time))s.      \n"
+        else
+            log "[DRY-RUN] Would start TissDB"
+        fi
+        set_checkpoint "START_TISSDB" "COMPLETED"
+        display_checklist
+        success "[2/4] START_TISSDB completed."
+        sleep 1
+    else
+      log "[2/4] Skipping START_TISSDB (already completed)."
+      sleep 1
+    fi
+
+    run_stage 2 "$COMPILE_TRAINING_CMD"
+    run_stage 3 "$RUN_TRAINING_CMD"
     generate_report
 }
 
