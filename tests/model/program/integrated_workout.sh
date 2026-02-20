@@ -49,6 +49,10 @@ error()   { echo -e "${RED}${BOLD}[ERROR]${NC}  $(date '+%Y-%m-%d %H:%M:%S') - $
 
 # --- UI Functions ---
 start_heartbeat() {
+    if [[ ! -t 1 ]] || [[ ! -w /dev/tty ]]; then
+        return
+    fi
+
     (
         while true; do
             for (( i=0; i<${#SPINNER}; i++ )); do
@@ -128,7 +132,7 @@ run_with_spinner() {
     
     (
         set -o pipefail
-        $cmd &> "$log_file"
+        bash -lc "$cmd" &> "$log_file"
     ) &
     local pid=$!
 
@@ -193,6 +197,10 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # --- Utilities ---
+create_log_file() {
+    mktemp "${TMPDIR:-/tmp}/integrated_workout.XXXXXX.log"
+}
+
 retry() {
     local n=1
     local max=3
@@ -209,41 +217,6 @@ retry() {
             fi
         }
     done
-}
-
-run_stage() {
-    local idx=$1
-    local stage=${STAGES[$idx]}
-    local func=$2
-    local stage_num=$((idx + 1))
-    
-    CURRENT_STAGE="$stage"
-
-    if is_skip_stage "$stage"; then
-        display_checklist
-        log "[$stage_num/$NUM_STAGES] Skipping $stage (already completed)."
-        sleep 1
-        return
-    fi
-    
-    display_checklist
-    
-    local start_ts=$(date +%s)
-    local log_file="temp_log_$(date +%s).log"
-    
-    run_with_spinner "[$stage_num/$NUM_STAGES] Running $stage..." "$func" "$log_file"
-
-    local end_ts=$(date +%s)
-    local duration=$((end_ts - start_ts))
-    local mem_usage=$(free -m | awk 'NR==2{print $3}')
-    
-    set_checkpoint "$stage" "COMPLETED" "{\"duration\": $duration, \"mem_mb\": $mem_usage}"
-    
-    # Update checklist to show completion
-    display_checklist
-    success "[$stage_num/$NUM_STAGES] $stage completed in ${duration}s."
-    rm -f "$log_file"
-    sleep 1 # Pause to let user see the checkmark
 }
 
 # --- State Management ---
@@ -301,7 +274,9 @@ parse_args() {
 # --- Visibility Filters ---
 process_training_output() {
     local line
-    tput civis # Hide cursor
+    if [[ -t 1 ]] && command -v tput > /dev/null 2>&1; then
+        tput civis # Hide cursor
+    fi
     while IFS= read -r line; do
         # Log every line from the training process
         echo "$(date '+%Y-%m-%d %H:%M:%S.%3N') $line" >> "$EVENTS_LOG"
@@ -324,8 +299,12 @@ process_training_output() {
         fi
         # Non-matching lines are logged but not displayed to keep the UI clean
     done
-    tput cnorm # Restore cursor
-    echo "" > /dev/tty # Ensure a new line after the progress bar finishes
+    if [[ -t 1 ]] && command -v tput > /dev/null 2>&1; then
+        tput cnorm # Restore cursor
+    fi
+    if [[ -t 1 ]] && [[ -w /dev/tty ]]; then
+        echo "" > /dev/tty # Ensure a new line after the progress bar finishes
+    fi
 }
 
 # --- Preflight Checks ---
@@ -533,7 +512,8 @@ run_stage() {
     display_checklist
     
     local start_ts=$(date +%s)
-    local log_file="temp_log_$(date +%s).log"
+    local log_file
+    log_file=$(create_log_file)
     
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
         log "[DRY-RUN] Would run: $cmd_string"
