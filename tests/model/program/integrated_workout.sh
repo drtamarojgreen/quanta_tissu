@@ -48,6 +48,26 @@ warn()    { echo -e "${YELLOW}${BOLD}[WARN]${NC}   $(date '+%Y-%m-%d %H:%M:%S') 
 error()   { echo -e "${RED}${BOLD}[ERROR]${NC}  $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2; }
 
 # --- UI Functions ---
+start_heartbeat() {
+    (
+        while true; do
+            for (( i=0; i<${#SPINNER}; i++ )); do
+                printf "\r${CYAN}${BOLD}[RUNNING]${NC} ${SPINNER:$i:1} " > /dev/tty
+                sleep 0.1
+            done
+        done
+    ) &
+    HEARTBEAT_PID=$!
+}
+
+stop_heartbeat() {
+    if [[ -n "${HEARTBEAT_PID:-}" ]]; then
+        kill "$HEARTBEAT_PID" 2>/dev/null || true
+        printf "\r\033[K" > /dev/tty
+        HEARTBEAT_PID=""
+    fi
+}
+
 display_header() {
     echo -e "${MAGENTA}${BOLD}"
     echo "================================================================"
@@ -596,7 +616,9 @@ main() {
             rm -f "$STATE_FILE" "$EVENTS_LOG"
         fi
         log "=== QuantaTissu Frontier Integrated Workout Workflow v$VERSION ==="
+        start_heartbeat
         main_workflow
+        stop_heartbeat
         success "Workflow complete."
     fi
 }
