@@ -16,7 +16,7 @@ EVENTS_LOG="events.log"
 DRY_RUN=false
 FORCE=false
 VERBOSE=false
-RESUME=false
+CONTINUE_FROM_STATE=false
 RESUME_FROM=""
 PROGRESS_INTERVAL=5
 QUIET=false
@@ -251,7 +251,8 @@ parse_args() {
             --dry-run) DRY_RUN=true; shift ;;
             --force) FORCE=true; shift ;;
             --verbose) VERBOSE=true; shift ;;
-            --resume) RESUME=true; shift ;;
+            --resume) CONTINUE_FROM_STATE=true; warn "--resume is deprecated; use --continue-from-state"; shift ;;
+            --continue-from-state) CONTINUE_FROM_STATE=true; shift ;;
             --resume-from) RESUME_FROM="$2"; shift 2 ;;
             --progress-interval)
                 if [[ "$2" =~ ^[0-9]+$ ]]; then
@@ -269,6 +270,18 @@ parse_args() {
             *) error "Unknown argument: $1"; exit 1 ;;
         esac
     done
+}
+
+initialize_run_state() {
+    if [[ "${CONTINUE_FROM_STATE:-false}" == "true" ]] || [[ -n "${RESUME_FROM:-}" ]]; then
+        log "Resume mode enabled; keeping existing state file: $STATE_FILE"
+        return
+    fi
+
+    if [[ -f "$STATE_FILE" ]]; then
+        log "Starting fresh run; clearing stale state file: $STATE_FILE"
+        rm -f "$STATE_FILE"
+    fi
 }
 
 # --- Visibility Filters ---
@@ -373,7 +386,7 @@ is_skip_stage() {
             return 0
         fi
     fi
-    if [[ "${RESUME:-false}" == "true" ]]; then
+    if [[ "${CONTINUE_FROM_STATE:-false}" == "true" ]]; then
         local status
         status=$(get_stage_status "$stage")
         if [[ "$status" == "COMPLETED" ]]; then
@@ -462,11 +475,17 @@ show_menu() {
     do
         case $opt in
             "Run Full Workout")
-                FORCE=true main_workflow
+                FORCE=true
+                CONTINUE_FROM_STATE=false
+                RESUME_FROM=""
+                initialize_run_state
+                main_workflow
                 break
                 ;;
             "Resume Workout")
-                RESUME=true main_workflow
+                CONTINUE_FROM_STATE=true
+                initialize_run_state
+                main_workflow
                 break
                 ;;
             "Cleanup")
@@ -595,6 +614,7 @@ main() {
             log "Force mode: clearing state."
             rm -f "$STATE_FILE" "$EVENTS_LOG"
         fi
+        initialize_run_state
         log "=== QuantaTissu Frontier Integrated Workout Workflow v$VERSION ==="
         start_heartbeat
         main_workflow
