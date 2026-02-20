@@ -132,7 +132,7 @@ run_with_spinner() {
     
     (
         set -o pipefail
-        eval "$cmd" &> "$log_file"
+        bash -lc "$cmd" &> "$log_file"
     ) &
     local pid=$!
 
