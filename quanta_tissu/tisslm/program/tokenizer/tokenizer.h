@@ -16,7 +16,7 @@ public:
     std::string decode(const std::vector<int>& token_ids);
     int get_vocab_size() const;
 
-    void train(const std::string& text, int vocab_size, bool verbose = false);
+    void train(const std::string& text, int vocab_size, bool verbose = true);
     void save(const std::string& prefix);
 
 private:
