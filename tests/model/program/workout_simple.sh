@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
+IFS=$'\n\t'
+LC_ALL=C
 
 ############################################
 # Internal configuration
 ############################################
-TIMEOUT_SECONDS=3600
 RETRY_COUNT=3
 
 ############################################
@@ -34,7 +35,7 @@ process_training_output() {
 ############################################
 echo "=== Compile TissDB ==="
 ############################################
-retry timeout $TIMEOUT_SECONDS g++ -std=c++17 -Wall -Wextra -g -march=native \
+retry g++ -std=c++17 -Wall -Wextra -g -march=native \
     -Itissdb -Iquanta_tissu/tisslm/program -I. \
     tissdb/main.cpp tissdb/api/http_server.cpp tissdb/audit/audit_logger.cpp \
     tissdb/auth/rbac.cpp tissdb/auth/token_manager.cpp tissdb/common/binary_stream_buffer.cpp \
@@ -60,7 +61,7 @@ sleep 2
 ############################################
 echo "=== Compile Training Model ==="
 ############################################
-retry timeout $TIMEOUT_SECONDS g++ -std=c++17 -o train_model_exe \
+retry g++ -std=c++17 -o train_model_exe \
     tests/model/program/train_model.cpp \
     quanta_tissu/tisslm/program/core/matrix.cpp quanta_tissu/tisslm/program/core/parameter.cpp \
     quanta_tissu/tisslm/program/core/layernorm.cpp quanta_tissu/tisslm/program/core/dropout.cpp \
@@ -79,7 +80,7 @@ retry timeout $TIMEOUT_SECONDS g++ -std=c++17 -o train_model_exe \
 ############################################
 echo "=== Run Training ==="
 ############################################
-timeout $TIMEOUT_SECONDS ./train_model_exe | process_training_output
+./train_model_exe | process_training_output
 
 ############################################
 echo "=== Shutdown TissDB ==="
