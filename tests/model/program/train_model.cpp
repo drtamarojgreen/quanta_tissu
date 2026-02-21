@@ -56,7 +56,7 @@ void run_training() {
     // --- 2. Train Tokenizer ---
     std::cout << "[2/5] Training tokenizer..." << std::endl;
     auto tokenizer = std::make_shared<TissLM::Tokenizer::Tokenizer>("");
-    tokenizer->train(corpus, 50257);
+    tokenizer->train(corpus, 4196);
     tokenizer->save("trained_tokenizer");
     std::cout << "Tokenizer trained and saved." << std::endl;
 
