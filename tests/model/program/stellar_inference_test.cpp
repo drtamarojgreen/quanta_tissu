@@ -1,9 +1,14 @@
 #include "core/transformer_model.h"
 #include "stellar_inference/stellar_generator.h"
-#include "stellar_inference/stellar_tokenizer.h"
 #include "stellar_inference/stellar_visualizer.h"
 #include "stellar_inference/stellar_meta_analyst.h"
-#include "stellar_inference/stellar_trainer.h"
+
+// Non-invasive inspection for Stellar visualization
+#define private public
+#include "tokenizer/tokenizer.h"
+#include "training/trainer.h"
+#undef private
+
 #include "training/optimizer.h"
 #include "training/loss_function.h"
 #include "training/dataset.h"
@@ -18,6 +23,44 @@ using namespace TissLM::Core;
 using namespace TissLM::Stellar;
 using namespace TissLM::Generation;
 using namespace TissLM::Training;
+using namespace TissLM::Tokenizer;
+using namespace TissNum;
+
+/**
+ * @brief Robust UTF-8 decoding logic ported from StellarTokenizer.
+ */
+std::string robust_decode(const std::vector<int>& token_ids, const Tokenizer& tokenizer) {
+    const auto& vocab = tokenizer.vocab;
+
+    std::vector<unsigned char> byte_buffer;
+    for (int id : token_ids) {
+        auto it = vocab.find(id);
+        if (it != vocab.end()) {
+            byte_buffer.insert(byte_buffer.end(), it->second.begin(), it->second.end());
+        }
+    }
+
+    std::string text;
+    for (size_t i = 0; i < byte_buffer.size(); ) {
+        unsigned char byte = byte_buffer[i];
+        size_t len = 0;
+        if (byte < 0x80) len = 1;
+        else if ((byte & 0xE0) == 0xC0) len = 2;
+        else if ((byte & 0xF0) == 0xE0) len = 3;
+        else if ((byte & 0xF8) == 0xF0) len = 4;
+        else { i++; continue; }
+
+        if (i + len <= byte_buffer.size()) {
+            bool valid = true;
+            for (size_t j = 1; j < len; ++j) if ((byte_buffer[i + j] & 0xC0) != 0x80) { valid = false; break; }
+            if (valid) {
+                for (size_t j = 0; j < len; ++j) text += static_cast<char>(byte_buffer[i + j]);
+                i += len;
+            } else { i++; }
+        } else { i++; }
+    }
+    return text;
+}
 
 /**
  * @brief Ultimate Stellar Showcase - Refined to use existing core implementations.
@@ -40,10 +83,10 @@ void run_stellar_showcase() {
 
     // 2. Tokenizer Integration (Implementing existing tokenizer)
     std::cout << "\n[STAGE 2] Tokenizer: Core BPE Algorithm Integration" << std::endl;
-    StellarTokenizer tokenizer;
+    Tokenizer tokenizer("");
     std::ifstream ifs(source_path);
     std::string corpus((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-    tokenizer.train_stellar(corpus, 350);
+    tokenizer.train(corpus, 350, true);
 
     // 3. Model Architecture Analysis
     std::cout << "\n[STAGE 3] Model Intelligence: Core Structure Audit" << std::endl;
@@ -59,13 +102,57 @@ void run_stellar_showcase() {
     // 4. Stellar Training (Implementing existing training model)
     std::cout << "\n[STAGE 4] Training Engine: Delegated Backpropagation" << std::endl;
     auto opt = std::make_shared<Adam>(1e-3);
-    auto loss = std::make_shared<CrossEntropyLoss>();
-    StellarTrainer trainer(model, opt, loss);
+    auto loss_fn = std::make_shared<CrossEntropyLoss>();
 
     std::vector<int> tokens = tokenizer.encode(corpus);
     std::vector<int> small_tokens(tokens.begin(), tokens.begin() + std::min((size_t)80, tokens.size()));
     TokenDataset dataset(small_tokens, 16);
-    trainer.train_stellar(dataset, 2, 4, true);
+
+    std::vector<Point3D> loss_history;
+    int epochs = 2;
+    int batch_size = 4;
+
+    for (int epoch = 0; epoch < epochs; ++epoch) {
+        size_t num_batches = (dataset.size() + batch_size - 1) / batch_size;
+        for (size_t b = 0; b < num_batches; ++b) {
+            size_t batch_start = b * batch_size;
+            size_t batch_end = std::min((size_t)batch_start + batch_size, (size_t)dataset.size());
+            size_t current_batch_size = batch_end - batch_start;
+
+            TissNum::Matrix batch_input({current_batch_size, dataset.get_item(0).first.cols()});
+            TissNum::Matrix batch_target({current_batch_size, dataset.get_item(0).second.cols()});
+
+            for (size_t i = 0; i < current_batch_size; ++i) {
+                auto item = dataset.get_item(batch_start + i);
+                for (size_t col = 0; col < item.first.cols(); ++col) batch_input({i, col}) = item.first({0, col});
+                for (size_t col = 0; col < item.second.cols(); ++col) batch_target({i, col}) = item.second({0, col});
+            }
+
+            TissNum::Matrix predictions = model->forward(batch_input);
+            TissNum::Matrix flat_target({batch_target.rows() * batch_target.cols(), 1});
+            for (size_t r = 0; r < batch_target.rows(); ++r) {
+                for (size_t c = 0; c < batch_target.cols(); ++c) {
+                    flat_target({r * batch_target.cols() + c, 0}) = batch_target({r, c});
+                }
+            }
+
+            float loss_val = loss_fn->compute_loss(predictions, flat_target);
+            loss_history.push_back({(float)epoch, (float)b, loss_val});
+
+            TissNum::Matrix grad_loss = loss_fn->compute_gradient(predictions, flat_target);
+            model->backward(grad_loss);
+
+            auto params = model->get_parameters();
+            std::vector<TissNum::Parameter*> raw_params;
+            for(const auto& par : params) raw_params.push_back(par.get());
+            opt->update(raw_params);
+
+            std::cout << "\r[STELLAR] Epoch " << epoch << " Step " << b << "/" << num_batches << " Loss: " << loss_val << std::flush;
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "\n[STELLAR] Loss Topology (3D ASCII Perspective)" << std::endl;
+    std::cout << StellarVisualizer::render_3d_graph(loss_history, 80, 25);
 
     // 5. Stellar Inference
     std::cout << "\n[STAGE 5] Inference: Optimized KV-Cache Decoding" << std::endl;
@@ -75,7 +162,7 @@ void run_stellar_showcase() {
 
     std::vector<int> prompt = {tokens[0], tokens[1], tokens[2], tokens[3]};
     auto result = generator.beam_search(prompt, 15, 4, 0);
-    std::cout << "   Generated Fragment: " << tokenizer.decode_stellar(result) << std::endl;
+    std::cout << "   Generated Fragment: " << robust_decode(result, tokenizer) << std::endl;
 
     // 6. Final Results
     std::cout << "\n[STAGE 6] Process Synthesis" << std::endl;

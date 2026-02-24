@@ -74,10 +74,8 @@ add_library(retrieval_strategies
 # Stellar Inference library
 add_library(stellar_inference
     stellar_inference/stellar_generator.cpp
-    stellar_inference/stellar_tokenizer.cpp
     stellar_inference/stellar_visualizer.cpp
     stellar_inference/stellar_meta_analyst.cpp
-    stellar_inference/stellar_trainer.cpp
 )
 
 # Test executables
