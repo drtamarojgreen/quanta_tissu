@@ -25,7 +25,7 @@ public:
 
 private:
     Model model;
-    Tokenizer tokenizer;
+    TissLM::Tokenizer::Tokenizer tokenizer;
 };
 
 #endif // QUANTATISSU_H

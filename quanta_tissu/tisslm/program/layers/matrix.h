@@ -3,34 +3,45 @@
 
 #include <vector>
 #include <iostream>
+#include <stdexcept>
 
 class Matrix {
 public:
-    Matrix(int rows, int cols);
-    Matrix(const std::vector<std::vector<float>>& data);
+    Matrix(const std::vector<size_t>& shape);
+    Matrix() : shape_({0, 0}) {}
 
-    int get_rows() const;
-    int get_cols() const;
+    float& operator()(const std::vector<size_t>& indices);
+    const float& operator()(const std::vector<size_t>& indices) const;
 
-    float& at(int row, int col);
-    const float& at(int row, int col) const;
+    size_t rows() const { return shape_.size() > 0 ? shape_[0] : 0; }
+    size_t cols() const { return shape_.size() > 1 ? shape_[1] : 0; }
+    const std::vector<size_t>& get_shape() const { return shape_; }
 
-    static Matrix random(int rows, int cols);
-    static Matrix zeros(int rows, int cols);
+    static Matrix random(const std::vector<size_t>& shape);
+    static Matrix zeros(const std::vector<size_t>& shape);
 
     Matrix transpose() const;
+    Matrix transpose(int dim1, int dim2) const;
+    Matrix reshape(const std::vector<size_t>& new_shape) const;
 
     Matrix operator+(const Matrix& other) const;
     Matrix operator-(const Matrix& other) const;
     Matrix operator*(const Matrix& other) const; // Element-wise
-    Matrix dot(const Matrix& other) const;
 
-    void print() const;
+    // Scalar operations
+    Matrix operator/(float scalar) const {
+        Matrix result(shape_);
+        for (size_t i = 0; i < data_.size(); ++i) {
+            result.data_[i] = data_[i] / scalar;
+        }
+        return result;
+    }
+
+    static Matrix matmul(const Matrix& a, const Matrix& b);
 
 private:
-    int rows;
-    int cols;
-    std::vector<float> data;
+    std::vector<size_t> shape_;
+    std::vector<float> data_;
 };
 
 #endif // MATRIX_H

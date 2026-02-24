@@ -5,6 +5,7 @@
 
 // Non-invasive inspection for Stellar visualization
 #define private public
+#include "quantatissu.h"
 #include "tokenizer/tokenizer.h"
 #include "training/trainer.h"
 #undef private
@@ -160,12 +161,20 @@ void run_stellar_showcase() {
     config.eos_ids = {0};
     StellarGenerator generator(model, config);
 
-    std::vector<int> prompt = {tokens[0], tokens[1], tokens[2], tokens[3]};
-    auto result = generator.beam_search(prompt, 15, 4, 0);
+    std::vector<int> prompt_ids = {tokens[0], tokens[1], tokens[2], tokens[3]};
+    auto result = generator.beam_search(prompt_ids, 15, 4, 0);
     std::cout << "   Generated Fragment: " << robust_decode(result, tokenizer) << std::endl;
 
-    // 6. Final Results
-    std::cout << "\n[STAGE 6] Process Synthesis" << std::endl;
+    // 6. System Synthesis: QuantaTissu Integration
+    std::cout << "\n[STAGE 6] System Synthesis: QuantaTissu Program Integration" << std::endl;
+    ModelConfig qt_config = { (int)tokenizer.get_vocab_size(), 64, 2, 4, 128 };
+    QuantaTissu qt(qt_config, "");
+    std::string prompt_text = "QuantaTissu Integration Test";
+    std::string qt_gen = qt.generate(prompt_text, 5);
+    std::cout << "   QuantaTissu Prototype Output: " << qt_gen << std::endl;
+
+    // 7. Final Results
+    std::cout << "\n[STAGE 7] Process Synthesis" << std::endl;
     std::map<std::string, std::vector<float>> f_grid;
     f_grid["Mission-Metrics"] = {(float)s_metrics.complexity_index, (float)vocab_size, (float)result.size()};
     std::cout << StellarVisualizer::render_analysis_grid(f_grid, {"Complexity", "VocabSize", "GenLen"});
