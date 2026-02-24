@@ -12,6 +12,10 @@ Matrix::Matrix(const std::vector<size_t>& shape) : shape_(shape) {
     data_.resize(total_size, 0.0f);
 }
 
+Matrix::Matrix(int rows, int cols) : shape_({static_cast<size_t>(rows), static_cast<size_t>(cols)}) {
+    data_.resize(static_cast<size_t>(rows) * static_cast<size_t>(cols), 0.0f);
+}
+
 float& Matrix::operator()(const std::vector<size_t>& indices) {
     size_t index = 0;
     size_t stride = 1;
@@ -131,7 +135,7 @@ Matrix Matrix::matmul(const Matrix& a, const Matrix& b) {
     if (a.cols() != b.rows()) {
         throw std::invalid_argument("Matrix dimensions are not compatible for multiplication.");
     }
-    Matrix result({a.rows(), b.cols()});
+    Matrix result(static_cast<int>(a.rows()), static_cast<int>(b.cols()));
     for (size_t i = 0; i < a.rows(); ++i) {
         for (size_t j = 0; j < b.cols(); ++j) {
             for (size_t k = 0; k < a.cols(); ++k) {
