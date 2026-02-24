@@ -3,6 +3,7 @@
 #include <random>
 #include <numeric>
 #include <functional>
+#include <algorithm>
 
 Matrix::Matrix(const std::vector<size_t>& shape) : shape_(shape) {
     size_t total_size = 1;
@@ -12,14 +13,11 @@ Matrix::Matrix(const std::vector<size_t>& shape) : shape_(shape) {
     data_.resize(total_size, 0.0f);
 }
 
-Matrix::Matrix(int rows, int cols) : shape_({static_cast<size_t>(rows), static_cast<size_t>(cols)}) {
-    data_.resize(static_cast<size_t>(rows) * static_cast<size_t>(cols), 0.0f);
-}
-
 float& Matrix::operator()(const std::vector<size_t>& indices) {
     size_t index = 0;
     size_t stride = 1;
     for (int i = shape_.size() - 1; i >= 0; --i) {
+        if (indices[i] >= shape_[i]) throw std::out_of_range("Matrix index out of bounds");
         index += indices[i] * stride;
         stride *= shape_[i];
     }
@@ -30,6 +28,7 @@ const float& Matrix::operator()(const std::vector<size_t>& indices) const {
     size_t index = 0;
     size_t stride = 1;
     for (int i = shape_.size() - 1; i >= 0; --i) {
+        if (indices[i] >= shape_[i]) throw std::out_of_range("Matrix index out of bounds");
         index += indices[i] * stride;
         stride *= shape_[i];
     }
@@ -40,7 +39,7 @@ Matrix Matrix::random(const std::vector<size_t>& shape) {
     Matrix m(shape);
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::normal_distribution<float> dist(0.0f, 1.0f);
+    std::normal_distribution<float> dist(0.0f, 0.1f);
     for (size_t i = 0; i < m.data_.size(); ++i) {
         m.data_[i] = dist(gen);
     }
@@ -72,16 +71,16 @@ Matrix Matrix::reshape(const std::vector<size_t>& new_shape) const {
 }
 
 Matrix Matrix::transpose(int dim1, int dim2) const {
-    if (dim1 >= shape_.size() || dim2 >= shape_.size()) {
+    if (dim1 >= (int)shape_.size() || dim2 >= (int)shape_.size()) {
         throw std::out_of_range("Invalid dimensions for transpose.");
     }
     std::vector<size_t> new_shape = shape_;
     std::swap(new_shape[dim1], new_shape[dim2]);
     Matrix result(new_shape);
 
-    std::vector<size_t> old_indices(shape_.size());
-    std::function<void(int)> recurse = 
-        [&](int k) {
+    std::vector<size_t> old_indices(shape_.size(), 0);
+    std::function<void(size_t)> recurse =
+        [&](size_t k) {
         if (k == shape_.size()) {
             std::vector<size_t> new_indices = old_indices;
             std::swap(new_indices[dim1], new_indices[dim2]);
@@ -135,12 +134,14 @@ Matrix Matrix::matmul(const Matrix& a, const Matrix& b) {
     if (a.cols() != b.rows()) {
         throw std::invalid_argument("Matrix dimensions are not compatible for multiplication.");
     }
-    Matrix result(static_cast<int>(a.rows()), static_cast<int>(b.cols()));
+    Matrix result(std::vector<size_t>{a.rows(), b.cols()});
     for (size_t i = 0; i < a.rows(); ++i) {
         for (size_t j = 0; j < b.cols(); ++j) {
+            float sum = 0;
             for (size_t k = 0; k < a.cols(); ++k) {
-                result({i, j}) += a({i, k}) * b({k, j});
+                sum += a({i, k}) * b({k, j});
             }
+            result({i, j}) = sum;
         }
     }
     return result;

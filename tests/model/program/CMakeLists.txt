@@ -481,7 +481,7 @@ target_link_libraries(transformer_block_test
 )
 
 add_executable(stellar_inference_test
-    stellar_inference_test.cpp
+    stellar_inference/stellar_inference_test.cpp
 )
 target_link_libraries(stellar_inference_test
     stellar_inference
