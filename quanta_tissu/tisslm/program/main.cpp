@@ -24,7 +24,7 @@ int main() {
 
         // 3. Get a session from the client
         // The session's lifetime is also managed by a unique_ptr
-        std::unique_ptr<tissudb::TissuSession> session = client->getSession();
+        std::unique_ptr<tissudb::ISession> session = client->getSession();
 
         if (!session) {
             std::cerr << "Failed to get TissuSession." << std::endl;
