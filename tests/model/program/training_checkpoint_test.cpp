@@ -17,14 +17,14 @@ void check(bool condition, const std::string& test_name) {
 
 void test_save_and_load() {
     std::cout << "--- Testing Save and Load ---" << std::endl;
-    auto model = std::make_shared<TissLM::Core::TransformerModel>(10, 100, 16, 4, 2, 0.1f, 4);
+    auto model = std::make_shared<TissLM::Core::TransformerModel>(10, 100, 16, 4, 2, 64, 0.1f, 4);
     auto optimizer = std::make_shared<TissLM::Training::Adam>();
     auto loss_fn = std::make_shared<TissLM::Training::CrossEntropyLoss>();
     TissLM::Training::Trainer trainer(model, optimizer, loss_fn);
 
     trainer.save_checkpoint("test_checkpoint.bin");
 
-    auto new_model = std::make_shared<TissLM::Core::TransformerModel>(10, 100, 16, 4, 2, 0.1f, 4);
+    auto new_model = std::make_shared<TissLM::Core::TransformerModel>(10, 100, 16, 4, 2, 64, 0.1f, 4);
     auto new_optimizer = std::make_shared<TissLM::Training::Adam>();
     TissLM::Training::Trainer new_trainer(new_model, new_optimizer, loss_fn);
     new_trainer.load_checkpoint("test_checkpoint.bin");
