@@ -392,6 +392,8 @@ target_link_libraries(arithmetic_debug_harness
     tisslm_core
     tisslm_training
     tisslm_tokenizer
+    tisslm_generation
+    retrieval_strategies
 )
 
 # Define all test executables
