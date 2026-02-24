@@ -185,7 +185,18 @@ void run_stellar_showcase() {
     std::cout << synthesis;
     reporter.record_section("Mission Synthesis", synthesis);
 
-    std::cout << "\n[STAGE 8] Generating Persistent Stellar Report..." << std::endl;
+    // 8. Ethics and Alignment Audit
+    std::cout << "\n[STAGE 8] Ethics and Alignment: QuantaTissu Safety Audit" << std::endl;
+    auto e_metrics = StellarMetaAnalyst::audit_ethics(source_path);
+    std::map<std::string, std::vector<float>> e_grid;
+    e_grid["Ethics-Scores"] = {e_metrics.graceful_degradation_score, e_metrics.explainability_score, e_metrics.principle_alignment};
+    std::string ethics_viz = StellarVisualizer::render_analysis_grid(e_grid, {"Graceful", "Explain", "Align"});
+    std::cout << ethics_viz;
+    reporter.record_section("Ethics and Alignment Audit",
+        "Alignment with QuantaTissu Principles (docs/humanity_and_ai.md):\n" + ethics_viz +
+        "\nNote: Alignment reflects presence of key design imperatives: 'Small is kind', 'Compute lightly'.");
+
+    std::cout << "\n[STAGE 9] Generating Persistent Stellar Report..." << std::endl;
     if (reporter.save_report("stellar_report.txt")) {
         std::cout << "   Success: stellar_report.txt generated." << std::endl;
     }

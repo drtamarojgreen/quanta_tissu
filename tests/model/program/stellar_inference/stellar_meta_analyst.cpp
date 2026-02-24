@@ -35,6 +35,35 @@ ModelMetrics StellarMetaAnalyst::analyze_model(std::shared_ptr<TissLM::Core::Mod
     return m;
 }
 
+EthicsMetrics StellarMetaAnalyst::audit_ethics(const std::string& path) {
+    std::ifstream f(path);
+    EthicsMetrics m = {0, 0, 0};
+    if (!f.is_open()) return m;
+
+    std::string line;
+    size_t lines = 0;
+    size_t errors = 0;
+    size_t comments = 0;
+    size_t alignments = 0;
+
+    while (std::getline(f, line)) {
+        lines++;
+        if (line.find("try") != std::string::npos || line.find("catch") != std::string::npos ||
+            line.find("throw") != std::string::npos || line.find("error") != std::string::npos) errors++;
+        if (line.find("//") != std::string::npos || line.find("/*") != std::string::npos ||
+            line.find("* ") != std::string::npos) comments++;
+        if (line.find("Small is kind") != std::string::npos || line.find("Compute lightly") != std::string::npos ||
+            line.find("Stellar") != std::string::npos || line.find("Harmony") != std::string::npos) alignments++;
+    }
+
+    if (lines > 0) {
+        m.graceful_degradation_score = (float)errors / lines * 100.0f;
+        m.explainability_score = (float)comments / lines * 100.0f;
+        m.principle_alignment = alignments > 0 ? 10.0f : 0.0f;
+    }
+    return m;
+}
+
 std::vector<Point3D> StellarMetaAnalyst::extract_3d_points(const SourceMetrics& m) {
     std::vector<Point3D> pts;
     for (const auto& [c, count] : m.char_distribution) {
