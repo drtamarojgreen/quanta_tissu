@@ -11,12 +11,6 @@ using namespace TissLM::Training;
 using namespace TissLM::Core;
 using namespace TissNum;
 
-StellarTrainer::StellarTrainer(
-    std::shared_ptr<Model> model,
-    std::shared_ptr<Optimizer> optimizer,
-    std::shared_ptr<LossFunction> loss_fn
-) : model_(model), optimizer_(optimizer), loss_function_(loss_fn) {}
-
 void StellarTrainer::train_stellar(
     TokenDataset& dataset,
     int epochs,
@@ -26,11 +20,12 @@ void StellarTrainer::train_stellar(
     size_t num_samples = dataset.size();
     if (num_samples == 0) return;
 
-    std::default_random_engine rng(1337);
+    std::default_random_engine rng(42);
     std::vector<int> indices(num_samples);
     std::iota(indices.begin(), indices.end(), 0);
 
-    std::cout << "[STELLAR] Training Engine Activated. Implementing Core backprop..." << std::endl;
+    std::cout << "[STELLAR] Training Loop: Delegating to core TissLM implementation..." << std::endl;
+    loss_history_.clear();
 
     for (int epoch = 0; epoch < epochs; ++epoch) {
         std::shuffle(indices.begin(), indices.end(), rng);
@@ -39,44 +34,49 @@ void StellarTrainer::train_stellar(
         for (size_t b = 0; b < num_batches; ++b) {
             size_t batch_start = b * batch_size;
             size_t batch_end = std::min((size_t)batch_start + batch_size, num_samples);
-            size_t cur_size = batch_end - batch_start;
+            size_t current_batch_size = batch_end - batch_start;
 
-            TissNum::Matrix bin({cur_size, dataset.get_item(0).first.cols()});
-            TissNum::Matrix btarg({cur_size, dataset.get_item(0).second.cols()});
+            TissNum::Matrix batch_input({current_batch_size, dataset.get_item(0).first.cols()});
+            TissNum::Matrix batch_target({current_batch_size, dataset.get_item(0).second.cols()});
 
-            for (size_t i = 0; i < cur_size; ++i) {
+            for (size_t i = 0; i < current_batch_size; ++i) {
                 auto item = dataset.get_item(indices[batch_start + i]);
-                for (size_t c = 0; c < item.first.cols(); ++c) bin({i, c}) = item.first({0, c});
-                for (size_t c = 0; c < item.second.cols(); ++c) btarg({i, c}) = item.second({0, c});
+                for (size_t col = 0; col < item.first.cols(); ++col) batch_input({i, col}) = item.first({0, col});
+                for (size_t col = 0; col < item.second.cols(); ++col) batch_target({i, col}) = item.second({0, col});
             }
 
-            // Implementation of the existing training model logic
-            Matrix pred = model_->forward(bin);
-            Matrix flat_target({btarg.rows() * btarg.cols(), 1});
-            for (size_t r = 0; r < btarg.rows(); ++r)
-                for (size_t c = 0; c < btarg.cols(); ++c)
-                    flat_target({r * btarg.cols() + c, 0}) = btarg({r, c});
+            // --- DELEGATION TO EXISTING MODEL & LOSS ---
+            TissNum::Matrix predictions = model_->forward(batch_input);
+            TissNum::Matrix flat_target({batch_target.rows() * batch_target.cols(), 1});
+            for (size_t r = 0; r < batch_target.rows(); ++r) {
+                for (size_t c = 0; c < batch_target.cols(); ++c) {
+                    flat_target({r * batch_target.cols() + c, 0}) = batch_target({r, c});
+                }
+            }
 
-            float loss = loss_function_->compute_loss(pred, flat_target);
+            float loss = loss_function_->compute_loss(predictions, flat_target);
 
-            Point3D lp; lp.x = (float)epoch; lp.y = (float)b; lp.z = loss;
-            loss_history_.push_back(lp);
+            // Record Telemetry
+            Point3D p; p.x = (float)epoch; p.y = (float)b; p.z = loss;
+            loss_history_.push_back(p);
 
-            Matrix grad = loss_function_->compute_gradient(pred, flat_target);
-            model_->backward(grad);
+            TissNum::Matrix grad_loss = loss_function_->compute_gradient(predictions, flat_target);
+            model_->backward(grad_loss);
 
-            auto shared_params = model_->get_parameters();
+            auto params = model_->get_parameters();
             std::vector<Parameter*> raw_params;
-            for (const auto& p : shared_params) raw_params.push_back(p.get());
+            for(const auto& par : params) raw_params.push_back(par.get());
             optimizer_->update(raw_params);
 
-            if (b % 5 == 0) std::cout << "\r[STELLAR] Epoch " << epoch+1 << " [" << b << "/" << num_batches << "] Loss: " << loss << std::flush;
+            if (b % 5 == 0) {
+                std::cout << "\r[STELLAR] Step " << b << "/" << num_batches << " Loss: " << loss << std::flush;
+            }
         }
         std::cout << std::endl;
     }
 
-    if (visualize) {
-        std::cout << "\n[STELLAR] Final Training Geometry (3D ASCII Render)" << std::endl;
+    if (visualize && !loss_history_.empty()) {
+        std::cout << "\n[STELLAR] Loss Topology (3D ASCII Perspective)" << std::endl;
         std::cout << StellarVisualizer::render_3d_graph(loss_history_, 80, 25);
     }
 }

@@ -1,42 +1,43 @@
 #ifndef TISSLM_STELLAR_TOKENIZER_H
 #define TISSLM_STELLAR_TOKENIZER_H
 
+/**
+ * @file stellar_tokenizer.h
+ * @brief Stellar wrapper for the existing TissLM Tokenizer.
+ */
+
+// Accessing internals for stellar visualization without modifying production code
+#define private public
+#define protected public
+#include "tokenizer/tokenizer.h"
+#undef private
+#undef protected
+
 #include <string>
 #include <vector>
-#include <map>
-#include <utility>
 
 namespace TissLM {
 namespace Stellar {
 
 /**
  * @class StellarTokenizer
- * @brief A high-performance implementation of the TissLM BPE Tokenizer.
- *
- * Implements the core BPE logic while providing robust UTF-8 decoding
- * and visual training telemetry.
+ * @brief Integrates the existing TissLM Tokenizer with Stellar enhancements.
  */
-class StellarTokenizer {
+class StellarTokenizer : public TissLM::Tokenizer::Tokenizer {
 public:
-    StellarTokenizer();
+    StellarTokenizer() : TissLM::Tokenizer::Tokenizer("") {}
 
-    // Core API parity
-    std::vector<int> encode(const std::string& text);
-    std::string decode(const std::vector<int>& token_ids);
-    int get_vocab_size() const;
-    void train(const std::string& text, int vocab_size, bool verbose = false);
-
-    // Stellar Enhancements
+    /**
+     * @brief Trains the existing tokenizer and adds Stellar visual telemetry.
+     */
     void train_stellar(const std::string& text, int vocab_size);
-    std::string decode_robust(const std::vector<int>& token_ids) const;
 
-private:
-    std::map<std::pair<int, int>, int> merges_;
-    std::vector<std::pair<int, int>> ranked_merges_;
-    std::map<int, std::vector<unsigned char>> vocab_;
-    std::map<std::vector<unsigned char>, int> reverse_vocab_;
+    /**
+     * @brief Enhanced robust decoding logic.
+     */
+    std::string decode_stellar(const std::vector<int>& token_ids) const;
 
-    std::vector<int> bpe_encode(const std::vector<unsigned char>& bytes) const;
+    // Use base encode
 };
 
 } // namespace Stellar
