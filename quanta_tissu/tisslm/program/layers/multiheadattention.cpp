@@ -35,10 +35,10 @@ Matrix softmax(Matrix scores, int axis = -1) {
 
 MultiHeadAttention::MultiHeadAttention(int d_model, int num_heads)
     : d_model(d_model), num_heads(num_heads), d_k(d_model / num_heads),
-      wq(Matrix::random({(size_t)d_model, (size_t)d_model})),
-      wk(Matrix::random({(size_t)d_model, (size_t)d_model})),
-      wv(Matrix::random({(size_t)d_model, (size_t)d_model})),
-      wo(Matrix::random({(size_t)d_model, (size_t)d_model})) {
+      wq(Matrix::random(d_model, d_model)),
+      wk(Matrix::random(d_model, d_model)),
+      wv(Matrix::random(d_model, d_model)),
+      wo(Matrix::random(d_model, d_model)) {
     if (d_model % num_heads != 0) {
         throw std::invalid_argument("d_model must be divisible by num_heads");
     }

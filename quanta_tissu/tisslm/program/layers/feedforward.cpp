@@ -3,10 +3,10 @@
 #include <cmath>
 
 FeedForward::FeedForward(int d_model, int d_ff)
-    : w1(Matrix::random({(size_t)d_model, (size_t)d_ff})),
-      b1(Matrix::zeros({1, (size_t)d_ff})),
-      w2(Matrix::random({(size_t)d_ff, (size_t)d_model})),
-      b2(Matrix::zeros({1, (size_t)d_model})) {}
+    : w1(Matrix::random(d_model, d_ff)),
+      b1(Matrix::zeros(1, d_ff)),
+      w2(Matrix::random(d_ff, d_model)),
+      b2(Matrix::zeros(1, d_model)) {}
 
 Matrix FeedForward::forward(const Matrix& x) {
     // First linear layer
@@ -18,7 +18,7 @@ Matrix FeedForward::forward(const Matrix& x) {
     }
 
     // ReLU activation
-    Matrix h({z.rows(), z.cols()});
+    Matrix h(static_cast<int>(z.rows()), static_cast<int>(z.cols()));
     for (size_t i = 0; i < z.rows(); ++i) {
         for (size_t j = 0; j < z.cols(); ++j) {
             h({i, j}) = std::max(0.0f, z({i, j}));

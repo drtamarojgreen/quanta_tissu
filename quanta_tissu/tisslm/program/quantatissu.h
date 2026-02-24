@@ -1,19 +1,21 @@
 #ifndef QUANTATISSU_H
 #define QUANTATISSU_H
 
-#include "architecture/model.h"
+#include "core/transformer_model.h"
 #include "tokenizer/tokenizer.h"
 #include <string>
 #include <vector>
-#include <map>
+#include <memory>
 
-// A simple config structure
+// Configuration for the unified program
 struct ModelConfig {
     int vocab_size;
-    int d_model;
-    int n_layer;
-    int n_head;
+    int max_seq_len;
+    int embed_dim;
+    int num_heads;
+    int num_layers;
     int d_ff;
+    float dropout_rate;
 };
 
 class QuantaTissu {
@@ -21,11 +23,15 @@ public:
     QuantaTissu(const ModelConfig& config, const std::string& tokenizer_prefix);
 
     std::string generate(const std::string& prompt, int n_new_tokens);
-    void load_weights(const std::string& path); // Placeholder for weight loading
+    void load_weights(const std::string& path);
+
+    // Accessors for integration
+    std::shared_ptr<TissLM::Core::TransformerModel> get_model() { return model_; }
+    TissLM::Tokenizer::Tokenizer& get_tokenizer() { return tokenizer_; }
 
 private:
-    Model model;
-    TissLM::Tokenizer::Tokenizer tokenizer;
+    std::shared_ptr<TissLM::Core::TransformerModel> model_;
+    TissLM::Tokenizer::Tokenizer tokenizer_;
 };
 
 #endif // QUANTATISSU_H
