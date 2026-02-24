@@ -5,6 +5,8 @@
 #include <functional>
 #include <vector>
 #include <thread>
+#include <stdexcept>
+#include <string>
 
 namespace TissNum {
 
@@ -479,7 +481,7 @@ Matrix operator/(float scalar, const Matrix& m) {
     Matrix result(m.shape_);
     for (size_t i = 0; i < m.data_.size(); ++i) {
         if (m.data_[i] == 0.0f) {
-            throw std::invalid_argument("Division by zero in scalar / Matrix");
+            throw std::invalid_argument("Division by zero in scalar / Matrix at element " + std::to_string(i));
         }
         result.data_[i] = scalar / m.data_[i];
     }
