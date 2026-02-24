@@ -17,6 +17,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/pro
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/rules)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../tissdb/json)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../tissdb/common)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 
 add_library(tisslm_core
@@ -68,6 +69,15 @@ add_library(tisslm_rules
 # Retrieval strategies library
 add_library(retrieval_strategies
     ../../../quanta_tissu/tisslm/program/retrieval/retrieval_strategy.cpp
+)
+
+# Stellar Inference library
+add_library(stellar_inference
+    stellar_inference/stellar_generator.cpp
+    stellar_inference/stellar_tokenizer.cpp
+    stellar_inference/stellar_visualizer.cpp
+    stellar_inference/stellar_meta_analyst.cpp
+    stellar_inference/stellar_trainer.cpp
 )
 
 # Test executables
@@ -411,7 +421,8 @@ set(TEST_EXECUTABLES
     forward_pass_test
     backward_pass_test
     training_checkpoint_test
-    transformer_block_test)
+    transformer_block_test
+    stellar_inference_test)
 
 add_executable(dimension_integrity_test
     dimension_integrity_test.cpp
@@ -455,6 +466,17 @@ add_executable(transformer_block_test
 )
 target_link_libraries(transformer_block_test
     tisslm_core
+)
+
+add_executable(stellar_inference_test
+    stellar_inference_test.cpp
+)
+target_link_libraries(stellar_inference_test
+    stellar_inference
+    tisslm_core
+    tisslm_tokenizer
+    tisslm_training
+    retrieval_strategies
 )
 
 add_executable(checkpoint_comparison_test
