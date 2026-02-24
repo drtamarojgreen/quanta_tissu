@@ -267,7 +267,15 @@ void HttpServer::Impl::send_response(int sock, const std::string& code, const st
     ss << "Connection: close\r\n\r\n";
     ss << body;
     std::string response = ss.str();
-    send(sock, response.c_str(), response.length(), 0);
+
+    const char* ptr = response.c_str();
+    size_t remaining = response.length();
+    while (remaining > 0) {
+        int sent = send(sock, ptr, remaining, 0);
+        if (sent <= 0) break;
+        ptr += sent;
+        remaining -= sent;
+    }
 }
 
 void HttpServer::Impl::handle_client(int client_socket) {
@@ -275,13 +283,40 @@ void HttpServer::Impl::handle_client(int client_socket) {
     // This is a placeholder.
     std::string source_ip = "127.0.0.1";
 
-    char buffer[4096] = {0};
-    if (recv(client_socket, buffer, 4095, 0) <= 0) {
-        close(client_socket);
-        return;
+    std::string request_str;
+    char buffer[4096];
+    int bytes_received;
+
+    // Read headers first to find content-length
+    while (request_str.find("\r\n\r\n") == std::string::npos) {
+        bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
+        if (bytes_received <= 0) {
+            close(client_socket);
+            return;
+        }
+        request_str.append(buffer, bytes_received);
     }
 
-    std::string request_str(buffer);
+    size_t body_start = request_str.find("\r\n\r\n") + 4;
+    size_t header_end = request_str.find("\r\n\r\n");
+    std::string headers_str = request_str.substr(0, header_end);
+
+    // Simple content-length extraction
+    size_t cl_pos = headers_str.find("Content-Length:");
+    if (cl_pos == std::string::npos) cl_pos = headers_str.find("content-length:");
+
+    if (cl_pos != std::string::npos) {
+        size_t cl_end = headers_str.find("\r\n", cl_pos);
+        std::string cl_val = headers_str.substr(cl_pos + 15, cl_end - (cl_pos + 15));
+        size_t content_length = std::stoul(cl_val);
+
+        while (request_str.size() < body_start + content_length) {
+            bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
+            if (bytes_received <= 0) break;
+            request_str.append(buffer, bytes_received);
+        }
+    }
+
     std::stringstream request_ss(request_str);
     HttpRequest req;
 
@@ -382,9 +417,10 @@ void HttpServer::Impl::handle_client(int client_socket) {
     }
     // --- End RBAC Check ---
 
-    size_t body_start = request_str.find("\r\n\r\n");
-    if (body_start != std::string::npos) {
-        req.body = request_str.substr(body_start + 4);
+    // body_start already calculated above if needed, but let's just use what we have in request_str
+    size_t final_body_start = request_str.find("\r\n\r\n");
+    if (final_body_start != std::string::npos) {
+        req.body = request_str.substr(final_body_start + 4);
     }
 
     std::vector<std::string> path_parts;
@@ -419,10 +455,18 @@ void HttpServer::Impl::handle_client(int client_socket) {
         }
 
         if (req.method == "DELETE" && path_parts.size() == 1) {
-            db_manager_.delete_database(path_parts[0]);
-            audit_logger_.log({std::chrono::system_clock::now(), token_val, source_ip, Audit::EventType::DbDelete,
-                req.path, true, "Database deleted successfully."});
-            send_response(client_socket, "204 No Content", "text/plain", "");
+            try {
+                db_manager_.delete_database(path_parts[0]);
+                audit_logger_.log({std::chrono::system_clock::now(), token_val, source_ip, Audit::EventType::DbDelete,
+                    req.path, true, "Database deleted successfully."});
+                send_response(client_socket, "204 No Content", "text/plain", "");
+            } catch (const std::runtime_error& e) {
+                if (std::string(e.what()).find("not found") != std::string::npos) {
+                    send_response(client_socket, "404 Not Found", "text/plain", e.what());
+                } else {
+                    throw;
+                }
+            }
             close(client_socket);
             return;
         }
