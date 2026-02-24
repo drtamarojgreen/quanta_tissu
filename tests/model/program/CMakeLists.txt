@@ -71,6 +71,20 @@ add_library(retrieval_strategies
     ../../../quanta_tissu/tisslm/program/retrieval/retrieval_strategy.cpp
 )
 
+# QuantaTissu Program library (Set B architecture)
+add_library(tisslm_program
+    ../../../quanta_tissu/tisslm/program/quantatissu.cpp
+    ../../../quanta_tissu/tisslm/program/architecture/model.cpp
+    ../../../quanta_tissu/tisslm/program/layers/matrix.cpp
+    ../../../quanta_tissu/tisslm/program/layers/feedforward.cpp
+    ../../../quanta_tissu/tisslm/program/layers/layernorm.cpp
+    ../../../quanta_tissu/tisslm/program/layers/multiheadattention.cpp
+    ../../../quanta_tissu/tisslm/program/layers/transformerblock.cpp
+    ../../../quanta_tissu/tisslm/program/ddl_parser.cpp
+    ../../../quanta_tissu/tisslm/program/schema_manager.cpp
+    ../../../quanta_tissu/tisslm/program/tissu_sinew.cpp
+)
+
 # Stellar Inference library
 add_library(stellar_inference
     stellar_inference/stellar_generator.cpp
@@ -471,6 +485,7 @@ add_executable(stellar_inference_test
 )
 target_link_libraries(stellar_inference_test
     stellar_inference
+    tisslm_program
     tisslm_core
     tisslm_tokenizer
     tisslm_training
