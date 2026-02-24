@@ -8,6 +8,7 @@ public:
     LayerNorm(int d_model, float eps = 1e-6);
 
     Matrix forward(const Matrix& x);
+    size_t get_parameter_count() const { return gamma.size() + beta.size(); }
 
     Matrix gamma;
     Matrix beta;

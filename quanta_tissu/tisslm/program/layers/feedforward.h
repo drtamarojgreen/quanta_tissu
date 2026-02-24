@@ -8,6 +8,7 @@ public:
     FeedForward(int d_model, int d_ff);
 
     Matrix forward(const Matrix& x);
+    size_t get_parameter_count() const { return w1.size() + b1.size() + w2.size() + b2.size(); }
 
 private:
     Matrix w1;

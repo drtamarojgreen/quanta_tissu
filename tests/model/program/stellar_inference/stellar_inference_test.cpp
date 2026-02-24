@@ -5,6 +5,7 @@
 #include "stellar_visualizer.h"
 #include "stellar_meta_analyst.h"
 #include "stellar_reporter.h"
+#include "ddl_parser.h"
 
 using namespace TissLM::Stellar;
 
@@ -19,9 +20,7 @@ int main() {
 
     // Stage 1: Meta-Analysis & Ethical Audit
     std::cout << "\n[Stage 1] Performing Source Code Meta-Analysis & Ethics Audit..." << std::endl;
-    // Analyze matrix.cpp as a representative of the indigenous stack
-    // Paths are relative to the build directory (usually tests/model/program/build)
-    std::string source_path = "../../../../quanta_tissu/tisslm/program/layers/matrix.cpp";
+    std::string source_path = "../../../../../quanta_tissu/tisslm/program/layers/matrix.cpp";
     auto metrics = analyst.analyze_source(source_path);
     auto ethics = analyst.audit_ethics(source_path);
 
@@ -29,9 +28,9 @@ int main() {
     meta_section += "Line Count: " + std::to_string(metrics.line_count) + "\n";
     meta_section += "Complexity Index: " + std::to_string(metrics.complexity_index) + "\n";
     meta_section += "ETHICS AUDIT:\n";
-    meta_section += " - Explainability: " + std::to_string(ethics.explainability_score) + "\n";
-    meta_section += " - Graceful Degradation: " + std::to_string(ethics.graceful_degradation_score) + "\n";
-    meta_section += " - Principle Alignment: " + std::to_string(ethics.principle_alignment) + "\n";
+    meta_section += " - Explainability Score: " + std::to_string(ethics.explainability_score) + "%\n";
+    meta_section += " - Graceful Degradation: " + std::to_string(ethics.graceful_degradation_score) + "%\n";
+    meta_section += " - Principle Alignment: " + std::to_string(ethics.principle_alignment) + "/10\n";
     reporter.record_section("META_ANALYSIS", meta_section);
 
     // Stage 2: Code Topology Visualization
@@ -45,18 +44,27 @@ int main() {
     std::cout << "[Stage 3] Initializing Authentic QuantaTissu Facade..." << std::endl;
     QuantaTissu qt;
 
-    // Stage 4: Tokenizer Training (Mocked/Small Scale for test)
-    std::cout << "[Stage 4] Training Indigenous Tokenizer..." << std::endl;
-    qt.train_tokenizer("Small is kind. The new world is built on efficient fragments.");
+    // Indigenous Model Analysis
+    auto model_metrics = analyst.analyze_indigenous_model(qt.get_model());
+    std::string model_sec = "INDIGENOUS MODEL METRICS\n";
+    model_sec += "Parameter Count: " + std::to_string(model_metrics.parameter_count) + "\n";
+    model_sec += "Layer Count: " + std::to_string(model_metrics.layer_count) + "\n";
+    model_sec += "Param Density: " + std::to_string(model_metrics.param_density) + "\n";
+    reporter.record_section("MODEL_METRICS", model_sec);
+    std::cout << model_sec << std::endl;
 
-    // Stage 5: Model Evolution
-    std::cout << "[Stage 5] Training Model on Indigenous Architecture..." << std::endl;
+    // Stage 4: Tokenizer Training
+    std::cout << "[Stage 4] Training Indigenous Tokenizer..." << std::endl;
+    qt.train_tokenizer("Small is kind. The new world is built on efficient fragments. Harmony in code leads to empathy in AI.");
+
+    // Stage 5: Model Evolution (Loss Calculation)
+    std::cout << "[Stage 5] Calculating Loss on Indigenous Architecture..." << std::endl;
     std::vector<float> losses;
     std::map<std::string, std::vector<float>> grid_data;
     for(int i=0; i<10; ++i) {
-        float loss = 1.0f / (i + 1);
-        losses.push_back(loss);
+        float loss = 0.0f;
         qt.train_step("Indigenous training loop iteration " + std::to_string(i), loss);
+        losses.push_back(loss);
         grid_data["Loss"].push_back(loss);
     }
 
@@ -66,19 +74,36 @@ int main() {
     reporter.record_section("LOSS_GRID", grid);
     std::cout << grid << std::endl;
 
-    // Stage 7: Inference
-    std::cout << "[Stage 7] Performing Indigenous Inference..." << std::endl;
-    std::string response = qt.generate("The mission is clear:");
+    // Stage 7: Real Autoregressive Inference
+    std::cout << "[Stage 7] Performing Indigenous Autoregressive Inference..." << std::endl;
+    std::string prompt = "The mission of QuantaTissu is";
+    std::string response = qt.generate(prompt, 20);
+    std::cout << "Prompt: " << prompt << std::endl;
     std::cout << "Response: " << response << std::endl;
-    reporter.record_section("INFERENCE_OUTPUT", "Prompt: The mission is clear:\nResponse: " + response);
+    reporter.record_section("INFERENCE_OUTPUT", "Prompt: " + prompt + "\nResponse: " + response);
 
-    // Stage 8: Telemetry Extraction
-    std::cout << "[Stage 8] Extracting Hardware-Aware Telemetry..." << std::endl;
+    // Stage 8: DDL Parsing Demonstration
+    std::cout << "[Stage 8] Demonstrating DDL Parsing Logic..." << std::endl;
+    TissDB::DDL::DDLParser parser;
+    auto stmt = parser.parse("CREATE TABLE StellarDocuments (id INT, content STRING)");
+    std::string ddl_output = "DDL Query: CREATE TABLE StellarDocuments (id INT, content STRING)\n";
+    if (stmt && stmt->getType() == TissDB::DDL::DDLStatement::Type::CREATE_TABLE) {
+        auto create = static_cast<TissDB::DDL::CreateTableStatement*>(stmt.get());
+        ddl_output += "Parsed Table Name: " + create->getTableName() + "\n";
+        ddl_output += "Status: SUCCESS\n";
+    } else {
+        ddl_output += "Status: FAILED TO PARSE\n";
+    }
+    reporter.record_section("DDL_PARSING", ddl_output);
+    std::cout << ddl_output << std::endl;
+
+    // Stage 9: Telemetry Extraction
+    std::cout << "[Stage 9] Extracting Hardware-Aware Telemetry..." << std::endl;
     std::string telemetry = "Architecture: Set B (Indigenous)\nMemory Footprint: Minimal\nTarget: Resource Constrained Environments\n";
     reporter.record_section("TELEMETRY", telemetry);
 
-    // Stage 9: Report Finalization
-    std::cout << "[Stage 9] Saving Unified Stellar Report..." << std::endl;
+    // Report Finalization
+    std::cout << "Saving Unified Stellar Report..." << std::endl;
     reporter.save_report("stellar_report.txt");
 
     std::cout << "\n==========================================================" << std::endl;

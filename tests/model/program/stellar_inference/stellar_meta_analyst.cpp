@@ -3,6 +3,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <cmath>
+#include <algorithm>
 
 namespace TissLM {
 namespace Stellar {
@@ -30,8 +31,16 @@ ModelMetrics StellarMetaAnalyst::analyze_model(std::shared_ptr<TissLM::Core::Mod
     auto params = model->get_parameters();
     m.parameter_count = 0;
     for (const auto& p : params) m.parameter_count += p->value().rows() * p->value().cols();
-    m.layer_count = params.size() / 2; // Heuristic for weight/bias pairs
+    m.layer_count = params.size() / 2;
     m.param_density = (float)m.parameter_count / (m.layer_count + 1);
+    return m;
+}
+
+ModelMetrics StellarMetaAnalyst::analyze_indigenous_model(const Model& model) {
+    ModelMetrics m;
+    m.parameter_count = model.get_parameter_count();
+    m.layer_count = model.get_layer_count();
+    m.param_density = m.layer_count > 0 ? (float)m.parameter_count / m.layer_count : (float)m.parameter_count;
     return m;
 }
 
@@ -45,21 +54,33 @@ EthicsMetrics StellarMetaAnalyst::audit_ethics(const std::string& path) {
     size_t errors = 0;
     size_t comments = 0;
     size_t alignments = 0;
+    size_t defensive_checks = 0;
 
     while (std::getline(f, line)) {
         lines++;
+        // Error handling density
         if (line.find("try") != std::string::npos || line.find("catch") != std::string::npos ||
-            line.find("throw") != std::string::npos || line.find("error") != std::string::npos) errors++;
+            line.find("throw") != std::string::npos || line.find("error") != std::string::npos ||
+            line.find("runtime_error") != std::string::npos || line.find("invalid_argument") != std::string::npos) errors++;
+
+        // Defensive coding density
+        if (line.find("if (") != std::string::npos && (line.find("nullptr") != std::string::npos || line.find("empty()") != std::string::npos || line.find("== 0") != std::string::npos)) defensive_checks++;
+
+        // Explainability density
         if (line.find("//") != std::string::npos || line.find("/*") != std::string::npos ||
-            line.find("* ") != std::string::npos) comments++;
+            line.find("* ") != std::string::npos || line.find("@brief") != std::string::npos) comments++;
+
+        // Principle alignment
         if (line.find("Small is kind") != std::string::npos || line.find("Compute lightly") != std::string::npos ||
-            line.find("Stellar") != std::string::npos || line.find("Harmony") != std::string::npos) alignments++;
+            line.find("Stellar") != std::string::npos || line.find("Indig") != std::string::npos ||
+            line.find("Harmony") != std::string::npos || line.find("Empathy") != std::string::npos) alignments++;
     }
 
     if (lines > 0) {
-        m.graceful_degradation_score = (float)errors / lines * 100.0f;
+        m.graceful_degradation_score = (float)(errors + defensive_checks) / lines * 100.0f;
         m.explainability_score = (float)comments / lines * 100.0f;
-        m.principle_alignment = alignments > 0 ? 10.0f : 0.0f;
+        m.principle_alignment = (float)alignments / lines * 1000.0f;
+        if (alignments > 0 && m.principle_alignment < 5.0f) m.principle_alignment = 5.0f; // Minimum score if keywords present
     }
     return m;
 }
