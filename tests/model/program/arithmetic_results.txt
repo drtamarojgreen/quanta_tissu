@@ -1,0 +1,25 @@
+====================================================
+   COMPREHENSIVE ARITHMETIC DEBUG HARNESS
+====================================================
+[BREADCRUMB] Initializing Pipeline
+[DIAGNOSTIC] Token Count: 41
+[DIAGNOSTIC] Vocabulary Size: 258
+[DIAGNOSTIC] Batch Size: 1
+[BREADCRUMB] Starting Training Loop Execution
+[DIAGNOSTIC] Step 1 Loss: 5.965277
+[DIAGNOSTIC] Param 0 [.weight] GradNorm: 0.234050
+[DIAGNOSTIC] Param 1 [.mha.w_q] GradNorm: 0.475637
+[DIAGNOSTIC] Param 2 [.mha.w_k] GradNorm: 0.441485
+[DIAGNOSTIC] Step 2 Loss: 5.653087
+[DIAGNOSTIC] Param 0 [.weight] GradNorm: 0.432241
+[DIAGNOSTIC] Param 1 [.mha.w_q] GradNorm: 0.438952
+[DIAGNOSTIC] Param 2 [.mha.w_k] GradNorm: 0.387463
+[DIAGNOSTIC] Probing Adam internal denominators...
+  Param 0 Min Denom: 0.000000
+  Param 1 Min Denom: 0.000002
+  Param 2 Min Denom: 0.000000
+[BREADCRUMB] Invoking Generator Infrastructure
+[DIAGNOSTIC] Generated token ids: 257 32 158 158 158 158 158
+====================================================
+       DEBUG HARNESS FINISHED SUCCESSFULLY
+====================================================

@@ -116,6 +116,7 @@ void run_rule_enforcement_evaluation() {
         TestConfig::EmbedDim,
         TestConfig::NumHeads,
         TestConfig::NumLayers,
+        TestConfig::FFNDim,
         TestConfig::DropoutRate,
         0 // LoraRank = 0 for this test
     );

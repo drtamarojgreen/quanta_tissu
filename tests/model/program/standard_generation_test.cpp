@@ -111,11 +111,12 @@ void run_standard_generation_evaluation() {
 
     std::shared_ptr<TransformerModel> model = std::make_shared<TransformerModel>(
         vocab_size,
-        TestConfig::MaxSeqLen,
-        TestConfig::EmbedDim,
-        TestConfig::NumHeads,
-        TestConfig::NumLayers,
-        TestConfig::DropoutRate,
+        ::TestConfig::MaxSeqLen,
+        ::TestConfig::EmbedDim,
+        ::TestConfig::NumHeads,
+        ::TestConfig::NumLayers,
+        ::TestConfig::FFNDim,
+        ::TestConfig::DropoutRate,
         0 // LoraRank = 0 for this test
     );
 

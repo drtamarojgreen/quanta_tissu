@@ -38,6 +38,7 @@ void run_cpp_full_fledged_workout() {
         TestConfig::EmbedDim,
         TestConfig::NumHeads,
         TestConfig::NumLayers,
+        TestConfig::FFNDim,
         TestConfig::DropoutRate,
         TestConfig::LoraRank
     );

@@ -40,6 +40,7 @@ void run_experimental_sampling_evaluation() {
         TestConfig::EmbedDim,
         TestConfig::NumHeads,
         TestConfig::NumLayers,
+        4 * TestConfig::EmbedDim, // d_ff
         TestConfig::DropoutRate,
         0 // LoraRank = 0 for this test
     );
