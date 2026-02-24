@@ -36,10 +36,25 @@ using namespace TissNum;
 
 class ArithmeticDebugHarness {
 public:
+    ArithmeticDebugHarness() {
+        log_file_.open("arithmetic_results.txt");
+    }
+
+    ~ArithmeticDebugHarness() {
+        if (log_file_.is_open()) log_file_.close();
+    }
+
+    void log(const std::string& msg) {
+        std::cout << msg << std::endl;
+        if (log_file_.is_open()) {
+            log_file_ << msg << std::endl;
+        }
+    }
+
     void run() {
-        std::cout << "====================================================" << std::endl;
-        std::cout << "   COMPREHENSIVE ARITHMETIC DEBUG HARNESS           " << std::endl;
-        std::cout << "====================================================" << std::endl;
+        log("====================================================");
+        log("   COMPREHENSIVE ARITHMETIC DEBUG HARNESS           ");
+        log("====================================================");
 
         setup_fpe_traps();
 
@@ -52,11 +67,11 @@ public:
         std::vector<int> tokens = tokenizer_->encode(text);
 
         // Metrics logging (Directive point 6)
-        std::cout << "[DIAGNOSTIC] Token Count: " << tokens.size() << std::endl;
-        std::cout << "[DIAGNOSTIC] Vocabulary Size: " << vocab_size << std::endl;
+        log("[DIAGNOSTIC] Token Count: " + std::to_string(tokens.size()));
+        log("[DIAGNOSTIC] Vocabulary Size: " + std::to_string(vocab_size));
 
         TokenDataset dataset(tokens, 16);
-        std::cout << "[DIAGNOSTIC] Batch Size: 1" << std::endl;
+        log("[DIAGNOSTIC] Batch Size: 1");
 
         auto model = std::make_shared<TransformerModel>(
             vocab_size, 32, 64, 2, 2, 128, 0.1f, 0
@@ -79,7 +94,7 @@ public:
             // Loss
             Matrix targets = item.second.reshape({item.second.cols(), 1});
             float loss = loss_fn->compute_loss(predictions, targets);
-            std::cout << "[DIAGNOSTIC] Step " << step << " Loss: " << loss << std::endl;
+            log("[DIAGNOSTIC] Step " + std::to_string(step) + " Loss: " + std::to_string(loss));
             assert(std::isfinite(loss));
 
             // Backward
@@ -106,18 +121,18 @@ public:
         Generator generator(model, gen_config);
         std::vector<int> prompt = {tokens[0], tokens[1]};
         std::vector<int> generated = generator.generate(prompt, 5);
-        std::cout << "[DIAGNOSTIC] Generated token ids: ";
-        for(int id : generated) std::cout << id << " ";
-        std::cout << std::endl;
+        std::string gen_ids_str = "[DIAGNOSTIC] Generated token ids: ";
+        for(int id : generated) gen_ids_str += std::to_string(id) + " ";
+        log(gen_ids_str);
 
-        std::cout << "====================================================" << std::endl;
-        std::cout << "       DEBUG HARNESS FINISHED SUCCESSFULLY          " << std::endl;
-        std::cout << "====================================================" << std::endl;
+        log("====================================================");
+        log("       DEBUG HARNESS FINISHED SUCCESSFULLY          ");
+        log("====================================================");
     }
 
 private:
     void breadcrumb(const std::string& msg) {
-        std::cout << "[BREADCRUMB] " << msg << std::endl;
+        log("[BREADCRUMB] " + msg);
     }
 
     void setup_fpe_traps() {
@@ -149,12 +164,12 @@ private:
             float sum_sq = 0.0f;
             const float* d = grad.get_data();
             for(size_t j=0; j<grad.data_size(); ++j) sum_sq += d[j]*d[j];
-            std::cout << "[DIAGNOSTIC] Param " << i << " [" << params[i]->name() << "] GradNorm: " << std::sqrt(sum_sq) << std::endl;
+            log("[DIAGNOSTIC] Param " + std::to_string(i) + " [" + params[i]->name() + "] GradNorm: " + std::to_string(std::sqrt(sum_sq)));
         }
     }
 
     void trace_adam_denominators(std::shared_ptr<Adam> adam) {
-        std::cout << "[DIAGNOSTIC] Probing Adam internal denominators..." << std::endl;
+        log("[DIAGNOSTIC] Probing Adam internal denominators...");
         for (size_t i = 0; i < std::min((size_t)3, adam->v_.size()); ++i) {
             float bias_corr = 1.0f - std::pow(adam->beta2_, adam->t_ + 1);
             const float* d = adam->v_[i].get_data();
@@ -163,11 +178,12 @@ private:
                 float denom = std::sqrt(d[j] / bias_corr) + adam->epsilon_;
                 min_denom = std::min(min_denom, denom);
             }
-            std::cout << "  Param " << i << " Min Denom: " << min_denom << std::endl;
+            log("  Param " + std::to_string(i) + " Min Denom: " + std::to_string(min_denom));
         }
     }
 
     std::shared_ptr<Tokenizer> tokenizer_;
+    std::ofstream log_file_;
 };
 
 int main() {
