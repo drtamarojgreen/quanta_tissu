@@ -20,8 +20,10 @@ int main() {
     // Stage 1: Meta-Analysis & Ethical Audit
     std::cout << "\n[Stage 1] Performing Source Code Meta-Analysis & Ethics Audit..." << std::endl;
     // Analyze matrix.cpp as a representative of the indigenous stack
-    auto metrics = analyst.analyze_source("../../../../../quanta_tissu/tisslm/program/layers/matrix.cpp");
-    auto ethics = analyst.audit_ethics("../../../../../quanta_tissu/tisslm/program/layers/matrix.cpp");
+    // Paths are relative to the build directory (usually tests/model/program/build)
+    std::string source_path = "../../../../quanta_tissu/tisslm/program/layers/matrix.cpp";
+    auto metrics = analyst.analyze_source(source_path);
+    auto ethics = analyst.audit_ethics(source_path);
 
     std::string meta_section = "SOURCE META-ANALYSIS (matrix.cpp)\n";
     meta_section += "Line Count: " + std::to_string(metrics.line_count) + "\n";
