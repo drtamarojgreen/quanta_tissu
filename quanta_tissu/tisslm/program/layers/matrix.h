@@ -26,6 +26,7 @@ public:
 
     size_t rows() const { return shape_.size() > 0 ? shape_[0] : 0; }
     size_t cols() const { return shape_.size() > 1 ? shape_[1] : 0; }
+    size_t size() const { return data_.size(); }
     const std::vector<size_t>& get_shape() const { return shape_; }
 
     static Matrix random(const std::vector<size_t>& shape);

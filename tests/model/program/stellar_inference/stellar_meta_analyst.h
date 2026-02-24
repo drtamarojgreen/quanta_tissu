@@ -4,7 +4,9 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <memory>
 #include "core/model_interface.h"
+#include "architecture/model.h"
 
 namespace TissLM {
 namespace Stellar {
@@ -36,6 +38,7 @@ class StellarMetaAnalyst {
 public:
     static SourceMetrics analyze_source(const std::string& filepath);
     static ModelMetrics analyze_model(std::shared_ptr<TissLM::Core::Model> model);
+    static ModelMetrics analyze_indigenous_model(const Model& model);
     static EthicsMetrics audit_ethics(const std::string& filepath);
     static std::vector<struct Point3D> extract_3d_points(const SourceMetrics& metrics);
 };

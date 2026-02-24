@@ -24,6 +24,8 @@ set(PROGRAM_SOURCES
     ../../../../quanta_tissu/tisslm/program/quantatissu.cpp
     ../../../../quanta_tissu/tisslm/program/tokenizer/tokenizer.cpp
     ../../../../quanta_tissu/tisslm/program/tokenizer/pre_tokenizer.cpp
+    ../../../../quanta_tissu/tisslm/program/ddl_parser.cpp
+    ../../../../quanta_tissu/tisslm/program/schema_manager.cpp
 )
 
 # Stellar Sources

@@ -10,6 +10,12 @@ public:
     Model(int vocab_size, int d_model, int n_layer, int n_head, int d_ff);
 
     Matrix forward(const std::vector<int>& token_ids);
+    size_t get_parameter_count() const {
+        size_t count = embeddings.size() + output_proj.size();
+        for (const auto& block : transformer_blocks) count += block.get_parameter_count();
+        return count;
+    }
+    size_t get_layer_count() const { return transformer_blocks.size(); }
 
 private:
     Matrix embeddings;
