@@ -89,6 +89,7 @@ add_library(tisslm_program
 add_library(stellar_inference
     stellar_inference/stellar_visualizer.cpp
     stellar_inference/stellar_meta_analyst.cpp
+    stellar_inference/stellar_reporter.cpp
 )
 
 # Test executables

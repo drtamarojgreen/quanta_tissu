@@ -2,8 +2,8 @@
 #include <cmath>
 
 Model::Model(int vocab_size, int d_model, int n_layer, int n_head, int d_ff)
-    : embeddings(Matrix::random({(size_t)vocab_size, (size_t)d_model})),
-      output_proj(Matrix::random({(size_t)d_model, (size_t)vocab_size})) {
+    : embeddings(Matrix::random(vocab_size, d_model)),
+      output_proj(Matrix::random(d_model, vocab_size)) {
     for (int i = 0; i < n_layer; ++i) {
         transformer_blocks.emplace_back(d_model, n_head, d_ff);
     }

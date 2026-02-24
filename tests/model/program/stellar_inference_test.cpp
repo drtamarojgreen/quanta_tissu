@@ -1,5 +1,6 @@
 #include "stellar_inference/stellar_visualizer.h"
 #include "stellar_inference/stellar_meta_analyst.h"
+#include "stellar_inference/stellar_reporter.h"
 
 // --- THE INTEGRATED PROGRAM ---
 // Non-invasive inspection for Stellar visualization and integration
@@ -70,6 +71,7 @@ std::string robust_decode(const std::vector<int>& token_ids, const TissLM::Token
  * @brief Ultimate Stellar Showcase - Refined to use the UNIFIED QuantaTissu program stack.
  */
 void run_stellar_showcase() {
+    StellarReporter reporter;
     std::cout << "================================================================" << std::endl;
     std::cout << "    QuantaTissu Frontier - STELLAR UNIFIED SHOWCASE" << std::endl;
     std::cout << "================================================================" << std::endl;
@@ -82,8 +84,10 @@ void run_stellar_showcase() {
     // 1. Meta-Analysis
     std::cout << "\n[STAGE 1] Meta-Programming: Code Topology Analysis" << std::endl;
     auto s_metrics = StellarMetaAnalyst::analyze_source(source_path);
+    std::string cloud_viz = StellarVisualizer::render_3d_graph(StellarMetaAnalyst::extract_3d_points(s_metrics), 75, 20);
     std::cout << "   3D Character Cloud Projection (ASCII Mapping):" << std::endl;
-    std::cout << StellarVisualizer::render_3d_graph(StellarMetaAnalyst::extract_3d_points(s_metrics), 75, 20);
+    std::cout << cloud_viz;
+    reporter.record_section("Code Topology Analysis", "Complexity Index: " + std::to_string(s_metrics.complexity_index) + "\n\n" + cloud_viz);
 
     // 2. Tokenizer Integration
     std::cout << "\n[STAGE 2] Tokenizer: Indigenous Program Integration" << std::endl;
@@ -105,7 +109,9 @@ void run_stellar_showcase() {
     auto m_metrics = StellarMetaAnalyst::analyze_model(model);
     std::map<std::string, std::vector<float>> m_grid;
     m_grid["Unified-Transformer"] = {(float)m_metrics.parameter_count, (float)m_metrics.layer_count, m_metrics.param_density};
-    std::cout << StellarVisualizer::render_analysis_grid(m_grid, {"Params", "Layers", "Density"});
+    std::string model_audit = StellarVisualizer::render_analysis_grid(m_grid, {"Params", "Layers", "Density"});
+    std::cout << model_audit;
+    reporter.record_section("Model Architecture Audit", model_audit);
 
     // 5. Training Engine: Integrated Backpropagation
     std::cout << "\n[STAGE 5] Training Engine: Delegated Backpropagation" << std::endl;
@@ -160,19 +166,29 @@ void run_stellar_showcase() {
         std::cout << std::endl;
     }
     std::cout << "\n[STELLAR] Loss Topology (3D ASCII Perspective)" << std::endl;
-    std::cout << StellarVisualizer::render_3d_graph(loss_history, 80, 25);
+    std::string loss_viz = StellarVisualizer::render_3d_graph(loss_history, 80, 25);
+    std::cout << loss_viz;
+    reporter.record_section("Training Loss Topology", loss_viz);
 
     // 6. Inference: QuantaTissu Decoding
     std::cout << "\n[STAGE 6] Inference: QuantaTissu Facade Decoding" << std::endl;
     std::string prompt_text = "#include";
     std::string result = qt.generate(prompt_text, 15);
     std::cout << "   Generated Fragment: " << result << std::endl;
+    reporter.record_section("Generative Output", "Prompt: " + prompt_text + "\nResult: " + result);
 
     // 7. Process Synthesis
     std::cout << "\n[STAGE 7] Process Synthesis" << std::endl;
     std::map<std::string, std::vector<float>> f_grid;
     f_grid["Mission-Metrics"] = {(float)s_metrics.complexity_index, (float)tokenizer.get_vocab_size(), (float)result.size()};
-    std::cout << StellarVisualizer::render_analysis_grid(f_grid, {"Complexity", "VocabSize", "GenLen"});
+    std::string synthesis = StellarVisualizer::render_analysis_grid(f_grid, {"Complexity", "VocabSize", "GenLen"});
+    std::cout << synthesis;
+    reporter.record_section("Mission Synthesis", synthesis);
+
+    std::cout << "\n[STAGE 8] Generating Persistent Stellar Report..." << std::endl;
+    if (reporter.save_report("stellar_report.txt")) {
+        std::cout << "   Success: stellar_report.txt generated." << std::endl;
+    }
 
     std::cout << "================================================================" << std::endl;
     std::cout << "    STELLAR MISSION: UNIFIED PROGRAM SUCCESS" << std::endl;
