@@ -476,11 +476,11 @@ Matrix Matrix::operator/(float scalar) const {
 }
 
 Matrix operator/(float scalar, const Matrix& m) {
-    if (scalar == 0.0f) {
-        throw std::invalid_argument("Division by zero");
-    }
     Matrix result(m.shape_);
     for (size_t i = 0; i < m.data_.size(); ++i) {
+        if (m.data_[i] == 0.0f) {
+            throw std::invalid_argument("Division by zero in scalar / Matrix");
+        }
         result.data_[i] = scalar / m.data_[i];
     }
     return result;

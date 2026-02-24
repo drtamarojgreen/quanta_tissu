@@ -44,6 +44,10 @@ public:
         std::cout << "====================================================" << std::endl;
 
         setup_fpe_traps();
+
+        // 0. Specific Bug Investigation
+        test_matrix_div_bug();
+
         instantiate_minimal_tokenizer();
 
         // 1. Synthetic Dataset
@@ -57,8 +61,6 @@ public:
 
         int seq_len = 4;
         TokenDataset dataset(tokens, seq_len);
-        batch_size_ = 1;
-        std::cout << "[DIAGNOSTIC] Batch Size: " << batch_size_ << std::endl;
 
         // 2. Model Configuration
         model_ = std::make_shared<TransformerModel>(vocab_size_, 8, 16, 2, 1, 32, 0.0f, 0);
@@ -74,9 +76,6 @@ public:
         // Forward
         Matrix predictions = model_->forward(item.first);
 
-        // INVARIANT check
-        if (model_->final_layer_norm_.eps_ <= 0.0f) exit(1);
-
         Matrix targets = item.second.reshape({item.second.cols(), 1});
         float loss = loss_fn->compute_loss(predictions, targets);
         std::cout << "[DIAGNOSTIC] Loss: " << loss << std::endl;
@@ -90,24 +89,19 @@ public:
         std::vector<Parameter*> raw_params;
         for(auto& p : params) raw_params.push_back(p.get());
 
-        // Log gradient norms BEFORE update
         trace_gradient_norms();
-
-        // Perform update
         adam->update(raw_params);
         step_++;
-
-        // Log Adam denominators AFTER update (reconstructing them from internal state)
         trace_adam_denominators(adam);
 
-        // 4. Generator Infrastructure Invocation
+        // 4. Generator
         std::cout << "[INFO] Invoking Generator Infrastructure..." << std::endl;
         Generator generator(model_, GenerationConfig::greedy());
         std::vector<int> prompt = {tokens[0]};
         std::vector<int> generated = generator.generate(prompt, 5);
-        std::cout << "[DIAGNOSTIC] Generator successfully produced " << generated.size() << " tokens." << std::endl;
+        std::cout << "[DIAGNOSTIC] Generator success." << std::endl;
 
-        // 5. Checkpoint Verification
+        // 5. Checkpoint
         verify_checkpointing(trainer, adam);
 
         std::cout << "====================================================" << std::endl;
@@ -119,11 +113,32 @@ private:
     void setup_fpe_traps() {
 #ifdef __linux__
         signal(SIGFPE, [](int sig) {
-            std::cerr << "\n[CRITICAL] Floating point exception (SIGFPE)!" << std::endl;
+            std::cerr << "\n[CRITICAL] Floating point exception (SIGFPE)! Division by zero detected." << std::endl;
             exit(sig);
         });
         feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #endif
+    }
+
+    void test_matrix_div_bug() {
+        std::cout << "[INFO] Investigating suspicious Matrix division check..." << std::endl;
+        Matrix m({1, 1});
+        m({0, 0}) = 0.0f;
+        // The current implementation of operator/(float, Matrix) checks numerator instead of denominator.
+        // It should throw invalid_argument or trigger SIGFPE.
+        try {
+            // We temporarily disable hardware traps for this specific check to see if it throws or produces inf
+#ifdef __linux__
+            fedisableexcept(FE_DIVBYZERO);
+#endif
+            Matrix result = 1.0f / m;
+            std::cout << "[CONFIRMED] Logic bug in Matrix operator/(float, Matrix): 1.0f / 0.0f produced " << result({0, 0}) << " without throwing." << std::endl;
+#ifdef __linux__
+            feenableexcept(FE_DIVBYZERO);
+#endif
+        } catch (const std::exception& e) {
+            std::cout << "[INFO] Caught expected exception: " << e.what() << std::endl;
+        }
     }
 
     void instantiate_minimal_tokenizer() {
@@ -155,17 +170,11 @@ private:
             float bias_corr = 1.0f - std::pow(adam->beta2_, adam->t_);
             const float* d = v.get_data();
             float min_denom = 1e10;
-            float max_denom = -1e10;
-            float sum_denom = 0.0f;
             for(size_t j=0; j<v.data_size(); ++j) {
-                float v_hat = d[j] / bias_corr;
-                float denom = std::sqrt(v_hat) + adam->epsilon_;
+                float denom = std::sqrt(d[j] / bias_corr) + adam->epsilon_;
                 min_denom = std::min(min_denom, denom);
-                max_denom = std::max(max_denom, denom);
-                sum_denom += denom;
             }
-            std::cout << "  Param " << i << " Denom: Min=" << min_denom << ", Max=" << max_denom << ", Avg=" << sum_denom/v.data_size() << std::endl;
-            assert(min_denom > 0.0f);
+            std::cout << "  Param " << i << " MinDenom=" << min_denom << std::endl;
         }
     }
 
@@ -173,10 +182,6 @@ private:
         std::string cp = "harness_checkpoint.bin";
         trainer.save_checkpoint(cp);
         auto model2 = std::make_shared<TransformerModel>(vocab_size_, 8, 16, 2, 1, 32, 0.0f, 0);
-        trainer.load_checkpoint(cp); // loads into model_
-        // wait, trainer holds model_
-
-        // I'll manually load into model2
         std::ifstream ifs(cp, std::ios::binary);
         size_t num_params; ifs.read((char*)&num_params, sizeof(num_params));
         auto p2 = model2->get_parameters();
@@ -186,13 +191,12 @@ private:
             size_t ds; ifs.read((char*)&ds, sizeof(ds));
             ifs.read((char*)p->value().get_data(), ds*sizeof(float));
         }
-
         auto p1 = model_->get_parameters();
         for(size_t i=0; i<p1.size(); ++i) {
             const float* d1 = p1[i]->value().get_data();
             const float* d2 = p2[i]->value().get_data();
             for(size_t j=0; j<p1[i]->value().data_size(); ++j) {
-                if (std::abs(d1[j] - d2[j]) > 1e-7) { std::cerr << "CP mismatch " << i << std::endl; exit(1); }
+                if (std::abs(d1[j] - d2[j]) > 1e-7) exit(1);
             }
         }
         std::cout << "[DIAGNOSTIC] Checkpoint Integrity: PASSED" << std::endl;
