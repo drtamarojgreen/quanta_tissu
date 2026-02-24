@@ -6,7 +6,6 @@
 #include <numeric>
 #include <algorithm>
 #include <functional>
-#include <type_traits>
 
 namespace TissNum {
 
@@ -145,13 +144,7 @@ private:
         std::function<void(int, size_t, size_t, size_t)> recurse_broadcast = 
             [&](int dim, size_t current_this_idx, size_t current_other_idx, size_t current_result_idx) {
             if (dim == result_shape.size()) {
-                float denom = other.data_[current_other_idx];
-                if constexpr (std::is_same_v<Func, std::divides<float>>) {
-                    if (denom == 0.0f) {
-                        throw std::invalid_argument("Division by zero in Matrix broadcast");
-                    }
-                }
-                result.data_[current_result_idx] = op(data_[current_this_idx], denom);
+                result.data_[current_result_idx] = op(data_[current_this_idx], other.data_[current_other_idx]);
                 return;
             }
 
