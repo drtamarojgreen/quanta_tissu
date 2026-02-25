@@ -22,7 +22,10 @@ struct ModelConfig {
 class QuantaTissu {
 public:
     QuantaTissu(); // Default constructor for testing
+    QuantaTissu(const std::string& config_path);
     QuantaTissu(const ModelConfig& config, const std::string& tokenizer_prefix);
+
+    static ModelConfig load_config(const std::string& path);
 
     void train(const std::string& text, float& final_loss);
     std::string generate(const std::string& prompt, size_t max_len = 50);

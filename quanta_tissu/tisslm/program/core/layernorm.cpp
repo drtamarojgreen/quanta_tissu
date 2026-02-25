@@ -1,7 +1,5 @@
 #include "layernorm.h"
 #include <cmath>
-#include <stdexcept>
-#include <string>
 
 namespace TissNum {
 
@@ -23,12 +21,8 @@ Matrix LayerNorm::forward(const Matrix& x) {
         Matrix std_dev = Matrix::sqrt(var + eps_);
 
         for (size_t r = 0; r < x.rows(); ++r) {
-            float denom = std_dev({r, 0});
-            if (denom == 0.0f) {
-                throw std::runtime_error("LayerNorm::forward (2D) division by zero: standard deviation is zero at row " + std::to_string(r));
-            }
             for (size_t c = 0; c < x.cols(); ++c) {
-                x_norm({r, c}) = (x({r, c}) - mean({r, 0})) / denom;
+                x_norm({r, c}) = (x({r, c}) - mean({r, 0})) / std_dev({r, 0});
             }
         }
 
@@ -52,12 +46,8 @@ Matrix LayerNorm::forward(const Matrix& x) {
 
         for (size_t i = 0; i < x.get_shape()[0]; ++i) {
             for (size_t j = 0; j < x.get_shape()[1]; ++j) {
-                float denom = std_dev({i, j, 0});
-                if (denom == 0.0f) {
-                    throw std::runtime_error("LayerNorm::forward (3D) division by zero: standard deviation is zero at batch " + std::to_string(i) + ", seq " + std::to_string(j));
-                }
                 for (size_t k = 0; k < x.get_shape()[2]; ++k) {
-                    x_norm({i, j, k}) = (x({i, j, k}) - mean({i, j, 0})) / denom;
+                    x_norm({i, j, k}) = (x({i, j, k}) - mean({i, j, 0})) / std_dev({i, j, 0});
                 }
             }
         }

@@ -1,0 +1,7 @@
+{
+    "vocab_size": 1000,
+    "d_model": 128,
+    "num_layers": 2,
+    "num_heads": 4,
+    "d_ff": 512
+}

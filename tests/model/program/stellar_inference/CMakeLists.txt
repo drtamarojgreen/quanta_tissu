@@ -11,6 +11,7 @@ include_directories(
     ../../../../quanta_tissu/tisslm/program/layers
     ../../../../quanta_tissu/tisslm/program/architecture
     ../../../../quanta_tissu/tisslm/program/tokenizer
+    ../../../../tissdb
 )
 
 # TissLM Program Sources (Set B Indigenous Stack)
@@ -26,6 +27,7 @@ set(PROGRAM_SOURCES
     ../../../../quanta_tissu/tisslm/program/tokenizer/pre_tokenizer.cpp
     ../../../../quanta_tissu/tisslm/program/ddl_parser.cpp
     ../../../../quanta_tissu/tisslm/program/schema_manager.cpp
+    ../../../../tissdb/json/json.cpp
 )
 
 # Stellar Sources
