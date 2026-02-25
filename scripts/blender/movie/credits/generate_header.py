@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Generates the opening header sequence KDenlive XML project for GreenhouseMD.
+Generates the opening header sequence KDenlive-compatible XML project for GreenhouseMD.
+Uses pango producers with explicit sizes and composite transitions.
 """
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -21,16 +22,13 @@ CONFIG = {
     "header_segment_b_duration": 15,
     "header_segment_c_duration": 15,
 
-    # Credits scroll duration in seconds
-    "credits_scroll_duration": 90,
-
     # Colours
     "background_dark":   "#1a1a1a",
     "background_black":  "#000000",
     "text_white":        "#ffffff",
     "text_gold":         "#c8a84b",
 
-    # Cast — { "Character Name": "Performer / Voice" }
+    # Cast
     "cast": {
         "Herbaceous":  "AI",
         "Arbor":       "AI",
@@ -39,12 +37,7 @@ CONFIG = {
 }
 
 def indent(elem, level=0):
-    """Recursively indents XML elements for pretty-printing.
-
-    Args:
-        elem: The element to indent.
-        level: Current nesting level.
-    """
+    """Recursively indents XML elements."""
     i = "\n" + level * "  "
     if len(elem):
         if not elem.text or not elem.text.strip():
@@ -59,38 +52,20 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-def create_title_xml(text, size, weight=400, color="255,255,255,255", x=0, y=0):
-    """Creates the internal XML content for a kdenlivetitle producer.
-
-    Args:
-        text: The text to display.
-        size: Font size in points.
-        weight: Font weight (e.g., 400, 700).
-        color: RGBA color string "R,G,B,A".
-        x: X position.
-        y: Y position.
-
-    Returns:
-        A string of the title XML.
-    """
-    root = ET.Element("kdenlivetitle", {
-        "width": str(CONFIG["width"]),
-        "height": str(CONFIG["height"]),
-        "out": "999"
-    })
-    item = ET.SubElement(root, "item", {"type": "QGraphicsTextItem", "z-index": "0"})
-    content = ET.SubElement(item, "content", {
-        "font": "DejaVu Sans",
-        "font-size": str(size),
-        "font-weight": str(weight),
-        "fill": color
-    })
-    content.text = text
-    ET.SubElement(item, "position", {"x": str(x), "y": str(y)})
-    return ET.tostring(root, encoding="unicode")
+def create_text_producer(root, pid, text, size, weight=400, color="white", out=1000):
+    """Creates a pango text producer."""
+    p = ET.SubElement(root, "producer", {"id": pid, "in": "0", "out": str(out)})
+    ET.SubElement(p, "property", {"name": "mlt_service"}).text = "pango"
+    ET.SubElement(p, "property", {"name": "markup"}).text = f'<span font_family="DejaVu Sans" foreground="{color}" weight="{weight}" size="{size*1024}">{text}</span>'
+    ET.SubElement(p, "property", {"name": "align"}).text = "centre"
+    ET.SubElement(p, "property", {"name": "width"}).text = str(CONFIG["width"])
+    ET.SubElement(p, "property", {"name": "height"}).text = str(CONFIG["height"])
+    ET.SubElement(p, "property", {"name": "bgcolour"}).text = "#00000000"
+    ET.SubElement(p, "property", {"name": "progressive"}).text = "1"
+    return p
 
 def generate_header():
-    """Generates the header.kdenlive file with multi-segment layout and effects."""
+    """Generates the header sequence XML."""
     fps = CONFIG["fps"]
     width = CONFIG["width"]
     height = CONFIG["height"]
@@ -103,7 +78,6 @@ def generate_header():
         "xmlns:kdenlive": "http://www.kdenlive.org/project"
     })
 
-    # Profile definition
     ET.SubElement(root, "profile", {
         "description": "atsc_1080p_25",
         "frame_rate_num": str(fps),
@@ -118,137 +92,88 @@ def generate_header():
         "colorspace": "709"
     })
 
+    dur_a = CONFIG["header_segment_a_duration"] * fps
+    dur_b = CONFIG["header_segment_b_duration"] * fps
+    dur_c = CONFIG["header_segment_c_duration"] * fps
+    total_dur = dur_a + dur_b + dur_c
+
     # --- PRODUCERS ---
 
-    # Backgrounds
-    total_frames = (CONFIG["header_segment_a_duration"] +
-                    CONFIG["header_segment_b_duration"] +
-                    CONFIG["header_segment_c_duration"]) * fps
-
-    bg_charcoal = ET.SubElement(root, "producer", {"id": "bg_charcoal", "in": "0", "out": str(total_frames)})
+    bg_charcoal = ET.SubElement(root, "producer", {"id": "bg_charcoal", "in": "0", "out": str(total_dur)})
     ET.SubElement(bg_charcoal, "property", {"name": "mlt_service"}).text = "color"
     ET.SubElement(bg_charcoal, "property", {"name": "resource"}).text = CONFIG["background_dark"]
 
-    bg_black = ET.SubElement(root, "producer", {"id": "bg_black", "in": "0", "out": str(total_frames)})
+    bg_black = ET.SubElement(root, "producer", {"id": "bg_black", "in": "0", "out": str(total_dur)})
     ET.SubElement(bg_black, "property", {"name": "mlt_service"}).text = "color"
     ET.SubElement(bg_black, "property", {"name": "resource"}).text = CONFIG["background_black"]
 
-    # Segment A Producers
-    dur_a = CONFIG["header_segment_a_duration"] * fps
-    title_a1_xml = create_title_xml("GreenhouseMD", 120, 700, x=460, y=400)
-    prod_a1 = ET.SubElement(root, "producer", {"id": "prod_a1", "in": "0", "out": str(dur_a - 1)})
-    ET.SubElement(prod_a1, "property", {"name": "mlt_service"}).text = "kdenlivetitle"
-    ET.SubElement(prod_a1, "property", {"name": "xmldata"}).text = title_a1_xml
-
-    title_a2_xml = create_title_xml("Production Studio", 48, 400, x=750, y=560)
-    prod_a2 = ET.SubElement(root, "producer", {"id": "prod_a2", "in": "0", "out": str(dur_a - 1)})
-    ET.SubElement(prod_a2, "property", {"name": "mlt_service"}).text = "kdenlivetitle"
-    ET.SubElement(prod_a2, "property", {"name": "xmldata"}).text = title_a2_xml
-
-    # Segment B Producer
-    dur_b = CONFIG["header_segment_b_duration"] * fps
-    title_b_text = f"{CONFIG['studio_name']} presents...\nA {CONFIG['co_production']}"
-    title_b_xml = create_title_xml(title_b_text, 60, x=300, y=480)
-    prod_b = ET.SubElement(root, "producer", {"id": "prod_b", "in": "0", "out": str(dur_b - 1)})
-    ET.SubElement(prod_b, "property", {"name": "mlt_service"}).text = "kdenlivetitle"
-    ET.SubElement(prod_b, "property", {"name": "xmldata"}).text = title_b_xml
-
-    # Segment C Producers
-    dur_c = CONFIG["header_segment_c_duration"] * fps
-    title_c_main_xml = create_title_xml(CONFIG["film_title"], 144, 700, x=400, y=300)
-    prod_c_main = ET.SubElement(root, "producer", {"id": "prod_c_main", "in": "0", "out": str(dur_c - 1)})
-    ET.SubElement(prod_c_main, "property", {"name": "mlt_service"}).text = "kdenlivetitle"
-    ET.SubElement(prod_c_main, "property", {"name": "xmldata"}).text = title_c_main_xml
-
+    create_text_producer(root, "prod_a1", "GreenhouseMD", 120, "bold", out=dur_a)
+    create_text_producer(root, "prod_a2", "Production Studio", 48, "normal", out=dur_a)
+    create_text_producer(root, "prod_b", f"{CONFIG['studio_name']} presents...\nA {CONFIG['co_production']}", 60, "normal", out=dur_b)
+    create_text_producer(root, "prod_c_main", CONFIG["film_title"], 144, "bold", out=dur_c)
     cast_pids = []
     for i, (char, actor) in enumerate(CONFIG["cast"].items()):
         pid = f"prod_cast_{i}"
-        xml = create_title_xml(f"{char} . . . {actor}", 48, x=600, y=550 + (i * 70))
-        p = ET.SubElement(root, "producer", {"id": pid, "in": "0", "out": str(dur_c - 1)})
-        ET.SubElement(p, "property", {"name": "mlt_service"}).text = "kdenlivetitle"
-        ET.SubElement(p, "property", {"name": "xmldata"}).text = xml
+        create_text_producer(root, pid, f"{char} . . . {actor}", 48, "normal", out=dur_c)
         cast_pids.append(pid)
 
-    # --- SEGMENT TRACTORS ---
+    # --- TRACTORS ---
 
-    # Segment A Tractor
     tractor_a = ET.SubElement(root, "tractor", {"id": "tractor_a", "in": "0", "out": str(dur_a - 1)})
     ET.SubElement(tractor_a, "track", {"producer": "bg_charcoal"})
     ET.SubElement(tractor_a, "track", {"producer": "prod_a1"})
     ET.SubElement(tractor_a, "track", {"producer": "prod_a2"})
 
-    # Compositing for A
-    tr_a1 = ET.SubElement(tractor_a, "transition", {"in": "0", "out": str(dur_a - 1)})
-    ET.SubElement(tr_a1, "property", {"name": "mlt_service"}).text = "composite"
-    ET.SubElement(tr_a1, "property", {"name": "a_track"}).text = "0"
-    ET.SubElement(tr_a1, "property", {"name": "b_track"}).text = "1"
+    for i in [1, 2]:
+        tr = ET.SubElement(tractor_a, "transition", {"in": "0", "out": str(dur_a - 1)})
+        ET.SubElement(tr, "property", {"name": "mlt_service"}).text = "composite"
+        ET.SubElement(tr, "property", {"name": "a_track"}).text = "0"
+        ET.SubElement(tr, "property", {"name": "b_track"}).text = str(i)
+        y_off = 0 if i == 1 else 200
+        ET.SubElement(tr, "property", {"name": "geometry"}).text = f"0: 0/{y_off}:{width}x{height}:100"
 
-    tr_a2 = ET.SubElement(tractor_a, "transition", {"in": "0", "out": str(dur_a - 1)})
-    ET.SubElement(tr_a2, "property", {"name": "mlt_service"}).text = "composite"
-    ET.SubElement(tr_a2, "property", {"name": "a_track"}).text = "0"
-    ET.SubElement(tr_a2, "property", {"name": "b_track"}).text = "2"
-
-    # CINEMATIC FILTERS FOR A
     f_blur_a = ET.SubElement(tractor_a, "filter", {"in": "0", "out": "50"})
     ET.SubElement(f_blur_a, "property", {"name": "mlt_service"}).text = "boxblur"
-    ET.SubElement(f_blur_a, "property", {"name": "hori"}).text = "0=30; 50=0"
-    ET.SubElement(f_blur_a, "property", {"name": "vert"}).text = "0=30; 50=0"
-
-    f_vignette_a = ET.SubElement(tractor_a, "filter", {"in": "0", "out": str(dur_a - 1)})
-    ET.SubElement(f_vignette_a, "property", {"name": "mlt_service"}).text = "frei0r.vignette"
-    ET.SubElement(f_vignette_a, "property", {"name": "0"}).text = "0.5" # Aspect
-    ET.SubElement(f_vignette_a, "property", {"name": "1"}).text = "0.2" # Sharpness
+    ET.SubElement(f_blur_a, "property", {"name": "hori"}).text = "0: 30; 50: 0"
+    ET.SubElement(f_blur_a, "property", {"name": "vert"}).text = "0: 30; 50: 0"
 
     f_glow_a = ET.SubElement(tractor_a, "filter", {"in": "0", "out": str(dur_a - 1)})
     ET.SubElement(f_glow_a, "property", {"name": "mlt_service"}).text = "frei0r.glow"
-    ET.SubElement(f_glow_a, "property", {"name": "0"}).text = "0.15" # Blur
+    ET.SubElement(f_glow_a, "property", {"name": "0"}).text = "0.1"
 
-    # Shimmer effect
     f_shimmer_a = ET.SubElement(tractor_a, "filter", {"in": "0", "out": str(dur_a - 1)})
     ET.SubElement(f_shimmer_a, "property", {"name": "mlt_service"}).text = "brightness"
-    ET.SubElement(f_shimmer_a, "property", {"name": "alpha"}).text = "0=1.0; 60=1.2; 120=1.0; 180=1.2; 240=1.0; 299=1.2"
+    ET.SubElement(f_shimmer_a, "property", {"name": "level"}).text = "0: 1.0; 60: 1.2; 120: 1.0; 180: 1.2; 240: 1.0; 299: 1.2"
 
     f_scale_a = ET.SubElement(tractor_a, "filter", {"in": "0", "out": str(dur_a - 1)})
     ET.SubElement(f_scale_a, "property", {"name": "mlt_service"}).text = "affine"
-    ET.SubElement(f_scale_a, "property", {"name": "rect"}).text = f"0=192 -108 {width*0.8} {height*0.8} 100; {dur_a-1}=0 0 {width} {height} 100"
+    ET.SubElement(f_scale_a, "property", {"name": "rect"}).text = f"0: 192 -108 {width*0.8} {height*0.8} 100; {dur_a-1}: 0 0 {width} {height} 100"
 
-    # Segment B Tractor
     tractor_b = ET.SubElement(root, "tractor", {"id": "tractor_b", "in": "0", "out": str(dur_b - 1)})
     ET.SubElement(tractor_b, "track", {"producer": "bg_black"})
     ET.SubElement(tractor_b, "track", {"producer": "prod_b"})
 
-    # Compositing for B
     tr_b = ET.SubElement(tractor_b, "transition", {"in": "0", "out": str(dur_b - 1)})
     ET.SubElement(tr_b, "property", {"name": "mlt_service"}).text = "composite"
     ET.SubElement(tr_b, "property", {"name": "a_track"}).text = "0"
     ET.SubElement(tr_b, "property", {"name": "b_track"}).text = "1"
-
-    f_vignette_b = ET.SubElement(tractor_b, "filter", {"in": "0", "out": str(dur_b - 1)})
-    ET.SubElement(f_vignette_b, "property", {"name": "mlt_service"}).text = "frei0r.vignette"
+    ET.SubElement(tr_b, "property", {"name": "geometry"}).text = f"0: 0/0:{width}x{height}:100"
 
     f_drift_b = ET.SubElement(tractor_b, "filter", {"in": "0", "out": str(dur_b - 1)})
     ET.SubElement(f_drift_b, "property", {"name": "mlt_service"}).text = "affine"
-    ET.SubElement(f_drift_b, "property", {"name": "transition.rect"}).text = f"0=0 0 {width} {height} 100; {dur_b-1}=0 -20 {width} {height} 100"
+    ET.SubElement(f_drift_b, "property", {"name": "transition.rect"}).text = f"0: 0 0 {width} {height} 100; {dur_b-1}: 0 -20 {width} {height} 100"
 
-    # Segment C Tractor
     tractor_c = ET.SubElement(root, "tractor", {"id": "tractor_c", "in": "0", "out": str(dur_c - 1)})
     ET.SubElement(tractor_c, "track", {"producer": "bg_black"})
     ET.SubElement(tractor_c, "track", {"producer": "prod_c_main"})
     for pid in cast_pids:
         ET.SubElement(tractor_c, "track", {"producer": pid})
 
-    # Compositing for C Main
     tr_c_main = ET.SubElement(tractor_c, "transition", {"in": "0", "out": str(dur_c - 1)})
     ET.SubElement(tr_c_main, "property", {"name": "mlt_service"}).text = "composite"
     ET.SubElement(tr_c_main, "property", {"name": "a_track"}).text = "0"
     ET.SubElement(tr_c_main, "property", {"name": "b_track"}).text = "1"
-
-    f_vignette_c = ET.SubElement(tractor_c, "filter", {"in": "0", "out": str(dur_c - 1)})
-    ET.SubElement(f_vignette_c, "property", {"name": "mlt_service"}).text = "frei0r.vignette"
-
-    f_burst_c = ET.SubElement(tractor_c, "filter", {"in": "0", "out": str(dur_c - 1)})
-    ET.SubElement(f_burst_c, "property", {"name": "mlt_service"}).text = "frei0r.light_burst"
-    ET.SubElement(f_burst_c, "property", {"name": "0"}).text = "0.2" # Intensity
+    ET.SubElement(tr_c_main, "property", {"name": "geometry"}).text = f"0: 0/-100:{width}x{height}:100"
 
     for i, pid in enumerate(cast_pids):
         start = i * 8
@@ -256,18 +181,15 @@ def generate_header():
         ET.SubElement(trans, "property", {"name": "mlt_service"}).text = "composite"
         ET.SubElement(trans, "property", {"name": "a_track"}).text = "0"
         ET.SubElement(trans, "property", {"name": "b_track"}).text = str(i + 2)
-        ET.SubElement(trans, "property", {"name": "geometry"}).text = "0=0/0:100%x100%:0; 25=0/0:100%x100%:100"
+        ET.SubElement(trans, "property", {"name": "geometry"}).text = f"0: 0/{150 + i*70}:{width}x{height}:0; 25: 0/{150 + i*70}:{width}x{height}:100"
 
     # --- MAIN TIMELINE ---
     overlap = 25
-
     pl_a = ET.SubElement(root, "playlist", {"id": "pl_a"})
     ET.SubElement(pl_a, "entry", {"producer": "tractor_a"})
-
     pl_b = ET.SubElement(root, "playlist", {"id": "pl_b"})
     ET.SubElement(pl_b, "blank", {"length": str(dur_a - overlap)})
     ET.SubElement(pl_b, "entry", {"producer": "tractor_b"})
-
     pl_c = ET.SubElement(root, "playlist", {"id": "pl_c"})
     ET.SubElement(pl_c, "blank", {"length": str(dur_a + dur_b - 2 * overlap)})
     ET.SubElement(pl_c, "entry", {"producer": "tractor_c"})
@@ -278,28 +200,19 @@ def generate_header():
     ET.SubElement(main_timeline, "track", {"producer": "pl_b"})
     ET.SubElement(main_timeline, "track", {"producer": "pl_c"})
 
-    # Segment Transitions
-    t1 = ET.SubElement(main_timeline, "transition", {"in": str(dur_a - overlap), "out": str(dur_a - 1)})
-    ET.SubElement(t1, "property", {"name": "mlt_service"}).text = "luma"
-    ET.SubElement(t1, "property", {"name": "a_track"}).text = "0"
-    ET.SubElement(t1, "property", {"name": "b_track"}).text = "1"
+    for i in [1, 2]:
+        t = ET.SubElement(main_timeline, "transition", {"in": "0", "out": str(total_frames - 1)})
+        ET.SubElement(t, "property", {"name": "mlt_service"}).text = "composite"
+        ET.SubElement(t, "property", {"name": "a_track"}).text = "0"
+        ET.SubElement(t, "property", {"name": "b_track"}).text = str(i)
+        ET.SubElement(t, "property", {"name": "geometry"}).text = "0: 0/0:100%x100%:0; 25: 0/0:100%x100%:100"
 
-    t2 = ET.SubElement(main_timeline, "transition", {"in": str(dur_a + dur_b - 2 * overlap), "out": str(dur_a + dur_b - overlap - 1)})
-    ET.SubElement(t2, "property", {"name": "mlt_service"}).text = "luma"
-    ET.SubElement(t2, "property", {"name": "a_track"}).text = "1"
-    ET.SubElement(t2, "property", {"name": "b_track"}).text = "2"
-
-    # Final Output
     output_dir = Path(__file__).parent / CONFIG["output_dir"]
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "header.kdenlive"
-
     indent(root)
-    tree = ET.ElementTree(root)
-    tree.write(output_file, encoding="utf-8", xml_declaration=True)
-
-    total_frames = dur_a + dur_b + dur_c - 2 * overlap
-    print(f"[credits] header.kdenlive written — {total_frames} frames, {4 + len(cast_pids)} producers, 3 filters")
+    ET.ElementTree(root).write(output_file, encoding="utf-8", xml_declaration=True)
+    print(f"[credits] header.kdenlive written — {total_frames} frames")
 
 if __name__ == "__main__":
     generate_header()
