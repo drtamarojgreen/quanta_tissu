@@ -15,6 +15,7 @@ namespace Stellar {
 
 struct Point3D {
     float x, y, z;
+    std::string label;
 };
 
 /**

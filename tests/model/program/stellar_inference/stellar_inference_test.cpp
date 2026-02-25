@@ -34,8 +34,12 @@ int main() {
     reporter.record_section("META_ANALYSIS", meta_section);
 
     // Stage 2: Code Topology Visualization
-    std::cout << "[Stage 2] Generating Code Topology Perspective..." << std::endl;
+    std::cout << "[Stage 2] Generating Code Topology Perspective with Labels..." << std::endl;
     auto points = analyst.extract_3d_points(metrics);
+    // Add explicit landmark labels
+    points.push_back({0, 0, 0, "ORIGIN"});
+    points.push_back({50, 20, 30, "STELLAR_CORE"});
+
     std::string topology = visualizer.render_3d_graph(points);
     reporter.record_section("CODE_TOPOLOGY", topology);
     std::cout << topology << std::endl;
