@@ -20,7 +20,28 @@ int main() {
 
     // Stage 1: Meta-Analysis & Ethical Audit
     std::cout << "\n[Stage 1] Performing Source Code Meta-Analysis & Ethics Audit..." << std::endl;
-    std::string source_path = "../../../../quanta_tissu/tisslm/program/layers/matrix.cpp";
+
+    // Paths are relative to the execution directory: tests/model/program/stellar_build
+    // We try to locate matrix.cpp by checking multiple possible relative paths
+    std::vector<std::string> possible_paths = {
+        "../../../../quanta_tissu/tisslm/program/layers/matrix.cpp",
+        "../../../../../quanta_tissu/tisslm/program/layers/matrix.cpp",
+        "../../../quanta_tissu/tisslm/program/layers/matrix.cpp"
+    };
+
+    std::string source_path = "";
+    for (const auto& p : possible_paths) {
+        std::ifstream f(p);
+        if (f.good()) {
+            source_path = p;
+            break;
+        }
+    }
+
+    if (source_path.empty()) {
+        throw std::runtime_error("MetaAnalyst: Could not find matrix.cpp in any expected location.");
+    }
+
     auto metrics = analyst.analyze_source(source_path);
     auto ethics = analyst.audit_ethics(source_path);
 
@@ -46,6 +67,7 @@ int main() {
 
     // Stage 3: Indigenous Stack Initialization
     std::cout << "[Stage 3] Initializing Authentic QuantaTissu Facade from JSON..." << std::endl;
+    // model_config.json is in the source directory next to the test source
     QuantaTissu qt("../stellar_inference/model_config.json");
 
     // Stage 3.5: Architectural Network Graph
