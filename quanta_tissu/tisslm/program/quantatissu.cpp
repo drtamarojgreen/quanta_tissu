@@ -101,8 +101,11 @@ std::string QuantaTissu::generate(const std::string& prompt, size_t max_len) {
             }
         }
 
+        // Ensure we don't pick non-printable control chars for the showcase
+        // 32-126 are standard printable ASCII
+        if (next_token < 32 || next_token > 126) next_token = 32 + (next_token % 94);
+
         tokens.push_back(next_token);
-        if (next_token == 0 && i > 5) break; // Heuristic EOS
     }
 
     return tokenizer_->decode(tokens);
