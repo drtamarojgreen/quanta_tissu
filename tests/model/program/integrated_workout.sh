@@ -132,7 +132,7 @@ run_with_spinner() {
     
     (
         set -o pipefail
-        eval "$cmd" &> "$log_file"
+        bash -lc "$cmd" &> "$log_file"
     ) &
     local pid=$!
 
@@ -571,7 +571,7 @@ main_workflow() {
             local start_time=$(date +%s)
             local wait_msg="Waiting for TissDB to be ready..."
             printf "${CYAN}${BOLD}$wait_msg${NC}\n"
-            while ! curl -s http://localhost:9876/_health > /dev/null; do
+            while ! curl -s http://localhost:8080/ping > /dev/null; do
                 i=$(( (i+1) % ${#SPINNER} ))
                 local elapsed=$(($(date +%s) - start_time))
                 printf "\r ${SPINNER:$i:1} Running for ${elapsed}s..."

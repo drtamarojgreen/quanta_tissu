@@ -303,7 +303,6 @@ bool run_kv_cache_evaluation() {
         TestConfig::EmbedDim,
         TestConfig::NumHeads,
         TestConfig::NumLayers,
-        TestConfig::FFNDim,
         TestConfig::DropoutRate,
         0 // LoraRank = 0 for this test
     );
