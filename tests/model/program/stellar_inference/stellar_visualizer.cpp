@@ -29,22 +29,44 @@ std::string StellarVisualizer::render_3d_graph(const std::vector<Point3D>& point
         float norm_z = (max_z > min_z) ? (p.z - min_z) / (max_z - min_z) : 0.5f;
 
         // Shift X and Y based on Z to give 3D depth impression
-        float px = norm_x * (width * 0.6f) + norm_z * (width * 0.3f);
-        float py = norm_y * (height * 0.6f) + norm_z * (height * 0.3f);
+        float px = norm_x * (width * 0.6f) + norm_z * (width * 0.2f);
+        float py = norm_y * (height * 0.6f) + norm_z * (height * 0.2f);
 
         return std::make_pair((int)px, (int)py);
     };
 
     const std::string shading = ".:!*#@";
 
+    // Draw Points
     for (const auto& p : points) {
         auto [ix, iy] = project(p);
         if (ix >= 0 && ix < width && iy >= 0 && iy < height) {
             float norm_z = (max_z > min_z) ? (p.z - min_z) / (max_z - min_z) : 0.5f;
             int shade_idx = (int)(norm_z * (shading.size() - 1));
-            // Standard ASCII coordinates: Y increases downwards.
-            // We'll flip Y for graph representation.
+            // Flip Y
             canvas[height - 1 - iy][ix] = shading[shade_idx];
+        }
+    }
+
+    // Draw Labels
+    for (const auto& p : points) {
+        if (p.label.empty()) continue;
+
+        auto [ix, iy] = project(p);
+        // Place label starting below the point
+        int label_y = height - 1 - iy + 1;
+        int label_x = ix - (int)p.label.length() / 2;
+
+        if (label_y >= 0 && label_y < height) {
+            for (size_t k = 0; k < p.label.length(); ++k) {
+                int cx = label_x + (int)k;
+                if (cx >= 0 && cx < width) {
+                    // Only draw if space is empty or we are overwriting shading (not another label)
+                    if (canvas[label_y][cx] == ' ' || shading.find(canvas[label_y][cx]) != std::string::npos) {
+                        canvas[label_y][cx] = p.label[k];
+                    }
+                }
+            }
         }
     }
 

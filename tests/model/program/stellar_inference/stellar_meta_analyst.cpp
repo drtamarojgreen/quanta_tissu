@@ -90,6 +90,14 @@ std::vector<Point3D> StellarMetaAnalyst::extract_3d_points(const SourceMetrics& 
     for (const auto& [c, count] : m.char_distribution) {
         if (c >= 32 && c <= 126) {
             Point3D p; p.x = (float)c; p.y = (float)count; p.z = std::log10((float)count + 1.0f) * 15.0f;
+
+            // Label some specific characters
+            if (c == '{') p.label = "BLOCK_START";
+            if (c == '}') p.label = "BLOCK_END";
+            if (c == '(') p.label = "FUNC_CALL";
+            if (c == ';') p.label = "STATEMENT";
+            if (c == '#') p.label = "PREPROC";
+
             pts.push_back(p);
         }
     }
