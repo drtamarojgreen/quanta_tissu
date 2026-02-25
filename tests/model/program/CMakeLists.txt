@@ -409,6 +409,15 @@ set_tests_properties(CheckpointingTests PROPERTIES
     LABELS "integration;training;checkpoint"
 )
 
+add_executable(arithmetic_debug_harness arithmetic_debug_harness.cpp)
+target_link_libraries(arithmetic_debug_harness
+    tisslm_core
+    tisslm_training
+    tisslm_tokenizer
+    tisslm_generation
+    retrieval_strategies
+)
+
 # Define all test executables
 set(TEST_EXECUTABLES
     test_db_and_retrieval
@@ -435,6 +444,7 @@ set(TEST_EXECUTABLES
     training_checkpoint_test
     transformer_block_test
     stellar_inference_test)
+    arithmetic_debug_harness)
 
 add_executable(dimension_integrity_test
     dimension_integrity_test.cpp
@@ -523,6 +533,12 @@ add_test(NAME TransformerBlockTests
 set_tests_properties(LoraTests PROPERTIES
     TIMEOUT 10
     LABELS "unit;lora"
+)
+
+add_test(NAME ArithmeticDebugHarness COMMAND arithmetic_debug_harness)
+set_tests_properties(ArithmeticDebugHarness PROPERTIES
+    TIMEOUT 30
+    LABELS "unit;debug;arithmetic"
 )
 
 set_tests_properties(ForwardPassTests PROPERTIES
