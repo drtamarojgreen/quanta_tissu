@@ -108,8 +108,10 @@ def generate_final_credits():
 
     root = ET.Element("mlt", {
         "LC_NUMERIC": "C",
-        "version": "7.13.0",
-        "title": "Final Credits"
+        "version": "7.22.0",
+        "title": "Final Credits",
+        "producer": "main_bin",
+        "xmlns:kdenlive": "http://www.kdenlive.org/project"
     })
 
     # Profile definition
@@ -176,7 +178,7 @@ def generate_final_credits():
 
     # --- PRODUCERS ---
 
-    bg_black = ET.SubElement(root, "producer", {"id": "bg_black"})
+    bg_black = ET.SubElement(root, "producer", {"id": "bg_black", "in": "0", "out": str(duration_frames - 1)})
     ET.SubElement(bg_black, "property", {"name": "mlt_service"}).text = "color"
     ET.SubElement(bg_black, "property", {"name": "resource"}).text = CONFIG["background_black"]
 
@@ -210,7 +212,7 @@ def generate_final_credits():
     ET.SubElement(f_vignette, "property", {"name": "mlt_service"}).text = "frei0r.vignette"
 
     # Final Output Structure
-    main_bin = ET.SubElement(root, "playlist", {"id": "main_bin"})
+    main_bin = ET.SubElement(root, "playlist", {"id": "main_bin", "in": "0", "out": str(duration_frames - 1)})
     ET.SubElement(main_bin, "entry", {"producer": "main_tractor"})
 
     # Write File

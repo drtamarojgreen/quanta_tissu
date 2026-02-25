@@ -97,8 +97,10 @@ def generate_header():
 
     root = ET.Element("mlt", {
         "LC_NUMERIC": "C",
-        "version": "7.13.0",
-        "title": "Header Credits"
+        "version": "7.22.0",
+        "title": "Header Credits",
+        "producer": "main_timeline",
+        "xmlns:kdenlive": "http://www.kdenlive.org/project"
     })
 
     # Profile definition
@@ -119,11 +121,15 @@ def generate_header():
     # --- PRODUCERS ---
 
     # Backgrounds
-    bg_charcoal = ET.SubElement(root, "producer", {"id": "bg_charcoal"})
+    total_frames = (CONFIG["header_segment_a_duration"] +
+                    CONFIG["header_segment_b_duration"] +
+                    CONFIG["header_segment_c_duration"]) * fps
+
+    bg_charcoal = ET.SubElement(root, "producer", {"id": "bg_charcoal", "in": "0", "out": str(total_frames)})
     ET.SubElement(bg_charcoal, "property", {"name": "mlt_service"}).text = "color"
     ET.SubElement(bg_charcoal, "property", {"name": "resource"}).text = CONFIG["background_dark"]
 
-    bg_black = ET.SubElement(root, "producer", {"id": "bg_black"})
+    bg_black = ET.SubElement(root, "producer", {"id": "bg_black", "in": "0", "out": str(total_frames)})
     ET.SubElement(bg_black, "property", {"name": "mlt_service"}).text = "color"
     ET.SubElement(bg_black, "property", {"name": "resource"}).text = CONFIG["background_black"]
 
@@ -185,8 +191,8 @@ def generate_header():
     # CINEMATIC FILTERS FOR A
     f_blur_a = ET.SubElement(tractor_a, "filter", {"in": "0", "out": "50"})
     ET.SubElement(f_blur_a, "property", {"name": "mlt_service"}).text = "boxblur"
-    ET.SubElement(f_blur_a, "property", {"name": "hori"}).text = "0=20; 50=0"
-    ET.SubElement(f_blur_a, "property", {"name": "vert"}).text = "0=20; 50=0"
+    ET.SubElement(f_blur_a, "property", {"name": "hori"}).text = "0=30; 50=0"
+    ET.SubElement(f_blur_a, "property", {"name": "vert"}).text = "0=30; 50=0"
 
     f_vignette_a = ET.SubElement(tractor_a, "filter", {"in": "0", "out": str(dur_a - 1)})
     ET.SubElement(f_vignette_a, "property", {"name": "mlt_service"}).text = "frei0r.vignette"
@@ -195,7 +201,12 @@ def generate_header():
 
     f_glow_a = ET.SubElement(tractor_a, "filter", {"in": "0", "out": str(dur_a - 1)})
     ET.SubElement(f_glow_a, "property", {"name": "mlt_service"}).text = "frei0r.glow"
-    ET.SubElement(f_glow_a, "property", {"name": "0"}).text = "0.2" # Blur
+    ET.SubElement(f_glow_a, "property", {"name": "0"}).text = "0.15" # Blur
+
+    # Shimmer effect
+    f_shimmer_a = ET.SubElement(tractor_a, "filter", {"in": "0", "out": str(dur_a - 1)})
+    ET.SubElement(f_shimmer_a, "property", {"name": "mlt_service"}).text = "brightness"
+    ET.SubElement(f_shimmer_a, "property", {"name": "alpha"}).text = "0=1.0; 60=1.2; 120=1.0; 180=1.2; 240=1.0; 299=1.2"
 
     f_scale_a = ET.SubElement(tractor_a, "filter", {"in": "0", "out": str(dur_a - 1)})
     ET.SubElement(f_scale_a, "property", {"name": "mlt_service"}).text = "affine"
@@ -261,7 +272,8 @@ def generate_header():
     ET.SubElement(pl_c, "blank", {"length": str(dur_a + dur_b - 2 * overlap)})
     ET.SubElement(pl_c, "entry", {"producer": "tractor_c"})
 
-    main_timeline = ET.SubElement(root, "tractor", {"id": "main_timeline"})
+    total_frames = dur_a + dur_b + dur_c - 2 * overlap
+    main_timeline = ET.SubElement(root, "tractor", {"id": "main_timeline", "in": "0", "out": str(total_frames - 1)})
     ET.SubElement(main_timeline, "track", {"producer": "pl_a"})
     ET.SubElement(main_timeline, "track", {"producer": "pl_b"})
     ET.SubElement(main_timeline, "track", {"producer": "pl_c"})

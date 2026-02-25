@@ -1,11 +1,11 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mlt LC_NUMERIC="C" version="7.13.0" title="Header Credits">
+<mlt LC_NUMERIC="C" version="7.22.0" title="Header Credits" producer="main_timeline" xmlns:kdenlive="http://www.kdenlive.org/project">
   <profile description="atsc_1080p_25" frame_rate_num="25" frame_rate_den="1" width="1920" height="1080" progressive="1" sample_aspect_num="1" sample_aspect_den="1" display_aspect_num="16" display_aspect_den="9" colorspace="709" />
-  <producer id="bg_charcoal">
+  <producer id="bg_charcoal" in="0" out="1050">
     <property name="mlt_service">color</property>
     <property name="resource">#1a1a1a</property>
   </producer>
-  <producer id="bg_black">
+  <producer id="bg_black" in="0" out="1050">
     <property name="mlt_service">color</property>
     <property name="resource">#000000</property>
   </producer>
@@ -54,8 +54,8 @@ A GreenhouseMD / GreenhouseMHD Production&lt;/content&gt;&lt;position x="300" y=
     </transition>
     <filter in="0" out="50">
       <property name="mlt_service">boxblur</property>
-      <property name="hori">0=20; 50=0</property>
-      <property name="vert">0=20; 50=0</property>
+      <property name="hori">0=30; 50=0</property>
+      <property name="vert">0=30; 50=0</property>
     </filter>
     <filter in="0" out="299">
       <property name="mlt_service">frei0r.vignette</property>
@@ -64,7 +64,11 @@ A GreenhouseMD / GreenhouseMHD Production&lt;/content&gt;&lt;position x="300" y=
     </filter>
     <filter in="0" out="299">
       <property name="mlt_service">frei0r.glow</property>
-      <property name="0">0.2</property>
+      <property name="0">0.15</property>
+    </filter>
+    <filter in="0" out="299">
+      <property name="mlt_service">brightness</property>
+      <property name="alpha">0=1.0; 60=1.2; 120=1.0; 180=1.2; 240=1.0; 299=1.2</property>
     </filter>
     <filter in="0" out="299">
       <property name="mlt_service">affine</property>
@@ -135,7 +139,7 @@ A GreenhouseMD / GreenhouseMHD Production&lt;/content&gt;&lt;position x="300" y=
     <blank length="625" />
     <entry producer="tractor_c" />
   </playlist>
-  <tractor id="main_timeline">
+  <tractor id="main_timeline" in="0" out="999">
     <track producer="pl_a" />
     <track producer="pl_b" />
     <track producer="pl_c" />

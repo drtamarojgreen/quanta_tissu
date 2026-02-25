@@ -46,6 +46,28 @@ def detect_melt():
 
     raise RuntimeError("MELT binary not found. Please install MLT (melt) or set $MELT_BIN.")
 
+import xml.etree.ElementTree as ET
+
+def get_xml_duration(filepath):
+    """Gets the duration (out frame) of the main producer in the MLT XML.
+
+    Args:
+        filepath: Path to the .kdenlive file.
+    Returns:
+        The 'out' frame number as an integer.
+    """
+    try:
+        tree = ET.parse(filepath)
+        root = tree.getroot()
+        main_prod_id = root.get("producer")
+        if main_prod_id:
+            main_prod = root.find(f".//*[@id='{main_prod_id}']")
+            if main_prod is not None:
+                return int(main_prod.get("out", 0))
+    except Exception:
+        pass
+    return None
+
 def render_project(melt_bin, input_xml, output_mp4, dry_run=False):
     """Renders a single KDenlive project using MELT.
 
@@ -58,16 +80,26 @@ def render_project(melt_bin, input_xml, output_mp4, dry_run=False):
     if not input_xml.exists():
         raise FileNotFoundError(f"Input XML {input_xml} does not exist. Run generation first.")
 
+    duration_out = get_xml_duration(input_xml)
+
     # MELT command construction
-    # libx264 with CRF 18 and preset veryslow for maximum quality
+    # libx264 with CRF 18 and preset medium for balanced speed/quality in sandbox
+    # Use xvfb-run to provide a virtual X server for kdenlivetitle rendering
     cmd = [
+        "xvfb-run", "-a",
         melt_bin,
         "-profile", "atsc_1080p_25",
-        str(input_xml),
-        "-consumer", f"avformat:{output_mp4}",
-        "vcodec=libx264", "crf=18", "preset=veryslow",
-        "acodec=aac", "-audio", "0"
+        str(input_xml)
     ]
+
+    if duration_out is not None:
+        cmd.extend(["-out", str(duration_out)])
+
+    cmd.extend([
+        "-consumer", f"avformat:{output_mp4}",
+        "vcodec=libx264", "crf=17", "preset=slower",
+        "acodec=aac", "-audio", "0"
+    ])
 
     print(f"\n--- Rendering {input_xml.name} -> {output_mp4.name} ---")
     if dry_run:
