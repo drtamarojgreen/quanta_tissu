@@ -3,7 +3,6 @@
 
 #include <string>
 #include <stdexcept>
-#include <map>
 
 namespace TissDB {
 
@@ -19,8 +18,6 @@ public:
     ~HttpClient();
 
     void set_token(const std::string& token);
-    void set_header(const std::string& key, const std::string& value);
-    void clear_headers();
     std::string get(const std::string& url);
     std::string post(const std::string& url, const std::string& body);
     std::string put(const std::string& url, const std::string& body);
@@ -28,7 +25,6 @@ public:
 
 private:
     std::string token_;
-    std::map<std::string, std::string> custom_headers_;
     // Platform-specific socket initialization/cleanup
     void platform_init();
     void platform_cleanup();

@@ -41,8 +41,8 @@ int main() {
     std::cout << topology << std::endl;
 
     // Stage 3: Indigenous Stack Initialization
-    std::cout << "[Stage 3] Initializing Authentic QuantaTissu Facade..." << std::endl;
-    QuantaTissu qt;
+    std::cout << "[Stage 3] Initializing Authentic QuantaTissu Facade from JSON..." << std::endl;
+    QuantaTissu qt("../model_config.json");
 
     // Indigenous Model Analysis
     auto model_metrics = analyst.analyze_indigenous_model(qt.get_model());
