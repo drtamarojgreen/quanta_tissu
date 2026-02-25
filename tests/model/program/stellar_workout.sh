@@ -12,8 +12,10 @@ IFS=$'\n\t'
 export LC_ALL=C
 
 # Script constants
-VERSION="1.3.0"
+VERSION="1.4.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Project root is 3 levels up from tests/model/program
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 STELLAR_DIR="$SCRIPT_DIR/stellar_inference"
 BUILD_DIR="$SCRIPT_DIR/stellar_build"
 REPORT_FILE="stellar_report.txt"
@@ -43,7 +45,7 @@ display_header() {
 # --- Target Implementations ---
 
 do_clean() {
-    warn "Cleaning: Removing build directory $BUILD_DIR..."
+    log "Cleaning: Removing build directory $BUILD_DIR..."
     rm -rf "$BUILD_DIR"
     success "Clean complete."
 }
@@ -52,6 +54,7 @@ do_build() {
     log "Building: Configuring and compiling Stellar package..."
     mkdir -p "$BUILD_DIR"
     cd "$BUILD_DIR"
+    # Use absolute paths for CMake to avoid directory-not-found errors
     cmake "$STELLAR_DIR"
     make -j$(nproc)
     success "Build complete."
@@ -68,6 +71,11 @@ do_run() {
         error "Binary stellar_inference_test not found. Please build first."
         exit 1
     fi
+
+    # Export the project root so the test can reliably find source files
+    export STELLAR_PROJECT_ROOT="$REPO_ROOT"
+    log "Project Root: $REPO_ROOT"
+
     ./stellar_inference_test
 
     if [[ -f "$REPORT_FILE" ]]; then
@@ -76,8 +84,9 @@ do_run() {
         echo "----------------------------------------------------------------"
         cat "$REPORT_FILE"
         echo "----------------------------------------------------------------"
-        # Copy report to root for easier access
-        cp "$REPORT_FILE" "$SCRIPT_DIR/../../../stellar_report.txt"
+        # Copy report back to the script directory and root for visibility
+        cp "$REPORT_FILE" "$SCRIPT_DIR/stellar_report.txt"
+        cp "$REPORT_FILE" "$REPO_ROOT/stellar_report.txt"
     else
         error "Report file $REPORT_FILE was not generated."
         exit 1
@@ -88,19 +97,20 @@ do_run() {
 
 TARGET="all" # Default target
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
+# Simple argument parser
+for arg in "$@"; do
+    case $arg in
         --target)
-            TARGET="$2"
-            shift 2
+            if [[ -n "${2:-}" ]]; then
+                TARGET="$2"
+                shift 2
+            else
+                error "--target requires an argument."
+                exit 1
+            fi
             ;;
         --clean)
             TARGET="clean"
-            shift
-            ;;
-        *)
-            error "Unknown argument: $1"
-            exit 1
             ;;
     esac
 done
