@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mlt LC_NUMERIC="C" version="7.13.0" title="Final Credits">
+<mlt LC_NUMERIC="C" version="7.22.0" title="Final Credits" producer="main_bin" xmlns:kdenlive="http://www.kdenlive.org/project">
   <profile description="atsc_1080p_25" frame_rate_num="25" frame_rate_den="1" width="1920" height="1080" progressive="1" sample_aspect_num="1" sample_aspect_den="1" display_aspect_num="16" display_aspect_den="9" colorspace="709" />
-  <producer id="bg_black">
+  <producer id="bg_black" in="0" out="2249">
     <property name="mlt_service">color</property>
     <property name="resource">#000000</property>
   </producer>
@@ -27,7 +27,7 @@
       <property name="mlt_service">frei0r.vignette</property>
     </filter>
   </tractor>
-  <playlist id="main_bin">
+  <playlist id="main_bin" in="0" out="2249">
     <entry producer="main_tractor" />
   </playlist>
 </mlt>
