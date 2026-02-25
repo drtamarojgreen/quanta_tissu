@@ -8,6 +8,7 @@ public:
     MultiHeadAttention(int d_model, int num_heads);
 
     Matrix forward(const Matrix& x, const Matrix* mask = nullptr);
+    size_t get_parameter_count() const { return wq.size() + wk.size() + wv.size() + wo.size(); }
 
 private:
     int d_model;
