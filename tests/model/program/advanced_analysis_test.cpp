@@ -82,7 +82,6 @@ void run_advanced_analysis_evaluation() {
         TestConfig::EmbedDim,
         TestConfig::NumHeads,
         TestConfig::NumLayers,
-        TestConfig::FFNDim,
         TestConfig::DropoutRate,
         0 // LoraRank = 0 for this test
     );

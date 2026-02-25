@@ -1,0 +1,36 @@
+{
+  "stages": {
+    "COMPILE_TISSDB": {
+      "status": "COMPLETED",
+      "timestamp": "1771258500",
+      "metadata": {
+        "duration": 0,
+        "mem_mb": 351
+      }
+    },
+    "START_TISSDB": {
+      "status": "COMPLETED",
+      "timestamp": "1771258500",
+      "metadata": {
+        "duration": 0,
+        "mem_mb": 351
+      }
+    },
+    "COMPILE_TRAINING": {
+      "status": "COMPLETED",
+      "timestamp": "1771258500",
+      "metadata": {
+        "duration": 0,
+        "mem_mb": 350
+      }
+    },
+    "RUN_TRAINING": {
+      "status": "COMPLETED",
+      "timestamp": "1771258500",
+      "metadata": {
+        "duration": 0,
+        "mem_mb": 350
+      }
+    }
+  }
+}

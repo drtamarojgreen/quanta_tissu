@@ -14,12 +14,9 @@ namespace TissDB {
 TissDB::Document from_json(const std::string& json_str) {
     TissDB::Json::JsonValue json = TissDB::Json::JsonValue::parse(json_str);
     TissDB::Document doc;
-    auto obj = json.as_object();
-    if (obj.count("_id")) doc.id = obj.at("_id").as_string();
-    else if (obj.count("id")) doc.id = obj.at("id").as_string();
-
-    for (const auto& pair : obj) {
-        if (pair.first == "_id" || pair.first == "id") continue;
+    doc.id = json.as_object().at("id").as_string();
+    const auto& elements = json.as_object().at("elements").as_object();
+    for (const auto& pair : elements) {
         TissDB::Element elem;
         elem.key = pair.first;
         const auto& val = pair.second;
@@ -39,9 +36,10 @@ TissDB::Document from_json(const std::string& json_str) {
 
 std::string to_json(const TissDB::Document& doc) {
     TissDB::Json::JsonObject obj;
-    if (!doc.id.empty()) obj["_id"] = doc.id;
+    obj["id"] = doc.id;
+    TissDB::Json::JsonObject elements;
     for (const auto& elem : doc.elements) {
-        obj[elem.key] = std::visit([](auto&& arg) -> TissDB::Json::JsonValue {
+        elements[elem.key] = std::visit([](auto&& arg) -> TissDB::Json::JsonValue {
             using T = std::decay_t<decltype(arg)>;
             if constexpr (std::is_same_v<T, std::nullptr_t>) {
                 return TissDB::Json::JsonValue(nullptr);
@@ -52,10 +50,12 @@ std::string to_json(const TissDB::Document& doc) {
             } else if constexpr (std::is_same_v<T, bool>) {
                 return TissDB::Json::JsonValue(arg);
             } else {
+                // Handle other types as needed
                 return TissDB::Json::JsonValue(nullptr);
             }
         }, elem.value);
     }
+    obj["elements"] = elements;
     return TissDB::Json::JsonValue(obj).serialize();
 }
 
@@ -123,16 +123,6 @@ void TissDBClient::create_database() {
     http_client_->put(db_url_, "");
 }
 
-void TissDBClient::delete_collection(const std::string& collection) {
-    std::string url = db_url_ + "/" + collection;
-    http_client_->del(url);
-}
-
-void TissDBClient::delete_document(const std::string& collection, const std::string& doc_id) {
-    std::string url = db_url_ + "/" + collection + "/" + doc_id;
-    http_client_->del(url);
-}
-
 std::string TissDBClient::add_feedback(const TissDB::Document& feedback_data) {
     // Corrected to post to a collection within the database, e.g., /<db_name>/feedback
     std::string url = db_url_ + "/feedback";
@@ -179,33 +169,6 @@ std::string TissDBClient::query(const std::string& collection, const std::string
     data["query"] = TissDB::Json::JsonValue(query_string);
     std::string query_json = TissDB::Json::JsonValue(data).serialize();
     return http_client_->post(url, query_json);
-}
-
-int64_t TissDBClient::begin_transaction() {
-    std::string url = db_url_ + "/_begin";
-    std::string response = http_client_->post(url, "{}");
-    auto json = TissDB::Json::JsonValue::parse(response);
-    int64_t tid = static_cast<int64_t>(json.as_object().at("transaction_id").as_number());
-    http_client_->set_header("x-transaction-id", std::to_string(tid));
-    return tid;
-}
-
-bool TissDBClient::commit_transaction(int64_t transaction_id) {
-    std::string url = db_url_ + "/_commit";
-    TissDB::Json::JsonObject obj;
-    obj["transaction_id"] = static_cast<double>(transaction_id);
-    http_client_->post(url, TissDB::Json::JsonValue(obj).serialize());
-    http_client_->clear_headers();
-    return true;
-}
-
-bool TissDBClient::rollback_transaction(int64_t transaction_id) {
-    std::string url = db_url_ + "/_rollback";
-    TissDB::Json::JsonObject obj;
-    obj["transaction_id"] = static_cast<double>(transaction_id);
-    http_client_->post(url, TissDB::Json::JsonValue(obj).serialize());
-    http_client_->clear_headers();
-    return true;
 }
 
 } // namespace TissDB

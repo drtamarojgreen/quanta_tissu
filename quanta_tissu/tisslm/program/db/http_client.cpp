@@ -29,14 +29,6 @@ void HttpClient::set_token(const std::string& token) {
     token_ = token;
 }
 
-void HttpClient::set_header(const std::string& key, const std::string& value) {
-    custom_headers_[key] = value;
-}
-
-void HttpClient::clear_headers() {
-    custom_headers_.clear();
-}
-
 void HttpClient::platform_init() {
 #ifdef _WIN32
     WSADATA wsaData;
@@ -154,9 +146,6 @@ std::string HttpClient::get(const std::string& url) {
     if (!token_.empty()) {
         request += "Authorization: Bearer " + token_ + "\r\n";
     }
-    for (const auto& [key, value] : custom_headers_) {
-        request += key + ": " + value + "\r\n";
-    }
     request += "Connection: close\r\n\r\n";
     send_data(sock, request);
     std::string response = receive_data(sock);
@@ -188,9 +177,6 @@ std::string HttpClient::post(const std::string& url, const std::string& body) {
     std::string request = "POST " + path + " HTTP/1.1\r\nHost: " + host + "\r\n";
     if (!token_.empty()) {
         request += "Authorization: Bearer " + token_ + "\r\n";
-    }
-    for (const auto& [key, value] : custom_headers_) {
-        request += key + ": " + value + "\r\n";
     }
     request += "Content-Type: application/json\r\n";
     request += "Content-Length: " + std::to_string(body.length()) + "\r\n";
@@ -227,9 +213,6 @@ std::string HttpClient::put(const std::string& url, const std::string& body) {
     if (!token_.empty()) {
         request += "Authorization: Bearer " + token_ + "\r\n";
     }
-    for (const auto& [key, value] : custom_headers_) {
-        request += key + ": " + value + "\r\n";
-    }
     request += "Content-Type: application/json\r\n";
     request += "Content-Length: " + std::to_string(body.length()) + "\r\n";
     request += "Connection: close\r\n\r\n";
@@ -264,9 +247,6 @@ std::string HttpClient::del(const std::string& url) {
     std::string request = "DELETE " + path + " HTTP/1.1\r\nHost: " + host + "\r\n";
     if (!token_.empty()) {
         request += "Authorization: Bearer " + token_ + "\r\n";
-    }
-    for (const auto& [key, value] : custom_headers_) {
-        request += key + ": " + value + "\r\n";
     }
     request += "Connection: close\r\n\r\n";
     send_data(sock, request);
