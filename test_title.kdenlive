@@ -1,0 +1,9 @@
+<mlt>
+  <producer id="t">
+    <property name="mlt_service">kdenlivetitle</property>
+    <property name="xmldata"><![CDATA[<kdenlivetitle width="1920" height="1080"><item type="QGraphicsTextItem" z-index="0"><position x="100" y="100"/><content font="DejaVu Sans" font-size="100" fill="255,255,255,255">TEST</content></item></kdenlivetitle>]]></property>
+  </producer>
+  <playlist>
+    <entry producer="t" in="0" out="100"/>
+  </playlist>
+</mlt>

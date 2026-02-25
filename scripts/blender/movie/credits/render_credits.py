@@ -97,7 +97,8 @@ def render_project(melt_bin, input_xml, output_mp4, dry_run=False):
 
     cmd.extend([
         "-consumer", f"avformat:{output_mp4}",
-        "vcodec=libx264", "crf=17", "preset=slower",
+        "vcodec=libx264", "crf=18", "preset=medium",
+        "pix_fmt=yuv420p",
         "acodec=aac", "-audio", "0"
     ])
 
