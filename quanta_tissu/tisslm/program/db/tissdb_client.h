@@ -26,7 +26,14 @@ public:
     std::map<std::string, std::string> get_stats();
     void delete_database();
     void create_database();
+    void delete_collection(const std::string& collection);
+    void delete_document(const std::string& collection, const std::string& doc_id);
     std::string query(const std::string& collection, const std::string& query_string);
+
+    // Transaction support
+    int64_t begin_transaction();
+    bool commit_transaction(int64_t transaction_id);
+    bool rollback_transaction(int64_t transaction_id);
 
 private:
     std::string host_;
