@@ -1,36 +1,90 @@
 #include "quantatissu.h"
 #include <iostream>
-#include <vector>
+#include <cmath>
 #include <algorithm>
 
-QuantaTissu::QuantaTissu(const ModelConfig& config, const std::string& tokenizer_prefix)
-    : model(config.vocab_size, config.d_model, config.n_layer, config.n_head, config.d_ff),
-      tokenizer(tokenizer_prefix) {}
+QuantaTissu::QuantaTissu() {
+    config_.d_model = 128;
+    config_.num_layers = 2;
+    config_.num_heads = 4;
+    config_.d_ff = 512;
+    config_.vocab_size = 1000;
 
-std::string QuantaTissu::generate(const std::string& prompt, int n_new_tokens) {
-    std::vector<int> token_ids = tokenizer.encode(prompt);
-
-    for (int i = 0; i < n_new_tokens; ++i) {
-        Matrix logits = model.forward(token_ids);
-
-        // For simplicity, we'll use greedy sampling.
-        int next_token_id = 0;
-        float max_logit = -1e9;
-        for (size_t j = 0; j < logits.cols(); ++j) {
-            if (logits({logits.rows() - 1, j}) > max_logit) {
-                max_logit = logits({logits.rows() - 1, j});
-                next_token_id = j;
-            }
-        }
-        token_ids.push_back(next_token_id);
-    }
-
-    return tokenizer.decode(token_ids);
+    tokenizer_ = std::make_unique<TissLM::Tokenizer::Tokenizer>("");
+    model_ = std::make_unique<Model>(config_.vocab_size, config_.d_model, config_.num_layers, config_.num_heads, config_.d_ff);
 }
 
-void QuantaTissu::load_weights(const std::string& path) {
-    // Placeholder for loading pre-trained model weights.
-    // This would involve reading a file (e.g., in NumPy's .npz format or a custom binary format)
-    // and populating the weight matrices in the Model and its sub-layers.
-    std::cout << "Weight loading is not yet implemented." << std::endl;
+QuantaTissu::QuantaTissu(const ModelConfig& config, const std::string& tokenizer_prefix)
+    : config_(config)
+{
+    tokenizer_ = std::make_unique<TissLM::Tokenizer::Tokenizer>(tokenizer_prefix);
+    model_ = std::make_unique<Model>(config.vocab_size, config.d_model, config.num_layers, config.num_heads, config.d_ff);
+}
+
+void QuantaTissu::train_tokenizer(const std::string& text) {
+    std::cout << "[QuantaTissu] Training tokenizer on " << text.length() << " chars..." << std::endl;
+    tokenizer_->train(text, config_.vocab_size, false);
+    tokenizer_->save("stellar");
+}
+
+void QuantaTissu::train_step(const std::string& text, float& loss) {
+    auto tokens = tokenizer_->encode(text);
+    if (tokens.size() < 2) {
+        loss = 0.0f;
+        return;
+    }
+
+    std::vector<int> inputs(tokens.begin(), tokens.end() - 1);
+    std::vector<int> targets(tokens.begin() + 1, tokens.end());
+
+    Matrix logits = model_->forward(inputs);
+
+    // Cross-Entropy Loss calculation
+    float total_loss = 0.0f;
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        float max_l = logits({i, 0});
+        for (size_t v = 1; v < (size_t)config_.vocab_size; ++v) {
+            max_l = std::max(max_l, logits({i, v}));
+        }
+
+        float sum_exp = 0.0f;
+        for (size_t v = 0; v < (size_t)config_.vocab_size; ++v) {
+            sum_exp += std::exp(logits({i, v}) - max_l);
+        }
+
+        float target_logit = logits({i, (size_t)targets[i]});
+        float log_prob = target_logit - max_l - std::log(sum_exp);
+        total_loss -= log_prob;
+    }
+    loss = total_loss / inputs.size();
+}
+
+void QuantaTissu::train(const std::string& text, float& final_loss) {
+    train_step(text, final_loss);
+    // Note: Parameter updates (SGD) are currently not implemented as the
+    // indigenous Matrix lacks autograd, but the loss calculation is now real.
+}
+
+std::string QuantaTissu::generate(const std::string& prompt, size_t max_len) {
+    auto tokens = tokenizer_->encode(prompt);
+    size_t original_size = tokens.size();
+
+    for (size_t i = 0; i < max_len; ++i) {
+        Matrix logits = model_->forward(tokens);
+        size_t last_token_idx = tokens.size() - 1;
+
+        int next_token = 0;
+        float max_logit = -1e9;
+        for (int v = 0; v < config_.vocab_size; ++v) {
+            if (logits({last_token_idx, (size_t)v}) > max_logit) {
+                max_logit = logits({last_token_idx, (size_t)v});
+                next_token = v;
+            }
+        }
+
+        tokens.push_back(next_token);
+        if (next_token == 0 && i > 5) break; // Heuristic EOS
+    }
+
+    return tokenizer_->decode(tokens);
 }

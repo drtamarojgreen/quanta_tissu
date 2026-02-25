@@ -17,6 +17,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/pro
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../quanta_tissu/tisslm/program/rules)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../tissdb/json)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../tissdb/common)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 
 add_library(tisslm_core
@@ -68,6 +69,27 @@ add_library(tisslm_rules
 # Retrieval strategies library
 add_library(retrieval_strategies
     ../../../quanta_tissu/tisslm/program/retrieval/retrieval_strategy.cpp
+)
+
+# QuantaTissu Program library (Set B architecture)
+add_library(tisslm_program
+    ../../../quanta_tissu/tisslm/program/quantatissu.cpp
+    ../../../quanta_tissu/tisslm/program/architecture/model.cpp
+    ../../../quanta_tissu/tisslm/program/layers/matrix.cpp
+    ../../../quanta_tissu/tisslm/program/layers/feedforward.cpp
+    ../../../quanta_tissu/tisslm/program/layers/layernorm.cpp
+    ../../../quanta_tissu/tisslm/program/layers/multiheadattention.cpp
+    ../../../quanta_tissu/tisslm/program/layers/transformerblock.cpp
+    ../../../quanta_tissu/tisslm/program/ddl_parser.cpp
+    ../../../quanta_tissu/tisslm/program/schema_manager.cpp
+    ../../../quanta_tissu/tisslm/program/tissu_sinew.cpp
+)
+
+# Stellar Inference library
+add_library(stellar_inference
+    stellar_inference/stellar_visualizer.cpp
+    stellar_inference/stellar_meta_analyst.cpp
+    stellar_inference/stellar_reporter.cpp
 )
 
 # Test executables
@@ -421,6 +443,7 @@ set(TEST_EXECUTABLES
     backward_pass_test
     training_checkpoint_test
     transformer_block_test
+    stellar_inference_test)
     arithmetic_debug_harness)
 
 add_executable(dimension_integrity_test
@@ -465,6 +488,18 @@ add_executable(transformer_block_test
 )
 target_link_libraries(transformer_block_test
     tisslm_core
+)
+
+add_executable(stellar_inference_test
+    stellar_inference/stellar_inference_test.cpp
+)
+target_link_libraries(stellar_inference_test
+    stellar_inference
+    tisslm_program
+    tisslm_core
+    tisslm_tokenizer
+    tisslm_training
+    retrieval_strategies
 )
 
 add_executable(checkpoint_comparison_test
