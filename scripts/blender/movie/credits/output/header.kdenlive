@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mlt LC_NUMERIC="C" version="7.13.0" title="Header Credits">
+  <profile description="atsc_1080p_25" frame_rate_num="25" frame_rate_den="1" width="1920" height="1080" progressive="1" sample_aspect_num="1" sample_aspect_den="1" display_aspect_num="16" display_aspect_den="9" colorspace="709" />
+  <producer id="bg_charcoal">
+    <property name="mlt_service">color</property>
+    <property name="resource">#1a1a1a</property>
+  </producer>
+  <producer id="bg_black">
+    <property name="mlt_service">color</property>
+    <property name="resource">#000000</property>
+  </producer>
+  <producer id="prod_a1" in="0" out="299">
+    <property name="mlt_service">kdenlivetitle</property>
+    <property name="xmldata">&lt;kdenlivetitle width="1920" height="1080" out="999"&gt;&lt;item type="QGraphicsTextItem" z-index="0"&gt;&lt;content font="DejaVu Sans" font-size="120" font-weight="700" fill="255,255,255,255"&gt;GreenhouseMD&lt;/content&gt;&lt;position x="460" y="400" /&gt;&lt;/item&gt;&lt;/kdenlivetitle&gt;</property>
+  </producer>
+  <producer id="prod_a2" in="0" out="299">
+    <property name="mlt_service">kdenlivetitle</property>
+    <property name="xmldata">&lt;kdenlivetitle width="1920" height="1080" out="999"&gt;&lt;item type="QGraphicsTextItem" z-index="0"&gt;&lt;content font="DejaVu Sans" font-size="48" font-weight="400" fill="255,255,255,255"&gt;Production Studio&lt;/content&gt;&lt;position x="750" y="560" /&gt;&lt;/item&gt;&lt;/kdenlivetitle&gt;</property>
+  </producer>
+  <producer id="prod_b" in="0" out="374">
+    <property name="mlt_service">kdenlivetitle</property>
+    <property name="xmldata">&lt;kdenlivetitle width="1920" height="1080" out="999"&gt;&lt;item type="QGraphicsTextItem" z-index="0"&gt;&lt;content font="DejaVu Sans" font-size="60" font-weight="400" fill="255,255,255,255"&gt;GreenhouseMD Production Studio presents...
+A GreenhouseMD / GreenhouseMHD Production&lt;/content&gt;&lt;position x="300" y="480" /&gt;&lt;/item&gt;&lt;/kdenlivetitle&gt;</property>
+  </producer>
+  <producer id="prod_c_main" in="0" out="374">
+    <property name="mlt_service">kdenlivetitle</property>
+    <property name="xmldata">&lt;kdenlivetitle width="1920" height="1080" out="999"&gt;&lt;item type="QGraphicsTextItem" z-index="0"&gt;&lt;content font="DejaVu Sans" font-size="144" font-weight="700" fill="255,255,255,255"&gt;The Greenhouse&lt;/content&gt;&lt;position x="400" y="300" /&gt;&lt;/item&gt;&lt;/kdenlivetitle&gt;</property>
+  </producer>
+  <producer id="prod_cast_0" in="0" out="374">
+    <property name="mlt_service">kdenlivetitle</property>
+    <property name="xmldata">&lt;kdenlivetitle width="1920" height="1080" out="999"&gt;&lt;item type="QGraphicsTextItem" z-index="0"&gt;&lt;content font="DejaVu Sans" font-size="48" font-weight="400" fill="255,255,255,255"&gt;Herbaceous . . . AI&lt;/content&gt;&lt;position x="600" y="550" /&gt;&lt;/item&gt;&lt;/kdenlivetitle&gt;</property>
+  </producer>
+  <producer id="prod_cast_1" in="0" out="374">
+    <property name="mlt_service">kdenlivetitle</property>
+    <property name="xmldata">&lt;kdenlivetitle width="1920" height="1080" out="999"&gt;&lt;item type="QGraphicsTextItem" z-index="0"&gt;&lt;content font="DejaVu Sans" font-size="48" font-weight="400" fill="255,255,255,255"&gt;Arbor . . . AI&lt;/content&gt;&lt;position x="600" y="620" /&gt;&lt;/item&gt;&lt;/kdenlivetitle&gt;</property>
+  </producer>
+  <producer id="prod_cast_2" in="0" out="374">
+    <property name="mlt_service">kdenlivetitle</property>
+    <property name="xmldata">&lt;kdenlivetitle width="1920" height="1080" out="999"&gt;&lt;item type="QGraphicsTextItem" z-index="0"&gt;&lt;content font="DejaVu Sans" font-size="48" font-weight="400" fill="255,255,255,255"&gt;GloomGnome . . . AI&lt;/content&gt;&lt;position x="600" y="690" /&gt;&lt;/item&gt;&lt;/kdenlivetitle&gt;</property>
+  </producer>
+  <tractor id="tractor_a" in="0" out="299">
+    <track producer="bg_charcoal" />
+    <track producer="prod_a1" />
+    <track producer="prod_a2" />
+    <transition in="0" out="299">
+      <property name="mlt_service">composite</property>
+      <property name="a_track">0</property>
+      <property name="b_track">1</property>
+    </transition>
+    <transition in="0" out="299">
+      <property name="mlt_service">composite</property>
+      <property name="a_track">0</property>
+      <property name="b_track">2</property>
+    </transition>
+    <filter in="0" out="50">
+      <property name="mlt_service">boxblur</property>
+      <property name="hori">0=20; 50=0</property>
+      <property name="vert">0=20; 50=0</property>
+    </filter>
+    <filter in="0" out="299">
+      <property name="mlt_service">frei0r.vignette</property>
+      <property name="0">0.5</property>
+      <property name="1">0.2</property>
+    </filter>
+    <filter in="0" out="299">
+      <property name="mlt_service">frei0r.glow</property>
+      <property name="0">0.2</property>
+    </filter>
+    <filter in="0" out="299">
+      <property name="mlt_service">affine</property>
+      <property name="rect">0=192 -108 1536.0 864.0 100; 299=0 0 1920 1080 100</property>
+    </filter>
+  </tractor>
+  <tractor id="tractor_b" in="0" out="374">
+    <track producer="bg_black" />
+    <track producer="prod_b" />
+    <transition in="0" out="374">
+      <property name="mlt_service">composite</property>
+      <property name="a_track">0</property>
+      <property name="b_track">1</property>
+    </transition>
+    <filter in="0" out="374">
+      <property name="mlt_service">frei0r.vignette</property>
+    </filter>
+    <filter in="0" out="374">
+      <property name="mlt_service">affine</property>
+      <property name="transition.rect">0=0 0 1920 1080 100; 374=0 -20 1920 1080 100</property>
+    </filter>
+  </tractor>
+  <tractor id="tractor_c" in="0" out="374">
+    <track producer="bg_black" />
+    <track producer="prod_c_main" />
+    <track producer="prod_cast_0" />
+    <track producer="prod_cast_1" />
+    <track producer="prod_cast_2" />
+    <transition in="0" out="374">
+      <property name="mlt_service">composite</property>
+      <property name="a_track">0</property>
+      <property name="b_track">1</property>
+    </transition>
+    <filter in="0" out="374">
+      <property name="mlt_service">frei0r.vignette</property>
+    </filter>
+    <filter in="0" out="374">
+      <property name="mlt_service">frei0r.light_burst</property>
+      <property name="0">0.2</property>
+    </filter>
+    <transition in="0" out="374">
+      <property name="mlt_service">composite</property>
+      <property name="a_track">0</property>
+      <property name="b_track">2</property>
+      <property name="geometry">0=0/0:100%x100%:0; 25=0/0:100%x100%:100</property>
+    </transition>
+    <transition in="8" out="374">
+      <property name="mlt_service">composite</property>
+      <property name="a_track">0</property>
+      <property name="b_track">3</property>
+      <property name="geometry">0=0/0:100%x100%:0; 25=0/0:100%x100%:100</property>
+    </transition>
+    <transition in="16" out="374">
+      <property name="mlt_service">composite</property>
+      <property name="a_track">0</property>
+      <property name="b_track">4</property>
+      <property name="geometry">0=0/0:100%x100%:0; 25=0/0:100%x100%:100</property>
+    </transition>
+  </tractor>
+  <playlist id="pl_a">
+    <entry producer="tractor_a" />
+  </playlist>
+  <playlist id="pl_b">
+    <blank length="275" />
+    <entry producer="tractor_b" />
+  </playlist>
+  <playlist id="pl_c">
+    <blank length="625" />
+    <entry producer="tractor_c" />
+  </playlist>
+  <tractor id="main_timeline">
+    <track producer="pl_a" />
+    <track producer="pl_b" />
+    <track producer="pl_c" />
+    <transition in="275" out="299">
+      <property name="mlt_service">luma</property>
+      <property name="a_track">0</property>
+      <property name="b_track">1</property>
+    </transition>
+    <transition in="625" out="649">
+      <property name="mlt_service">luma</property>
+      <property name="a_track">1</property>
+      <property name="b_track">2</property>
+    </transition>
+  </tractor>
+</mlt>
