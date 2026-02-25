@@ -48,6 +48,13 @@ int main() {
     std::cout << "[Stage 3] Initializing Authentic QuantaTissu Facade from JSON..." << std::endl;
     QuantaTissu qt("../model_config.json");
 
+    // Stage 3.5: Architectural Network Graph
+    std::cout << "[Stage 3.5] Rendering Architectural Network Graph..." << std::endl;
+    auto model_graph = analyst.extract_model_graph(qt.get_model());
+    std::string network_viz = visualizer.render_network_graph(model_graph.nodes, model_graph.edges);
+    reporter.record_section("ARCHITECTURE_GRAPH", network_viz);
+    std::cout << network_viz << std::endl;
+
     // Indigenous Model Analysis
     auto model_metrics = analyst.analyze_indigenous_model(qt.get_model());
     std::string model_sec = "INDIGENOUS MODEL METRICS\n";
