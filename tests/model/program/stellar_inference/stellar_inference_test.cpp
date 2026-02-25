@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <iomanip>
+#include <cstdlib>
+#include <fstream>
 #include "quantatissu.h"
 #include "stellar_visualizer.h"
 #include "stellar_meta_analyst.h"
@@ -20,7 +22,34 @@ int main() {
 
     // Stage 1: Meta-Analysis & Ethical Audit
     std::cout << "\n[Stage 1] Performing Source Code Meta-Analysis & Ethics Audit..." << std::endl;
-    std::string source_path = "../../../../../quanta_tissu/tisslm/program/layers/matrix.cpp";
+
+    // Determine project root for source analysis
+    std::string project_root = "../../../../"; // Default
+    const char* env_root = std::getenv("STELLAR_PROJECT_ROOT");
+    if (env_root) {
+        project_root = std::string(env_root) + "/";
+    }
+
+    std::string source_file = "quanta_tissu/tisslm/program/layers/matrix.cpp";
+    std::vector<std::string> search_bases = { project_root, "../../../../", "../../../../../", "./" };
+
+    std::string source_path = "";
+    for (const auto& base : search_bases) {
+        std::string full = base + source_file;
+        std::ifstream f(full);
+        if (f.good()) {
+            source_path = full;
+            break;
+        }
+    }
+
+    if (source_path.empty()) {
+        std::cerr << "[ERROR] Could not locate " << source_file << " for meta-analysis." << std::endl;
+        std::cerr << "Tried root: " << project_root << std::endl;
+        throw std::runtime_error("MetaAnalyst: Source file not found.");
+    }
+
+    std::cout << "Analyzing: " << source_path << std::endl;
     auto metrics = analyst.analyze_source(source_path);
     auto ethics = analyst.audit_ethics(source_path);
 
@@ -36,7 +65,6 @@ int main() {
     // Stage 2: Code Topology Visualization
     std::cout << "[Stage 2] Generating Code Topology Perspective with Labels..." << std::endl;
     auto points = analyst.extract_3d_points(metrics);
-    // Add explicit landmark labels
     points.push_back({0, 0, 0, "ORIGIN"});
     points.push_back({50, 20, 30, "STELLAR_CORE"});
 
@@ -46,7 +74,29 @@ int main() {
 
     // Stage 3: Indigenous Stack Initialization
     std::cout << "[Stage 3] Initializing Authentic QuantaTissu Facade from JSON..." << std::endl;
-    QuantaTissu qt("../model_config.json");
+
+    // Locate config file
+    std::string config_file = "tests/model/program/stellar_inference/model_config.json";
+    std::string config_path = "";
+    for (const auto& base : search_bases) {
+        std::string full = base + config_file;
+        std::ifstream f(full);
+        if (f.good()) {
+            config_path = full;
+            break;
+        }
+    }
+
+    if (config_path.empty()) config_path = "../stellar_inference/model_config.json"; // Fallback
+
+    QuantaTissu qt(config_path);
+
+    // Stage 3.5: Architectural Network Graph
+    std::cout << "[Stage 3.5] Rendering Architectural Network Graph..." << std::endl;
+    auto model_graph = analyst.extract_model_graph(qt.get_model());
+    std::string network_viz = visualizer.render_network_graph(model_graph.nodes, model_graph.edges);
+    reporter.record_section("ARCHITECTURE_GRAPH", network_viz);
+    std::cout << network_viz << std::endl;
 
     // Indigenous Model Analysis
     auto model_metrics = analyst.analyze_indigenous_model(qt.get_model());
@@ -55,13 +105,12 @@ int main() {
     model_sec += "Layer Count: " + std::to_string(model_metrics.layer_count) + "\n";
     model_sec += "Param Density: " + std::to_string(model_metrics.param_density) + "\n";
     reporter.record_section("MODEL_METRICS", model_sec);
-    std::cout << model_sec << std::endl;
 
     // Stage 4: Tokenizer Training
     std::cout << "[Stage 4] Training Indigenous Tokenizer..." << std::endl;
     qt.train_tokenizer("Small is kind. The new world is built on efficient fragments. Harmony in code leads to empathy in AI.");
 
-    // Stage 5: Model Evolution (Loss Calculation)
+    // Stage 5: Model Evolution
     std::cout << "[Stage 5] Calculating Loss on Indigenous Architecture..." << std::endl;
     std::vector<float> losses;
     std::map<std::string, std::vector<float>> grid_data;
@@ -82,7 +131,6 @@ int main() {
     std::cout << "[Stage 7] Performing Indigenous Autoregressive Inference..." << std::endl;
     std::string prompt = "The mission of QuantaTissu is";
     std::string response = qt.generate(prompt, 20);
-    std::cout << "Prompt: " << prompt << std::endl;
     std::cout << "Response: " << response << std::endl;
     reporter.record_section("INFERENCE_OUTPUT", "Prompt: " + prompt + "\nResponse: " + response);
 
@@ -93,20 +141,15 @@ int main() {
     std::string ddl_output = "DDL Query: CREATE TABLE StellarDocuments (id INT, content STRING)\n";
     if (stmt && stmt->getType() == TissDB::DDL::DDLStatement::Type::CREATE_TABLE) {
         auto create = static_cast<TissDB::DDL::CreateTableStatement*>(stmt.get());
-        ddl_output += "Parsed Table Name: " + create->getTableName() + "\n";
-        ddl_output += "Status: SUCCESS\n";
-    } else {
-        ddl_output += "Status: FAILED TO PARSE\n";
+        ddl_output += "Parsed Table Name: " + create->getTableName() + "\nStatus: SUCCESS\n";
     }
     reporter.record_section("DDL_PARSING", ddl_output);
-    std::cout << ddl_output << std::endl;
 
     // Stage 9: Telemetry Extraction
     std::cout << "[Stage 9] Extracting Hardware-Aware Telemetry..." << std::endl;
     std::string telemetry = "Architecture: Set B (Indigenous)\nMemory Footprint: Minimal\nTarget: Resource Constrained Environments\n";
     reporter.record_section("TELEMETRY", telemetry);
 
-    // Report Finalization
     std::cout << "Saving Unified Stellar Report..." << std::endl;
     reporter.save_report("stellar_report.txt");
 
