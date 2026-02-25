@@ -20,13 +20,9 @@ void StellarVisualizer::draw_line(std::vector<std::string>& canvas, std::vector<
 
     while (true) {
         if (x0 >= 0 && x0 < width && y0 >= 0 && y0 < height) {
-            // Linear interpolation for Z
-            float t = (dx > dy) ? (float)(x0 - x0) / dx : (float)(y0 - y0) / dy; // Simplified
-            float z = z0; // Should interpolate but for ASCII depth is discrete enough
-
-            if (z >= z_buffer[y0 * width + x0]) {
+            if (z0 >= z_buffer[y0 * width + x0]) {
                 canvas[y0][x0] = c;
-                z_buffer[y0 * width + x0] = z;
+                z_buffer[y0 * width + x0] = z0;
             }
         }
 
@@ -57,10 +53,8 @@ std::string StellarVisualizer::render_3d_graph(const std::vector<Point3D>& point
         float norm_x = (max_x > min_x) ? (p.x - min_x) / (max_x - min_x) : 0.5f;
         float norm_y = (max_y > min_y) ? (p.y - min_y) / (max_y - min_y) : 0.5f;
         float norm_z = (max_z > min_z) ? (p.z - min_z) / (max_z - min_z) : 0.5f;
-
         float px = norm_x * (width * 0.6f) + norm_z * (width * 0.2f);
         float py = norm_y * (height * 0.6f) + norm_z * (height * 0.2f);
-
         return std::make_pair((int)px, (int)py);
     };
 
@@ -72,23 +66,27 @@ std::string StellarVisualizer::render_3d_graph(const std::vector<Point3D>& point
         if (ix >= 0 && ix < width && cy >= 0 && cy < height) {
             float norm_z = (max_z > min_z) ? (p.z - min_z) / (max_z - min_z) : 0.5f;
             int shade_idx = (int)(norm_z * (shading.size() - 1));
-
             if (p.z >= z_buffer[cy * width + ix]) {
                 canvas[cy][ix] = shading[shade_idx];
                 z_buffer[cy * width + ix] = p.z;
             }
 
             if (!p.label.empty()) {
-                int label_y = cy + 1;
-                int label_x = ix - (int)p.label.length() / 2;
-                if (label_y < height) {
-                    for (size_t k = 0; k < p.label.length(); ++k) {
-                        int lx = label_x + k;
-                        if (lx >= 0 && lx < width) {
-                            // Check if we are overwriting a background point or empty space
-                            if (canvas[label_y][lx] == ' ' || shading.find(canvas[label_y][lx]) != std::string::npos) {
-                                canvas[label_y][lx] = p.label[k];
-                                z_buffer[label_y * width + lx] = p.z; // Label shares depth of node
+                int label_y_start = cy + 1;
+                size_t wrap = 8;
+                for (size_t s = 0; s < p.label.length(); s += wrap) {
+                    std::string chunk = p.label.substr(s, wrap);
+                    int cur_y = label_y_start + (s / wrap);
+                    int cur_x = ix - (int)chunk.length() / 2;
+                    if (cur_y < height) {
+                        for (size_t k = 0; k < chunk.length(); ++k) {
+                            int lx = cur_x + k;
+                            if (lx >= 0 && lx < width) {
+                                // Collision avoidance: only draw if current is space or same depth
+                                if (canvas[cur_y][lx] == ' ' || p.z > z_buffer[cur_y * width + lx]) {
+                                    canvas[cur_y][lx] = chunk[k];
+                                    z_buffer[cur_y * width + lx] = p.z;
+                                }
                             }
                         }
                     }
@@ -124,53 +122,45 @@ std::string StellarVisualizer::render_network_graph(const std::vector<Node>& nod
         float norm_x = (max_x > min_x) ? (n.x - min_x) / (max_x - min_x) : 0.5f;
         float norm_y = (max_y > min_y) ? (n.y - min_y) / (max_y - min_y) : 0.5f;
         float norm_z = (max_z > min_z) ? (n.z - min_z) / (max_z - min_z) : 0.5f;
-
-        // Leave more room for labels (padding)
-        int px = (int)(norm_x * (width * 0.7f) + norm_z * (width * 0.15f) + width * 0.05f);
-        int py = (int)(norm_y * (height * 0.7f) + norm_z * (height * 0.15f) + height * 0.05f);
+        int px = (int)(norm_x * (width * 0.6f) + norm_z * (width * 0.15f) + width * 0.15f);
+        int py = (int)(norm_y * (height * 0.6f) + norm_z * (height * 0.15f) + height * 0.15f);
         return std::make_pair(px, py);
     };
 
-    std::map<size_t, std::pair<int, int>> node_positions;
-
-    // Draw Edges first (behind nodes)
     for (const auto& edge : edges) {
-        Node from_node, to_node;
-        bool found_from = false, found_to = false;
-        for (const auto& n : nodes) {
-            if (n.id == edge.from) { from_node = n; found_from = true; }
-            if (n.id == edge.to) { to_node = n; found_to = true; }
-        }
-        if (found_from && found_to) {
-            auto [x0, y0] = project(from_node);
-            auto [x1, y1] = project(to_node);
-            draw_line(canvas, z_buffer, x0, height - 1 - y0, std::min(from_node.z, to_node.z) - 0.1f,
-                      x1, height - 1 - y1, std::min(from_node.z, to_node.z) - 0.1f, edge.style);
+        Node n0, n1;
+        bool f0 = false, f1 = false;
+        for (const auto& n : nodes) { if (n.id == edge.from) { n0 = n; f0 = true; } if (n.id == edge.to) { n1 = n; f1 = true; } }
+        if (f0 && f1) {
+            auto [px0, py0] = project(n0); auto [px1, py1] = project(n1);
+            draw_line(canvas, z_buffer, px0, height - 1 - py0, std::min(n0.z, n1.z) - 0.5f, px1, height - 1 - py1, std::min(n0.z, n1.z) - 0.5f, edge.style);
         }
     }
 
-    // Draw Nodes and Labels
     for (const auto& n : nodes) {
         auto [ix, iy] = project(n);
         int cy = height - 1 - iy;
         if (ix >= 0 && ix < width && cy >= 0 && cy < height) {
-            // Node glyph
-            if (n.z >= z_buffer[cy * width + ix]) {
-                canvas[cy][ix] = 'O'; // Node marker
-                z_buffer[cy * width + ix] = n.z;
+            std::string glyph = "[#]";
+            for (int k=0; k<3; ++k) {
+                int gx = ix - 1 + k;
+                if (gx >= 0 && gx < width && n.z >= z_buffer[cy * width + gx]) {
+                    canvas[cy][gx] = glyph[k]; z_buffer[cy * width + gx] = n.z;
+                }
             }
 
-            // Label
             if (!n.label.empty()) {
-                int label_y = cy + 1;
-                int label_x = ix - (int)n.label.length() / 2;
-                if (label_y < height) {
-                    for (size_t k = 0; k < n.label.length(); ++k) {
-                        int lx = label_x + k;
-                        if (lx >= 0 && lx < width) {
-                            if (n.z >= z_buffer[label_y * width + lx]) {
-                                canvas[label_y][lx] = n.label[k];
-                                z_buffer[label_y * width + lx] = n.z;
+                int label_y_start = cy + 1;
+                size_t wrap = 10;
+                for (size_t s = 0; s < n.label.length(); s += wrap) {
+                    std::string chunk = n.label.substr(s, wrap);
+                    int cur_y = label_y_start + (s / wrap);
+                    int cur_x = ix - (int)chunk.length() / 2;
+                    if (cur_y < height) {
+                        for (size_t k = 0; k < chunk.length(); ++k) {
+                            int lx = cur_x + k;
+                            if (lx >= 0 && lx < width && n.z >= z_buffer[cur_y * width + lx] - 0.05f) {
+                                canvas[cur_y][lx] = chunk[k]; z_buffer[cur_y * width + lx] = n.z;
                             }
                         }
                     }
