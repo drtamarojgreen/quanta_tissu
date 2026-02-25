@@ -20,7 +20,7 @@ int main() {
 
     // Stage 1: Meta-Analysis & Ethical Audit
     std::cout << "\n[Stage 1] Performing Source Code Meta-Analysis & Ethics Audit..." << std::endl;
-    std::string source_path = "../../../../../quanta_tissu/tisslm/program/layers/matrix.cpp";
+    std::string source_path = "../../../../quanta_tissu/tisslm/program/layers/matrix.cpp";
     auto metrics = analyst.analyze_source(source_path);
     auto ethics = analyst.audit_ethics(source_path);
 
@@ -46,7 +46,7 @@ int main() {
 
     // Stage 3: Indigenous Stack Initialization
     std::cout << "[Stage 3] Initializing Authentic QuantaTissu Facade from JSON..." << std::endl;
-    QuantaTissu qt("../model_config.json");
+    QuantaTissu qt("../stellar_inference/model_config.json");
 
     // Stage 3.5: Architectural Network Graph
     std::cout << "[Stage 3.5] Rendering Architectural Network Graph..." << std::endl;
