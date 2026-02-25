@@ -58,19 +58,12 @@ EthicsMetrics StellarMetaAnalyst::audit_ethics(const std::string& path) {
 
     while (std::getline(f, line)) {
         lines++;
-        // Error handling density
         if (line.find("try") != std::string::npos || line.find("catch") != std::string::npos ||
             line.find("throw") != std::string::npos || line.find("error") != std::string::npos ||
             line.find("runtime_error") != std::string::npos || line.find("invalid_argument") != std::string::npos) errors++;
-
-        // Defensive coding density
         if (line.find("if (") != std::string::npos && (line.find("nullptr") != std::string::npos || line.find("empty()") != std::string::npos || line.find("== 0") != std::string::npos)) defensive_checks++;
-
-        // Explainability density
         if (line.find("//") != std::string::npos || line.find("/*") != std::string::npos ||
             line.find("* ") != std::string::npos || line.find("@brief") != std::string::npos) comments++;
-
-        // Principle alignment
         if (line.find("Small is kind") != std::string::npos || line.find("Compute lightly") != std::string::npos ||
             line.find("Stellar") != std::string::npos || line.find("Indig") != std::string::npos ||
             line.find("Harmony") != std::string::npos || line.find("Empathy") != std::string::npos) alignments++;
@@ -80,7 +73,7 @@ EthicsMetrics StellarMetaAnalyst::audit_ethics(const std::string& path) {
         m.graceful_degradation_score = (float)(errors + defensive_checks) / lines * 100.0f;
         m.explainability_score = (float)comments / lines * 100.0f;
         m.principle_alignment = (float)alignments / lines * 1000.0f;
-        if (alignments > 0 && m.principle_alignment < 5.0f) m.principle_alignment = 5.0f; // Minimum score if keywords present
+        if (alignments > 0 && m.principle_alignment < 5.0f) m.principle_alignment = 5.0f;
     }
     return m;
 }
@@ -90,18 +83,39 @@ std::vector<Point3D> StellarMetaAnalyst::extract_3d_points(const SourceMetrics& 
     for (const auto& [c, count] : m.char_distribution) {
         if (c >= 32 && c <= 126) {
             Point3D p; p.x = (float)c; p.y = (float)count; p.z = std::log10((float)count + 1.0f) * 15.0f;
-
-            // Label some specific characters
             if (c == '{') p.label = "BLOCK_START";
             if (c == '}') p.label = "BLOCK_END";
             if (c == '(') p.label = "FUNC_CALL";
             if (c == ';') p.label = "STATEMENT";
             if (c == '#') p.label = "PREPROC";
-
             pts.push_back(p);
         }
     }
     return pts;
+}
+
+ModelGraph StellarMetaAnalyst::extract_model_graph(const Model& model) {
+    ModelGraph graph;
+    size_t layer_count = model.get_layer_count();
+
+    // Input Node
+    graph.nodes.push_back({0, 10.0f, 10.0f, 50.0f, "EMBEDDING"});
+
+    // Transformer Blocks
+    for (size_t i = 0; i < layer_count; ++i) {
+        float x = 20.0f + i * 15.0f;
+        float y = 10.0f + (i % 2 == 0 ? 5.0f : -5.0f);
+        float z = 30.0f - i * 5.0f;
+        graph.nodes.push_back({i + 1, x, y, z, "BLOCK_" + std::to_string(i)});
+        graph.edges.push_back({i, i + 1, '*'});
+    }
+
+    // Output Node
+    size_t last_id = layer_count;
+    graph.nodes.push_back({last_id + 1, 80.0f, 10.0f, 10.0f, "LOGITS"});
+    graph.edges.push_back({last_id, last_id + 1, '-'});
+
+    return graph;
 }
 
 } // namespace Stellar
