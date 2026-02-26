@@ -11,9 +11,9 @@ LDFLAGS =
 
 # Source files
 SRCS = main.cpp \
-       ../quanta_tissu/tissu_sinew.cpp \
-       ../quanta_tissu/schema_manager.cpp \
-       ../quanta_tissu/ddl_parser.cpp \
+       ../quanta_tissu/tisslm/program/tissu_sinew.cpp \
+       ../quanta_tissu/tisslm/program/schema_manager.cpp \
+       ../quanta_tissu/tisslm/program/ddl_parser.cpp \
        api/http_server.cpp \
        auth/token_manager.cpp \
        auth/rbac.cpp \

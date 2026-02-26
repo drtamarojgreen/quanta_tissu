@@ -376,6 +376,11 @@ void extract_equality_conditions(const Expression& expr, std::map<std::string, s
 }
 
 const Value* get_value_from_doc(const Document& doc, const std::string& key) {
+    if (key == "id" || key == "_id") {
+        static thread_local Value id_val;
+        id_val = doc.id;
+        return &id_val;
+    }
     for (const auto& elem : doc.elements) {
         if (elem.key == key) {
             return &elem.value;
