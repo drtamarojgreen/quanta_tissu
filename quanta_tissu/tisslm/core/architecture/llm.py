@@ -274,7 +274,7 @@ class Model:
             'dropout_mask': self.dropout.mask
         }
 
-        return logits, model_cache
+        return logits, model_cache, attention_weights_list
 
     def backward(self, d_logits, model_cache):
         """

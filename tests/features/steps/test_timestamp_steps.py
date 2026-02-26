@@ -1,4 +1,3 @@
-from behave import when, then, given
 import requests
 import json
 
@@ -20,17 +19,19 @@ def register_steps(runner):
         # Assuming the API for creating a timestamp index is similar to a regular index
         # but with a type specified. This might need adjustment based on the actual API endpoint.
         # The test runner will need to have context.base_url defined.
-        url = f"{context.base_url}/{context.db_name}/{collection}/_index"
+        base_url = context.get('base_url', 'http://localhost:9876')
+        db_name = context.get('db_name', 'testdb')
+        url = f"{base_url}/{db_name}/{collection}/_index"
         payload = {
             "field": field,
             "type": "timestamp" # This assumes the API supports a 'type' key.
         }
         headers = {'Content-Type': 'application/json'}
         if 'headers' in context:
-            headers.update(context.headers)
+            headers.update(context['headers'])
 
         response = requests.post(url, headers=headers, json=payload)
-        context.response = response
+        context['response'] = response
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
 
     @runner.step(r'the index should be created successfully')
@@ -38,5 +39,5 @@ def register_steps(runner):
         # This is a bit of a simplification. In a real scenario, we might query
         # an endpoint to verify the index exists. For now, we rely on the 200 OK
         # from the previous step.
-        assert context.response.status_code == 200
-        assert "Index creation initiated" in context.response.text
+        assert context['response'].status_code == 200
+        assert "Index creation initiated" in context['response'].text
