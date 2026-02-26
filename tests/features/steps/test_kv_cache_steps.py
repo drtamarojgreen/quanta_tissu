@@ -25,7 +25,7 @@ def register_steps(runner):
         prompt_tokens = context['tokenizer'].tokenize(prompt)
         config = GenerationConfig(method="greedy")
         cached_generated_ids = context['model'].generator.sample(
-            prompt_tokens,
+            [prompt_tokens],
             n_new_tokens=n_new_tokens,
             config=config
         )
@@ -40,7 +40,7 @@ def register_steps(runner):
         prompt_tokens = context['tokenizer'].tokenize(prompt)
         config = GenerationConfig(method="greedy", use_kv_cache=False) # Explicitly disable KV cache
         non_cached_generated_ids = context['model'].generator.sample(
-            prompt_tokens,
+            [prompt_tokens],
             n_new_tokens=n_new_tokens,
             config=config
         )
