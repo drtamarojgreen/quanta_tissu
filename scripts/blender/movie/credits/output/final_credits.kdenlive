@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mlt LC_NUMERIC="C" version="7.22.0"><profile description="atsc_1080p_25" width="1920" height="1080" frame_rate_num="25" frame_rate_den="1" progressive="1" /><producer id="bg" in="0" out="2249"><property name="mlt_service">color</property><property name="resource">#000000</property></producer><producer id="credits_text" in="0" out="2249"><property name="mlt_service">kdenlivetitle</property><property name="xmldata">&lt;kdenlivetitle width="1920" height="1080" out="2249"&gt;&lt;item z-index="0" type="QGraphicsTextItem"&gt;&lt;content&gt;CAST
+
+Herbaceous            AI
+Arbor                 AI
+GloomGnome            AI
+
+
+EXECUTIVE PRODUCER
+Tamaro Green
+
+PRODUCER
+Tamaro Green
+
+LIGHTING DIRECTOR
+AI
+
+WRITER
+AI
+
+COSTUME DESIGNER
+AI
+
+The Greenhouse
+
+A GreenhouseMD / GreenhouseMHD Production
+© 2026 GreenhouseMD Production Studio
+All rights reserved.&lt;/content&gt;&lt;font family="DejaVu Sans" size="36" weight="50" /&gt;&lt;font-color red="255" green="255" blue="255" alpha="255" /&gt;&lt;/item&gt;&lt;/kdenlivetitle&gt;</property><property name="geometry">0=0/1080:1920x3000:100; 2249=0/-3000:1920x3000:100</property></producer><tractor id="main_tractor" in="0" out="2249"><track producer="bg" /><track producer="credits_text" /><transition in="0" out="2249"><property name="mlt_service">composite</property><property name="a_track">0</property><property name="b_track">1</property></transition><filter><property name="mlt_service">frei0r.film</property></filter></tractor></mlt>
