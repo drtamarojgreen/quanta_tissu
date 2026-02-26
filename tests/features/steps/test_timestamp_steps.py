@@ -1,5 +1,6 @@
 import requests
 import json
+from tests.features.steps.test_database_steps import get_headers
 
 def find_doc_with_field_value(context, field, value):
     assert 'query_result' in context, "No query result found in context"
@@ -26,9 +27,8 @@ def register_steps(runner):
             "field": field,
             "type": "timestamp" # This assumes the API supports a 'type' key.
         }
-        headers = {'Content-Type': 'application/json'}
-        if 'headers' in context:
-            headers.update(context['headers'])
+        headers = get_headers(context)
+        headers['Content-Type'] = 'application/json'
 
         response = requests.post(url, headers=headers, json=payload)
         context['response'] = response
