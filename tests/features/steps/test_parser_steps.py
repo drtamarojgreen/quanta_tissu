@@ -2,7 +2,7 @@ import json
 from quanta_tissu.tisslm.parser.tisslang_parser import TissLangParser, TissLangParserError
 
 def register_steps(runner):
-    @runner.step(r'Given I have a TissLang script with content:')
+    @runner.step(r'Given I have a TissLang script with content:?')
     def given_a_script_with_content(context):
         """
         Handles both TissLang and TissLM scripts provided as multiline docstrings.
@@ -12,11 +12,11 @@ def register_steps(runner):
                 STEP "My Step" { ... }
                 \"\"\"
         """
-        if not hasattr(context, 'text') or not context.text:
+        if 'text' not in context or not context['text']:
             raise ValueError("This step requires a multiline script in a docstring.")
 
-            context['script'] = context.text.strip()
-            context['language'] = "TissLM"
+        context['script'] = context['text'].strip()
+        context['language'] = "TissLM"
     @runner.step(r'When I parse the script')
     def when_i_parse_the_script(context):
         parser = TissLangParser()
@@ -83,10 +83,10 @@ def register_steps(runner):
 
     @runner.step(r'And the STEP node should have a description "(.*)"')
     def and_the_step_node_should_have_a_description(context, description):
-        assert context.get('current_command') is not None, "No current command in context."
-        command = context['current_command']
-        assert command.get('type') == 'STEP', "Current command is not of type STEP."
-        assert command.get('description') == description, f"Expected description to be '{description}', but got '{command.get('description')}'."
+        assert context.get('current_node') is not None, "No current node in context."
+        node = context['current_node']
+        assert node.get('type') == 'STEP', "Current node is not of type STEP."
+        assert node.get('description') == description, f"Expected description to be '{description}', but got '{node.get('description')}'."
 
     @runner.step(r'And the PROMPT_AGENT command should have prompt "(.*)"')
     def and_the_prompt_agent_command_should_have_prompt(context, prompt):

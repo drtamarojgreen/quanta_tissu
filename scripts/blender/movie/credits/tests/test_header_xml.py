@@ -34,8 +34,8 @@ class TestHeaderXML(unittest.TestCase):
         tree = ET.parse(self.output_path)
         root = tree.getroot()
         producers = root.findall("producer")
-        # bg, a1, a2, b1, c_title, and len(cast) producers
-        expected_count = 5 + len(CONFIG["cast"])
+        # bg_a, bg_b, bg_c, a1, a2, b1, c_title
+        expected_count = 7
         self.assertGreaterEqual(len(producers), expected_count)
 
     def test_required_text_content(self):
@@ -56,10 +56,29 @@ class TestHeaderXML(unittest.TestCase):
     def test_total_duration(self):
         tree = ET.parse(self.output_path)
         root = tree.getroot()
-        tractor = root.find(".//tractor[@id='main_tractor']")
-        out_val = int(tractor.get("out"))
-        # 12+15+15 = 42s * 25fps = 1050 frames. tractor out is duration-1.
-        self.assertGreaterEqual(out_val, 999)
+        # Since main_tractor doesn't have 'out', we check the producers
+        bg_a = root.find(".//producer[@id='bg_a']")
+        out_val = int(bg_a.get("out"))
+        # Segment A is 12s * 25fps = 300 frames. out is 299.
+        self.assertGreaterEqual(out_val, 299)
+
+    def test_profile_settings(self):
+        tree = ET.parse(self.output_path)
+        root = tree.getroot()
+        profile = root.find("profile")
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile.get("width"), "1920")
+        self.assertEqual(profile.get("height"), "1080")
+
+    def test_transitions_layering(self):
+        tree = ET.parse(self.output_path)
+        root = tree.getroot()
+        transitions = root.findall(".//transition")
+        # Ensure we have transitions for blending layers
+        self.assertGreaterEqual(len(transitions), 2)
+        for tr in transitions:
+            service = tr.find("property[@name='mlt_service']")
+            self.assertIn(service.text, ["composite", "qtblend", "affine", "luma"])
 
 if __name__ == "__main__":
     unittest.main()

@@ -9,8 +9,8 @@ def register_steps(runner):
     def collection_is_empty(context, collection_name):
         headers = get_headers(context)
         # It's easier to just delete and recreate the collection to ensure it's empty
-        requests.delete(f"{BASE_URL}/{context.db_name}/{collection_name}", headers=headers)
-        response = requests.put(f"{BASE_URL}/{context.db_name}/{collection_name}", headers=headers)
+        requests.delete(f"{BASE_URL}/{context['db_name']}/{collection_name}", headers=headers)
+        response = requests.put(f"{BASE_URL}/{context['db_name']}/{collection_name}", headers=headers)
         assert response.status_code in [201, 200, 409], f"Failed to create collection. Status: {response.status_code}, Body: {response.text}"
 
     @runner.step(r'I execute the TissQL query "(.*)"')
@@ -18,12 +18,12 @@ def register_steps(runner):
         data = {"query": query_string}
         headers = get_headers(context)
         # The general /_query endpoint doesn't need a collection name in the URL
-        response = requests.post(f"{BASE_URL}/{context.db_name}/_query", json=data, headers=headers)
-        context.response = response
+        response = requests.post(f"{BASE_URL}/{context['db_name']}/_query", json=data, headers=headers)
+        context['response'] = response
         if response.ok:
-            context.query_result = response.json()
+            context['query_result'] = response.json()
         else:
-            context.query_result = []
+            context['query_result'] = []
 
     @runner.step(r'the collection "(.*)" should contain a document with (.*)')
     def collection_should_contain_doc_with_data(context, collection_name, data_string):
@@ -45,7 +45,7 @@ def register_steps(runner):
         query = f"SELECT * FROM {collection_name} WHERE {where_clause}"
 
         data = {"query": query}
-        response = requests.post(f"{BASE_URL}/{context.db_name}/_query", json=data, headers=headers)
+        response = requests.post(f"{BASE_URL}/{context['db_name']}/_query", json=data, headers=headers)
 
         assert response.ok, f"Failed to query for document. Status: {response.status_code}, Body: {response.text}"
         results = response.json()
@@ -53,27 +53,27 @@ def register_steps(runner):
 
     @runner.step(r'the query should fail with a syntax error')
     def query_should_fail_with_syntax_error(context):
-        assert not context.response.ok
+        assert not context['response'].ok
         # This is a guess at the error message. May need to be adjusted.
-        assert "syntax error" in context.response.text.lower()
+        assert "syntax error" in context['response'].text.lower()
 
     @runner.step(r'the query should fail with a mismatched column/value count error')
     def query_should_fail_with_mismatched_count_error(context):
-        assert not context.response.ok
+        assert not context['response'].ok
         # This is a guess at the error message. May need to be adjusted.
-        assert "column count does not match value count" in context.response.text.lower()
+        assert "column count does not match value count" in context['response'].text.lower()
 
     @runner.step(r'the query should succeed and create the collection')
     def query_succeeds_and_creates_collection(context):
-        assert context.response.ok
+        assert context['response'].ok
         # Extract collection name from the query
-        query = context.response.request.body.decode('utf-8')
+        query = context['response'].request.body.decode('utf-8')
         query_json = json.loads(query)
         tissql = query_json['query']
         parts = tissql.split()
         collection_name = parts[2]
 
         headers = get_headers(context)
-        response = requests.get(f"{BASE_URL}/{context.db_name}/_collections", headers=headers)
+        response = requests.get(f"{BASE_URL}/{context['db_name']}/_collections", headers=headers)
         assert response.ok
         assert collection_name in response.json()

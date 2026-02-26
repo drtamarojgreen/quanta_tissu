@@ -40,10 +40,10 @@ class TestFinalCreditsXML(unittest.TestCase):
     def test_scroll_geometry(self):
         tree = ET.parse(self.output_path)
         root = tree.getroot()
-        # Find the composite transition that handles the scroll
-        transition = root.find(".//transition")
-        self.assertIsNotNone(transition)
-        geom = transition.find("property[@name='geometry']")
+        # Find the producer that handles the scroll
+        producer = root.find(".//producer[@id='credits_text']")
+        self.assertIsNotNone(producer)
+        geom = producer.find("property[@name='geometry']")
         self.assertIsNotNone(geom)
         geom_text = geom.text
         # Check for two keyframes (0=...; last=...)
@@ -60,6 +60,29 @@ class TestFinalCreditsXML(unittest.TestCase):
         out_val = int(bg.get("out"))
         # 90s * 25fps = 2250 frames. out is duration-1.
         self.assertGreaterEqual(out_val, 2249)
+
+    def test_profile_settings(self):
+        tree = ET.parse(self.output_path)
+        root = tree.getroot()
+        profile = root.find("profile")
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile.get("width"), str(CONFIG["width"]))
+        self.assertEqual(profile.get("height"), str(CONFIG["height"]))
+        self.assertEqual(profile.get("frame_rate_num"), str(CONFIG["fps"]))
+
+    def test_tractor_structure(self):
+        tree = ET.parse(self.output_path)
+        root = tree.getroot()
+        tractor = root.find(".//tractor[@id='main_tractor']")
+        self.assertIsNotNone(tractor)
+        tracks = tractor.findall("track")
+        self.assertGreaterEqual(len(tracks), 2)
+
+        # Check for composite transition
+        transition = tractor.find("transition")
+        self.assertIsNotNone(transition)
+        service = transition.find("property[@name='mlt_service']")
+        self.assertEqual(service.text, "composite")
 
 if __name__ == "__main__":
     unittest.main()
