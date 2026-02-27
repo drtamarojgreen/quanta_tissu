@@ -275,13 +275,15 @@ void HttpServer::Impl::handle_client(int client_socket) {
     // This is a placeholder.
     std::string source_ip = "127.0.0.1";
 
-    char buffer[4096] = {0};
-    if (recv(client_socket, buffer, 4095, 0) <= 0) {
+    std::string request_str;
+    char buffer[4096];
+    int bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+    if (bytes_received <= 0) {
         close(client_socket);
         return;
     }
-
-    std::string request_str(buffer);
+    buffer[bytes_received] = '\0';
+    request_str.append(buffer, bytes_received);
     std::stringstream request_ss(request_str);
     HttpRequest req;
 
@@ -314,6 +316,21 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 value.pop_back();
             }
             req.headers[key] = value;
+        }
+    }
+
+    // Ensure full body is received based on Content-Length
+    if (req.headers.count("content-length")) {
+        size_t content_length = std::stoul(req.headers["content-length"]);
+        size_t body_start = request_str.find("\r\n\r\n");
+        if (body_start != std::string::npos) {
+            size_t current_body_len = request_str.length() - (body_start + 4);
+            while (current_body_len < content_length) {
+                bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+                if (bytes_received <= 0) break;
+                request_str.append(buffer, bytes_received);
+                current_body_len += bytes_received;
+            }
         }
     }
 
