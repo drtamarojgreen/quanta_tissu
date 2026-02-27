@@ -454,16 +454,11 @@ std::vector<std::string> Parser::parse_column_list() {
     return columns;
 }
 
-std::vector<Literal> Parser::parse_value_list() {
-    std::vector<Literal> values;
+std::vector<Expression> Parser::parse_value_list() {
+    std::vector<Expression> values;
     do {
-        auto expr = parse_primary_expression();
-        if (std::holds_alternative<Literal>(expr)) {
-            values.push_back(std::get<Literal>(expr));
-        } else {
-            LOG_ERROR("Parse error: Expected a literal value in value list.");
-            throw std::runtime_error("Expected a literal value in value list, but got other expression type.");
-        }
+        auto expr = parse_expression();
+        values.push_back(std::move(expr));
 
         if (peek().type == Token::Type::OPERATOR && peek().value == ",") {
             consume();
@@ -642,7 +637,7 @@ Expression Parser::parse_expression(int precedence) {
 }
 
 Expression Parser::parse_primary_expression() {
-    if (peek().type == Token::Type::KEYWORD && (peek().value == "DATE" || peek().value == "TIME" || peek().value == "DATETIME")) {
+    if (peek().type == Token::Type::KEYWORD && (peek().value == "DATE" || peek().value == "TIME" || peek().value == "DATETIME" || peek().value == "TIMESTAMP")) {
         std::string keyword = consume().value; // consume the keyword
         auto token = consume();
         if (token.type != Token::Type::STRING_LITERAL) {

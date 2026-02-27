@@ -1,9 +1,9 @@
 import re
 
 _PATTERNS = {
-    'TASK': re.compile(r'^\s*TASK\s+\"([^\"]+)\"(?:\s*\{\s*)?$'),
-    'STEP': re.compile(r'^\s*STEP\s+\"([^\"]+)\"\s*\{\s*$'),
-    'SETUP': re.compile(r'^\s*SETUP\s+\"([^\"]+)\"\s*\{\s*$'),
+    'TASK': re.compile(r'^\s*TASK\s+\"([^\"]+)\"(?:\s*\{\s*\}?)?\s*$'),
+    'STEP': re.compile(r'^\s*STEP\s+\"([^\"]+)\"(?:\s*\{\s*)?$'),
+    'SETUP': re.compile(r'^\s*SETUP\s+\"([^\"]+)\"(?:\s*\{\s*)?$'),
     'PARALLEL': re.compile(r'^\s*PARALLEL\s*\{\s*$'),
     'CHOOSE': re.compile(r'^\s*CHOOSE\s*\{\s*$'),
     'OPTION': re.compile(r'^\s*OPTION\s+\"([^\"]+)\"\s*\{\s*$'),

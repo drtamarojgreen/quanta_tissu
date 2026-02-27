@@ -73,6 +73,7 @@ def register_steps(runner):
         command = commands[index]
         assert command.get('type') == command_type, f"Command at index {index} is not of type {command_type}."
         context['current_command'] = command
+        context['current_node'] = command
 
     @runner.step(r'And the RUN command should have command "(.*)"')
     def and_the_run_command_should_have_command(context, command_text):

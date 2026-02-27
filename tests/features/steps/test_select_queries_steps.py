@@ -32,7 +32,7 @@ def register_steps(runner):
 
         response = requests.post(f"{BASE_URL}/{db_name}/{collection_name}/_query", json=data, headers=headers)
 
-        assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}"
+        assert response.status_code == 200, f"Query failed: {response.status_code}, {response.text}\nQuery: {query_string}"
         context['query_result'] = response.json()
 
 
