@@ -129,7 +129,7 @@ struct DeleteStatement {
 struct InsertStatement {
     std::string collection_name;
     std::vector<std::string> columns;
-    std::vector<Literal> values;
+    std::vector<Expression> values;
 };
 
 // Represents a column definition in a CREATE TABLE statement
