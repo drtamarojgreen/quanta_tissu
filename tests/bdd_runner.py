@@ -71,6 +71,10 @@ class BDDRunner:
                     table_lines.append(scenario_lines[j].strip())
                     j += 1
 
+                # Skip empty lines before docstring
+                while j < len(scenario_lines) and not scenario_lines[j].strip():
+                    j += 1
+
                 docstring_lines, j = self._parse_docstring(scenario_lines, j)
 
                 steps.append((step_line, table_lines if table_lines else None, docstring_lines if docstring_lines else None))
@@ -168,7 +172,15 @@ class BDDRunner:
 
         try:
             self.db_process = subprocess.Popen([db_path])
-            time.sleep(2) # Wait for the server to start
+            # Wait for the server to start with a timeout
+            timeout = 10
+            start_time = time.time()
+            while time.time() - start_time < timeout:
+                if self.is_server_running():
+                    print("BDD Runner: Database server started successfully.")
+                    return
+                time.sleep(0.5)
+            print("BDD Runner: WARNING - Database server did not start within timeout.")
         except Exception as e:
             error_msg = f"Failed to start database process: {e}"
             self.report_data['db_start_error'] = error_msg

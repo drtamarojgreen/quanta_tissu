@@ -113,6 +113,9 @@ class TissLangParser:
             self._block_stack.append(self._current_block)
             self._state = "IN_STEP"
             self._current_block = setup_node['commands']
+            if line.strip().endswith('}'):
+                self._state = self._state_stack.pop()
+                self._current_block = self._block_stack.pop()
             return
         step_node = handle_step_command(line, self.ast, self._line_number)
         if step_node:
@@ -120,6 +123,9 @@ class TissLangParser:
             self._block_stack.append(self._current_block)
             self._state = "IN_STEP"
             self._current_block = step_node['commands']
+            if line.strip().endswith('}'):
+                self._state = self._state_stack.pop()
+                self._current_block = self._block_stack.pop()
             return
         raise TissLangParserError(f"Unexpected command. Expected TASK, STEP, or SETUP.", self._line_number)
 
@@ -134,8 +140,12 @@ class TissLangParser:
         if if_node:
             self._state_stack.append(self._state)
             self._block_stack.append(self._current_block)
-            self._state_stack.append("AFTER_IF")
-            self._block_stack.append(if_node)
+            self._state = "AFTER_IF"
+            self._current_block = if_node
+
+            # Now push another state to handle the then_block
+            self._state_stack.append(self._state)
+            self._block_stack.append(self._current_block)
             self._state = "IN_STEP"
             self._current_block = if_node['then_block']
             return
@@ -207,6 +217,16 @@ class TissLangParser:
             self._current_block.append({'type': 'PAUSE', 'message': message})
             return
 
+        parallel_match = _PATTERNS['PARALLEL'].match(line)
+        if parallel_match:
+            parallel_node = {'type': 'PARALLEL', 'commands': []}
+            self._current_block.append(parallel_node)
+            self._state_stack.append(self._state)
+            self._block_stack.append(self._current_block)
+            self._state = "IN_STEP"
+            self._current_block = parallel_node['commands']
+            return
+
         choose_match = _PATTERNS['CHOOSE'].match(line)
         if choose_match:
             choose_node = {'type': 'CHOOSE', 'options': []}
@@ -233,8 +253,12 @@ class TissLangParser:
             self._current_block.append(try_node)
             self._state_stack.append(self._state)
             self._block_stack.append(self._current_block)
-            self._state_stack.append("AFTER_TRY")
-            self._block_stack.append(try_node)
+            self._state = "AFTER_TRY"
+            self._current_block = try_node
+
+            # Now push another state to handle the try_commands block
+            self._state_stack.append(self._state)
+            self._block_stack.append(self._current_block)
             self._state = "IN_STEP"
             self._current_block = try_node['try_commands']
             return
@@ -258,42 +282,56 @@ class TissLangParser:
             self._current_block = option_node['commands']
             return
 
-        raise TissLangParserError(f"Unexpected command inside CHOOSE block. Expected OPTION or }}.", self._line_number)
+        step_node = handle_step_command(line, self._current_block, self._line_number)
+        if step_node:
+            self._state_stack.append(self._state)
+            self._block_stack.append(self._current_block)
+            self._state = "IN_STEP"
+            self._current_block = step_node['commands']
+            if line.strip().endswith('}'):
+                self._state = self._state_stack.pop()
+                self._current_block = self._block_stack.pop()
+            return
+
+        raise TissLangParserError(f"Unexpected command inside CHOOSE block. Expected OPTION, STEP, or }}.", self._line_number)
 
     def _handle_after_try_state(self, line: str):
         """Handles parsing after a 'TRY' block, expecting a 'CATCH' or another command."""
         catch_match = _PATTERNS['CATCH'].match(line)
         if catch_match:
-            try_node = self._block_stack[-1]
+            # In AFTER_TRY, the current block IS the TRY_CATCH node.
+            try_node = self._current_block
             self._state = "IN_STEP"
             self._current_block = try_node['catch_commands']
-            # We are now in the CATCH block, but we need to remove the 'AFTER_TRY' state from the stack
             self._state_stack.pop() # Pop AFTER_TRY
-            self._block_stack.pop() # Pop the TRY_CATCH node itself
             return
 
-        # If it's not a CATCH block, it's an implicit end of the try.
-        self._state_stack.pop() # Pop AFTER_TRY
-        self._block_stack.pop() # Pop the TRY_CATCH node
-        self._parse_line(line) # Re-parse the line in the previous state.
+        # Implicit end of TRY. Return to previous state/block and re-parse.
+        self._state = self._state_stack.pop()
+        self._current_block = self._block_stack.pop()
+        self._parse_line(line)
 
     def _handle_after_if_state(self, line: str):
         """Handles parsing after an 'IF' block's 'THEN' clause, expecting an 'ELSE' or another command."""
-        if_node = self._block_stack[-1]
-        else_node = handle_else_command(line, self._block_stack[-2], self._line_number)
+        # if_node is self._current_block (pushed in handle_in_step_state)
+        if_node = self._current_block
+
+        # parent_block is block_stack[-1]
+        parent_block = self._block_stack[-1] if self._block_stack else self.ast
+
+        else_node = handle_else_command(line, parent_block, self._line_number)
 
         if else_node:
             self._state = "IN_STEP"
             self._current_block = else_node['else_block']
-            # We are now in the ELSE block, so we pop the 'AFTER_IF' state and the IF node.
-            self._state_stack.pop() # Pop AFTER_IF
-            self._block_stack.pop() # Pop the IF node
+            # Pop AFTER_IF. The IF node stays on block_stack to be popped by BLOCK_END.
+            self._state_stack.pop()
             return
 
-        # If it's not an ELSE block, it's an implicit end of the IF.
-        self._state_stack.pop() # Pop AFTER_IF
-        self._block_stack.pop() # Pop the IF node
-        self._parse_line(line) # Re-parse the line in the previous state.
+        # Implicit end of IF. Return to previous state/block and re-parse.
+        self._state = self._state_stack.pop()
+        self._current_block = self._block_stack.pop()
+        self._parse_line(line)
 
     def _handle_write_block(self, line: str):
         """Handles parsing when inside a 'WRITE' heredoc block."""

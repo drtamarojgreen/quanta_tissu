@@ -231,8 +231,8 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
     }
 
     // --- Filtering ---
-    std::vector<Document> filtered_docs;
     if (select_stmt.where_clause) {
+        std::vector<Document> filtered_docs;
         // Always filter the documents if a WHERE clause exists.
         // `all_docs` contains either the full scan or the index results,
         // both of which need to be filtered by the full WHERE clause.
@@ -387,8 +387,6 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
             aggregated_docs.push_back(aggregated_doc);
         }
         result_docs = aggregated_docs;
-    } else {
-        result_docs = filtered_docs;
     }
 
     // --- Sorting ---
@@ -398,25 +396,16 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
                 const std::string& field_name = order_by_pair.first;
                 const std::string& sort_order = order_by_pair.second;
 
-                auto get_value = [&](const Document& doc) -> std::optional<Value> {
-                    for (const auto& elem : doc.elements) {
-                        if (elem.key == field_name) {
-                            return elem.value;
-                        }
-                    }
-                    return std::nullopt;
-                };
+                const Value* val_a_ptr = get_value_from_doc(a, field_name);
+                const Value* val_b_ptr = get_value_from_doc(b, field_name);
 
-                auto val_a_opt = get_value(a);
-                auto val_b_opt = get_value(b);
-
-                if (!val_a_opt.has_value() || !val_b_opt.has_value()) {
+                if (!val_a_ptr || !val_b_ptr) {
                     // Handle missing fields by treating them as equal for this level of sorting
                     continue;
                 }
 
-                auto& val_a = *val_a_opt;
-                auto& val_b = *val_b_opt;
+                const auto& val_a = *val_a_ptr;
+                const auto& val_b = *val_b_ptr;
 
                 bool is_asc = (sort_order != "DESC");
 
@@ -425,11 +414,11 @@ QueryResult execute_select_statement(Storage::LSMTree& storage_engine, const Sel
                     continue;
                 }
 
-                if (std::get_if<std::string>(&val_a)) {
-                    int cmp = std::get<std::string>(val_a).compare(std::get<std::string>(val_b));
+                if (const auto* val_a_str = std::get_if<std::string>(&val_a)) {
+                    int cmp = val_a_str->compare(std::get<std::string>(val_b));
                     if (cmp != 0) return is_asc ? cmp < 0 : cmp > 0;
-                } else if (std::get_if<double>(&val_a)) {
-                    double diff = std::get<double>(val_a) - std::get<double>(val_b);
+                } else if (const auto* val_a_num = std::get_if<double>(&val_a)) {
+                    double diff = *val_a_num - std::get<double>(val_b);
                     if (diff != 0) return is_asc ? diff < 0 : diff > 0;
                 }
             }

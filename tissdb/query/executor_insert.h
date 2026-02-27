@@ -7,7 +7,7 @@
 namespace TissDB {
 namespace Query {
 
-QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertStatement insert_stmt);
+QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertStatement insert_stmt, const std::vector<Literal>& params);
 
 } // namespace Query
 } // namespace TissDB

@@ -1,4 +1,5 @@
 #include "executor_insert.h"
+#include "executor_common.h"
 #include <stdexcept>
 #include <chrono>
 #include <random>
@@ -6,7 +7,7 @@
 namespace TissDB {
 namespace Query {
 
-QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertStatement insert_stmt) {
+QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertStatement insert_stmt, const std::vector<Literal>& params) {
     Document new_doc;
 
     unsigned seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -20,9 +21,13 @@ QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertSta
 
     for (size_t i = 0; i < insert_stmt.columns.size(); ++i) {
         const auto& col_name = insert_stmt.columns[i];
-        const auto& value = insert_stmt.values[i];
+        const Expression& value_expr = insert_stmt.values[i];
         Element new_element;
         new_element.key = col_name;
+
+        // Evaluate the expression (handles literals, parameters, functions, etc.)
+        Literal resolved_literal = evaluate_update_expression(value_expr, new_doc, params);
+
         std::visit([&new_element](auto&& arg) {
             using T = std::decay_t<decltype(arg)>;
             if constexpr (std::is_same_v<T, TissDB::Query::Null>) {
@@ -30,7 +35,7 @@ QueryResult execute_insert_statement(Storage::LSMTree& storage_engine, InsertSta
             } else {
                 new_element.value = arg;
             }
-        }, value);
+        }, resolved_literal);
         new_doc.elements.push_back(new_element);
     }
 
