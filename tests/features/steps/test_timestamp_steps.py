@@ -1,11 +1,23 @@
 import requests
 import json
+import re
 from tests.features.steps.test_database_steps import get_headers
+
+def _normalize_timestamp(value):
+    if not isinstance(value, str):
+        return value
+    normalized = value.strip().replace(' ', 'T')
+    if re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", normalized):
+        normalized = normalized.replace('Z', '.000000Z')
+    if re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{1,5}Z$", normalized):
+        head, frac = normalized[:-1].split('.')
+        normalized = f"{head}.{frac.ljust(6, '0')}Z"
+    return normalized
 
 def find_doc_with_field_value(context, field, value):
     assert 'query_result' in context, "No query result found in context"
     for doc in context.get('query_result', []):
-        if field in doc and doc[field] == value:
+        if field in doc and _normalize_timestamp(doc[field]) == _normalize_timestamp(value):
             return True
     return False
 
@@ -41,3 +53,10 @@ def register_steps(runner):
         # from the previous step.
         assert context['response'].status_code == 200
         assert "Index creation initiated" in context['response'].text
+
+
+    @runner.step(r'the query result should include a timestamp field "(.*)"')
+    def step_impl_result_has_timestamp_field(context, field):
+        assert 'query_result' in context, "No query result found in context"
+        assert any(field in doc for doc in context['query_result']), \
+            f"Expected at least one document with field '{field}' in {context['query_result']}"
