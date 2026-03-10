@@ -196,7 +196,7 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
             std::string upper_value = value;
             std::transform(upper_value.begin(), upper_value.end(), upper_value.begin(), ::toupper);
 
-            if (upper_value == "SELECT" || upper_value == "FROM" || upper_value == "WHERE" || upper_value == "AND" || upper_value == "OR" || upper_value == "UPDATE" || upper_value == "DELETE" || upper_value == "SET" || upper_value == "GROUP" || upper_value == "BY" || upper_value == "COUNT" || upper_value == "AVG" || upper_value == "SUM" || upper_value == "MIN" || upper_value == "MAX" || upper_value == "INSERT" || upper_value == "INTO" || upper_value == "VALUES" || upper_value == "STDDEV" || upper_value == "LIKE" || upper_value == "ORDER" || upper_value == "LIMIT" || upper_value == "JOIN" || upper_value == "ON" || upper_value == "UNION" || upper_value == "ALL" || upper_value == "ASC" || upper_value == "DESC" || upper_value == "WITH" || upper_value == "DRILLDOWN" || upper_value == "TRUE" || upper_value == "FALSE" || upper_value == "NULL" || upper_value == "DATE" || upper_value == "TIME" || upper_value == "AS") {
+            if (upper_value == "SELECT" || upper_value == "FROM" || upper_value == "WHERE" || upper_value == "AND" || upper_value == "OR" || upper_value == "UPDATE" || upper_value == "DELETE" || upper_value == "SET" || upper_value == "GROUP" || upper_value == "BY" || upper_value == "COUNT" || upper_value == "AVG" || upper_value == "SUM" || upper_value == "MIN" || upper_value == "MAX" || upper_value == "INSERT" || upper_value == "INTO" || upper_value == "VALUES" || upper_value == "STDDEV" || upper_value == "LIKE" || upper_value == "ORDER" || upper_value == "LIMIT" || upper_value == "JOIN" || upper_value == "ON" || upper_value == "UNION" || upper_value == "ALL" || upper_value == "ASC" || upper_value == "DESC" || upper_value == "WITH" || upper_value == "DRILLDOWN" || upper_value == "TRUE" || upper_value == "FALSE" || upper_value == "NULL" || upper_value == "DATE" || upper_value == "TIME" || upper_value == "DATETIME" || upper_value == "TIMESTAMP" || upper_value == "AS" || upper_value == "INNER" || upper_value == "LEFT" || upper_value == "RIGHT" || upper_value == "FULL" || upper_value == "CROSS" || upper_value == "BETWEEN" || upper_value == "NOT" || upper_value == "INTERVAL" || upper_value == "EXTRACT" || upper_value == "NOW") {
                 new_tokens.push_back(Token{Token::Type::KEYWORD, upper_value});
             } else {
                 new_tokens.push_back(Token{Token::Type::IDENTIFIER, value});
@@ -611,10 +611,32 @@ std::optional<DrilldownClause> Parser::parse_drilldown_clause() {
     return std::nullopt;
 }
 
+
+namespace {
+bool is_function_keyword(const std::string& value) {
+    return value == "DATE" || value == "TIME" || value == "NOW" || value == "EXTRACT";
+}
+}
+
 Expression Parser::parse_expression(int precedence) {
     auto left = parse_primary_expression();
 
     while (true) {
+        if ((peek().type == Token::Type::KEYWORD && peek().value == "BETWEEN") ||
+            (peek().type == Token::Type::KEYWORD && peek().value == "NOT" && pos + 1 < tokens.size() && tokens[pos + 1].type == Token::Type::KEYWORD && tokens[pos + 1].value == "BETWEEN")) {
+            bool negated = false;
+            if (peek().value == "NOT") {
+                consume();
+                negated = true;
+            }
+            expect(Token::Type::KEYWORD, "BETWEEN");
+            auto lower = parse_expression(2);
+            expect(Token::Type::KEYWORD, "AND");
+            auto upper = parse_expression(2);
+            left = std::make_shared<BetweenExpression>(BetweenExpression{std::move(left), std::move(lower), std::move(upper), negated});
+            continue;
+        }
+
         auto op = peek().value;
         int new_precedence = 0;
         if (op == "AND" || op == "OR") new_precedence = 1;
@@ -637,23 +659,90 @@ Expression Parser::parse_expression(int precedence) {
 }
 
 Expression Parser::parse_primary_expression() {
-    if (peek().type == Token::Type::KEYWORD && (peek().value == "DATE" || peek().value == "TIME" || peek().value == "DATETIME" || peek().value == "TIMESTAMP")) {
-        std::string keyword = consume().value; // consume the keyword
+    if (peek().type == Token::Type::KEYWORD && peek().value == "INTERVAL") {
+        consume();
+        auto amount = consume();
+        if (amount.type != Token::Type::NUMERIC_LITERAL) {
+            throw std::runtime_error("Expected numeric literal after INTERVAL");
+        }
+        auto unit = consume();
+        if (unit.type != Token::Type::IDENTIFIER && unit.type != Token::Type::KEYWORD) {
+            throw std::runtime_error("Expected unit after INTERVAL value");
+        }
+        std::string normalized = unit.value;
+        std::transform(normalized.begin(), normalized.end(), normalized.begin(), ::tolower);
+        return IntervalLiteral{std::stod(amount.value), normalized};
+    }
+
+    if (peek().type == Token::Type::KEYWORD && is_function_keyword(peek().value)) {
+        std::string fn_name = consume().value;
+
+        if (fn_name == "NOW") {
+            expect(Token::Type::OPERATOR, "(");
+            expect(Token::Type::OPERATOR, ")");
+            return std::make_shared<FunctionExpression>(FunctionExpression{fn_name, {}});
+        }
+
+        if (fn_name == "EXTRACT") {
+            expect(Token::Type::OPERATOR, "(");
+            auto part_tok = consume();
+            if (part_tok.type != Token::Type::IDENTIFIER && part_tok.type != Token::Type::KEYWORD) {
+                throw std::runtime_error("Expected date part in EXTRACT");
+            }
+            std::string part = part_tok.value;
+            std::transform(part.begin(), part.end(), part.begin(), ::tolower);
+            expect(Token::Type::KEYWORD, "FROM");
+            auto value_expr = parse_expression();
+            expect(Token::Type::OPERATOR, ")");
+            std::vector<Expression> args;
+            args.push_back(Literal{part});
+            args.push_back(std::move(value_expr));
+            return std::make_shared<FunctionExpression>(FunctionExpression{fn_name, std::move(args)});
+        }
+
+        // DATE/TIME can be type keywords (DATE 'YYYY-MM-DD', TIME 'HH:MM:SS') or function calls
+        if (peek().type == Token::Type::OPERATOR && peek().value == "(") {
+            consume();
+            std::vector<Expression> args;
+            if (!(peek().type == Token::Type::OPERATOR && peek().value == ")")) {
+                do {
+                    args.push_back(parse_expression());
+                    if (peek().type == Token::Type::OPERATOR && peek().value == ",") consume();
+                    else break;
+                } while (true);
+            }
+            expect(Token::Type::OPERATOR, ")");
+            return std::make_shared<FunctionExpression>(FunctionExpression{fn_name, std::move(args)});
+        }
+
+        auto token = consume();
+        if (token.type != Token::Type::STRING_LITERAL) {
+            throw std::runtime_error("Expected a string literal after " + fn_name);
+        }
+        if (fn_name == "DATE") {
+            if (auto date = parse_date_string(token.value)) return Literal{*date};
+            throw std::runtime_error("Invalid DATE format: " + token.value);
+        }
+        if (fn_name == "TIME") {
+            if (auto time = parse_time_string(token.value)) return Literal{*time};
+            throw std::runtime_error("Invalid TIME format: " + token.value);
+        }
+        throw std::runtime_error("Unsupported function keyword in literal form: " + fn_name);
+    }
+
+    if (peek().type == Token::Type::KEYWORD && (peek().value == "TIME" || peek().value == "DATETIME" || peek().value == "TIMESTAMP")) {
+        std::string keyword = consume().value;
         auto token = consume();
         if (token.type != Token::Type::STRING_LITERAL) {
             throw std::runtime_error("Expected a string literal after " + keyword);
         }
-
-        if (keyword == "DATE") {
-            if (auto date = parse_date_string(token.value)) return Literal{*date};
-            throw std::runtime_error("Invalid DATE format: " + token.value);
-        } else if (keyword == "TIME") {
+        if (keyword == "TIME") {
             if (auto time = parse_time_string(token.value)) return Literal{*time};
             throw std::runtime_error("Invalid TIME format: " + token.value);
         } else if (keyword == "DATETIME") {
             if (auto dt = parse_datetime_string(token.value)) return Literal{*dt};
             throw std::runtime_error("Invalid DATETIME format: " + token.value);
-        } else { // TIMESTAMP
+        } else {
             if (auto ts = try_parse_timestamp(token.value)) return Literal{*ts};
             throw std::runtime_error("Invalid TIMESTAMP format: " + token.value);
         }
@@ -662,7 +751,7 @@ Expression Parser::parse_primary_expression() {
     auto token = consume();
     if (token.type == Token::Type::IDENTIFIER) {
         if (peek().type == Token::Type::OPERATOR && peek().value == ".") {
-            consume(); // consume '.'
+            consume();
             auto next_token = consume();
             if (next_token.type != Token::Type::IDENTIFIER) {
                 throw std::runtime_error("Expected identifier after '.'");
@@ -685,11 +774,14 @@ Expression Parser::parse_primary_expression() {
         return Literal{Null{}};
     } else if (token.type == Token::Type::PARAM_PLACEHOLDER) {
         return ParameterExpression{param_index++};
+    } else if (token.type == Token::Type::OPERATOR && token.value == "(") {
+        auto expr = parse_expression();
+        expect(Token::Type::OPERATOR, ")");
+        return expr;
     }
     LOG_ERROR("Parse error: Unexpected token in expression: " + token.value);
     throw std::runtime_error("Unexpected token in expression");
 }
-
 
 // --- Helper methods ---
 

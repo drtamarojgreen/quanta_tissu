@@ -6,6 +6,10 @@
 #include <cmath>
 #include <algorithm>
 #include <regex>
+#include <chrono>
+#include <ctime>
+#include <cctype>
+#include <cstdio>
 
 namespace TissDB {
 namespace Query {
@@ -65,6 +69,66 @@ std::optional<std::string> get_as_string(const Value& val) {
     return std::nullopt; // Incompatible types for string comparison
 }
 
+namespace {
+int64_t interval_to_microseconds(const IntervalLiteral& interval) {
+    std::string unit = interval.unit;
+    std::transform(unit.begin(), unit.end(), unit.begin(), ::tolower);
+    if (unit == "microsecond" || unit == "microseconds") return static_cast<int64_t>(interval.value);
+    if (unit == "millisecond" || unit == "milliseconds") return static_cast<int64_t>(interval.value * 1000.0);
+    if (unit == "second" || unit == "seconds") return static_cast<int64_t>(interval.value * 1000000.0);
+    if (unit == "minute" || unit == "minutes") return static_cast<int64_t>(interval.value * 60.0 * 1000000.0);
+    if (unit == "hour" || unit == "hours") return static_cast<int64_t>(interval.value * 3600.0 * 1000000.0);
+    if (unit == "day" || unit == "days") return static_cast<int64_t>(interval.value * 86400.0 * 1000000.0);
+    return static_cast<int64_t>(interval.value * 1000000.0);
+}
+
+Timestamp now_timestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
+    return Timestamp{micros};
+}
+
+Date timestamp_to_date(const Timestamp& ts) {
+    std::time_t tt = static_cast<std::time_t>(ts.microseconds_since_epoch_utc / 1000000);
+    std::tm tm{};
+#ifdef _WIN32
+    gmtime_s(&tm, &tt);
+#else
+    gmtime_r(&tt, &tm);
+#endif
+    return Date{static_cast<uint16_t>(tm.tm_year + 1900), static_cast<uint8_t>(tm.tm_mon + 1), static_cast<uint8_t>(tm.tm_mday)};
+}
+
+
+Time timestamp_to_time(const Timestamp& ts) {
+    std::time_t tt = static_cast<std::time_t>(ts.microseconds_since_epoch_utc / 1000000);
+    std::tm tm{};
+#ifdef _WIN32
+    gmtime_s(&tm, &tt);
+#else
+    gmtime_r(&tt, &tm);
+#endif
+    return Time{static_cast<uint8_t>(tm.tm_hour), static_cast<uint8_t>(tm.tm_min), static_cast<uint8_t>(tm.tm_sec)};
+}
+
+double extract_part_from_timestamp(const std::string& part, const Timestamp& ts) {
+    std::time_t tt = static_cast<std::time_t>(ts.microseconds_since_epoch_utc / 1000000);
+    std::tm tm{};
+#ifdef _WIN32
+    gmtime_s(&tm, &tt);
+#else
+    gmtime_r(&tt, &tm);
+#endif
+    if (part == "year") return tm.tm_year + 1900;
+    if (part == "month") return tm.tm_mon + 1;
+    if (part == "day") return tm.tm_mday;
+    if (part == "hour") return tm.tm_hour;
+    if (part == "minute") return tm.tm_min;
+    if (part == "second") return tm.tm_sec;
+    return 0.0;
+}
+}
+
 // --- Expression Resolution ---
 
 Value resolve_expression_to_value(const Expression& expr, const Document& doc, const std::vector<Literal>& params) {
@@ -95,6 +159,9 @@ Value resolve_expression_to_value(const Expression& expr, const Document& doc, c
         if (const auto* ts_val = std::get_if<Timestamp>(lit_ptr)) return *ts_val;
         if (std::holds_alternative<Null>(*lit_ptr)) return std::nullptr_t{};
     }
+    if (const auto* interval_ptr = std::get_if<IntervalLiteral>(&expr)) {
+        return Timestamp{interval_to_microseconds(*interval_ptr)};
+    }
     if (const auto* param_ptr = std::get_if<ParameterExpression>(&expr)) {
         if (param_ptr->index >= params.size()) {
             throw std::runtime_error("Parameter index out of bounds.");
@@ -110,6 +177,73 @@ Value resolve_expression_to_value(const Expression& expr, const Document& doc, c
         if (const auto* ts_val = std::get_if<Timestamp>(&param_lit)) return *ts_val;
         if (std::holds_alternative<Null>(param_lit)) return std::nullptr_t{};
     }
+    if (const auto* fn_ptr = std::get_if<std::shared_ptr<FunctionExpression>>(&expr)) {
+        const auto& fn = *fn_ptr;
+        if (fn->name == "NOW") {
+            return now_timestamp();
+        }
+        if (fn->name == "DATE") {
+            if (fn->args.empty()) {
+                throw std::runtime_error("DATE() requires an argument.");
+            }
+            Value arg = resolve_expression_to_value(fn->args[0], doc, params);
+            if (const auto* ts = std::get_if<Timestamp>(&arg)) {
+                return timestamp_to_date(*ts);
+            }
+            if (const auto* str = std::get_if<std::string>(&arg)) {
+                int y, m, d;
+                if (std::sscanf(str->c_str(), "%d-%d-%d", &y, &m, &d) == 3) {
+                    return Date{static_cast<uint16_t>(y), static_cast<uint8_t>(m), static_cast<uint8_t>(d)};
+                }
+            }
+            if (const auto* d = std::get_if<Date>(&arg)) {
+                return *d;
+            }
+            throw std::runtime_error("DATE() argument must be DATE, TIMESTAMP, or date string.");
+        }
+        if (fn->name == "TIME") {
+            if (fn->args.empty()) {
+                throw std::runtime_error("TIME() requires an argument.");
+            }
+            Value arg = resolve_expression_to_value(fn->args[0], doc, params);
+            if (const auto* ts = std::get_if<Timestamp>(&arg)) {
+                return timestamp_to_time(*ts);
+            }
+            if (const auto* str = std::get_if<std::string>(&arg)) {
+                int h, m, sec;
+                if (std::sscanf(str->c_str(), "%d:%d:%d", &h, &m, &sec) == 3) {
+                    return Time{static_cast<uint8_t>(h), static_cast<uint8_t>(m), static_cast<uint8_t>(sec)};
+                }
+            }
+            if (const auto* t = std::get_if<Time>(&arg)) {
+                return *t;
+            }
+            throw std::runtime_error("TIME() argument must be TIME, TIMESTAMP, or time string.");
+        }
+        if (fn->name == "EXTRACT") {
+            if (fn->args.size() != 2) {
+                throw std::runtime_error("EXTRACT requires 2 arguments.");
+            }
+            auto* part_lit = std::get_if<Literal>(&fn->args[0]);
+            if (!part_lit || !std::holds_alternative<std::string>(*part_lit)) {
+                throw std::runtime_error("EXTRACT part must be string literal.");
+            }
+            std::string part = std::get<std::string>(*part_lit);
+            Value target = resolve_expression_to_value(fn->args[1], doc, params);
+            if (const auto* ts = std::get_if<Timestamp>(&target)) {
+                return extract_part_from_timestamp(part, *ts);
+            }
+            if (const auto* d = std::get_if<Date>(&target)) {
+                if (part == "year") return static_cast<double>(d->year);
+                if (part == "month") return static_cast<double>(d->month);
+                if (part == "day") return static_cast<double>(d->day);
+                return 0.0;
+            }
+            throw std::runtime_error("EXTRACT target must be TIMESTAMP or DATE.");
+        }
+        throw std::runtime_error("Unsupported function: " + fn->name);
+    }
+
     if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
         const auto& binary_expr = *binary_expr_ptr;
         Value left_val = resolve_expression_to_value(binary_expr->left, doc, params);
@@ -127,6 +261,33 @@ Value resolve_expression_to_value(const Expression& expr, const Document& doc, c
                 return *left_num_opt / *right_num_opt;
             }
         }
+
+        if (const auto* left_ts = std::get_if<Timestamp>(&left_val)) {
+            if (const auto* right_interval = std::get_if<Timestamp>(&right_val)) {
+                if (binary_expr->op == "+") return Timestamp{left_ts->microseconds_since_epoch_utc + right_interval->microseconds_since_epoch_utc};
+                if (binary_expr->op == "-") return Timestamp{left_ts->microseconds_since_epoch_utc - right_interval->microseconds_since_epoch_utc};
+            }
+        }
+
+        if (const auto* left_date = std::get_if<Date>(&left_val)) {
+            if (const auto* right_interval = std::get_if<Timestamp>(&right_val)) {
+                std::tm tm{};
+                tm.tm_year = left_date->year - 1900;
+                tm.tm_mon = left_date->month - 1;
+                tm.tm_mday = left_date->day;
+#ifdef _WIN32
+                std::time_t base = _mkgmtime(&tm);
+#else
+                std::time_t base = timegm(&tm);
+#endif
+                auto micros = static_cast<int64_t>(base) * 1000000;
+                if (binary_expr->op == "+") micros += right_interval->microseconds_since_epoch_utc;
+                else if (binary_expr->op == "-") micros -= right_interval->microseconds_since_epoch_utc;
+                else throw std::runtime_error("Unsupported DATE arithmetic operation.");
+                return timestamp_to_date(Timestamp{micros});
+            }
+        }
+
         throw std::runtime_error("Unsupported arithmetic operation or type mismatch.");
     }
     throw std::runtime_error("Unsupported expression type for value resolution.");
@@ -142,6 +303,33 @@ bool evaluate_expression(const Expression& expr, const Document& doc, const std:
         } else if (logical_expr->op == "OR") {
             return evaluate_expression(logical_expr->left, doc, params) || evaluate_expression(logical_expr->right, doc, params);
         }
+    } else if (const auto* between_expr_ptr = std::get_if<std::shared_ptr<BetweenExpression>>(&expr)) {
+        const auto& between_expr = *between_expr_ptr;
+        Value value = resolve_expression_to_value(between_expr->value, doc, params);
+        Value lower = resolve_expression_to_value(between_expr->lower, doc, params);
+        Value upper = resolve_expression_to_value(between_expr->upper, doc, params);
+        bool in_range = false;
+
+        auto v_num = get_as_numeric(value);
+        auto l_num = get_as_numeric(lower);
+        auto u_num = get_as_numeric(upper);
+        if (v_num && l_num && u_num) {
+            in_range = (*v_num >= *l_num && *v_num <= *u_num);
+        } else if (auto v_date = std::get_if<Date>(&value)) {
+            if (auto l_date = std::get_if<Date>(&lower)) {
+                if (auto u_date = std::get_if<Date>(&upper)) {
+                    in_range = !(*v_date < *l_date) && !(*u_date < *v_date);
+                }
+            }
+        } else if (auto v_ts = std::get_if<Timestamp>(&value)) {
+            if (auto l_ts = std::get_if<Timestamp>(&lower)) {
+                if (auto u_ts = std::get_if<Timestamp>(&upper)) {
+                    in_range = (*v_ts >= *l_ts) && (*v_ts <= *u_ts);
+                }
+            }
+        }
+
+        return between_expr->negated ? !in_range : in_range;
     } else if (const auto* binary_expr_ptr = std::get_if<std::shared_ptr<BinaryExpression>>(&expr)) {
         const auto& binary_expr = *binary_expr_ptr;
 
