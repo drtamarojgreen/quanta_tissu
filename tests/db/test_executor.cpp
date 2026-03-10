@@ -914,3 +914,41 @@ TEST_CASE(ExecutorSelectDistinct) {
 
     std::filesystem::remove_all("mock_data");
 }
+
+TEST_CASE(ExecutorDeleteWithTimestampPredicate) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("events", TissDB::Schema{});
+    mock_lsm_tree.put("events", "1", TissDB::Document{"1", {{"name", std::string("A")}, {"ts", TissDB::Timestamp{1722074400000000LL}}}});
+    mock_lsm_tree.put("events", "2", TissDB::Document{"2", {{"name", std::string("B")}, {"ts", TissDB::Timestamp{1722075000000000LL}}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse(
+        "DELETE FROM events WHERE ts > TIMESTAMP '2024-07-27T10:05:00Z'");
+    auto result = executor.execute(std::move(ast), {});
+
+    ASSERT_EQ(1, result.size());
+    ASSERT_EQ(1.0, std::get<double>(result[0].elements[0].value));
+    ASSERT_TRUE(mock_lsm_tree.get("events", "1").has_value());
+    ASSERT_FALSE(mock_lsm_tree.get("events", "2").has_value());
+}
+
+TEST_CASE(ExecutorDeleteWithDateAndTimePredicates) {
+    MockLSMTree mock_lsm_tree;
+    mock_lsm_tree.create_collection("schedule", TissDB::Schema{});
+    mock_lsm_tree.put("schedule", "1", TissDB::Document{"1", {{"event_date", TissDB::Date{2024, 7, 27}}, {"event_time", TissDB::Time{9, 0, 0}}}});
+    mock_lsm_tree.put("schedule", "2", TissDB::Document{"2", {{"event_date", TissDB::Date{2024, 7, 27}}, {"event_time", TissDB::Time{12, 30, 0}}}});
+
+    TissDB::Query::Parser parser;
+    TissDB::Query::Executor executor(mock_lsm_tree);
+
+    TissDB::Query::AST ast = parser.parse(
+        "DELETE FROM schedule WHERE event_date = DATE '2024-07-27' AND event_time >= TIME '12:00:00'");
+    auto result = executor.execute(std::move(ast), {});
+
+    ASSERT_EQ(1, result.size());
+    ASSERT_EQ(1.0, std::get<double>(result[0].elements[0].value));
+    ASSERT_TRUE(mock_lsm_tree.get("schedule", "1").has_value());
+    ASSERT_FALSE(mock_lsm_tree.get("schedule", "2").has_value());
+}
