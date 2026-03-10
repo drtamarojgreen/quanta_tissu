@@ -68,3 +68,16 @@ Feature: Timestamp Data Type
     And the result should contain a document with the field "actor" having the value "admin"
     When I execute the TissQL query "SELECT actor FROM audit_logs WHERE ts <= NOW()" on "audit_logs"
     Then the query result should have 2 documents
+
+
+  Scenario: Delete records using TIMESTAMP predicates
+    Given a running TissDB instance
+    And a collection named "cleanup_logs" exists
+    When I execute the TissQL query "INSERT INTO cleanup_logs (name, ts) VALUES ('Old', TIMESTAMP '2024-07-27T08:00:00Z')" on "cleanup_logs"
+    And I execute the TissQL query "INSERT INTO cleanup_logs (name, ts) VALUES ('Recent', TIMESTAMP '2024-07-27T12:00:00Z')" on "cleanup_logs"
+    Then the query should succeed
+    When I execute the TissQL query "DELETE FROM cleanup_logs WHERE ts >= TIMESTAMP '2024-07-27T10:00:00Z'" on "cleanup_logs"
+    Then the query should succeed
+    When I execute the TissQL query "SELECT name FROM cleanup_logs" on "cleanup_logs"
+    Then the query result should have 1 document
+    And the result should contain a document with the field "name" having the value "Old"

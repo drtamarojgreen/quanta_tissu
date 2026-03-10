@@ -62,3 +62,16 @@ Feature: Date and Time Data Types
     When I execute the TissQL query "SELECT event FROM schedule WHERE event_date = DATE '2024-07-27' AND event_time > TIME '10:00:00'" on "schedule"
     Then the query result should have 1 document
     And the result should contain a document with the field "event" having the value "Lunch"
+
+
+  Scenario: Delete records using DATE and TIME predicates
+    Given a running TissDB instance
+    And a collection named "cleanup_schedule" exists
+    When I execute the TissQL query "INSERT INTO cleanup_schedule (event, event_date, event_time) VALUES ('Keep', DATE '2024-07-27', TIME '09:00:00')" on "cleanup_schedule"
+    And I execute the TissQL query "INSERT INTO cleanup_schedule (event, event_date, event_time) VALUES ('DeleteMe', DATE '2024-07-27', TIME '18:00:00')" on "cleanup_schedule"
+    Then the query should succeed
+    When I execute the TissQL query "DELETE FROM cleanup_schedule WHERE event_date = DATE '2024-07-27' AND event_time >= TIME '12:00:00'" on "cleanup_schedule"
+    Then the query should succeed
+    When I execute the TissQL query "SELECT event FROM cleanup_schedule" on "cleanup_schedule"
+    Then the query result should have 1 document
+    And the result should contain a document with the field "event" having the value "Keep"

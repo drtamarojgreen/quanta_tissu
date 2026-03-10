@@ -209,3 +209,18 @@ TEST_CASE(ParserDateAndTimeFunctionsAndLiterals) {
     ASSERT_EQ(">", right_gt->op);
     ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::FunctionExpression>>(right_gt->left));
 }
+
+
+TEST_CASE(ParserDeleteWithTemporalWhereClause) {
+    TissDB::Query::Parser parser;
+    TissDB::Query::AST ast = parser.parse(
+        "DELETE FROM logs WHERE ts >= TIMESTAMP '2024-07-27T10:00:00Z' AND event_date = DATE '2024-07-27' AND event_time > TIME '09:00:00'");
+
+    ASSERT_TRUE(std::holds_alternative<TissDB::Query::DeleteStatement>(ast));
+    auto& delete_stmt = std::get<TissDB::Query::DeleteStatement>(ast);
+    ASSERT_EQ("logs", delete_stmt.collection_name);
+    ASSERT_TRUE(delete_stmt.where_clause.has_value());
+
+    auto logical = std::get<std::shared_ptr<TissDB::Query::LogicalExpression>>(delete_stmt.where_clause.value());
+    ASSERT_EQ("AND", logical->op);
+}
