@@ -159,3 +159,53 @@ TEST_CASE(ParserSelectWithParameters) {
     ASSERT_TRUE(std::holds_alternative<TissDB::Query::ParameterExpression>(right_expr->right));
     ASSERT_EQ(1, std::get<TissDB::Query::ParameterExpression>(right_expr->right).index);
 }
+
+
+TEST_CASE(ParserTemporalBetweenAndInterval) {
+    TissDB::Query::Parser parser;
+    TissDB::Query::AST ast = parser.parse(
+        "SELECT * FROM logs WHERE ts BETWEEN TIMESTAMP '2024-07-27T10:00:00Z' AND TIMESTAMP '2024-07-27T10:10:00Z' AND ts + INTERVAL 5 MINUTES > TIMESTAMP '2024-07-27T10:04:00Z'");
+
+    ASSERT_TRUE(std::holds_alternative<TissDB::Query::SelectStatement>(ast));
+    auto& select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
+    ASSERT_TRUE(select_stmt.where_clause.has_value());
+
+    auto& where_expr = select_stmt.where_clause.value();
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::LogicalExpression>>(where_expr));
+    auto logical = std::get<std::shared_ptr<TissDB::Query::LogicalExpression>>(where_expr);
+    ASSERT_EQ("AND", logical->op);
+
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::BetweenExpression>>(logical->left));
+    auto between_expr = std::get<std::shared_ptr<TissDB::Query::BetweenExpression>>(logical->left);
+    ASSERT_FALSE(between_expr->negated);
+
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical->right));
+    auto right_binary = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical->right);
+    ASSERT_EQ(">", right_binary->op);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::BinaryExpression>>(right_binary->left));
+
+    auto plus_expr = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(right_binary->left);
+    ASSERT_EQ("+", plus_expr->op);
+    ASSERT_TRUE(std::holds_alternative<TissDB::Query::IntervalLiteral>(plus_expr->right));
+}
+
+TEST_CASE(ParserDateAndTimeFunctionsAndLiterals) {
+    TissDB::Query::Parser parser;
+    TissDB::Query::AST ast = parser.parse(
+        "SELECT * FROM logs WHERE DATE(ts) = DATE '2024-07-27' AND TIME(ts) > TIME '10:00:00'");
+
+    ASSERT_TRUE(std::holds_alternative<TissDB::Query::SelectStatement>(ast));
+    auto& select_stmt = std::get<TissDB::Query::SelectStatement>(ast);
+    ASSERT_TRUE(select_stmt.where_clause.has_value());
+
+    auto logical = std::get<std::shared_ptr<TissDB::Query::LogicalExpression>>(select_stmt.where_clause.value());
+    ASSERT_EQ("AND", logical->op);
+
+    auto left_eq = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical->left);
+    ASSERT_EQ("=", left_eq->op);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::FunctionExpression>>(left_eq->left));
+
+    auto right_gt = std::get<std::shared_ptr<TissDB::Query::BinaryExpression>>(logical->right);
+    ASSERT_EQ(">", right_gt->op);
+    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<TissDB::Query::FunctionExpression>>(right_gt->left));
+}

@@ -125,3 +125,25 @@ g++ -std=c++17 -Wall -Wextra -g -march=native -Itissdb -Iquanta_tissu/tisslm/pro
 
 
 
+
+
+## Running Temporal Query Tests (DATE/TIME/DATETIME/TIMESTAMP)
+
+From the repository root, use these commands to run the tests added for temporal query support:
+
+```bash
+# Parser and executor temporal unit tests (compiled into the DB test binary)
+cd tissdb
+make test
+
+# Or run targeted DB test translation-unit compile checks from repo root
+cd ..
+g++ -std=c++17 -I. -I.. -Wall -Wextra -c tissdb/query/parser.cpp -o /tmp/parser.o
+g++ -std=c++17 -I. -I.. -Wall -Wextra -c tissdb/query/executor_common.cpp -o /tmp/executor_common.o
+g++ -std=c++17 -I. -I.. -Wall -Wextra -c tests/db/test_parser.cpp -o /tmp/test_parser.o
+g++ -std=c++17 -I. -I.. -Wall -Wextra -c tests/db/test_query_executor.cpp -o /tmp/test_query_executor.o
+
+# Run BDD features for datetime/timestamp coverage
+python tests/run_bdd_suite.py --feature tests/features/datetime.feature
+python tests/run_bdd_suite.py --feature tests/features/timestamp.feature
+```
