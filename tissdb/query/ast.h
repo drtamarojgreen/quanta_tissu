@@ -17,6 +17,13 @@ using Literal = std::variant<std::string, double, bool, Null, Date, Time, DateTi
 // Forward-declare recursive types
 struct BinaryExpression;
 struct LogicalExpression;
+struct FunctionExpression;
+struct BetweenExpression;
+
+struct IntervalLiteral {
+    double value;
+    std::string unit;
+};
 
 // Represents a column identifier
 struct Identifier {
@@ -30,7 +37,7 @@ struct ParameterExpression {
 };
 
 // The Expression variant represents any kind of expression in the WHERE clause
-using Expression = std::variant<Identifier, Literal, ParameterExpression, std::shared_ptr<BinaryExpression>, std::shared_ptr<LogicalExpression>>;
+using Expression = std::variant<Identifier, Literal, IntervalLiteral, ParameterExpression, std::shared_ptr<BinaryExpression>, std::shared_ptr<LogicalExpression>, std::shared_ptr<FunctionExpression>, std::shared_ptr<BetweenExpression>>;
 
 // Represents a binary expression (e.g., field = 'value', price > 100)
 struct BinaryExpression {
@@ -44,6 +51,18 @@ struct LogicalExpression {
     Expression left;
     std::string op;
     Expression right;
+};
+
+struct FunctionExpression {
+    std::string name;
+    std::vector<Expression> args;
+};
+
+struct BetweenExpression {
+    Expression value;
+    Expression lower;
+    Expression upper;
+    bool negated = false;
 };
 
 // Represents the type of an aggregate function

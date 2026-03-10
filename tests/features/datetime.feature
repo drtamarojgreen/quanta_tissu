@@ -39,3 +39,26 @@ Feature: Date and Time Data Types
     Then the query result should have 2 documents
     And the result should contain a document with the field "event" having the value "Event B"
     And the result should contain a document with the field "event" having the value "Event C"
+
+
+  Scenario: Filter records using DATETIME with range comparisons
+    Given a running TissDB instance
+    And a collection named "timeline" exists
+    When I execute the TissQL query "INSERT INTO timeline (name, dt) VALUES ('Start', DATETIME '2024-07-26 09:00:00')" on "timeline"
+    And I execute the TissQL query "INSERT INTO timeline (name, dt) VALUES ('Middle', DATETIME '2024-07-26 10:30:00')" on "timeline"
+    And I execute the TissQL query "INSERT INTO timeline (name, dt) VALUES ('End', DATETIME '2024-07-26 12:00:00')" on "timeline"
+    Then the query should succeed
+    When I execute the TissQL query "SELECT name FROM timeline WHERE dt >= DATETIME '2024-07-26 10:00:00' AND dt < DATETIME '2024-07-26 12:00:00'" on "timeline"
+    Then the query result should have 1 document
+    And the result should contain a document with the field "name" having the value "Middle"
+
+  Scenario: Filter records using DATE and TIME ranges
+    Given a running TissDB instance
+    And a collection named "schedule" exists
+    When I execute the TissQL query "INSERT INTO schedule (event, event_date, event_time) VALUES ('Morning Run', DATE '2024-07-27', TIME '06:30:00')" on "schedule"
+    And I execute the TissQL query "INSERT INTO schedule (event, event_date, event_time) VALUES ('Lunch', DATE '2024-07-27', TIME '12:30:00')" on "schedule"
+    And I execute the TissQL query "INSERT INTO schedule (event, event_date, event_time) VALUES ('Dinner', DATE '2024-07-28', TIME '19:00:00')" on "schedule"
+    Then the query should succeed
+    When I execute the TissQL query "SELECT event FROM schedule WHERE event_date = DATE '2024-07-27' AND event_time > TIME '10:00:00'" on "schedule"
+    Then the query result should have 1 document
+    And the result should contain a document with the field "event" having the value "Lunch"
