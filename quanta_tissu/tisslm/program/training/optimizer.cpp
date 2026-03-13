@@ -21,8 +21,8 @@ void Adam::update(std::vector<Parameter*>& parameters) {
         m_.resize(parameters.size());
         v_.resize(parameters.size());
         for (size_t i = 0; i < parameters.size(); ++i) {
-            m_[i] = Matrix::zeros({parameters[i]->value().rows(), parameters[i]->value().cols()});
-            v_[i] = Matrix::zeros({parameters[i]->value().rows(), parameters[i]->value().cols()});
+            m_[i] = Matrix::zeros(parameters[i]->value().get_shape());
+            v_[i] = Matrix::zeros(parameters[i]->value().get_shape());
         }
     }
 
