@@ -75,7 +75,9 @@ void Trainer::train(
             TissNum::Matrix predictions = model_->forward(batch_input);
 
             // Reshape target for loss computation
-            TissNum::Matrix reshaped_target({batch_target.rows() * batch_target.cols(), 1});
+            // predictions shape: [current_batch_size * seq_len, vocab_size]
+            // batch_target shape: [current_batch_size, seq_len]
+            TissNum::Matrix reshaped_target({predictions.rows(), 1});
             for (size_t r = 0; r < batch_target.rows(); ++r) {
                 for (size_t c = 0; c < batch_target.cols(); ++c) {
                     reshaped_target({r * batch_target.cols() + c, 0}) = batch_target({r, c});

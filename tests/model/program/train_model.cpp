@@ -56,14 +56,14 @@ void run_training() {
     // --- 2. Train Tokenizer ---
     std::cout << "[2/5] Training tokenizer..." << std::endl;
     auto tokenizer = std::make_shared<TissLM::Tokenizer::Tokenizer>("");
-    tokenizer->train(corpus, 4196);
+    tokenizer->train(corpus, 400);
     tokenizer->save("trained_tokenizer");
     std::cout << "Tokenizer trained and saved." << std::endl;
 
     // --- 3. Create Dataset ---
     std::cout << "[3/5] Creating dataset..." << std::endl;
     std::vector<int> token_ids = tokenizer->encode(corpus);
-    TissLM::Training::TokenDataset dataset(token_ids, 1024);
+    TissLM::Training::TokenDataset dataset(token_ids, 8);
     std::cout << "Dataset created." << std::endl;
 
     // --- 4. Initialize Training Components ---
@@ -71,12 +71,13 @@ void run_training() {
     int vocab_size = tokenizer->get_vocab_size();
     auto model = std::make_shared<TissLM::Core::TransformerModel>(
         vocab_size,
-        1024, // max_seq_len
-        768,  // embed_dim
-        12,   // num_heads
-        12,   // num_layers
+        128, // max_seq_len
+        32,  // embed_dim
+        2,   // num_heads
+        1,   // num_layers
+        64,  // d_ff
         0.1f, // dropout_rate
-        4     // lora_rank
+        0     // lora_rank
     );
     auto optimizer = std::make_shared<TissLM::Training::Adam>(1e-4);
     auto loss_function = std::make_shared<TissLM::Training::CrossEntropyLoss>();
@@ -87,7 +88,7 @@ void run_training() {
     const std::string checkpoint_dir = "checkpoints";
     std::filesystem::create_directories(checkpoint_dir);
     TissLM::Training::Trainer trainer(model, optimizer, loss_function);
-    trainer.train(dataset, 3, 1, 100, checkpoint_dir);
+    trainer.train(dataset, 1, 1, 5, checkpoint_dir); // 1 epoch, batch 1, checkpoint every 5
     std::cout << "Training completed." << std::endl;
 }
 
