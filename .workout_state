@@ -2,31 +2,34 @@
   "stages": {
     "COMPILE_TISSDB": {
       "status": "COMPLETED",
-      "timestamp": "1773376486",
+      "timestamp": "1771258500",
       "metadata": {
-        "duration": 1,
-        "mem_mb": 353
+        "duration": 0,
+        "mem_mb": 351
       }
     },
     "START_TISSDB": {
       "status": "COMPLETED",
-      "timestamp": "1773376487",
-      "metadata": {}
+      "timestamp": "1771258500",
+      "metadata": {
+        "duration": 0,
+        "mem_mb": 351
+      }
     },
     "COMPILE_TRAINING": {
       "status": "COMPLETED",
-      "timestamp": "1773376489",
+      "timestamp": "1771258500",
       "metadata": {
-        "duration": 1,
-        "mem_mb": 355
+        "duration": 0,
+        "mem_mb": 350
       }
     },
     "RUN_TRAINING": {
       "status": "COMPLETED",
-      "timestamp": "1773376491",
+      "timestamp": "1771258500",
       "metadata": {
-        "duration": 1,
-        "mem_mb": 356
+        "duration": 0,
+        "mem_mb": 350
       }
     }
   }
