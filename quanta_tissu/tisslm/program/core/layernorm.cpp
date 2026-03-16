@@ -22,7 +22,7 @@ Matrix LayerNorm::forward(const Matrix& x) {
 
         for (size_t r = 0; r < x.rows(); ++r) {
             for (size_t c = 0; c < x.cols(); ++c) {
-                x_norm({r, c}) = (x({r, c}) - mean({r, 0})) / std_dev({r, 0});
+                x_norm({r, c}) = (x({r, c}) - mean({r, 0})) / (std_dev({r, 0}) + eps_);
             }
         }
 
@@ -47,7 +47,7 @@ Matrix LayerNorm::forward(const Matrix& x) {
         for (size_t i = 0; i < x.get_shape()[0]; ++i) {
             for (size_t j = 0; j < x.get_shape()[1]; ++j) {
                 for (size_t k = 0; k < x.get_shape()[2]; ++k) {
-                    x_norm({i, j, k}) = (x({i, j, k}) - mean({i, j, 0})) / std_dev({i, j, 0});
+                    x_norm({i, j, k}) = (x({i, j, k}) - mean({i, j, 0})) / (std_dev({i, j, 0}) + eps_);
                 }
             }
         }
@@ -97,7 +97,7 @@ Matrix LayerNorm::backward(const Matrix& d_out) {
     for (size_t r = 0; r < N; ++r) {
         for (size_t c = 0; c < D; ++c) {
             cache_centered({r, c}) = x_in({r, c}) - mean({r, 0});
-            x_norm({r, c}) = cache_centered({r, c}) / std_dev({r, 0});
+            x_norm({r, c}) = cache_centered({r, c}) / (std_dev({r, 0}) + eps_);
         }
     }
 
@@ -115,7 +115,7 @@ Matrix LayerNorm::backward(const Matrix& d_out) {
         }
     }
 
-    Matrix inv_std_dev = 1.0f / std_dev;
+    Matrix inv_std_dev = 1.0f / (std_dev + eps_);
     Matrix pow_var_term = Matrix::pow(var + eps_, -1.5f);
 
     Matrix dvar_sum_term = dx_norm * cache_centered;

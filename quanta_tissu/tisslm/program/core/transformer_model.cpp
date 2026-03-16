@@ -90,7 +90,7 @@ Matrix TransformerModel::forward(const Matrix& input_tokens, bool training) {
     // 1. Embedding layer
     std::vector<size_t> token_ids(input_tokens.cols());
     for (size_t i = 0; i < input_tokens.cols(); ++i) {
-        token_ids[i] = static_cast<size_t>(input_tokens({ {0, i} }));
+        token_ids[i] = static_cast<size_t>(input_tokens({ 0, i }));
     }
     cached_token_ids_ = token_ids; // Store for backward pass
     embedded_input_ = embedding_layer_.forward(token_ids);
@@ -102,17 +102,17 @@ Matrix TransformerModel::forward(const Matrix& input_tokens, bool training) {
     Matrix x({1, x_2d.rows(), x_2d.cols()});
     for (size_t r = 0; r < x_2d.rows(); ++r) {
         for (size_t c = 0; c < x_2d.cols(); ++c) {
-            x({ {0, r, c} }) = x_2d({ {r, c} });
+            x({ 0, r, c }) = x_2d({ r, c });
         }
     }
 
     // Create causal mask
     size_t seq_len = x.get_shape()[1];
     Matrix mask = Matrix::zeros({1, 1, seq_len, seq_len});
-    float neg_inf = -std::numeric_limits<float>::infinity();
+    float neg_inf = -1e9; // Use -1e9 instead of -inf to avoid NaN in Softmax
     for (size_t i = 0; i < seq_len; ++i) {
         for (size_t j = i + 1; j < seq_len; ++j) {
-            mask({0, 0, i, j}) = neg_inf;
+            mask({ 0, 0, i, j }) = neg_inf;
         }
     }
 
@@ -135,7 +135,7 @@ Matrix TransformerModel::forward(const Matrix& input_tokens, bool training) {
     Matrix output_2d({output_3d.get_shape()[1], output_3d.get_shape()[2]});
     for (size_t r = 0; r < output_2d.rows(); ++r) {
         for (size_t c = 0; c < output_2d.cols(); ++c) {
-            output_2d({ {r, c} }) = output_3d({ {0, r, c} });
+            output_2d({ r, c }) = output_3d({ 0, r, c });
         }
     }
 
@@ -151,7 +151,7 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
     // 1. Embedding layer
     std::vector<size_t> token_ids_inference(input_tokens.cols());
     for (size_t i = 0; i < input_tokens.cols(); ++i) {
-        token_ids_inference[i] = static_cast<size_t>(input_tokens({ {0, i} }));
+        token_ids_inference[i] = static_cast<size_t>(input_tokens({ 0, i }));
     }
     TissNum::Matrix x_2d = embedding_layer_.forward(token_ids_inference);
 
@@ -166,7 +166,7 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
     Matrix x({1, x_2d.rows(), x_2d.cols()});
     for (size_t r = 0; r < x_2d.rows(); ++r) {
         for (size_t c = 0; c < x_2d.cols(); ++c) {
-            x({ {0, r, c} }) = x_2d({ {r, c} });
+            x({ 0, r, c }) = x_2d({ r, c });
         }
     }
 
@@ -185,7 +185,7 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
         
         for (size_t i = 0; i < seq_len; ++i) {
             for (size_t j = past_len + i + 1; j < total_len; ++j) {
-                mask({0, 0, i, j}) = neg_inf;
+                mask({ 0, 0, i, j }) = neg_inf;
             }
         }
     }
@@ -216,7 +216,7 @@ Matrix TransformerModel::forward_inference(const Matrix& input_tokens, const std
     Matrix output_2d({output_3d.get_shape()[1], output_3d.get_shape()[2]});
     for (size_t r = 0; r < output_2d.rows(); ++r) {
         for (size_t c = 0; c < output_2d.cols(); ++c) {
-            output_2d({ {r, c} }) = output_3d({ {0, r, c} });
+            output_2d({ r, c }) = output_3d({ 0, r, c });
         }
     }
 
@@ -235,7 +235,7 @@ std::vector<std::vector<float>> TransformerModel::get_embeddings_as_vectors() co
         std::vector<float> row;
         row.reserve(embedding_matrix.cols());
         for (size_t j = 0; j < embedding_matrix.cols(); ++j) {
-            row.push_back(embedding_matrix({ {i, j} }));
+            row.push_back(embedding_matrix({ i, j }));
         }
         embeddings.push_back(row);
     }

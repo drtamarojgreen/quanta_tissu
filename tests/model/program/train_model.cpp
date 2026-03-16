@@ -75,6 +75,7 @@ void run_training() {
         768,  // embed_dim
         12,   // num_heads
         12,   // num_layers
+        3072, // d_ff (4 * embed_dim)
         0.1f, // dropout_rate
         4     // lora_rank
     );
