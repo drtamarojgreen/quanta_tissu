@@ -24,14 +24,22 @@ Matrix Dropout::forward(const Matrix& x, bool training) {
     }
 
     Matrix out = x * mask_;
-    out = out / (1.0f - p_);
+    if (p_ < 1.0f) {
+        out = out / (1.0f - p_);
+    } else {
+        out = out * 0.0f;
+    }
 
     return out;
 }
 
 Matrix Dropout::backward(const Matrix& d_out) {
     Matrix dx = d_out * mask_;
-    dx = dx / (1.0f - p_);
+    if (p_ < 1.0f) {
+        dx = dx / (1.0f - p_);
+    } else {
+        dx = dx * 0.0f;
+    }
     return dx;
 }
 
