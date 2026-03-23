@@ -27,7 +27,10 @@ MultiHeadAttention::MultiHeadAttention(size_t d_model, size_t num_heads, int lor
     }
 }
 
-// Placeholder for Softmax activation
+/**
+ * @brief Softmax activation function.
+ * Normalizes input values into a probability distribution.
+ */
 Matrix softmax(const Matrix& x, int axis = -1) {
     int actual_axis = axis;
     if (axis < 0) {

@@ -1,3 +1,11 @@
+/**
+ * @file rag_demo.cpp
+ * @brief Demonstration script for the RAG Pipeline.
+ * @warning This utility is for demonstration and testing purposes only.
+ * It uses default zero-embeddings for text-only examples and should not
+ * be used in production environments where real semantic vectors are required.
+ */
+
 #include "rag_pipeline.h"
 #include <iostream>
 #include <iomanip>
@@ -13,7 +21,6 @@ void demo_basic_rag() {
     std::cout << "\n=== Basic RAG Pipeline Demo ===" << std::endl;
     print_separator();
     
-    // Create pipeline with builder
     auto pipeline = RAGPipelineBuilder()
         .with_database("127.0.0.1", 9876, "rag_demo_db")
         .with_collection("knowledge_base")
@@ -21,7 +28,6 @@ void demo_basic_rag() {
         .with_similarity_threshold(0.1f)
         .build();
     
-    // Initialize
     std::cout << "Initializing pipeline..." << std::endl;
     if (!pipeline->initialize()) {
         std::cerr << "Failed to initialize pipeline!" << std::endl;
@@ -29,7 +35,6 @@ void demo_basic_rag() {
     }
     std::cout << "✓ Pipeline initialized" << std::endl;
     
-    // Add some documents with embeddings
     std::cout << "\nAdding documents to knowledge base..." << std::endl;
     
     std::vector<std::pair<std::string, std::vector<float>>> documents = {
@@ -46,9 +51,8 @@ void demo_basic_rag() {
                   << doc_id.substr(0, 8) << "...]" << std::endl;
     }
     
-    // Query the pipeline
     std::cout << "\n--- Querying Pipeline ---" << std::endl;
-    std::vector<float> query_embedding = {0.75f, 0.25f, 0.15f};  // Similar to France/Paris docs
+    std::vector<float> query_embedding = {0.75f, 0.25f, 0.15f};
     
     std::cout << "Query embedding: [" << query_embedding[0] << ", " 
               << query_embedding[1] << ", " << query_embedding[2] << "]" << std::endl;
@@ -64,7 +68,6 @@ void demo_basic_rag() {
         std::cout << "Content: " << results[i].document.content << std::endl;
     }
     
-    // Show statistics
     std::cout << "\n--- Pipeline Statistics ---" << std::endl;
     auto stats = pipeline->get_statistics();
     for (const auto& pair : stats) {
@@ -89,7 +92,6 @@ void demo_text_retrieval() {
         return;
     }
     
-    // Add documents (embeddings can be empty for text-only retrieval)
     std::cout << "Adding text documents..." << std::endl;
     
     std::vector<std::string> texts = {
@@ -100,12 +102,11 @@ void demo_text_retrieval() {
     };
     
     for (const auto& text : texts) {
-        std::vector<float> dummy_embedding = {0.0f};  // Placeholder
-        pipeline->add_document(text, dummy_embedding);
+        std::vector<float> empty_embedding = {0.0f};
+        pipeline->add_document(text, empty_embedding);
         std::cout << "  Added: " << text << std::endl;
     }
     
-    // Query using text
     std::cout << "\n--- Text Query ---" << std::endl;
     std::string query = "fox animal";
     std::cout << "Query: \"" << query << "\"" << std::endl;
@@ -128,7 +129,6 @@ void demo_hybrid_retrieval() {
     std::cout << "\n=== Hybrid Retrieval Demo ===" << std::endl;
     print_separator();
     
-    // Create hybrid strategy
     auto hybrid = std::make_shared<Retrieval::HybridStrategy>();
     hybrid->add_strategy(std::make_shared<Retrieval::CosineSimilarityStrategy>(), 0.7f);
     hybrid->add_strategy(std::make_shared<Retrieval::EuclideanDistanceStrategy>(), 0.3f);
@@ -147,7 +147,6 @@ void demo_hybrid_retrieval() {
     
     std::cout << "Using hybrid retrieval (70% Cosine + 30% Euclidean)" << std::endl;
     
-    // Add documents
     std::vector<std::pair<std::string, std::vector<float>>> documents = {
         {"Document about technology and innovation", {0.9f, 0.1f, 0.2f}},
         {"Document about nature and wildlife", {0.1f, 0.9f, 0.3f}},
@@ -158,7 +157,6 @@ void demo_hybrid_retrieval() {
         pipeline->add_document(doc.first, doc.second);
     }
     
-    // Query
     std::vector<float> query_embedding = {0.85f, 0.15f, 0.25f};
     auto results = pipeline->retrieve(query_embedding);
     
@@ -186,7 +184,6 @@ void demo_full_rag_query() {
         return;
     }
     
-    // Add knowledge base
     std::vector<std::pair<std::string, std::vector<float>>> kb = {
         {"TissDB is a high-performance NoSQL database written in C++.", {0.8f, 0.3f, 0.1f}},
         {"TissLM is a language model for the QuantaTissu project.", {0.7f, 0.4f, 0.2f}},
@@ -197,7 +194,6 @@ void demo_full_rag_query() {
         pipeline->add_document(doc.first, doc.second);
     }
     
-    // Full RAG query
     std::string query_text = "What is TissDB?";
     std::vector<float> query_embedding = {0.75f, 0.35f, 0.15f};
     
@@ -219,7 +215,6 @@ int main() {
     std::cout << std::string(70, '=') << std::endl;
     
     try {
-        // Run demos
         demo_basic_rag();
         demo_text_retrieval();
         demo_hybrid_retrieval();

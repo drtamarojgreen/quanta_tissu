@@ -1,94 +1,82 @@
 #include "ctisslm.h"
-#include "tokenizer.h" // Include the tokenizer header
-
+#include "tokenizer.h"
 #include <iostream>
-#include <map> // For config map
-
-// We will need a library to read .npz files. A common choice is cnpy.
-// The following include is a placeholder for the actual library.
-// #include "cnpy.h"
-
-// For now, these are stubs. We will add the actual implementation later.
+#include <map>
 
 namespace quanta_tissu {
 
-ctisslm::ctisslm() : is_model_loaded(false), is_tokenizer_loaded(false), model(nullptr), tokenizer(nullptr) {
-    // Initialization logic here
-    tokenizer = new Tokenizer(); // Initialize the tokenizer
+ctisslm::ctisslm() : is_model_loaded(false), is_tokenizer_loaded(false), model(nullptr) {
+    tokenizer_instance = new Tokenizer();
 }
 
 ctisslm::~ctisslm() {
-    // Cleanup logic here
     delete model;
-    delete tokenizer; // Clean up the tokenizer
+    delete static_cast<Tokenizer*>(tokenizer_instance);
 }
 
-bool ctisslm::load_model(const std::string& model_path) {
-    // In a real implementation, this would load the model files
-    // and prepare the model for inference.
-
-    // For now, we'll use hardcoded values for config
-    std::map<std::string, int> config;
-    config["vocab_size"] = 50257; // Example value
-    config["n_embd"] = 768;   // Example value
-    config["n_layer"] = 12;       // Example value
-    config["n_head"] = 12;        // Example value
-    config["d_ff"] = 3072; // Example value (usually 4 * n_embd)
-
-    model = new QuantaTissuModel(config);
-
-    // Use a library like cnpy to open the .npz file.
-    // #include "cnpy.h" // Uncomment when cnpy is available
+bool ctisslm::load_model(const std::string& path) {
+    std::ifstream ifs(path);
+    if (!ifs.is_open()) return false;
+    std::stringstream ss; ss << ifs.rdbuf(); ifs.close();
     try {
-        // cnpy::npz_t npz_file = cnpy::npz_load(model_path); // Uncomment when cnpy is available
-        std::cout << "Attempting to load model from " << model_path << " using cnpy (placeholder)." << std::endl;
-
-        // Iterate through the weights in the .npz file and load them
-        // into the corresponding layers of the model.
-        // This part assumes cnpy::npz_t behaves like a map from string to NpyArray
-        // and NpyArray has data() and shape members.
-
-        // Example of how to load a parameter (conceptual)
-        // if (npz_file.count("embeddings")) {
-        //     cnpy::NpyArray arr = npz_file["embeddings"];
-        //     if (arr.shape.size() == 2 && arr.shape[0] == model->embeddings.shape[0] && arr.shape[1] == model->embeddings.shape[1]) {
-        //         // Assuming data is double for now. Need to handle type conversion.
-        //         const double* data_ptr = reinterpret_cast<const double*>(arr.data);
-        //         std::copy(data_ptr, data_ptr + arr.num_bytes / sizeof(double), model->embeddings.value.begin());
-        //         std::cout << "Loaded embeddings." << std::endl;
-        //     } else {
-        //         std::cerr << "Shape mismatch for embeddings." << std::endl;
-        //     }
-        // }
-
-        // Similar logic for output_proj and all transformer block parameters
-        // (Wq, Wk, Wo, W1, b1, W2, b2, gamma, beta)
-
-        // Example for a transformer block parameter (conceptual)
-        // for (size_t i = 0; i < model->transformer_blocks.size(); ++i) {
-        //     std::string block_name = "transformer_blocks." + std::to_string(i);
-        //     // Load Wq
-        //     std::string wq_name = block_name + ".mha.Wq";
-        //     if (npz_file.count(wq_name)) {
-        //         cnpy::NpyArray arr = npz_file[wq_name];
-        //         // ... copy data to model->transformer_blocks[i].mha.Wq.value
-        //     }
-        //     // ... and so on for other parameters in the block
-        // }
-
-        std::cout << "Model weights loading logic implemented (requires cnpy)." << std::endl;
+        auto root = TissDB::Json::JsonValue::parse(ss.str());
+        auto config_obj = root.as_object().at("config").as_object();
+        std::map<std::string, int> config;
+        for (const auto& pair : config_obj) config[pair.first] = (int)pair.second.as_number();
+        model = new QuantaTissuModel(config);
+        auto weights = root.as_object().at("weights").as_object();
+        auto load_param = [&](Parameter& p, const std::string& name) {
+            auto arr = weights.at(name).as_array();
+            for (size_t i = 0; i < p.value.size(); ++i) p.value[i] = arr[i].as_number();
+        };
+        load_param(model->embeddings, "embeddings");
+        load_param(model->output_proj, "output_proj");
+        for (size_t i = 0; i < model->transformer_blocks.size(); ++i) {
+            std::string b = "blk." + std::to_string(i);
+            load_param(model->transformer_blocks[i].mha.Wq, b + ".mha.Wq");
+            load_param(model->transformer_blocks[i].mha.Wk, b + ".mha.Wk");
+            load_param(model->transformer_blocks[i].mha.Wv, b + ".mha.Wv");
+            load_param(model->transformer_blocks[i].mha.Wo, b + ".mha.Wo");
+            load_param(model->transformer_blocks[i].ffn.W1, b + ".ffn.W1");
+            load_param(model->transformer_blocks[i].ffn.W2, b + ".ffn.W2");
+        }
         is_model_loaded = true;
-    } catch (const std::exception& e) {
-        std::cerr << "Error loading model: " << e.what() << std::endl;
-        is_model_loaded = false;
-    }
+    } catch (...) { is_model_loaded = false; }
     return is_model_loaded;
 }
 
+bool ctisslm::save_model(const std::string& path) {
+    if (!model) return false;
+    TissDB::Json::JsonObject root, weights, config;
+    auto save_param = [&](const Parameter& p, const std::string& name) {
+        TissDB::Json::JsonArray arr;
+        for (auto v : p.value) arr.push_back(v);
+        weights[name] = arr;
+    };
+    save_param(model->embeddings, "embeddings");
+    save_param(model->output_proj, "output_proj");
+    for (size_t i = 0; i < model->transformer_blocks.size(); ++i) {
+        std::string b = "blk." + std::to_string(i);
+        save_param(model->transformer_blocks[i].mha.Wq, b + ".mha.Wq");
+        save_param(model->transformer_blocks[i].mha.Wk, b + ".mha.Wk");
+        save_param(model->transformer_blocks[i].mha.Wv, b + ".mha.Wv");
+        save_param(model->transformer_blocks[i].mha.Wo, b + ".mha.Wo");
+        save_param(model->transformer_blocks[i].ffn.W1, b + ".ffn.W1");
+        save_param(model->transformer_blocks[i].ffn.W2, b + ".ffn.W2");
+    }
+    // Note: Re-constructing config from model is simplified for this implementation
+    config["vocab_size"] = (double)model->embeddings.shape[0];
+    config["n_embd"] = (double)model->embeddings.shape[1];
+    config["n_layer"] = (double)model->transformer_blocks.size();
+    root["config"] = config; root["weights"] = weights;
+    std::ofstream ofs(path);
+    if (ofs.is_open()) { ofs << TissDB::Json::JsonValue(root).serialize(); ofs.close(); return true; }
+    return false;
+}
+
 bool ctisslm::load_tokenizer(const std::string& tokenizer_path) {
-    // In a real implementation, this would load the tokenizer files.
-    if (tokenizer) {
-        tokenizer->bpe_tokenizer.load(tokenizer_path); // Load the BPE tokenizer
+    if (tokenizer_instance) {
+        static_cast<Tokenizer*>(tokenizer_instance)->bpe_tokenizer.load(tokenizer_path);
         is_tokenizer_loaded = true;
         return true;
     }
@@ -96,26 +84,22 @@ bool ctisslm::load_tokenizer(const std::string& tokenizer_path) {
 }
 
 std::string ctisslm::generate(const std::string& prompt, const GenerationConfig& config) {
-    if (!is_model_loaded) {
-        return "Error: Model not loaded.";
+    if (!is_model_loaded || !is_tokenizer_loaded) return "Error: Model or Tokenizer not loaded.";
+    auto* tokenizer = static_cast<Tokenizer*>(tokenizer_instance);
+    std::vector<int> tokens = tokenizer->tokenize(prompt);
+    for (int i = 0; i < config.max_length; ++i) {
+        std::vector<double> logits = model->forward(tokens);
+        size_t vocab_size = model->output_proj.shape[1];
+        size_t last_token_start = (tokens.size() - 1) * vocab_size;
+        int next_token = 0;
+        double max_logit = -1e9;
+        for (size_t v = 0; v < vocab_size; ++v) {
+            if (logits[last_token_start + v] > max_logit) { max_logit = logits[last_token_start + v]; next_token = v; }
+        }
+        tokens.push_back(next_token);
+        if (next_token == 0) break;
     }
-    if (!is_tokenizer_loaded) {
-        return "Error: Tokenizer not loaded.";
-    }
-
-    // This is where the actual text generation logic would go.
-    // It would use the parameters from the config struct.
-    // Example: tokenize prompt, then generate
-    std::vector<int> token_ids = tokenizer->tokenize(prompt);
-    std::cout << "Tokenized prompt: ";
-    for (int id : token_ids) {
-        std::cout << id << " ";
-    }
-    std::cout << std::endl;
-
-    // Placeholder for actual generation
-    return "Generated text for prompt: " + prompt;
+    return tokenizer->detokenize(tokens);
 }
 
-
-} // namespace quanta_tissu
+}
