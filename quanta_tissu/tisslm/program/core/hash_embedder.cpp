@@ -1,18 +1,21 @@
-#include "mock_embedder.h"
-#include <functional> // For std::hash
+/**
+ * @file hash_embedder.cpp
+ * @brief Implementation of a hash-based deterministic embedding generator.
+ */
+
+#include "hash_embedder.h"
+#include <functional>
 
 namespace TissDB {
 namespace TissLM {
 namespace Core {
 
-MockEmbedder::MockEmbedder(size_t embedding_dim)
+HashEmbedder::HashEmbedder(size_t embedding_dim)
     : embedding_dim_(embedding_dim) {
-    // Initialize RNG with a seed based on current time or a fixed value for reproducibility
     rng_.seed(std::chrono::system_clock::now().time_since_epoch().count());
 }
 
-TissNum::Matrix MockEmbedder::embed(const std::string& text) {
-    // Use a simple hash-based deterministic mock embedding
+TissNum::Matrix HashEmbedder::embed(const std::string& text) {
     std::hash<std::string> hasher;
     size_t seed = hasher(text);
     rng_.seed(seed);
@@ -25,6 +28,6 @@ TissNum::Matrix MockEmbedder::embed(const std::string& text) {
     return embedding;
 }
 
-} // namespace Core
-} // namespace TissLM
-} // namespace TissDB
+}
+}
+}

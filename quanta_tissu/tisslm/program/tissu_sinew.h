@@ -162,7 +162,7 @@ public:
 
     /**
      * @brief Runs a parameterized query.
-     * @param query The TissQL query string with placeholders (e.g., $name).
+     * @param query The TissQL query string with parameters (e.g., $name).
      * @param params A map of parameter names to their values.
      * @return A unique pointer to a TissuResult object.
      */

@@ -4,7 +4,9 @@
 
 namespace TissNum {
 
-// Placeholder for ReLU activation
+/**
+ * @brief Rectified Linear Unit (ReLU) activation.
+ */
 Matrix relu(const Matrix& x) {
     Matrix result(x.get_shape());
     if (x.get_shape().size() == 2) {
@@ -27,7 +29,9 @@ Matrix relu(const Matrix& x) {
     return result;
 }
 
-// Placeholder for ReLU backward
+/**
+ * @brief Gradient of the ReLU activation.
+ */
 Matrix relu_backward(const Matrix& d_out, const Matrix& x) {
     Matrix result(x.get_shape());
     if (x.get_shape().size() == 2) {

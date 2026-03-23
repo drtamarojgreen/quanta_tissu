@@ -112,7 +112,29 @@ TissDB::Document TissDBClient::get_document(const std::string& collection, const
 }
 
 std::map<std::string, std::string> TissDBClient::get_stats() {
-    return {}; // Dummy stats
+    std::map<std::string, std::string> stats;
+    stats["host"] = host_;
+    stats["port"] = std::to_string(port_);
+    stats["database"] = db_name_;
+    stats["base_url"] = base_url_;
+
+    try {
+        std::string response = http_client_->get(base_url_ + "/_stats");
+        TissDB::Json::JsonValue json = TissDB::Json::JsonValue::parse(response);
+        if (json.is_object()) {
+            for (const auto& pair : json.as_object()) {
+                if (pair.second.is_string()) {
+                    stats[pair.first] = pair.second.as_string();
+                } else if (pair.second.is_number()) {
+                    stats[pair.first] = std::to_string(pair.second.as_number());
+                }
+            }
+        }
+    } catch (...) {
+        stats["server_status"] = "offline";
+    }
+
+    return stats;
 }
 
 void TissDBClient::delete_database() {
