@@ -9,7 +9,7 @@
 #include <sstream>
 #include <algorithm>
 #include <stdexcept>
-#include "../../../../tissdb/json/json.h"
+#include "tissdb/json/json.h"
 
 namespace quanta_tissu {
 

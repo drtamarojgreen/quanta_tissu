@@ -11,7 +11,7 @@
 #include <ctime>
 #include <algorithm>
 #include "../db/tissdb_client.h"
-#include "../../../../tissdb/json/json.h"
+#include "tissdb/json/json.h"
 
 #ifdef _WIN32
 #include <windows.h>
