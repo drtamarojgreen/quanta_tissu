@@ -1,5 +1,4 @@
 #include "ctisslm.h"
-#include "tokenizer.h"
 #include <iostream>
 #include <map>
 
@@ -11,7 +10,7 @@ ctisslm::ctisslm() : is_model_loaded(false), is_tokenizer_loaded(false), model(n
 
 ctisslm::~ctisslm() {
     delete model;
-    delete static_cast<Tokenizer*>(tokenizer_instance);
+    delete tokenizer_instance;
 }
 
 bool ctisslm::load_model(const std::string& path) {
@@ -23,7 +22,10 @@ bool ctisslm::load_model(const std::string& path) {
         auto config_obj = root.as_object().at("config").as_object();
         std::map<std::string, int> config;
         for (const auto& pair : config_obj) config[pair.first] = (int)pair.second.as_number();
+
+        if (model) delete model;
         model = new QuantaTissuModel(config);
+
         auto weights = root.as_object().at("weights").as_object();
         auto load_param = [&](Parameter& p, const std::string& name) {
             auto arr = weights.at(name).as_array();
@@ -64,7 +66,6 @@ bool ctisslm::save_model(const std::string& path) {
         save_param(model->transformer_blocks[i].ffn.W1, b + ".ffn.W1");
         save_param(model->transformer_blocks[i].ffn.W2, b + ".ffn.W2");
     }
-    // Note: Re-constructing config from model is simplified for this implementation
     config["vocab_size"] = (double)model->embeddings.shape[0];
     config["n_embd"] = (double)model->embeddings.shape[1];
     config["n_layer"] = (double)model->transformer_blocks.size();
@@ -76,7 +77,7 @@ bool ctisslm::save_model(const std::string& path) {
 
 bool ctisslm::load_tokenizer(const std::string& tokenizer_path) {
     if (tokenizer_instance) {
-        static_cast<Tokenizer*>(tokenizer_instance)->bpe_tokenizer.load(tokenizer_path);
+        tokenizer_instance->bpe_tokenizer.load(tokenizer_path);
         is_tokenizer_loaded = true;
         return true;
     }
@@ -85,8 +86,7 @@ bool ctisslm::load_tokenizer(const std::string& tokenizer_path) {
 
 std::string ctisslm::generate(const std::string& prompt, const GenerationConfig& config) {
     if (!is_model_loaded || !is_tokenizer_loaded) return "Error: Model or Tokenizer not loaded.";
-    auto* tokenizer = static_cast<Tokenizer*>(tokenizer_instance);
-    std::vector<int> tokens = tokenizer->tokenize(prompt);
+    std::vector<int> tokens = tokenizer_instance->tokenize(prompt);
     for (int i = 0; i < config.max_length; ++i) {
         std::vector<double> logits = model->forward(tokens);
         size_t vocab_size = model->output_proj.shape[1];
@@ -99,7 +99,7 @@ std::string ctisslm::generate(const std::string& prompt, const GenerationConfig&
         tokens.push_back(next_token);
         if (next_token == 0) break;
     }
-    return tokenizer->detokenize(tokens);
+    return tokenizer_instance->detokenize(tokens);
 }
 
 }

@@ -2,7 +2,7 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
-#include "../../../../tissdb/json/json.h"
+#include "tissdb/json/json.h"
 
 namespace cllm {
 
@@ -35,6 +35,33 @@ Eigen::MatrixXf Model::forward(const std::vector<int>& input_tokens) {
     return x * output_layer_weight_.transpose();
 }
 
+float Model::train_step(const std::vector<int>& inputs, const std::vector<int>& targets, float lr) {
+    // Basic training step implementation for cllm::Model
+    Eigen::MatrixXf logits = forward(inputs);
+    int seq_len = inputs.size();
+    float total_loss = 0.0f;
+
+    // Cross-Entropy Loss and Gradient Calculation
+    Eigen::MatrixXf d_logits = logits;
+    for (int i = 0; i < seq_len; ++i) {
+        Eigen::VectorXf row = logits.row(i);
+        float max_val = row.maxCoeff();
+        Eigen::VectorXf exp_row = (row.array() - max_val).exp();
+        float sum_exp = exp_row.sum();
+        Eigen::VectorXf probs = exp_row / sum_exp;
+
+        total_loss -= std::log(probs(targets[i]) + 1e-9f);
+        probs(targets[i]) -= 1.0f;
+        d_logits.row(i) = probs / seq_len;
+    }
+
+    // Simplified SGD update (weight updates only for example)
+    // Note: Real training would require full backprop through all layers.
+    output_layer_weight_ -= lr * (d_logits.transpose() * forward(inputs)).transpose();
+
+    return total_loss / seq_len;
+}
+
 bool Model::load_weights(const std::string& path) {
     std::ifstream ifs(path); if (!ifs.is_open()) return false;
     std::stringstream ss; ss << ifs.rdbuf(); ifs.close();
@@ -49,7 +76,7 @@ bool Model::load_weights(const std::string& path) {
             for (int i = 0; i < vec.size(); ++i) vec(i) = arr[i].as_number();
         };
         load_mat(token_embeddings_, "tok_emb"); load_mat(output_layer_weight_, "out_w");
-        for (int i = 0; i < config_.n_layers; ++i) {
+        for (int i = 0; i < (int)layers_.size(); ++i) {
             std::string b = "blk." + std::to_string(i);
             load_mat(layers_[i]->attention().Wq(), b + ".attn.Wq"); load_mat(layers_[i]->attention().Wk(), b + ".attn.Wk");
             load_mat(layers_[i]->attention().Wv(), b + ".attn.Wv"); load_mat(layers_[i]->attention().Wo(), b + ".attn.Wo");
@@ -75,7 +102,7 @@ bool Model::save_weights(const std::string& path) {
         root[key] = arr;
     };
     save_mat(token_embeddings_, "tok_emb"); save_mat(output_layer_weight_, "out_w");
-    for (int i = 0; i < config_.n_layers; ++i) {
+    for (int i = 0; i < (int)layers_.size(); ++i) {
         std::string b = "blk." + std::to_string(i);
         save_mat(layers_[i]->attention().Wq(), b + ".attn.Wq"); save_mat(layers_[i]->attention().Wk(), b + ".attn.Wk");
         save_mat(layers_[i]->attention().Wv(), b + ".attn.Wv"); save_mat(layers_[i]->attention().Wo(), b + ".attn.Wo");

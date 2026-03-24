@@ -6,6 +6,7 @@
 #include <map>
 #include "layers.h"
 #include "parameter.h"
+#include "tokenizer.h"
 
 namespace quanta_tissu {
 
@@ -68,7 +69,6 @@ public:
     }
 
     std::vector<double> backward(const std::vector<double>& d_out, const std::vector<double>& cache) {
-        // Simple sequential backward assuming cache stores intermediates
         std::vector<double> d_resid2 = d_out;
         std::vector<double> d_ffn = ffn.backward(d_resid2, cache);
         std::vector<double> d_ln2 = ln2.backward(d_ffn, cache);
@@ -132,7 +132,7 @@ public:
     void backward(const std::vector<double>& d_logits, const std::vector<double>& cache_x, const std::vector<int>& token_ids) {
         size_t seq_len = token_ids.size(), d_model = embeddings.shape[1], vocab_size = output_proj.shape[1];
         std::vector<double> dx(seq_len * d_model, 0.0);
-        // 1. Output proj backward
+
         for (size_t i = 0; i < seq_len; ++i) {
             for (size_t v = 0; v < vocab_size; ++v) {
                 for (size_t j = 0; j < d_model; ++j) {
@@ -141,12 +141,16 @@ public:
                 }
             }
         }
-        // 2. Transformer blocks backward
-        for (int i = transformer_blocks.size() - 1; i >= 0; --i) dx = transformer_blocks[i].backward(dx, cache_x);
-        // 3. Positional encoding and Embedding backward
+
+        for (int i = (int)transformer_blocks.size() - 1; i >= 0; --i) {
+            dx = transformer_blocks[i].backward(dx, cache_x);
+        }
+
         dx = pos_encoding.backward(dx);
         for (size_t i = 0; i < seq_len; ++i) {
-            for (size_t j = 0; j < d_model; ++j) embeddings.grad[token_ids[i] * d_model + j] += dx[i * d_model + j];
+            for (size_t j = 0; j < d_model; ++j) {
+                embeddings.grad[token_ids[i] * d_model + j] += dx[i * d_model + j];
+            }
         }
     }
 
@@ -170,7 +174,7 @@ public:
 private:
     bool is_model_loaded, is_tokenizer_loaded;
     QuantaTissuModel* model;
-    void* tokenizer_instance;
+    Tokenizer* tokenizer_instance;
 };
 
 }

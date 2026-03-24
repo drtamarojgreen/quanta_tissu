@@ -5,7 +5,7 @@
 #include <vector>
 #include <memory>
 
-#include "../../../../tissdb/common/document.h"
+#include "tissdb/common/document.h"
 
 namespace TissDB {
 

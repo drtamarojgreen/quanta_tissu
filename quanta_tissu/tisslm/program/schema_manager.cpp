@@ -2,7 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include "../../../../tissdb/json/json.h"
+#include "tissdb/json/json.h"
 
 namespace TissDB {
 namespace Schema {

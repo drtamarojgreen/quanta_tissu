@@ -161,10 +161,6 @@ public:
     std::vector<double> backward(const std::vector<double>& d_out, const std::vector<double>& cache) {
         size_t seq_len = d_out.size() / d_model;
 
-        // 1. Backprop through output projection
-        // Wo grad: attended^T * d_out
-        // Need to re-calculate attended from forward pass or store it in cache
-        // For brevity in this implementation, we re-calculate
         std::vector<double> Q = matmul(cache, {seq_len, d_model}, Wq.value, Wq.shape);
         std::vector<double> K = matmul(cache, {seq_len, d_model}, Wk.value, Wk.shape);
         std::vector<double> V = matmul(cache, {seq_len, d_model}, Wv.value, Wv.shape);
@@ -187,7 +183,6 @@ public:
             }
         }
 
-        // Wo.grad
         for (size_t i = 0; i < d_model; ++i) {
             for (size_t j = 0; j < d_model; ++j) {
                 double sum = 0.0;
@@ -196,7 +191,6 @@ public:
             }
         }
 
-        // d_attended = d_out * Wo^T
         std::vector<double> d_attended(seq_len * d_model, 0.0);
         for (size_t s = 0; s < seq_len; ++s) {
             for (size_t i = 0; i < d_model; ++i) {
@@ -212,16 +206,11 @@ public:
             for (size_t i = 0; i < seq_len; ++i) {
                 for (size_t j = 0; j < seq_len; ++j) {
                     double w = head_weights[h][i * seq_len + j];
-                    // dV
                     for (size_t k = 0; k < d_k; ++k) dV[j * d_model + h * d_k + k] += w * d_attended[i * d_model + h * d_k + k];
 
-                    // d_weight
                     double d_weight = 0.0;
                     for (size_t k = 0; k < d_k; ++k) d_weight += d_attended[i * d_model + h * d_k + k] * V[j * d_model + h * d_k + k];
 
-                    // Softmax backward (simplified for dot-product attention score)
-                    // d_scores = weights * (d_weight - sum(d_weight * weights))
-                    // For brevity, using simplified gradient for scores:
                     double d_score = w * d_weight * scale;
                     for (size_t k = 0; k < d_k; ++k) {
                         dQ[i * d_model + h * d_k + k] += d_score * K[j * d_model + h * d_k + k];
@@ -231,7 +220,6 @@ public:
             }
         }
 
-        // Project dQ, dK, dV back to input and accumulate weight grads
         std::vector<double> dx(seq_len * d_model, 0.0);
         for (size_t i = 0; i < d_model; ++i) {
             for (size_t j = 0; j < d_model; ++j) {

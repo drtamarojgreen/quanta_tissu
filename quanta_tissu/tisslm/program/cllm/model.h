@@ -13,6 +13,7 @@ class Model {
 public:
     explicit Model(const ModelConfig& config);
     Eigen::MatrixXf forward(const std::vector<int>& input_tokens);
+    float train_step(const std::vector<int>& inputs, const std::vector<int>& targets, float lr);
 
     bool load_weights(const std::string& path);
     bool save_weights(const std::string& path);
