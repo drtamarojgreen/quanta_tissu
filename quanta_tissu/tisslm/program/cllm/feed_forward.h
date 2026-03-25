@@ -10,6 +10,7 @@ class FeedForward {
 public:
     explicit FeedForward(const ModelConfig& config);
     Eigen::MatrixXf forward(const Eigen::MatrixXf& input);
+    Eigen::MatrixXf backward(const Eigen::MatrixXf& d_out, const Eigen::MatrixXf& x, float lr);
 
     Eigen::MatrixXf& weight1() { return weight1_; }
     Eigen::VectorXf& bias1() { return bias1_; }

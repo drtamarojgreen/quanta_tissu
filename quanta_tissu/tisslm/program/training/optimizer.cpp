@@ -38,7 +38,7 @@ void Adam::save_state(std::ofstream& ofs) const {
         auto sh = m.get_shape(); size_t shs = sh.size();
         ofs.write(reinterpret_cast<const char*>(&shs), sizeof(shs));
         ofs.write(reinterpret_cast<const char*>(sh.data()), shs * sizeof(size_t));
-        size_t ds = m.size(); ofs.write(reinterpret_cast<const char*>(&ds), sizeof(ds));
+        size_t ds = m.data_size(); ofs.write(reinterpret_cast<const char*>(&ds), sizeof(ds));
         ofs.write(reinterpret_cast<const char*>(m.get_data()), ds * sizeof(float));
     }
     sz = v_.size(); ofs.write(reinterpret_cast<const char*>(&sz), sizeof(sz));
@@ -46,7 +46,7 @@ void Adam::save_state(std::ofstream& ofs) const {
         auto sh = m.get_shape(); size_t shs = sh.size();
         ofs.write(reinterpret_cast<const char*>(&shs), sizeof(shs));
         ofs.write(reinterpret_cast<const char*>(sh.data()), shs * sizeof(size_t));
-        size_t ds = m.size(); ofs.write(reinterpret_cast<const char*>(&ds), sizeof(ds));
+        size_t ds = m.data_size(); ofs.write(reinterpret_cast<const char*>(&ds), sizeof(ds));
         ofs.write(reinterpret_cast<const char*>(m.get_data()), ds * sizeof(float));
     }
 }

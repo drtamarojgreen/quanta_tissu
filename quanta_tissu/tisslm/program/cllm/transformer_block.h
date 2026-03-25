@@ -13,6 +13,7 @@ class TransformerBlock {
 public:
     explicit TransformerBlock(const ModelConfig& config);
     Eigen::MatrixXf forward(const Eigen::MatrixXf& input);
+    Eigen::MatrixXf backward(const Eigen::MatrixXf& d_out, const Eigen::MatrixXf& input, float lr);
 
     MultiHeadAttention& attention() { return *attention_; }
     FeedForward& ffn() { return *ffn_; }
@@ -23,6 +24,7 @@ public:
 
 private:
     Eigen::MatrixXf layer_norm(const Eigen::MatrixXf& input, const Eigen::VectorXf& gamma, const Eigen::VectorXf& beta);
+    Eigen::MatrixXf layer_norm_backward(const Eigen::MatrixXf& d_out, const Eigen::MatrixXf& input, const Eigen::VectorXf& gamma, const Eigen::VectorXf& beta, Eigen::VectorXf& d_gamma, Eigen::VectorXf& d_beta);
     ModelConfig config_;
     std::unique_ptr<MultiHeadAttention> attention_;
     std::unique_ptr<FeedForward> ffn_;
