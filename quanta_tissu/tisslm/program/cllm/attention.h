@@ -10,6 +10,7 @@ class MultiHeadAttention {
 public:
     explicit MultiHeadAttention(const ModelConfig& config);
     Eigen::MatrixXf forward(const Eigen::MatrixXf& input);
+    Eigen::MatrixXf backward(const Eigen::MatrixXf& d_out, const Eigen::MatrixXf& input, float lr);
 
     Eigen::MatrixXf& Wq() { return Wq_; }
     Eigen::MatrixXf& Wk() { return Wk_; }

@@ -55,9 +55,27 @@ float Model::train_step(const std::vector<int>& inputs, const std::vector<int>& 
         d_logits.row(i) = probs / seq_len;
     }
 
-    // Simplified SGD update (weight updates only for example)
-    // Note: Real training would require full backprop through all layers.
-    output_layer_weight_ -= lr * (d_logits.transpose() * forward(inputs)).transpose();
+    // Full Backpropagation
+    Eigen::MatrixXf x(seq_len, config_.d_model);
+    for (int i = 0; i < seq_len; ++i) x.row(i) = token_embeddings_.row(inputs[i]);
+    add_positional_encoding(x);
+
+    std::vector<Eigen::MatrixXf> layer_inputs;
+    layer_inputs.push_back(x);
+    for (auto& layer : layers_) {
+        x = layer->forward(x);
+        layer_inputs.push_back(x);
+    }
+
+    Eigen::MatrixXf d_output_w = d_logits.transpose() * x;
+    Eigen::MatrixXf d_x = d_logits * output_layer_weight_;
+    output_layer_weight_ -= lr * d_output_w;
+
+    for (int i = (int)layers_.size() - 1; i >= 0; --i) {
+        d_x = layers_[i]->backward(d_x, layer_inputs[i], lr);
+    }
+
+    for (int i = 0; i < seq_len; ++i) token_embeddings_.row(inputs[i]) -= lr * d_x.row(i);
 
     return total_loss / seq_len;
 }

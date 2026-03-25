@@ -47,35 +47,33 @@ void QuantaTissu::train_step(const std::string& text, float& loss) {
     std::vector<int> targets(tokens.begin() + 1, tokens.end());
 
     // 1. Forward pass
-    std::vector<double> logits = model_->forward(inputs);
+    Matrix logits = model_->forward(inputs);
 
     // 2. Compute loss and d_logits
     float total_loss = 0.0f;
-    std::vector<double> d_logits(logits.size(), 0.0);
+    Matrix d_logits(logits.rows(), logits.cols());
     size_t vocab_size = config_.vocab_size;
 
     for (size_t i = 0; i < inputs.size(); ++i) {
-        double max_l = logits[i * vocab_size];
-        for (size_t v = 1; v < vocab_size; ++v) max_l = std::max(max_l, logits[i * vocab_size + v]);
+        float max_l = logits({i, 0});
+        for (size_t v = 1; v < vocab_size; ++v) if (logits({i, v}) > max_l) max_l = logits({i, v});
 
-        double sum_exp = 0.0;
-        for (size_t v = 0; v < vocab_size; ++v) sum_exp += std::exp(logits[i * vocab_size + v] - max_l);
+        float sum_exp = 0.0f;
+        for (size_t v = 0; v < vocab_size; ++v) sum_exp += std::exp(logits({i, v}) - max_l);
 
-        double target_logit = logits[i * vocab_size + targets[i]];
+        float target_logit = logits({i, (size_t)targets[i]});
         total_loss -= (target_logit - max_l - std::log(sum_exp));
 
         for (size_t v = 0; v < vocab_size; ++v) {
-            double prob = std::exp(logits[i * vocab_size + v] - max_l) / sum_exp;
-            d_logits[i * vocab_size + v] = (v == (size_t)targets[i]) ? (prob - 1.0) : prob;
-            d_logits[i * vocab_size + v] /= inputs.size();
+            float prob = std::exp(logits({i, v}) - max_l) / sum_exp;
+            d_logits({i, v}) = (v == (size_t)targets[i]) ? (prob - 1.0f) : prob;
+            d_logits({i, v}) /= inputs.size();
         }
     }
     loss = total_loss / inputs.size();
 
     // 3. Backward pass
-    // Use the model output cache (approximated as input embeddings for this facade's scope)
-    // In a real pass, the model stores intermediate activations.
-    model_->backward(d_logits, {}, inputs);
+    model_->backward(d_logits, inputs);
 }
 
 void QuantaTissu::train(const std::string& text, float& final_loss) {
@@ -83,23 +81,27 @@ void QuantaTissu::train(const std::string& text, float& final_loss) {
     train_step(text, final_loss);
 
     // 4. Parameter update (SGD)
-    for (auto p : model_->parameters()) {
-        for (size_t i = 0; i < p->value.size(); ++i) {
-            p->value[i] -= lr * p->grad[i];
+    auto params = model_->parameters();
+    auto grads = model_->gradients();
+    for (size_t i = 0; i < params.size(); ++i) {
+        Matrix& p = *params[i];
+        Matrix& g = *grads[i];
+        for (size_t j = 0; j < p.size(); ++j) {
+            p.get_data()[j] -= lr * g.get_data()[j];
+            g.get_data()[j] = 0.0f; // Zero grad
         }
-        p->zero_grad();
     }
 }
 
 std::string QuantaTissu::generate(const std::string& prompt, size_t max_len) {
     auto tokens = tokenizer_->encode(prompt);
     for (size_t i = 0; i < max_len; ++i) {
-        std::vector<double> logits = model_->forward(tokens);
+        Matrix logits = model_->forward(tokens);
         size_t last_idx = tokens.size() - 1;
-        int next_token = 0; double max_l = -1e9;
+        int next_token = 0; float max_l = -1e9;
         for (int v = 0; v < config_.vocab_size; ++v) {
-            if (logits[last_idx * config_.vocab_size + v] > max_l) {
-                max_l = logits[last_idx * config_.vocab_size + v]; next_token = v;
+            if (logits({last_idx, (size_t)v}) > max_l) {
+                max_l = logits({last_idx, (size_t)v}); next_token = v;
             }
         }
         if (next_token < 32 || next_token > 126) next_token = 32 + (next_token % 94);
