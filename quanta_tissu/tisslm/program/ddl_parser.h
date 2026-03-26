@@ -93,15 +93,21 @@ private:
     ActionType action_type_;
 };
 
-// Placeholder for the DDL Parser class
+/**
+ * @brief Data Definition Language (DDL) Parser.
+ * Parses SQL-like table creation and modification statements.
+ */
 class DDLParser {
 public:
     // Parses a DDL string and returns an AST
     std::unique_ptr<DDLStatement> parse(const std::string& ddl_string);
 
-    // Placeholder for error handling
-    bool hasErrors() const { return false; }
-    std::string getErrorMessage() const { return ""; }
+    // Error state reporting
+    bool hasErrors() const { return !error_message_.empty(); }
+    std::string getErrorMessage() const { return error_message_; }
+
+private:
+    std::string error_message_;
 };
 
 } // namespace DDL

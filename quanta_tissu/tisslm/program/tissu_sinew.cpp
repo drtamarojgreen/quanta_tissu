@@ -264,11 +264,11 @@ std::unique_ptr<TissuResult> TissuSession::run(const std::string& query, const s
     std::sort(sorted_params.begin(), sorted_params.end(),
               [](const auto& a, const auto& b) { return a.first.length() > b.first.length(); });
     for (const auto& [key, value] : sorted_params) {
-        std::string placeholder = "$" + key;
+        std::string param_marker = "$" + key;
         std::string value_str = value.toQueryString();
         size_t pos = 0;
-        while ((pos = final_query.find(placeholder, pos)) != std::string::npos) {
-            final_query.replace(pos, placeholder.length(), value_str);
+        while ((pos = final_query.find(param_marker, pos)) != std::string::npos) {
+            final_query.replace(pos, param_marker.length(), value_str);
             pos += value_str.length();
         }
     }

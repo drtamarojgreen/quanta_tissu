@@ -4,176 +4,85 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
-
-#include "../tokenizer/tokenizer.h"
-#include "../core/transformer_model.h"
+#include <filesystem>
+#include "quanta_tissu/tisslm/program/tokenizer/tokenizer.h"
+#include "quanta_tissu/tisslm/program/core/transformer_model.h"
 #include "loss_function.h"
 #include "optimizer.h"
 #include "dataset.h"
 #include "trainer.h"
 
-#include <filesystem>
-
 namespace fs = std::filesystem;
 
 std::string load_corpus(const std::string& path) {
-    std::string content;
-    
-    std::cout << "Debug: Current working directory: " << fs::current_path() << std::endl;
-    std::cout << "Debug: Input path: " << path << std::endl;
-    try {
-        std::cout << "Debug: Absolute path: " << fs::absolute(path) << std::endl;
-        std::cout << "Debug: Exists: " << (fs::exists(path) ? "Yes" : "No") << std::endl;
-        std::cout << "Debug: Is directory: " << (fs::is_directory(path) ? "Yes" : "No") << std::endl;
-    } catch (const fs::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << std::endl;
-    }
-
+    std::string res;
     if (fs::is_directory(path)) {
-        std::cout << "Loading corpus from directory: " << path << std::endl;
-        int file_count = 0;
         for (const auto& entry : fs::recursive_directory_iterator(path)) {
             if (entry.is_regular_file()) {
-                std::ifstream file(entry.path());
-                if (file.is_open()) {
-                    std::stringstream buffer;
-                    buffer << file.rdbuf();
-                    content += buffer.str() + "\n"; // Add newline between files
-                    file_count++;
-                } else {
-                    std::cerr << "Warning: Could not open file " << entry.path() << std::endl;
-                }
+                std::ifstream f(entry.path());
+                if (f.is_open()) { std::stringstream b; b << f.rdbuf(); res += b.str() + "\n"; }
             }
         }
-        std::cout << "Loaded " << file_count << " files from " << path << std::endl;
     } else {
-        std::cout << "Loading corpus from file: " << path << std::endl;
-        std::ifstream file(path);
-        if (!file.is_open()) {
-            std::cerr << "Error: Could not open corpus file " << path << std::endl;
-            return "";
-        }
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        content = buffer.str();
+        std::ifstream f(path);
+        if (f.is_open()) { std::stringstream b; b << f.rdbuf(); res = b.str(); }
     }
-    
-    std::cout << "Total corpus size: " << content.size() << " bytes" << std::endl;
-    return content;
+    return res;
 }
 
 int main(int argc, char* argv[]) {
-    std::string CORPUS_PATH = "corpus/corpus.txt"; // Default
-    if (argc > 1) {
-        CORPUS_PATH = argv[1];
+    std::string path = "corpus/corpus.txt";
+    if (argc > 1) path = argv[1];
+    const std::string dir = "training_output";
+    const int vs = 5000, sl = 128, bz = 32, ep = 5;
+    const float lr = 1e-3f;
+
+    std::string corpus = load_corpus(path);
+    if (corpus.empty()) return 1;
+
+    auto tokenizer = std::make_unique<TissLM::Tokenizer::Tokenizer>("");
+    std::string t_pref = dir + "/tokenizer";
+    if (fs::exists(t_pref + "_vocab.json")) tokenizer = std::make_unique<TissLM::Tokenizer::Tokenizer>(t_pref);
+    else {
+        tokenizer->train(corpus, vs, true);
+        fs::create_directories(dir);
+        tokenizer->save(t_pref);
     }
 
-    const std::string SAVE_DIR = "training_output";
-    const int VOCAB_SIZE = 5000;
-    const int SEQ_LEN = 128;
-    const int BATCH_SIZE = 32;
-    const int EPOCHS = 5; // Increased for better convergence
-    const float LEARNING_RATE = 1e-3f;
+    std::vector<int> ids = tokenizer->encode(corpus);
+    if (ids.size() > 10000) ids.resize(10000);
+    TissLM::Training::TokenDataset ds(ids, sl);
 
-    // 1. Load corpus
-    std::string corpus = load_corpus(CORPUS_PATH);
-    if (corpus.empty()) {
-        std::cerr << "Error: Corpus is empty or could not be loaded from " << CORPUS_PATH << std::endl;
-        return 1;
-    }
+    auto model = std::make_shared<TissLM::Core::TransformerModel>(vs, sl, 128, 4, 2, 512, 0.1f);
+    auto loss = std::make_shared<TissLM::Training::CrossEntropyLoss>();
+    auto opt = std::make_shared<TissLM::Training::Adam>(lr);
+    TissLM::Training::Trainer trainer(model, opt, loss);
 
-    // 2. Train or Load tokenizer
-    std::unique_ptr<TissLM::Tokenizer::Tokenizer> tokenizer;
-    std::string tokenizer_prefix = SAVE_DIR + "/tokenizer";
-    
-    if (fs::exists(tokenizer_prefix + "_vocab.json")) {
-        std::cout << "Loading existing tokenizer from " << tokenizer_prefix << std::endl;
-        tokenizer = std::make_unique<TissLM::Tokenizer::Tokenizer>(tokenizer_prefix);
-    } else {
-        std::cout << "Training tokenizer..." << std::endl;
-        tokenizer = std::make_unique<TissLM::Tokenizer::Tokenizer>("");
-        tokenizer->train(corpus, VOCAB_SIZE, true);
-        // Create save directory
-        std::string mkdir_cmd = "mkdir -p " + SAVE_DIR;
-        system(mkdir_cmd.c_str());
-        tokenizer->save(tokenizer_prefix);
-    }
-
-    // 3. Create dataset
-    std::vector<int> token_ids = tokenizer->encode(corpus);
-    
-    // Limit dataset size for verification purposes
-    if (token_ids.size() > 10000) {
-        std::cout << "Limiting dataset to 10,000 tokens for verification." << std::endl;
-        token_ids.resize(10000);
-    }
-
-    TissLM::Training::TokenDataset dataset(token_ids, SEQ_LEN);
-
-    // 4. Create model, loss, and optimizer
-    // TransformerModel(vocab_size, max_seq_len, embed_dim, num_heads, num_layers, d_ff, dropout_rate)
-    int d_ff = 128 * 4; // Usually 4 * embed_dim
-    auto model = std::make_shared<TissLM::Core::TransformerModel>(VOCAB_SIZE, SEQ_LEN, 128, 4, 2, d_ff, 0.1f);
-    auto loss_fn = std::make_shared<TissLM::Training::CrossEntropyLoss>();
-    auto optimizer = std::make_shared<TissLM::Training::Adam>(LEARNING_RATE);
-
-    // 5. Create trainer and train
-    TissLM::Training::Trainer trainer(model, optimizer, loss_fn);
-    
-    std::string final_model_path = SAVE_DIR + "/final_model.pt";
-    
-    if (fs::exists(final_model_path)) {
-        std::cout << "Found existing model at " << final_model_path << ". Loading..." << std::endl;
-        trainer.load_checkpoint(final_model_path);
-    } else {
-        for (int epoch = 0; epoch < EPOCHS; ++epoch) {
-            std::cout << "Starting Epoch " << epoch + 1 << "/" << EPOCHS << std::endl;
-            trainer.train(dataset, 1, BATCH_SIZE);
-
-            std::string checkpoint_path = SAVE_DIR + "/checkpoint_epoch_" + std::to_string(epoch + 1) + ".pt";
-            trainer.save_checkpoint(checkpoint_path);
-            std::cout << "Saved checkpoint: " << checkpoint_path << std::endl;
+    std::string final_p = dir + "/final_model.pt";
+    if (fs::exists(final_p)) trainer.load_checkpoint(final_p);
+    else {
+        for (int i = 0; i < ep; ++i) {
+            trainer.train(ds, 1, bz);
+            trainer.save_checkpoint(dir + "/checkpoint_" + std::to_string(i + 1) + ".pt");
         }
-        trainer.save_checkpoint(final_model_path);
-        std::cout << "Training complete. Final model saved: " << final_model_path << std::endl;
+        trainer.save_checkpoint(final_p);
     }
 
-    // 6. Generate text
-    std::string prompt = "The quick brown fox";
-    std::cout << "\nGenerating text for prompt: '" << prompt << "'" << std::endl;
-    std::vector<int> input_ids = tokenizer->encode(prompt);
-    
-    std::cout << "Debug: Encoded prompt IDs: ";
-    for (int id : input_ids) std::cout << id << " ";
-    std::cout << std::endl;
-
+    std::string p = "The quick brown fox";
+    std::vector<int> iids = tokenizer->encode(p);
     for (int i = 0; i < 20; ++i) {
-        TissNum::Matrix input_mat({1, input_ids.size()});
-        for(size_t j=0; j<input_ids.size(); ++j) {
-            input_mat({0, j}) = (float)input_ids[j];
+        TissNum::Matrix in({1, iids.size()});
+        for(size_t j=0; j<iids.size(); ++j) in({0, j}) = (float)iids[j];
+        TissNum::Matrix l = model->forward(in, false);
+        size_t lti = iids.size() - 1;
+        float ml = -1e9; int bi = 0;
+        for (int v = 0; v < vs; ++v) {
+            float val = l({lti, (size_t)v});
+            if (val > ml) { ml = val; bi = v; }
         }
-
-        TissNum::Matrix logits = model->forward(input_mat, false);
-
-        size_t last_token_idx = input_ids.size() - 1;
-        float max_logit = -1e9;
-        int best_token_id = 0;
-
-        for (int v = 0; v < VOCAB_SIZE; ++v) {
-            // Logits are 2D: [seq_len, vocab_size] because forward() removes batch dim
-            float val = logits({last_token_idx, (size_t)v});
-            if (val > max_logit) {
-                max_logit = val;
-                best_token_id = v;
-            }
-        }
-
-        input_ids.push_back(best_token_id);
-        std::string decoded_token = tokenizer->decode({best_token_id});
-        std::cout << "Debug: Step " << i << ", Best Token ID: " << best_token_id << ", Logit: " << max_logit << ", Decoded: '" << decoded_token << "'" << std::endl;
-        // std::cout << decoded_token << std::flush;
+        iids.push_back(bi);
+        std::cout << tokenizer->decode({bi}) << std::flush;
     }
     std::cout << std::endl;
-
     return 0;
 }

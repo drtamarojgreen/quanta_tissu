@@ -103,11 +103,13 @@ void HttpClient::close_socket(int sock) {
 }
 
 void HttpClient::parse_url(const std::string& url, std::string& host, int& port, std::string& path) {
-    // Simplified URL parsing
+    // Robust URL parsing for TissDB interaction
     std::string temp = url;
-    if (temp.rfind("http://", 0) == 0) {
-        temp = temp.substr(7);
+    size_t protocol_pos = temp.find("://");
+    if (protocol_pos != std::string::npos) {
+        temp = temp.substr(protocol_pos + 3);
     }
+
     size_t path_pos = temp.find('/');
     if (path_pos != std::string::npos) {
         host = temp.substr(0, path_pos);
@@ -116,9 +118,14 @@ void HttpClient::parse_url(const std::string& url, std::string& host, int& port,
         host = temp;
         path = "/";
     }
+
     size_t port_pos = host.find(':');
     if (port_pos != std::string::npos) {
-        port = std::stoi(host.substr(port_pos + 1));
+        try {
+            port = std::stoi(host.substr(port_pos + 1));
+        } catch (...) {
+            port = 80;
+        }
         host = host.substr(0, port_pos);
     } else {
         port = 80;

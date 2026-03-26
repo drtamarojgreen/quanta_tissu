@@ -10,6 +10,7 @@ public:
     Model(int vocab_size, int d_model, int n_layer, int n_head, int d_ff);
 
     Matrix forward(const std::vector<int>& token_ids);
+    void backward(const Matrix& d_logits, const std::vector<int>& token_ids);
     size_t get_parameter_count() const {
         size_t count = embeddings.size() + output_proj.size();
         for (const auto& block : transformer_blocks) count += block.get_parameter_count();
@@ -17,11 +18,16 @@ public:
     }
     size_t get_layer_count() const { return transformer_blocks.size(); }
 
+    std::vector<Matrix*> parameters();
+    std::vector<Matrix*> gradients();
+
 private:
     Matrix embeddings;
     Matrix positional_encoding;
     std::vector<TransformerBlock> transformer_blocks;
     Matrix output_proj;
+    Matrix d_embeddings;
+    Matrix d_output_proj;
 
     Matrix create_positional_encoding(int max_len, int d_model);
 };

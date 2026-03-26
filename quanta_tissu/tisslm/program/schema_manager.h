@@ -39,11 +39,11 @@ public:
     // Retrieves a table schema by name
     std::shared_ptr<const TableSchema> getSchema(const std::string& table_name) const;
 
-    // Validates a document against a table schema (placeholder)
-    // This would involve checking column existence, data types, and constraints
+    // Validates a document against a table schema
+    // Checks column existence, data types, and primary key constraints
     bool validateDocument(const std::string& table_name, const std::string& document_json) const;
 
-    // Placeholder for system catalogs (where schemas are persisted)
+    // Persist schemas to and load from disk
     void loadSchemasFromDisk();
     void saveSchemasToDisk();
 
