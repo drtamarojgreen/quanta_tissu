@@ -8,7 +8,7 @@
 #include <QMap>
 #include <QFile>
 #include <QTextStream>
-#include <QCoreApplication> // For argument handling
+#include <QCoreApplication>
 
 // Include the TissLinter class from the parent directory
 #include "../TissLinter.h"
@@ -22,7 +22,6 @@ void print_usage(const char* prog_name) {
 }
 
 int main(int argc, char *argv[]) {
-    // A mock QApplication is needed for some Qt features, even in a console app
     QCoreApplication app(argc, argv);
     QStringList args = QCoreApplication::arguments();
 
@@ -31,7 +30,6 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // Filter out the program name and any options to get the list of files
     QList<QString> files_to_lint;
     for (int i = 1; i < args.size(); ++i) {
         if (!args.at(i).startsWith("-")) {
@@ -88,7 +86,7 @@ int main(int argc, char *argv[]) {
 
     if (total_errors > 0) {
         std::cout << "\nLinting complete. Found " << total_errors << " error(s)." << std::endl;
-        return 1; // Exit with error code if issues were found
+        return 1;
     }
 
     std::cout << "\nLinting complete. No errors found." << std::endl;

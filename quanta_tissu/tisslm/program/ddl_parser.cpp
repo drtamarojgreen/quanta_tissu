@@ -2,48 +2,71 @@
 #include <iostream>
 #include <regex>
 #include <vector>
+#include <algorithm>
 
 namespace TissDB {
 namespace DDL {
 
-std::unique_ptr<DDLStatement> DDLParser::parse(const std::string& ddl_string) {
-    std::cout << "DDLParser: Parsing query: " << ddl_string << std::endl;
+static std::string trim(std::string s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) { return !std::isspace(ch); }));
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), s.end());
+    return s;
+}
 
-    // 1. Check for CREATE TABLE
+std::unique_ptr<DDLStatement> DDLParser::parse(const std::string& ddl_string) {
+    error_message_.clear();
+
     std::regex create_re(R"(CREATE\s+TABLE\s+(\w+)\s*\((.*)\))", std::regex::icase);
     std::smatch match;
     if (std::regex_search(ddl_string, match, create_re)) {
         std::string table_name = match[1];
         std::string columns_part = match[2];
-
         std::vector<ColumnDefinition> columns;
-        // Simple column parsing: "id INT, name STRING"
-        std::regex col_re(R"((\w+)\s+(\w+))");
-        auto words_begin = std::sregex_iterator(columns_part.begin(), columns_part.end(), col_re);
-        auto words_end = std::sregex_iterator();
-
-        for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-            std::smatch col_match = *i;
-            ColumnDefinition col;
-            col.name = col_match[1];
-            std::string type_str = col_match[2];
+        std::stringstream ss(columns_part);
+        std::string col_def_str;
+        while (std::getline(ss, col_def_str, ',')) {
+            col_def_str = trim(col_def_str);
+            if (col_def_str.empty()) continue;
+            std::stringstream col_ss(col_def_str);
+            std::string name, type_str;
+            col_ss >> name >> type_str;
+            std::transform(type_str.begin(), type_str.end(), type_str.begin(), ::toupper);
+            ColumnDefinition col; col.name = name;
             if (type_str == "INT") col.type = DataType::INT;
             else if (type_str == "STRING") col.type = DataType::STRING;
-            else col.type = DataType::STRING; // Default
+            else if (type_str == "BOOL") col.type = DataType::BOOL;
+            else if (type_str == "FLOAT") col.type = DataType::FLOAT;
+            else if (type_str == "DATETIME") col.type = DataType::DATETIME;
+            else { error_message_ = "Unknown data type: " + type_str; return nullptr; }
+            std::string constraint;
+            while (col_ss >> constraint) {
+                std::transform(constraint.begin(), constraint.end(), constraint.begin(), ::toupper);
+                if (constraint == "PRIMARY") { std::string key; col_ss >> key; col.constraints.push_back(ColumnConstraint::PRIMARY_KEY); }
+                else if (constraint == "NOT") { std::string n; col_ss >> n; col.constraints.push_back(ColumnConstraint::NOT_NULL); }
+                else if (constraint == "UNIQUE") { col.constraints.push_back(ColumnConstraint::UNIQUE); }
+            }
             columns.push_back(col);
         }
-
         return std::make_unique<CreateTableStatement>(table_name, columns);
     }
 
-    // 2. Check for DROP TABLE
     std::regex drop_re(R"(DROP\s+TABLE\s+(\w+))", std::regex::icase);
     if (std::regex_search(ddl_string, match, drop_re)) {
         return std::make_unique<DropTableStatement>(match[1]);
     }
 
+    std::regex alter_re(R"(ALTER\s+TABLE\s+(\w+)\s+(ADD|DROP)\s+COLUMN\s+(.*))", std::regex::icase);
+    if (std::regex_search(ddl_string, match, alter_re)) {
+        std::string table_name = match[1];
+        std::string action = match[2];
+        std::transform(action.begin(), action.end(), action.begin(), ::toupper);
+        AlterTableStatement::ActionType action_type = (action == "ADD") ? AlterTableStatement::ActionType::ADD_COLUMN : AlterTableStatement::ActionType::DROP_COLUMN;
+        return std::make_unique<AlterTableStatement>(table_name, action_type);
+    }
+
+    error_message_ = "Failed to parse DDL statement.";
     return nullptr;
 }
 
-} // namespace DDL
-} // namespace TissDB
+}
+}

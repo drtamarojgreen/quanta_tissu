@@ -27,7 +27,10 @@ MultiHeadAttention::MultiHeadAttention(size_t d_model, size_t num_heads, int lor
     }
 }
 
-// Placeholder for Softmax activation
+/**
+ * @brief Softmax activation function.
+ * Normalizes input values into a probability distribution.
+ */
 Matrix softmax(const Matrix& x, int axis = -1) {
     int actual_axis = axis;
     if (axis < 0) {
@@ -197,25 +200,7 @@ Matrix MultiHeadAttention::backward(const Matrix& d_out) {
     Matrix d_scaled_attention_output = split_heads(d_merged_output);
 
     // Backpropagate through the scaled dot-product attention.
-    // d_scaled_attention_output: (B, H, Lq, Dh)
-    // cached_v_: (B, H, Lk, Dh)
-    // d_attention_weights = d_out * v^T -> (B, H, Lq, Lk)
-    /*
-    std::cout << "d_scaled_attention_output shape: ";
-    for (auto s : d_scaled_attention_output.get_shape()) std::cout << s << " ";
-    std::cout << std::endl;
-    std::cout << "cached_v_ shape: ";
-    for (auto s : cached_v_.get_shape()) std::cout << s << " ";
-    std::cout << std::endl;
-    */
     Matrix d_attention_weights = Matrix::batch_matmul(d_scaled_attention_output, cached_v_.transpose(2, 3));
-    
-    // d_v = attn_weights^T * d_out -> (B, H, Lk, Dh)
-    /*
-    std::cout << "cached_attn_weights_ shape: ";
-    for (auto s : cached_attn_weights_.get_shape()) std::cout << s << " ";
-    std::cout << std::endl;
-    */
     Matrix d_v_attention = Matrix::batch_matmul(cached_attn_weights_.transpose(2, 3), d_scaled_attention_output);
 
     Matrix d_scores = softmax_backward(d_attention_weights, cached_attn_weights_);
@@ -224,35 +209,14 @@ Matrix MultiHeadAttention::backward(const Matrix& d_out) {
     Matrix d_scores_scaled = d_scores / scale;
 
     // d_q = d_scores * k -> (B, H, Lq, Dh)
-    /*
-    std::cout << "d_scores_scaled shape: ";
-    for (auto s : d_scores_scaled.get_shape()) std::cout << s << " ";
-    std::cout << std::endl;
-    std::cout << "cached_k_ shape: ";
-    for (auto s : cached_k_.get_shape()) std::cout << s << " ";
-    std::cout << std::endl;
-    */
     Matrix d_q_attention = Matrix::batch_matmul(d_scores_scaled, cached_k_);
     
     // d_k = d_scores^T * q -> (B, H, Lk, Dh)
-    // NOTE: We need the projected Q here, not the input Q. 
-    // But for now, let's fix the shape issue first.
-    // We will re-project cached_q_ to get Q.
     Matrix q_proj = Matrix::matmul(cached_q_, w_q_.value());
     if (use_lora_) {
          q_proj = q_proj + Matrix::matmul(Matrix::matmul(cached_q_, w_q_lora_a_.value().value()), w_q_lora_b_.value().value());
     }
     Matrix q_split = split_heads(q_proj);
-    
-    /*
-    std::cout << "d_scores_scaled.T shape: ";
-    for (auto s : d_scores_scaled.transpose(2, 3).get_shape()) std::cout << s << " ";
-    std::cout << std::endl;
-    std::cout << "q_split shape: ";
-    for (auto s : q_split.get_shape()) std::cout << s << " ";
-    std::cout << std::endl;
-    */
-
     Matrix d_k_attention = Matrix::batch_matmul(d_scores_scaled.transpose(2, 3), q_split);
     
     // Backpropagate through split_heads.
@@ -271,16 +235,10 @@ Matrix MultiHeadAttention::backward(const Matrix& d_out) {
     }
 
     // Backpropagate through the input projections.
-    // cached_q_in_: (B, L, D)
-    // d_q_proj: (B, L, D)
     Matrix cached_q_reshaped = cached_q_.reshape({batch_size * seq_len, d_model_});
     Matrix d_q_proj_reshaped = d_q_proj.reshape({batch_size * seq_len, d_model_});
     w_q_.grad() = Matrix::matmul(cached_q_reshaped.transpose(), d_q_proj_reshaped);
 
-    // Handle K and V gradients using cached_k_in_ and cached_v_in_
-    // Note: For MQA, d_k_proj is (B, L, HeadDim), but w_k_ is (D, HeadDim).
-    // cached_k_in_ is (B, L, D).
-    // So we reshape cached_k_in_ to (B*L, D) and d_k_proj to (B*L, HeadDim).
     size_t k_dim = (mode_ == AttentionMode::MULTI_QUERY) ? head_dim_ : d_model_;
     
     Matrix cached_k_reshaped = cached_k_in_.reshape({batch_size * seq_len, d_model_});
@@ -295,17 +253,6 @@ Matrix MultiHeadAttention::backward(const Matrix& d_out) {
 
     if (use_lora_) {
         // Backpropagate through LoRA layers
-        // This part also needs reshaping fixes if LoRA is used, but for now focusing on main path.
-        // Assuming LoRA implementation handles shapes correctly or is not tested here.
-        // But to be safe, let's apply similar reshaping logic.
-        
-        Matrix d_lora_q_b = Matrix::matmul(cached_q_reshaped.transpose(), d_q_proj_reshaped); // This is w_q_lora_a * input * w_q_lora_b... wait logic is complex.
-        // Simplified: d_q_proj is the gradient at the output of the LoRA block (added to main path).
-        // LoRA path: input -> A -> B -> output.
-        // d_output = d_q_proj.
-        // d_B = A_out^T * d_output. A_out = input * A.
-        // d_A = input^T * d_A_out. d_A_out = d_output * B^T.
-        
         Matrix lora_a_out = Matrix::matmul(cached_q_reshaped, w_q_lora_a_.value().value());
         Matrix d_lora_q_b_grad = Matrix::matmul(lora_a_out.transpose(), d_q_proj_reshaped);
         w_q_lora_b_->grad() = d_lora_q_b_grad;
@@ -314,7 +261,6 @@ Matrix MultiHeadAttention::backward(const Matrix& d_out) {
         Matrix d_lora_q_a_grad = Matrix::matmul(cached_q_reshaped.transpose(), d_lora_q_a_out);
         w_q_lora_a_->grad() = d_lora_q_a_grad;
 
-        // Similar for V
         Matrix lora_v_a_out = Matrix::matmul(cached_v_reshaped, w_v_lora_a_.value().value());
         Matrix d_lora_v_b_grad = Matrix::matmul(lora_v_a_out.transpose(), d_v_proj_reshaped);
         w_v_lora_b_->grad() = d_lora_v_b_grad;
@@ -349,4 +295,4 @@ std::vector<Parameter*> MultiHeadAttention::parameters() {
     return params;
 }
 
-} // namespace TissNum
+}

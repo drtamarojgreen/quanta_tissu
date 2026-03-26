@@ -30,4 +30,24 @@ Eigen::MatrixXf FeedForward::forward(const Eigen::MatrixXf& input) {
     return output;
 }
 
+Eigen::MatrixXf FeedForward::backward(const Eigen::MatrixXf& d_out, const Eigen::MatrixXf& x, float lr) {
+    Eigen::MatrixXf z = (x * weight1_.transpose()).rowwise() + bias1_.transpose();
+    Eigen::MatrixXf h = z.cwiseMax(0);
+
+    Eigen::MatrixXf d_weight2 = d_out.transpose() * h;
+    Eigen::VectorXf d_bias2 = d_out.colwise().sum();
+    Eigen::MatrixXf d_h = d_out * weight2_;
+
+    Eigen::MatrixXf d_z = (z.array() > 0).cast<float>().matrix().cwiseProduct(d_h);
+    Eigen::MatrixXf d_weight1 = d_z.transpose() * x;
+    Eigen::VectorXf d_bias1 = d_z.colwise().sum();
+
+    weight1_ -= lr * d_weight1;
+    bias1_ -= lr * d_bias1;
+    weight2_ -= lr * d_weight2;
+    bias2_ -= lr * d_bias2;
+
+    return d_z * weight1_;
+}
+
 } // namespace cllm

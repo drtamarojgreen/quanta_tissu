@@ -12,27 +12,20 @@ namespace cllm {
 class Model {
 public:
     explicit Model(const ModelConfig& config);
-
-    // Performs the full forward pass for the model.
-    // Takes a vector of token IDs and returns logits over the vocabulary.
     Eigen::MatrixXf forward(const std::vector<int>& input_tokens);
+    float train_step(const std::vector<int>& inputs, const std::vector<int>& targets, float lr);
+
+    bool load_weights(const std::string& path);
+    bool save_weights(const std::string& path);
 
 private:
-    // Helper for positional encoding
     void add_positional_encoding(Eigen::MatrixXf& input);
-
     ModelConfig config_;
-
-    // Token embedding lookup table
     Eigen::MatrixXf token_embeddings_;
-
-    // Transformer blocks
     std::vector<std::unique_ptr<TransformerBlock>> layers_;
-
-    // Final linear layer to project to vocab size
     Eigen::MatrixXf output_layer_weight_;
 };
 
-} // namespace cllm
+}
 
 #endif // CLLM_MODEL_H
