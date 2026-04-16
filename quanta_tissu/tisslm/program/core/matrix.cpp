@@ -1,4 +1,5 @@
 #include "matrix.h"
+#include "tests/model/analyzer/error_handler.hpp"
 #include <random>
 #include <algorithm>
 #include <numeric>
@@ -119,7 +120,14 @@ Matrix Matrix::transpose(int dim1, int dim2) const {
 Matrix Matrix::operator+(const Matrix& other) const { return broadcast_op(other, std::plus<float>()); }
 Matrix Matrix::operator-(const Matrix& other) const { return broadcast_op(other, std::minus<float>()); }
 Matrix Matrix::operator*(const Matrix& other) const { return broadcast_op(other, std::multiplies<float>()); }
-Matrix Matrix::operator/(const Matrix& other) const { return broadcast_op(other, std::divides<float>()); }
+Matrix Matrix::operator/(const Matrix& other) const {
+    return broadcast_op(other, [](float a, float b) {
+        if (b == 0.0f) {
+            RMA_ERROR_VAL(rma::ErrorType::FLOAT_PRECISION, b, "Matrix division by zero");
+        }
+        return a / b;
+    });
+}
 
 Matrix Matrix::matmul(const Matrix& a, const Matrix& b) {
     if (a.get_shape().size() == 2 && b.get_shape().size() == 2) {
@@ -216,15 +224,30 @@ Matrix Matrix::exp(const Matrix& m) {
 Matrix Matrix::operator+(float s) const { Matrix r(shape_); for(size_t i=0; i<data_.size(); ++i) r.data_[i]=data_[i]+s; return r; }
 Matrix Matrix::operator-(float s) const { Matrix r(shape_); for(size_t i=0; i<data_.size(); ++i) r.data_[i]=data_[i]-s; return r; }
 Matrix Matrix::operator*(float s) const { Matrix r(shape_); for(size_t i=0; i<data_.size(); ++i) r.data_[i]=data_[i]*s; return r; }
-Matrix Matrix::operator/(float s) const { if(s==0.0f) throw std::invalid_argument("Div 0"); Matrix r(shape_); for(size_t i=0; i<data_.size(); ++i) r.data_[i]=data_[i]/s; return r; }
+Matrix Matrix::operator/(float s) const {
+    if(s==0.0f) {
+        RMA_ERROR_VAL(rma::ErrorType::FLOAT_PRECISION, s, "Matrix scalar division by zero");
+        throw std::invalid_argument("Div 0");
+    }
+    Matrix r(shape_); for(size_t i=0; i<data_.size(); ++i) r.data_[i]=data_[i]/s; return r;
+}
 
 Matrix operator/(float s, const Matrix& m) {
-    Matrix r(m.shape_); for (size_t i = 0; i < m.data_.size(); ++i) { if(m.data_[i]==0.0f) throw std::invalid_argument("Div 0"); r.data_[i]=s/m.data_[i]; }
+    Matrix r(m.shape_);
+    for (size_t i = 0; i < m.data_.size(); ++i) {
+        if(m.data_[i]==0.0f) {
+            RMA_ERROR_VAL(rma::ErrorType::FLOAT_PRECISION, m.data_[i], "Matrix scalar division by zero element");
+            throw std::invalid_argument("Div 0");
+        }
+        r.data_[i]=s/m.data_[i];
+    }
     return r;
 }
 
 Matrix Matrix::element_wise_product(const Matrix& o) const { return (*this) * o; }
-Matrix Matrix::element_wise_division(const Matrix& o) const { return (*this) / o; }
+Matrix Matrix::element_wise_division(const Matrix& o) const {
+    return (*this) / o;
+}
 Matrix Matrix::element_wise_sqrt() const {
     Matrix r(shape_); for (size_t i = 0; i < data_.size(); ++i) { if(data_[i]<0.0f) throw std::invalid_argument("Sqrt neg"); r.data_[i] = std::sqrt(data_[i]); }
     return r;

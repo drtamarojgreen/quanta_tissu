@@ -1,4 +1,5 @@
 #include "loss_function.h"
+#include "tests/model/analyzer/error_handler.hpp"
 #include <algorithm>
 #include <limits>
 #include <cmath>
@@ -18,6 +19,9 @@ Matrix CrossEntropyLoss::softmax(const Matrix& input) {
             output({r, c}) = std::exp(output({r, c}) - max_val);
             sum_exp += output({r, c});
         }
+        if (sum_exp == 0.0f) {
+            RMA_ERROR_VAL(rma::ErrorType::FLOAT_PRECISION, sum_exp, "Softmax sum_exp is zero");
+        }
         for (size_t c = 0; c < output.cols(); ++c) output({r, c}) /= sum_exp;
     }
     return output;
@@ -30,7 +34,11 @@ float CrossEntropyLoss::compute_loss(const Matrix& predictions, const Matrix& ta
         int t = static_cast<int>(targets({r, 0}));
         loss -= std::log(sm({r, (size_t)t}) + 1e-9f);
     }
-    return loss / predictions.rows();
+    float final_loss = loss / predictions.rows();
+    if (std::isnan(final_loss) || std::isinf(final_loss)) {
+        RMA_ERROR_VAL(rma::ErrorType::FLOAT_PRECISION, (double)final_loss, "NaN or Inf loss detected");
+    }
+    return final_loss;
 }
 
 Matrix CrossEntropyLoss::compute_gradient(const Matrix& predictions, const Matrix& targets) {

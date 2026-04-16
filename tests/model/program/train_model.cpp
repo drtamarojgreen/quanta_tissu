@@ -4,6 +4,7 @@
 #include "quanta_tissu/tisslm/program/training/dataset.h"
 #include "quanta_tissu/tisslm/program/training/optimizer.h"
 #include "quanta_tissu/tisslm/program/training/loss_function.h"
+#include "tests/model/analyzer/error_handler.hpp"
 #include "config/TestConfig.h"
 
 #include <iostream>
@@ -85,6 +86,7 @@ void run_training() {
 
     // --- 5. Run Training ---
     std::cout << "[5/5] Starting training..." << std::endl;
+
     const std::string checkpoint_dir = "checkpoints";
     std::filesystem::create_directories(checkpoint_dir);
     TissLM::Training::Trainer trainer(model, optimizer, loss_function);
@@ -92,7 +94,16 @@ void run_training() {
     std::cout << "Training completed." << std::endl;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    uint32_t session_id = 0;
+    if (argc > 1) {
+        session_id = static_cast<uint32_t>(std::atoi(argv[1]));
+    }
+
+    if (!RMA_INIT(session_id)) {
+        std::cerr << "Warning: Could not initialize error handler." << std::endl;
+    }
+
     try {
         run_training();
         return 0;

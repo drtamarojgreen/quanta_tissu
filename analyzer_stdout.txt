@@ -1,0 +1,63 @@
+Waiting for host session 42... (30 retries left)
+Waiting for host session 42... (29 retries left)
+Waiting for host session 42... (28 retries left)
+Waiting for host session 42... (27 retries left)
+Waiting for host session 42... (26 retries left)
+Waiting for host session 42... (25 retries left)
+Waiting for host session 42... (24 retries left)
+Waiting for host session 42... (23 retries left)
+Waiting for host session 42... (22 retries left)
+Waiting for host session 42... (21 retries left)
+Waiting for host session 42... (20 retries left)
+Waiting for host session 42... (19 retries left)
+Waiting for host session 42... (18 retries left)
+Waiting for host session 42... (17 retries left)
+Waiting for host session 42... (16 retries left)
+Waiting for host session 42... (15 retries left)
+Waiting for host session 42... (14 retries left)
+Waiting for host session 42... (13 retries left)
+Waiting for host session 42... (12 retries left)
+Waiting for host session 42... (11 retries left)
+Waiting for host session 42... (10 retries left)
+Waiting for host session 42... (9 retries left)
+Waiting for host session 42... (8 retries left)
+Waiting for host session 42... (7 retries left)
+Waiting for host session 42... (6 retries left)
+Waiting for host session 42... (5 retries left)
+=== Runtime Model Analyzer ===
+Connected to session: 42
+Logging to: analyzer_log.txt
+
+
+--- Filter Status (press key to toggle) ---
+  [0] LOGIC_BUG        ON
+  [1] OUT_OF_BOUNDS    ON
+  [2] NULL_POINTER     ON
+  [3] FLOAT_PRECISION  ON
+  [4] ILLEGAL_INDENT   ON
+  [5] UNCLOSED_STRING  ON
+  [6] UNDEFINED_OBJ    ON
+  [7] UNDEFINED_METHOD ON
+  [8] ILLEGAL_KEYWORD  ON
+  [9] MISSING_OPERATOR ON
+  [a] DEBUG_INFO       ON
+  [b] WARNING          ON
+  [c] INFO             ON
+  [d] FATAL            ON
+  [e] CUSTOM           ON
+  [A] Enable ALL
+  [Z] Disable ALL
+  [H] Show this help
+  [Q] Quit analyzer
+-------------------------------------------
+
+
+Shutting down...
+
+
+=== Benchmark Report ===
+dequeue             : count=   216  avg=100.1851ms  min=100.0906ms  max=100.3122ms  total=21639.98ms
+rpc_receive         : count=  2113  avg=0.0039ms  min=0.0013ms  max=0.0959ms  total=8.34ms
+========================
+Total errors processed: 0
+Log file: analyzer_log.txt (0 entries)
