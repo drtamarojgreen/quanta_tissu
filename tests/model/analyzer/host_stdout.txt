@@ -1,0 +1,4 @@
+Host Application Starting (session 0)
+Start analyzer with: ./analyzer -s 0
+
+Host application complete.
