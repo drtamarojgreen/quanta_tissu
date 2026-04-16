@@ -59,7 +59,7 @@ sleep 2
 ############################################
 echo "=== Start Analyzer ==="
 ############################################
-./tests/model/analyzer/analyzer -s $SESSION_ID -o analyzer_log.txt > analyzer_stdout.txt 2>&1 &
+./tests/model/analyzer/analyzer -s $SESSION_ID -o tests/model/analyzer/analyzer_log.txt > tests/model/analyzer/analyzer_stdout.txt 2>&1 &
 ANALYZER_PID=$!
 sleep 1
 
@@ -94,8 +94,8 @@ kill $TISSDB_PID $ANALYZER_PID
 wait $TISSDB_PID $ANALYZER_PID 2>/dev/null || true
 
 echo "=== Analyzer Results ==="
-cat analyzer_stdout.txt
+cat tests/model/analyzer/analyzer_stdout.txt
 echo "========================="
-cat analyzer_log.txt
+cat tests/model/analyzer/analyzer_log.txt
 
 echo "=== DONE ==="
