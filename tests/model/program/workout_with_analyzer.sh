@@ -93,6 +93,10 @@ echo "=== Shutdown ==="
 kill $TISSDB_PID $ANALYZER_PID
 wait $TISSDB_PID $ANALYZER_PID 2>/dev/null || true
 
+# Clean up artifacts
+rm -f trained_tokenizer_merges.txt trained_tokenizer_vocab.json
+rm -rf checkpoints tissdb_data corpus train_model_exe tissdb_exe
+
 echo "=== Analyzer Results ==="
 cat tests/model/analyzer/analyzer_stdout.txt
 echo "========================="
