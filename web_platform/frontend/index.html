@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantaTissu Platform</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <header id="top-nav">
+            <div class="logo">QuantaTissu</div>
+            <nav class="nav-menu">
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">Models</button>
+                    <div class="nav-dropdown-content">
+                        <div class="nav-nested-dropdown">
+                            <button class="nav-nested-dropbtn">Pipelines</button>
+                            <div class="nav-nested-content">
+                                <a href="#" onclick="openModal('modal-prompt', {type:'pipeline', name:'RAG Pipeline'})">RAG Pipeline</a>
+                                <a href="#" onclick="openModal('modal-prompt', {type:'pipeline', name:'Analysis Pipeline'})">Analysis Pipeline</a>
+                            </div>
+                        </div>
+                        <div class="nav-nested-dropdown">
+                            <button class="nav-nested-dropbtn">Generators</button>
+                            <div class="nav-nested-content">
+                                <a href="#" onclick="openModal('modal-prompt', {type:'python_generator', name:'Python (QuantaTissu)'})">Python (QuantaTissu)</a>
+                                <a href="#" onclick="openModal('modal-prompt', {type:'cpp_generator', name:'C++ (ctisslm)'})">C++ (ctisslm)</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">Collections</button>
+                    <div class="nav-dropdown-content">
+                        <a href="#" onclick="openModal('modal-add-collection')">Add Collection</a>
+                        <a href="#" onclick="switchTab('explorer')">View Collections</a>
+                        <a href="#" onclick="openModal('modal-delete-collection')">Delete Collection</a>
+                    </div>
+                </div>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">Tests</button>
+                    <div class="nav-dropdown-content">
+                        <a href="#" onclick="runCategorizedTests('unit')">Unit Tests</a>
+                        <a href="#" onclick="runCategorizedTests('bdd')">BDD Tests</a>
+                        <a href="#" onclick="runCategorizedTests('cdd')">CDD Tests</a>
+                        <a href="#" onclick="runCategorizedTests('all')">Run All</a>
+                    </div>
+                </div>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">Configuration</button>
+                    <div class="nav-dropdown-content">
+                        <a href="#" onclick="switchTab('config')">Edit Params</a>
+                        <a href="#" onclick="saveConfiguration()">Save Config</a>
+                        <a href="#" onclick="importConfiguration()">Import Config</a>
+                        <a href="#" onclick="exportConfiguration()">Export Config</a>
+                    </div>
+                </div>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn">Help</button>
+                    <div class="nav-dropdown-content">
+                        <a href="#" onclick="switchTab('help')">Help Center</a>
+                        <a href="#" onclick="switchTab('analytics')">Performance Analytics</a>
+                        <a href="#" onclick="openModal('modal-about')">About</a>
+                    </div>
+                </div>
+
+                <div class="nav-dropdown">
+                    <button class="nav-dropbtn" onclick="switchTab('nexus')">Nexus Flow</button>
+                </div>
+            </nav>
+        </header>
+
+        <div id="main-container">
+            <aside id="sidebar">
+                <nav>
+                    <button class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+                    <button class="nav-item" data-tab="explorer" onclick="switchTab('explorer')">Data Explorer</button>
+                    <button class="nav-item" data-tab="playground" onclick="switchTab('playground')">Model Playground</button>
+                    <button class="nav-item" data-tab="analytics" onclick="switchTab('analytics')">Analytics</button>
+                    <button class="nav-item" data-tab="tisslang" onclick="switchTab('tisslang')">TissLang</button>
+                    <button class="nav-item" data-tab="config" onclick="switchTab('config')">Model Training</button>
+                    <button class="nav-item" data-tab="admin" onclick="switchTab('admin')">Admin</button>
+                    <button class="nav-item" data-tab="tests" onclick="switchTab('tests')">Tests</button>
+                    <button class="nav-item" data-tab="nexus" onclick="switchTab('nexus')">Nexus Flow</button>
+                    <button class="nav-item" data-tab="help" onclick="switchTab('help')">Help</button>
+                </nav>
+            </aside>
+
+            <main id="content">
+                <header id="page-header">
+                    <h1 id="tab-title">Dashboard</h1>
+                </header>
+                <section id="tab-content">
+                    <!-- Content injected by JS -->
+                </section>
+            </main>
+        </div>
+
+        <!-- Modals -->
+        <div id="modal-overlay" class="modal-overlay" onclick="closeModals()">
+            <div class="modal-container" onclick="event.stopPropagation()">
+                <div id="modal-content"></div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModals()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="js/candlestick.js"></script>
+    <script src="js/graph.js"></script>
+    <script src="js/visualization.js"></script>
+</body>
+</html>

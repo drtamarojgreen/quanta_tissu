@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  tissdb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: tissdb --port 9876 --data-dir /app/data
+    ports:
+      - "9876:9876"
+    volumes:
+      - ./tissdb_data:/app/data
+
+  platform:
+    build:
+      context: .
+      dockerfile: web_platform/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - TISSDB_HOST=tissdb
+    depends_on:
+      - tissdb
