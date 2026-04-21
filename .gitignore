@@ -17,3 +17,4 @@ tissdb/tissdb
 tissdb/test_tissdb
 *_test_data/
 *.bin
+tissdb_data/
