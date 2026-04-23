@@ -25,6 +25,8 @@ function createBarChart(data, width = 600, height = 300) {
     return svg;
 }
 
+window.createBarChart = createBarChart;
+
 window.loadAnalytics = () => {
     const data = [45, 80, 55, 90, 30, 70];
     const container = document.getElementById('chart-container');
