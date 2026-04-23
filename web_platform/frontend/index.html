@@ -9,7 +9,10 @@
 <body>
     <div id="app">
         <header id="top-nav">
-            <div class="logo">QuantaTissu</div>
+            <div class="logo">
+                <img src="logo.jpg" alt="QuantaTissu Logo" style="height: 40px; margin-right: 10px;">
+                <span>QuantaTissu</span>
+            </div>
             <nav class="nav-menu">
                 <div class="nav-dropdown">
                     <button class="nav-dropbtn">Models</button>
@@ -112,9 +115,21 @@
         </div>
     </div>
 
-    <script src="js/app.js"></script>
+    <!-- Core Utilities -->
     <script src="js/candlestick.js"></script>
     <script src="js/graph.js"></script>
     <script src="js/visualization.js"></script>
+
+    <!-- Modules -->
+    <script src="js/modules/ui_module.js"></script>
+    <script src="js/modules/db_module.js"></script>
+    <script src="js/modules/model_module.js"></script>
+    <script src="js/modules/analytics_module.js"></script>
+    <script src="js/modules/tisslang_module.js"></script>
+    <script src="js/modules/admin_module.js"></script>
+    <script src="js/modules/test_module.js"></script>
+
+    <!-- App Entry -->
+    <script src="js/app.js"></script>
 </body>
 </html>
