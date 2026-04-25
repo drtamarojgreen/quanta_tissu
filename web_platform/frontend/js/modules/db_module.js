@@ -88,6 +88,75 @@ const DBModule = {
         });
         alert('Created!');
         UIModule.closeModals();
+    },
+
+    // --- TissDB Lifecycle ---
+    async buildTissDB() {
+        UIModule.openModal('modal-confirm-process', {
+            command: 'make all (in tissdb)',
+            callback: 'DBModule.executeBuildTissDB'
+        });
+    },
+
+    async executeBuildTissDB() {
+        const resultsEl = document.getElementById('db-lifecycle-results');
+        resultsEl.innerText = 'Building TissDB...';
+        try {
+            const res = await fetch('/api/db/build', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                resultsEl.innerHTML = '<span style="color: green">Build successful!</span>\n' + data.stdout;
+            } else {
+                resultsEl.innerHTML = '<span style="color: red">Build failed:</span>\n' + data.stderr;
+            }
+        } catch (e) { resultsEl.innerText = 'Error: ' + e.message; }
+    },
+
+    async startTissDB() {
+        UIModule.openModal('modal-confirm-process', {
+            command: './tissdb (in tissdb)',
+            callback: 'DBModule.executeStartTissDB'
+        });
+    },
+
+    async executeStartTissDB() {
+        const resultsEl = document.getElementById('db-lifecycle-results');
+        try {
+            const res = await fetch('/api/db/start', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                resultsEl.innerText = `TissDB started (PID: ${data.pid}).`;
+                this.checkStatus();
+            } else {
+                resultsEl.innerText = 'Error: ' + data.error;
+            }
+        } catch (e) { resultsEl.innerText = 'Error: ' + e.message; }
+    },
+
+    async stopTissDB() {
+        const resultsEl = document.getElementById('db-lifecycle-results');
+        try {
+            const res = await fetch('/api/db/stop', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                resultsEl.innerText = 'TissDB stopped.';
+                this.checkStatus();
+            } else {
+                resultsEl.innerText = 'Error: ' + data.error;
+            }
+        } catch (e) { resultsEl.innerText = 'Error: ' + e.message; }
+    },
+
+    async checkStatus() {
+        try {
+            const res = await fetch('/api/db/lifecycle_status');
+            const data = await res.json();
+            const statusEl = document.getElementById('db-status-text');
+            if (statusEl) {
+                statusEl.innerText = data.running ? `Running (PID: ${data.pid})` : 'Stopped';
+                statusEl.style.color = data.running ? 'green' : 'red';
+            }
+        } catch (e) {}
     }
 };
 
