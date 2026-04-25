@@ -146,17 +146,33 @@ STEP "Analyze" {
             <div class="card">
                 <h3>Platform Documentation</h3>
                 <div class="help-section">
+                    <h4>Web Orchestration Platform</h4>
+                    <p>A modular, dependency-free dashboard for the QuantaTissu ecosystem. It provides a high-level interface for model interaction, database management, and system monitoring.</p>
+                    <ul>
+                        <li><strong>Backend:</strong> Python-based <code>http.server</code> with modular domain handlers.</li>
+                        <li><strong>Frontend:</strong> Vanilla JS modules for performance and zero-dependency reliability.</li>
+                    </ul>
+                </div>
+                <div class="help-section" style="margin-top: 1rem">
+                    <h4>Runtime Model Analyzer (RMA)</h4>
+                    <p>The RMA is a dual-process monitoring framework. It uses <strong>POSIX Shared Memory</strong> to track the C++ model's execution in real-time, catching arithmetic anomalies like <code>NaN</code> or <code>Division by Zero</code> without interrupting the primary model flow. Use the <strong>Analyzer</strong> tab to build and start the monitor.</p>
+                </div>
+                <div class="help-section" style="margin-top: 1rem">
                     <h4>Data Explorer</h4>
                     <p>Use TissQL to query your TissDB collections. Supports SELECT, INSERT, UPDATE, DELETE.</p>
                     <span class="badge" data-tooltip="TissDB uses a custom query language similar to SQL but optimized for NoSQL.">Query Language Info</span>
                 </div>
                 <div class="help-section" style="margin-top: 1rem">
-                    <h4>Model Playground</h4>
-                    <p>Interact with QuantaTissu. Use the <strong data-tooltip="Retrieval-Augmented Generation: Fetches context from TissDB before generating.">RAG</strong> toggle to enhance responses with your knowledge base.</p>
+                    <h4>Model Playground & Testing</h4>
+                    <p>Interact with QuantaTissu using <strong data-tooltip="Retrieval-Augmented Generation: Fetches context from TissDB before generating.">RAG</strong> or run automated workout scripts from the <strong>Tests</strong> tab to verify model behavior.</p>
+                </div>
+                <div class="help-section" style="margin-top: 1rem">
+                    <h4>TissDB Lifecycle</h4>
+                    <p>The <strong>Admin</strong> tab allows you to build the native C++ database from source and manage its process lifecycle directly from the browser.</p>
                 </div>
                 <div class="help-section" style="margin-top: 1rem">
                     <h4>Nexus Flow</h4>
-                    <p>Visualize the interconnections between system components in real-time.</p>
+                    <p>Visualize the interconnections between system components in real-time via the interactive canvas.</p>
                 </div>
             </div>
         `,
@@ -167,11 +183,39 @@ STEP "Analyze" {
                     <p>Status: <span id="test-status">Idle</span></p>
                     <div id="test-details" class="results">Results will appear here...</div>
                 </div>
+                <hr style="margin: 2rem 0">
+                <h3>Model Script Testing</h3>
+                <p style="color: #666; font-size: 0.9rem">Run automated workout and evaluation scripts.</p>
+                <div style="margin-top: 1rem; display: flex; gap: 1rem; align-items: center">
+                    <select id="script-select" style="flex: 1; margin-bottom: 0"></select>
+                    <button class="btn btn-primary" onclick="TestModule.runScript()">Run Script</button>
+                </div>
+                <div id="script-results" class="results" style="margin-top: 1rem; height: 300px; overflow: auto; background: #000; color: #0f0; font-family: monospace">
+                    Select a script and click "Run Script"
+                </div>
             </div>
         `,
         admin: `
             <div class="card">
                 <h3>Database Administration</h3>
+                <div class="help-section">
+                    <h4>Lifecycle Management</h4>
+                    <p>Build and control the native C++ TissDB instance.</p>
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem">
+                        <div class="card" style="background: #f3f4f6">
+                            <button class="btn btn-primary" style="width: 100%; background: #4b5563" onclick="DBModule.buildTissDB()">Build TissDB</button>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
+                                <button class="btn btn-primary" style="flex: 1" onclick="DBModule.startTissDB()">Start</button>
+                                <button class="btn btn-primary" style="flex: 1; background: #dc2626" onclick="DBModule.stopTissDB()">Stop</button>
+                            </div>
+                        </div>
+                        <div class="card" style="background: #f3f4f6">
+                            <p>Status: <span id="db-status-text">Checking...</span></p>
+                            <div id="db-lifecycle-results" style="font-size: 0.7rem; font-family: monospace; white-space: pre-wrap; margin-top: 0.5rem; max-height: 80px; overflow: auto">Idle...</div>
+                        </div>
+                    </div>
+                </div>
+                <hr style="margin: 2rem 0">
                 <div class="help-section">
                     <h4>Collection Migration</h4>
                     <p>Migrate data between TissDB collections.</p>
@@ -189,6 +233,40 @@ STEP "Analyze" {
                     <div id="migration-results" class="results" style="display:none"></div>
                 </div>
             </div>
+        `,
+        analyzer: `
+            <div class="card">
+                <h3>Runtime Model Analyzer (RMA)</h3>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 1rem;">
+                    Monitor C++ model execution for arithmetic anomalies (NaN, DivZero) via POSIX Shared Memory.
+                </p>
+                <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="card" style="background: #f9fafb; border: 1px solid #e5e7eb;">
+                        <h4>Controls</h4>
+                        <button class="btn btn-primary" style="width: 100%; margin-bottom: 0.5rem; background: #4b5563" onclick="AnalyzerModule.build()">Build Analyzer</button>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="number" id="analyzer-session-id" value="0" style="width: 60px; margin-bottom: 0" title="Session ID">
+                            <button class="btn btn-primary" style="flex: 1; margin-bottom: 0;" onclick="AnalyzerModule.start()">Start</button>
+                        </div>
+                        <button class="btn btn-primary" style="width: 100%; margin-top: 0.5rem; background: #dc2626" onclick="AnalyzerModule.stop()">Stop</button>
+                    </div>
+                    <div class="card" style="background: #f9fafb; border: 1px solid #e5e7eb;">
+                        <h4>Status</h4>
+                        <p>Status: <span id="analyzer-status-text">Checking...</span></p>
+                        <hr style="margin: 0.5rem 0">
+                        <div id="analyzer-results" style="font-size: 0.8rem; font-family: monospace; white-space: pre-wrap; max-height: 100px; overflow-y: auto;">Idle...</div>
+                    </div>
+                    <div class="card" style="background: #f9fafb; border: 1px solid #e5e7eb;">
+                        <h4>Info</h4>
+                        <p style="font-size: 0.8rem;">Session IPC: <code>/dev/shm/rma_shm_*</code></p>
+                        <p style="font-size: 0.8rem;">Logs: <code>analyzer_log.txt</code></p>
+                    </div>
+                </div>
+                <h4>Error Stream</h4>
+                <div id="analyzer-log-stream" class="results" style="height: 300px; font-family: 'Courier New', monospace; background: #1a1a1a; color: #00ff00; overflow-y: auto;">
+                    Waiting for analyzer process...
+                </div>
+            </div>
         `
     },
 
@@ -203,8 +281,13 @@ STEP "Analyze" {
 
         if (tab === 'dashboard') DBModule.loadStats();
         if (tab === 'explorer') DBModule.loadDatabases();
-        if (tab === 'admin') AdminModule.loadAdminCollections();
+        if (tab === 'admin') {
+            AdminModule.loadAdminCollections();
+            DBModule.checkStatus();
+        }
+        if (tab === 'tests') TestModule.loadTestScripts();
         if (tab === 'config') AdminModule.loadConfig();
+        if (tab === 'analyzer') AnalyzerModule.checkStatus();
         if (tab === 'nexus') {
             if (window.initCanvas) window.initCanvas();
         }
@@ -256,6 +339,22 @@ STEP "Analyze" {
                     <button class="btn btn-secondary" style="flex: 1" onclick="UIModule.closeModals()">Cancel</button>
                 </div>
             `;
+        } else if (id === 'modal-confirm-process') {
+            content.innerHTML = `
+                <h3>Security Warning: Local Process Execution</h3>
+                <p style="margin-bottom: 1rem;">The platform is about to execute a command on the local machine:</p>
+                <div style="background: #f3f4f6; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.9rem; border-left: 4px solid #f59e0b; margin-bottom: 1.5rem;">
+                    <strong>Command/Action:</strong><br>
+                    <span style="color: #d97706;">${data.command}</span>
+                </div>
+                <p style="font-size: 0.85rem; color: #666; margin-bottom: 1.5rem;">
+                    Executing untrusted scripts can compromise your system. Only proceed if you initiated this action and trust the command.
+                </p>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-primary" style="flex: 1; background: #d97706;" onclick="UIModule.confirmProcess('${data.callback}')">Proceed with Execution</button>
+                    <button class="btn btn-secondary" style="flex: 1" onclick="UIModule.closeModals()">Cancel</button>
+                </div>
+            `;
         } else if (id === 'modal-about') {
             content.innerHTML = `
                 <h3>About QuantaTissu</h3>
@@ -268,6 +367,19 @@ STEP "Analyze" {
 
     closeModals() {
         document.getElementById('modal-overlay').style.display = 'none';
+    },
+
+    confirmProcess(callbackName) {
+        this.closeModals();
+        // Resolve the callback from window/modules
+        const parts = callbackName.split('.');
+        let func = window;
+        for (const part of parts) {
+            func = func[part];
+        }
+        if (typeof func === 'function') {
+            func();
+        }
     }
 };
 

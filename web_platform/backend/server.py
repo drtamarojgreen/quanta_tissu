@@ -19,8 +19,11 @@ try:
     from web_platform.backend.handlers.tisslang_handler import handle_tisslang
     from web_platform.backend.handlers.nexus_handler import handle_nexus
     from web_platform.backend.handlers.admin_handler import handle_admin
+    from web_platform.backend.handlers.analyzer_handler import handle_analyzer
+    from web_platform.backend.handlers.db_lifecycle_handler import handle_db_lifecycle
+    from web_platform.backend.handlers.testing_handler import handle_testing
 except ImportError:
-    handle_db = handle_model = handle_analytics = handle_tisslang = handle_nexus = handle_admin = lambda *args: False
+    handle_db = handle_model = handle_analytics = handle_tisslang = handle_nexus = handle_admin = handle_analyzer = handle_db_lifecycle = handle_testing = lambda *args: False
 
 PORT = 8000
 STATIC_DIR = os.path.abspath(os.path.join(BACKEND_DIR, '..', 'frontend'))
@@ -56,8 +59,14 @@ class CustomHandler(http.server.BaseHTTPRequestHandler):
         full_path = os.path.join(STATIC_DIR, requested)
         if os.path.isdir(full_path):
             full_path = os.path.join(full_path, 'index.html')
+        
+        # If file doesn't exist, only fallback to index.html if it looks like a route (no extension)
         if not os.path.isfile(full_path):
-            full_path = os.path.join(STATIC_DIR, 'index.html')
+            if '.' not in requested:
+                full_path = os.path.join(STATIC_DIR, 'index.html')
+            else:
+                self.send_error(404, f"File not found: {requested}")
+                return
 
         if os.path.isfile(full_path):
             content_type, _ = mimetypes.guess_type(full_path)
@@ -110,7 +119,7 @@ class CustomHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400)
             return
 
-        handlers = [handle_db, handle_model, handle_analytics, handle_tisslang, handle_nexus, handle_admin]
+        handlers = [handle_db, handle_model, handle_analytics, handle_tisslang, handle_nexus, handle_admin, handle_analyzer, handle_db_lifecycle, handle_testing]
         handled = False
         for handler_func in handlers:
             try:
