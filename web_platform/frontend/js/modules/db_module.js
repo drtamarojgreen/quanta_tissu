@@ -93,7 +93,7 @@ const DBModule = {
     // --- TissDB Lifecycle ---
     async buildTissDB() {
         UIModule.openModal('modal-confirm-process', {
-            command: 'make all (in tissdb)',
+            command: 'Native g++ build (tissdb)',
             callback: 'DBModule.executeBuildTissDB'
         });
     },
@@ -126,7 +126,7 @@ const DBModule = {
             const data = await res.json();
             if (data.success) {
                 resultsEl.innerText = `TissDB started (PID: ${data.pid}).`;
-                this.checkStatus();
+                DBModule.checkStatus();
             } else {
                 resultsEl.innerText = 'Error: ' + data.error;
             }
@@ -140,7 +140,7 @@ const DBModule = {
             const data = await res.json();
             if (data.success) {
                 resultsEl.innerText = 'TissDB stopped.';
-                this.checkStatus();
+                DBModule.checkStatus();
             } else {
                 resultsEl.innerText = 'Error: ' + data.error;
             }

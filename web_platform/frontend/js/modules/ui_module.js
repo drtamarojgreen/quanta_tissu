@@ -184,9 +184,60 @@ STEP "Analyze" {
                     <div id="test-details" class="results">Results will appear here...</div>
                 </div>
                 <hr style="margin: 2rem 0">
-                <h3>Model Script Testing</h3>
-                <p style="color: #666; font-size: 0.9rem">Run automated workout and evaluation scripts.</p>
-                <div style="margin-top: 1rem; display: flex; gap: 1rem; align-items: center">
+                <h3>Model Script Runner</h3>
+                <p style="color: #666; font-size: 0.8rem; margin-bottom: 1rem">Select a script and override parameters for this specific run.</p>
+                
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="card" style="padding: 0.5rem; background: #f9fafb">
+                        <h4 style="margin-top: 0">Model Overrides</h4>
+                        <div class="form-group">
+                            <label style="font-size: 0.7rem">Embed Dim (Default: 128)</label>
+                            <select id="test-arg-n_embd">
+                                <option value="">Default</option>
+                                <option value="64">64</option>
+                                <option value="128">128</option>
+                                <option value="256">256</option>
+                                <option value="512">512</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.7rem">Layers (Default: 4)</label>
+                            <select id="test-arg-n_layer">
+                                <option value="">Default</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="4">4</option>
+                                <option value="8">8</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card" style="padding: 0.5rem; background: #f9fafb">
+                        <h4 style="margin-top: 0">Training Overrides</h4>
+                        <div class="form-group">
+                            <label style="font-size: 0.7rem">Epochs (Default: 5)</label>
+                            <select id="test-arg-epochs">
+                                <option value="">Default</option>
+                                <option value="1">1</option>
+                                <option value="3">3</option>
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.7rem">Learning Rate (Default: 1e-4)</label>
+                            <select id="test-arg-lr">
+                                <option value="">Default</option>
+                                <option value="0.0001">1e-4</option>
+                                <option value="0.0005">5e-4</option>
+                                <option value="0.001">1e-3</option>
+                                <option value="0.005">5e-3</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; align-items: center">
                     <select id="script-select" style="flex: 1; margin-bottom: 0"></select>
                     <button class="btn btn-primary" onclick="TestModule.runScript()">Run Script</button>
                 </div>
@@ -197,24 +248,8 @@ STEP "Analyze" {
         `,
         admin: `
             <div class="card">
-                <h3>Database Administration</h3>
-                <div class="help-section">
-                    <h4>Lifecycle Management</h4>
-                    <p>Build and control the native C++ TissDB instance.</p>
-                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem">
-                        <div class="card" style="background: #f3f4f6">
-                            <button class="btn btn-primary" style="width: 100%; background: #4b5563" onclick="DBModule.buildTissDB()">Build TissDB</button>
-                            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
-                                <button class="btn btn-primary" style="flex: 1" onclick="DBModule.startTissDB()">Start</button>
-                                <button class="btn btn-primary" style="flex: 1; background: #dc2626" onclick="DBModule.stopTissDB()">Stop</button>
-                            </div>
-                        </div>
-                        <div class="card" style="background: #f3f4f6">
-                            <p>Status: <span id="db-status-text">Checking...</span></p>
-                            <div id="db-lifecycle-results" style="font-size: 0.7rem; font-family: monospace; white-space: pre-wrap; margin-top: 0.5rem; max-height: 80px; overflow: auto">Idle...</div>
-                        </div>
-                    </div>
-                </div>
+                <h3>Platform Administration</h3>
+                <p>General system settings and administrative tasks.</p>
                 <hr style="margin: 2rem 0">
                 <div class="help-section">
                     <h4>Collection Migration</h4>
@@ -231,6 +266,48 @@ STEP "Analyze" {
                     </div>
                     <button class="btn btn-primary" style="margin-top: 1rem" onclick="AdminModule.runMigration()">Run Migration</button>
                     <div id="migration-results" class="results" style="display:none"></div>
+                </div>
+            </div>
+        `,
+        db_mgmt: `
+            <div class="card">
+                <h3>Database Management</h3>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="card" style="background: #f9fafb; border: 1px solid #e5e7eb;">
+                        <h4>Lifecycle Control</h4>
+                        <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Build, start, and stop the native TissDB instance.</p>
+                        <button class="btn btn-primary" style="width: 100%; margin-bottom: 0.5rem; background: #4b5563" onclick="DBModule.buildTissDB()">Build TissDB (Native)</button>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-primary" style="flex: 1" onclick="DBModule.startTissDB()">Start Server</button>
+                            <button class="btn btn-primary" style="flex: 1; background: #dc2626" onclick="DBModule.stopTissDB()">Stop Server</button>
+                        </div>
+                    </div>
+                    <div class="card" style="background: #f9fafb; border: 1px solid #e5e7eb;">
+                        <h4>System Status</h4>
+                        <p>Status: <span id="db-status-text">Checking...</span></p>
+                        <div id="db-stats-val" style="font-size: 0.9rem; margin-top: 0.5rem;">Loading stats...</div>
+                        <hr style="margin: 0.5rem 0">
+                        <div id="db-lifecycle-results" style="font-size: 0.7rem; font-family: monospace; white-space: pre-wrap; max-height: 100px; overflow-y: auto;">Idle...</div>
+                    </div>
+                </div>
+
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                    <div class="card" style="background: #f9fafb; border: 1px solid #e5e7eb;">
+                        <h4>Collections</h4>
+                        <div style="margin-bottom: 1rem">
+                            <label>Select Database</label>
+                            <select id="db-select" onchange="DBModule.loadCollections()" style="width: 100%"></select>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                            <button class="btn btn-primary" style="flex: 1" onclick="UIModule.openModal('modal-add-collection')">Create Collection</button>
+                            <button class="btn btn-primary" style="flex: 1; background: #dc2626" onclick="UIModule.openModal('modal-delete-collection')">Delete Collection</button>
+                        </div>
+                    </div>
+                    <div class="card" style="background: #f9fafb; border: 1px solid #e5e7eb;">
+                        <h4>Tools</h4>
+                        <button class="btn btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="switchTab('explorer')">Open Data Explorer</button>
+                        <button class="btn btn-primary" style="width: 100%; background: #059669" onclick="AdminModule.loadAdminCollections(); switchTab('admin')">Data Migration</button>
+                    </div>
                 </div>
             </div>
         `,
@@ -271,6 +348,7 @@ STEP "Analyze" {
     },
 
     switchTab(tab) {
+        if (!this.views[tab]) return;
         this.state.activeTab = tab;
         document.getElementById('tab-title').innerText = tab.charAt(0).toUpperCase() + tab.slice(1);
         document.getElementById('tab-content').innerHTML = this.views[tab];
@@ -281,9 +359,13 @@ STEP "Analyze" {
 
         if (tab === 'dashboard') DBModule.loadStats();
         if (tab === 'explorer') DBModule.loadDatabases();
+        if (tab === 'db_mgmt') {
+            DBModule.loadDatabases();
+            DBModule.loadStats();
+            DBModule.checkStatus();
+        }
         if (tab === 'admin') {
             AdminModule.loadAdminCollections();
-            DBModule.checkStatus();
         }
         if (tab === 'tests') TestModule.loadTestScripts();
         if (tab === 'config') AdminModule.loadConfig();

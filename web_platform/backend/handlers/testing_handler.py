@@ -1,14 +1,21 @@
 import json
 import os
 import subprocess
+import threading
+import uuid
 
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+
+# Global state for background tasks
+_tasks = {}
 
 def handle_testing(handler, path, data, command):
     if path == '/api/testing/run':
         return handle_run_test(handler, data)
     elif path == '/api/testing/list':
         return handle_list_tests(handler)
+    elif path == '/api/testing/status':
+        return handle_get_status(handler, data)
     return False
 
 def handle_run_test(handler, data):
@@ -22,14 +29,67 @@ def handle_run_test(handler, data):
         _send_json(handler, 404, {'error': f"Test script {test_name}.sh not found"})
         return True
 
-    try:
-        # Run the shell script
-        process = subprocess.Popen(['bash', test_path], cwd=_project_root, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        stdout, stderr = process.communicate()
-        success = process.returncode == 0
-        _send_json(handler, 200, {'success': success, 'stdout': stdout, 'stderr': stderr})
-    except Exception as e:
-        _send_json(handler, 500, {'error': str(e)})
+    task_id = str(uuid.uuid4())
+    _tasks[task_id] = {
+        'status': 'running',
+        'stdout': '',
+        'stderr': '',
+        'test_name': test_name,
+        'success': None
+    }
+
+    def run_task(tid, tpath, overrides):
+        try:
+            env = os.environ.copy()
+            for key, value in overrides.items():
+                if value:
+                    env[f"TISSLM_{key.upper()}"] = str(value)
+
+            process = subprocess.Popen(
+                ['bash', tpath], 
+                cwd=_project_root, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                text=True, 
+                env=env,
+                bufsize=1,
+                universal_newlines=True
+            )
+            
+            # Helper to read pipes without blocking the main task thread
+            def read_stream(stream, key):
+                for line in iter(stream.readline, ''):
+                    _tasks[tid][key] += line
+                stream.close()
+
+            t1 = threading.Thread(target=read_stream, args=(process.stdout, 'stdout'))
+            t2 = threading.Thread(target=read_stream, args=(process.stderr, 'stderr'))
+            t1.start()
+            t2.start()
+
+            process.wait()
+            t1.join()
+            t2.join()
+            
+            _tasks[tid]['success'] = (process.returncode == 0)
+            _tasks[tid]['status'] = 'completed'
+        except Exception as e:
+            _tasks[tid]['status'] = 'failed'
+            _tasks[tid]['stderr'] += f"\n[Internal Error] {str(e)}"
+
+    overrides = data.get('overrides', {})
+    threading.Thread(target=run_task, args=(task_id, test_path, overrides)).start()
+
+    _send_json(handler, 200, {'task_id': task_id})
+    return True
+
+def handle_get_status(handler, data):
+    task_id = data.get('task_id')
+    if not task_id or task_id not in _tasks:
+        _send_json(handler, 404, {'error': "Task not found"})
+        return True
+    
+    _send_json(handler, 200, _tasks[task_id])
     return True
 
 def handle_list_tests(handler):

@@ -20,7 +20,7 @@ def handle_db_lifecycle(handler, path, data, command):
 
 def handle_build(handler):
     try:
-        # Use the Makefile in tissdb directory
+        # Use the newly created Makefile which includes the build/ directory and native flags
         process = subprocess.Popen(['make', 'all'], cwd=_tissdb_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         stdout, stderr = process.communicate()
         success = process.returncode == 0
@@ -36,13 +36,18 @@ def handle_start(handler):
         return True
 
     try:
-        # Start the compiled binary
-        binary_path = os.path.join(_tissdb_dir, 'tissdb')
+        # Start the compiled binary from the build directory
+        binary_path = os.path.join(_tissdb_dir, 'build', 'tissdb')
         if not os.path.exists(binary_path):
-             _send_json(handler, 400, {'error': "TissDB binary not found. Please build it first."})
+             _send_json(handler, 400, {'error': "TissDB binary not found in build/. Please build it first."})
              return True
 
-        _db_process = subprocess.Popen(['./tissdb'], cwd=_tissdb_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        # Use same defaults as docker-compose
+        data_dir = os.path.join(_project_root, 'tissdb_data')
+        os.makedirs(data_dir, exist_ok=True)
+        
+        _db_process = subprocess.Popen(['./tissdb', '--port', '9876', '--data-dir', data_dir], 
+                                       cwd=os.path.join(_tissdb_dir, 'build'), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         _send_json(handler, 200, {'success': True, 'pid': _db_process.pid})
     except Exception as e:
         _send_json(handler, 500, {'error': str(e)})
@@ -68,7 +73,7 @@ def handle_stop(handler):
 
 def handle_status(handler):
     is_running = _db_process is not None and _db_process.poll() is None
-    binary_exists = os.path.exists(os.path.join(_tissdb_dir, 'tissdb'))
+    binary_exists = os.path.exists(os.path.join(_tissdb_dir, 'build', 'tissdb'))
     _send_json(handler, 200, {
         'running': is_running,
         'binary_exists': binary_exists,

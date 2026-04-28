@@ -47,7 +47,7 @@ const AnalyzerModule = {
             const data = await res.json();
             if (data.success) {
                 resultsEl.innerText = `Analyzer started (PID: ${data.pid}). Waiting for errors...`;
-                this.startPolling();
+                AnalyzerModule.startPolling();
             } else {
                 resultsEl.innerText = 'Error: ' + data.error;
             }
@@ -63,7 +63,7 @@ const AnalyzerModule = {
             const data = await res.json();
             if (data.success) {
                 resultsEl.innerText = 'Analyzer stopped.';
-                this.stopPolling();
+                AnalyzerModule.stopPolling();
             } else {
                 resultsEl.innerText = 'Error: ' + data.error;
             }
@@ -81,9 +81,9 @@ const AnalyzerModule = {
                 statusEl.innerText = data.running ? `Running (PID: ${data.pid})` : 'Stopped';
                 statusEl.style.color = data.running ? 'green' : 'red';
             }
-            this.state.isRunning = data.running;
-            if (data.running && !this.state.pollingInterval) {
-                this.startPolling();
+            AnalyzerModule.state.isRunning = data.running;
+            if (data.running && !AnalyzerModule.state.pollingInterval) {
+                AnalyzerModule.startPolling();
             }
         } catch (e) { console.error('Status check failed', e); }
     },
@@ -105,18 +105,18 @@ const AnalyzerModule = {
     },
 
     startPolling() {
-        if (this.state.pollingInterval) return;
-        this.fetchLogs();
-        this.state.pollingInterval = setInterval(() => {
-            this.fetchLogs();
-            this.checkStatus();
+        if (AnalyzerModule.state.pollingInterval) return;
+        AnalyzerModule.fetchLogs();
+        AnalyzerModule.state.pollingInterval = setInterval(() => {
+            AnalyzerModule.fetchLogs();
+            AnalyzerModule.checkStatus();
         }, 2000);
     },
 
     stopPolling() {
-        if (this.state.pollingInterval) {
-            clearInterval(this.state.pollingInterval);
-            this.state.pollingInterval = null;
+        if (AnalyzerModule.state.pollingInterval) {
+            clearInterval(AnalyzerModule.state.pollingInterval);
+            AnalyzerModule.state.pollingInterval = null;
         }
     }
 };

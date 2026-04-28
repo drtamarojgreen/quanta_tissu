@@ -140,11 +140,11 @@ class CustomHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'error': f"Endpoint {self.path} not found"}).encode('utf-8'))
 
 if __name__ == '__main__':
-    class MyTCPServer(socketserver.TCPServer):
+    class ThreadingSimpleServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         allow_reuse_address = True
 
     # Bind to 0.0.0.0 to ensure accessibility from all interfaces
-    with MyTCPServer(('0.0.0.0', PORT), CustomHandler) as httpd:
+    with ThreadingSimpleServer(('0.0.0.0', PORT), CustomHandler) as httpd:
         print(f'QuantaTissu Platform serving at http://127.0.0.1:{PORT}')
         print(f'Static directory: {STATIC_DIR}')
         httpd.serve_forever()
