@@ -49,6 +49,18 @@ def handle_get_config(handler):
     handler.end_headers()
     handler.wfile.write(response)
 
+def save_config_to_file():
+    config = {
+        'model': model_config,
+        'training': training_config
+    }
+    config_path = os.path.join(PROJECT_ROOT, 'tests', 'model', 'program', 'test_config.json')
+    try:
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=4)
+    except Exception as e:
+        print(f"Error saving config to file: {e}")
+
 def handle_post_config(handler, data):
     if not CONFIG_AVAILABLE:
         handler.send_response(501)
@@ -58,9 +70,10 @@ def handle_post_config(handler, data):
 
     if 'model' in data:
         model_config.update(data['model'])
-        # In a real scenario, we might trigger a model reload here
     if 'training' in data:
         training_config.update(data['training'])
+
+    save_config_to_file()
 
     handler.send_response(200)
     handler.end_headers()

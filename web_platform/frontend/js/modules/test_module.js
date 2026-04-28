@@ -1,4 +1,9 @@
 const TestModule = {
+    state: {
+        currentTaskId: null,
+        pollingInterval: null
+    },
+
     async runCategorizedTests(type) {
         window.switchTab('tests');
         const statusText = document.getElementById('test-status');
@@ -33,8 +38,21 @@ const TestModule = {
 
     async runScript() {
         const testName = document.getElementById('script-select').value;
+        const overrides = {
+            n_embd: document.getElementById('test-arg-n_embd').value,
+            n_layer: document.getElementById('test-arg-n_layer').value,
+            num_epochs: document.getElementById('test-arg-epochs').value,
+            learning_rate: document.getElementById('test-arg-lr').value
+        };
+        
+        Object.keys(overrides).forEach(key => {
+            if (overrides[key] === "") delete overrides[key];
+        });
+
+        const argSummary = Object.entries(overrides).map(([k, v]) => `${k}=${v}`).join(' ') || 'None';
+
         UIModule.openModal('modal-confirm-process', {
-            command: `bash tests/model/program/${testName}.sh`,
+            command: `bash tests/model/program/${testName}.sh [Overrides: ${argSummary}]`,
             callback: 'TestModule.executeRunScript'
         });
     },
@@ -42,20 +60,71 @@ const TestModule = {
     async executeRunScript() {
         const testName = document.getElementById('script-select').value;
         const resultsEl = document.getElementById('script-results');
-        resultsEl.innerText = `Running ${testName}.sh...`;
+        
+        const overrides = {
+            n_embd: document.getElementById('test-arg-n_embd').value,
+            n_layer: document.getElementById('test-arg-n_layer').value,
+            num_epochs: document.getElementById('test-arg-epochs').value,
+            learning_rate: document.getElementById('test-arg-lr').value
+        };
+
+        resultsEl.innerText = `Starting ${testName}.sh...`;
         try {
             const res = await fetch('/api/testing/run', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ test_name: testName })
+                body: JSON.stringify({ 
+                    test_name: testName,
+                    overrides: overrides
+                })
             });
             const data = await res.json();
-            if (data.success) {
-                resultsEl.innerHTML = `<span style="color: green">Test Successful:</span>\n${data.stdout}`;
+            if (data.task_id) {
+                TestModule.state.currentTaskId = data.task_id;
+                TestModule.startPolling();
             } else {
-                resultsEl.innerHTML = `<span style="color: red">Test Failed:</span>\n${data.stderr}\n\nSTDOUT:\n${data.stdout}`;
+                resultsEl.innerText = 'Error: No task ID received.';
             }
         } catch (e) { resultsEl.innerText = 'Error: ' + e.message; }
+    },
+
+    startPolling() {
+        if (TestModule.state.pollingInterval) return;
+        TestModule.state.pollingInterval = setInterval(async () => {
+            await TestModule.checkTaskStatus();
+        }, 1000);
+    },
+
+    async checkTaskStatus() {
+        if (!TestModule.state.currentTaskId) return;
+
+        try {
+            const res = await fetch('/api/testing/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task_id: TestModule.state.currentTaskId })
+            });
+            const data = await res.json();
+            
+            const resultsEl = document.getElementById('script-results');
+            if (resultsEl) {
+                // Show progressive output
+                let output = data.stdout || '';
+                if (data.stderr) output += `\n[STDERR]\n${data.stderr}`;
+                
+                resultsEl.innerText = output || (data.status === 'running' ? 'Initializing output stream...' : 'Waiting for logs...');
+                resultsEl.scrollTop = resultsEl.scrollHeight;
+
+                if (data.status === 'completed' || data.status === 'failed') {
+                    const prefix = data.success ? '<span style="color: green">Test Successful:</span>\n' : '<span style="color: red">Test Failed/Finished:</span>\n';
+                    resultsEl.innerHTML = prefix + resultsEl.innerText;
+                    clearInterval(TestModule.state.pollingInterval);
+                    TestModule.state.pollingInterval = null;
+                }
+            }
+        } catch (e) {
+            console.error('Polling error:', e);
+        }
     }
 };
 
