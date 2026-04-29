@@ -3,6 +3,8 @@ import os
 import subprocess
 import threading
 import uuid
+import sys
+import signal
 
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
@@ -16,6 +18,8 @@ def handle_testing(handler, path, data, command):
         return handle_list_tests(handler)
     elif path == '/api/testing/status':
         return handle_get_status(handler, data)
+    elif path == '/api/testing/stop':
+        return handle_stop_test(handler, data)
     return False
 
 def handle_run_test(handler, data):
@@ -35,31 +39,38 @@ def handle_run_test(handler, data):
         'stdout': '',
         'stderr': '',
         'test_name': test_name,
-        'success': None
+        'success': None,
+        'process': None
     }
 
     def run_task(tid, tpath, overrides):
         try:
             env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
             for key, value in overrides.items():
                 if value:
                     env[f"TISSLM_{key.upper()}"] = str(value)
 
+            cmd = ['bash', tpath]
             process = subprocess.Popen(
-                ['bash', tpath], 
+                cmd, 
                 cwd=_project_root, 
                 stdout=subprocess.PIPE, 
                 stderr=subprocess.PIPE, 
                 text=True, 
                 env=env,
                 bufsize=1,
-                universal_newlines=True
+                preexec_fn=os.setsid # Allow killing the entire process group
             )
+            _tasks[tid]['process'] = process
             
-            # Helper to read pipes without blocking the main task thread
             def read_stream(stream, key):
-                for line in iter(stream.readline, ''):
-                    _tasks[tid][key] += line
+                # Using read(1) to avoid newline buffering issues
+                while True:
+                    char = stream.read(1)
+                    if not char:
+                        break
+                    _tasks[tid][key] += char
                 stream.close()
 
             t1 = threading.Thread(target=read_stream, args=(process.stdout, 'stdout'))
@@ -71,8 +82,10 @@ def handle_run_test(handler, data):
             t1.join()
             t2.join()
             
-            _tasks[tid]['success'] = (process.returncode == 0)
-            _tasks[tid]['status'] = 'completed'
+            # Update status only if it wasn't stopped manually
+            if _tasks[tid]['status'] == 'running':
+                _tasks[tid]['success'] = (process.returncode == 0)
+                _tasks[tid]['status'] = 'completed'
         except Exception as e:
             _tasks[tid]['status'] = 'failed'
             _tasks[tid]['stderr'] += f"\n[Internal Error] {str(e)}"
@@ -83,13 +96,35 @@ def handle_run_test(handler, data):
     _send_json(handler, 200, {'task_id': task_id})
     return True
 
+def handle_stop_test(handler, data):
+    task_id = data.get('task_id')
+    if not task_id or task_id not in _tasks:
+        _send_json(handler, 404, {'error': "Task not found"})
+        return True
+    
+    task = _tasks[task_id]
+    if task['status'] == 'running' and task['process']:
+        try:
+            # Kill the process group (bash + its children like tissdb_exe)
+            os.killpg(os.getpgid(task['process'].pid), signal.SIGTERM)
+            task['status'] = 'stopped'
+            task['stdout'] += "\n--- PROCESS TERMINATED BY USER ---"
+            _send_json(handler, 200, {'success': True})
+        except Exception as e:
+            _send_json(handler, 500, {'error': str(e)})
+    else:
+        _send_json(handler, 400, {'error': "Task is not running"})
+    return True
+
 def handle_get_status(handler, data):
     task_id = data.get('task_id')
     if not task_id or task_id not in _tasks:
         _send_json(handler, 404, {'error': "Task not found"})
         return True
     
-    _send_json(handler, 200, _tasks[task_id])
+    # Return a copy without the process object (not serializable)
+    status_data = {k: v for k, v in _tasks[task_id].items() if k != 'process'}
+    _send_json(handler, 200, status_data)
     return True
 
 def handle_list_tests(handler):
