@@ -2,16 +2,26 @@ const AdminModule = {
     async loadConfig() {
         const res = await fetch('/api/config');
         const data = await res.json();
-        document.getElementById('conf-n_embd').value = data.model.n_embd;
-        document.getElementById('conf-n_layer').value = data.model.n_layer;
-        document.getElementById('conf-n_head').value = data.model.n_head;
-        document.getElementById('conf-d_ff').value = data.model.d_ff;
-        document.getElementById('conf-dropout').value = data.model.dropout_rate;
-        document.getElementById('conf-eps').value = data.model.layer_norm_eps;
-        document.getElementById('conf-lr').value = data.training.learning_rate;
-        document.getElementById('conf-batch').value = data.training.batch_size;
-        document.getElementById('conf-epochs').value = data.training.num_epochs;
-        document.getElementById('conf-wd').value = data.training.weight_decay;
+        AppState.update({ config: data });
+
+        const map = {
+            'conf-n_embd': data.model.n_embd,
+            'conf-n_layer': data.model.n_layer,
+            'conf-n_head': data.model.n_head,
+            'conf-d_ff': data.model.d_ff,
+            'conf-dropout': data.model.dropout_rate,
+            'conf-eps': data.model.layer_norm_eps,
+            'conf-lr': data.training.learning_rate,
+            'conf-batch': data.training.batch_size,
+            'conf-epochs': data.training.num_epochs,
+            'conf-wd': data.training.weight_decay
+        };
+
+        for (const [id, val] of Object.entries(map)) {
+            const el = document.getElementById(id);
+            if (el) el.value = val;
+        }
+
         this.checkTrainingStatus();
     },
 
@@ -37,13 +47,24 @@ const AdminModule = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config)
         });
-        alert('Configuration saved!');
+        AppState.update({ config });
+        alert('Configuration saved to the root system.');
     },
 
     async startTraining() {
-        const res = await fetch('/api/training/start', { method: 'POST' });
-        if (res.ok) this.checkTrainingStatus();
-        else { const err = await res.json(); alert(err.error); }
+        const taskId = 'training_job';
+        const res = await fetch('/api/training/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task_id: taskId })
+        });
+        if (res.ok) {
+            AppState.pollTask(taskId);
+            this.checkTrainingStatus();
+        } else {
+            const err = await res.json();
+            alert(err.error);
+        }
     },
 
     trainingInterval: null,
@@ -76,7 +97,7 @@ const AdminModule = {
         const res = await fetch('/api/db/collections', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ db_name: UIModule.state.dbName })
+            body: JSON.stringify({ db_name: AppState.db.selected })
         });
         const colls = await res.json();
         const select = document.getElementById('migrate-source-select');
@@ -90,7 +111,7 @@ const AdminModule = {
         const target = document.getElementById('migrate-target-input').value;
         const resEl = document.getElementById('migration-results');
         resEl.style.display = 'block';
-        resEl.innerText = 'Migrating...';
+        resEl.innerText = 'Initializing migration pipeline...';
 
         try {
             const res = await fetch('/api/admin/migrate', {

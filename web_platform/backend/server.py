@@ -4,6 +4,7 @@ import json
 import sys
 import os
 import mimetypes
+import traceback
 
 # Add project root to path
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -11,23 +12,28 @@ PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, '..', '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 
-# Import modular handlers
-try:
-    from web_platform.backend.handlers.db_handler import handle_db
-    from web_platform.backend.handlers.model_handler import handle_model
-    from web_platform.backend.handlers.analytics_handler import handle_analytics
-    from web_platform.backend.handlers.tisslang_handler import handle_tisslang
-    from web_platform.backend.handlers.nexus_handler import handle_nexus
-    from web_platform.backend.handlers.admin_handler import handle_admin
-except ImportError:
-    handle_db = handle_model = handle_analytics = handle_tisslang = handle_nexus = handle_admin = lambda *args: False
+# Individual handler imports with granular error handling
+def safe_import(module_path, func_name):
+    try:
+        module = __import__(module_path, fromlist=[func_name])
+        return getattr(module, func_name)
+    except Exception as e:
+        print(f"Warning: Could not import {func_name} from {module_path}: {e}")
+        return lambda *args: False
+
+handle_db = safe_import('web_platform.backend.handlers.db_handler', 'handle_db')
+handle_model = safe_import('web_platform.backend.handlers.model_handler', 'handle_model')
+handle_analytics = safe_import('web_platform.backend.handlers.analytics_handler', 'handle_analytics')
+handle_tisslang = safe_import('web_platform.backend.handlers.tisslang_handler', 'handle_tisslang')
+handle_nexus = safe_import('web_platform.backend.handlers.nexus_handler', 'handle_nexus')
+handle_admin = safe_import('web_platform.backend.handlers.admin_handler', 'handle_admin')
+handle_tasks = safe_import('web_platform.backend.handlers.task_handler', 'handle_tasks')
 
 PORT = 8000
 STATIC_DIR = os.path.abspath(os.path.join(BACKEND_DIR, '..', 'frontend'))
 
 class CustomHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Override to ensure logs go to STDOUT and are visible
         sys.stdout.write("%s - - [%s] %s\n" %
                          (self.address_string(),
                           self.log_date_time_string(),
@@ -110,7 +116,7 @@ class CustomHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400)
             return
 
-        handlers = [handle_db, handle_model, handle_analytics, handle_tisslang, handle_nexus, handle_admin]
+        handlers = [handle_db, handle_model, handle_analytics, handle_tisslang, handle_nexus, handle_admin, handle_tasks]
         handled = False
         for handler_func in handlers:
             try:
@@ -118,6 +124,7 @@ class CustomHandler(http.server.BaseHTTPRequestHandler):
                     handled = True
                     break
             except Exception as e:
+                traceback.print_exc()
                 self.send_response(500)
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
@@ -134,7 +141,6 @@ if __name__ == '__main__':
     class MyTCPServer(socketserver.TCPServer):
         allow_reuse_address = True
 
-    # Bind to 0.0.0.0 to ensure accessibility from all interfaces
     with MyTCPServer(('0.0.0.0', PORT), CustomHandler) as httpd:
         print(f'QuantaTissu Platform serving at http://127.0.0.1:{PORT}')
         print(f'Static directory: {STATIC_DIR}')
