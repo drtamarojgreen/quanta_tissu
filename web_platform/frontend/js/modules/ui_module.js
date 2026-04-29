@@ -234,15 +234,24 @@ STEP "Analyze" {
                                 <option value="0.005">5e-3</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; cursor: pointer; margin-top: 0.5rem;">
+                                <input type="checkbox" id="test-arg-skip-compile" style="width: auto; margin-bottom: 0;"> Skip Compilation
+                            </label>
+                        </div>
                     </div>
                 </div>
 
                 <div style="display: flex; gap: 1rem; align-items: center">
                     <select id="script-select" style="flex: 1; margin-bottom: 0"></select>
                     <button class="btn btn-primary" onclick="TestModule.runScript()">Run Script</button>
+                    <button id="stop-script-btn" class="btn btn-primary" style="background: #dc2626; display: none;" onclick="TestModule.stopScript()">Stop Script</button>
                 </div>
-                <div id="script-results" class="results" style="margin-top: 1rem; height: 300px; overflow: auto; background: #000; color: #0f0; font-family: monospace">
-                    Select a script and click "Run Script"
+                <div style="position: relative; margin-top: 1rem;">
+                    <button class="btn" style="position: absolute; right: 1rem; top: 1rem; background: #374151; color: white; padding: 0.3rem 0.6rem; font-size: 0.7rem; z-index: 10;" onclick="TestModule.copyResults()">Copy Output</button>
+                    <div id="script-results" class="results" style="height: 400px; overflow: auto; background: #111827; color: #e5e7eb; font-family: 'Fira Code', 'Courier New', monospace; border: 1px solid #374151; line-height: 1.5; padding: 1.25rem;">
+                        Select a script and click "Run Script"
+                    </div>
                 </div>
             </div>
         `,
@@ -367,7 +376,10 @@ STEP "Analyze" {
         if (tab === 'admin') {
             AdminModule.loadAdminCollections();
         }
-        if (tab === 'tests') TestModule.loadTestScripts();
+        if (tab === 'tests') {
+            TestModule.loadTestScripts();
+            TestModule.refreshUI();
+        }
         if (tab === 'config') AdminModule.loadConfig();
         if (tab === 'analyzer') AnalyzerModule.checkStatus();
         if (tab === 'nexus') {
