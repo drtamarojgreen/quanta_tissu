@@ -88,7 +88,8 @@ const context = {
     parseFloat: parseFloat,
     parseInt: parseInt,
     setTimeout: setTimeout,
-    Image: class {}
+    Image: class {},
+    isTestEnvironment: true
 };
 context.window = context;
 context.global = context;
@@ -109,6 +110,9 @@ vm.createContext(context);
 vm.runInContext(visualizationCode, context);
 vm.runInContext(candlestickCode, context);
 vm.runInContext(graphCode, context);
+
+const stateCode = fs.readFileSync(path.join(__dirname, '../js/modules/state.js'), 'utf8');
+vm.runInContext(stateCode, context);
 
 loadModule('../js/modules/ui_module.js');
 loadModule('../js/modules/db_module.js');
@@ -137,7 +141,7 @@ test('Visualization: Candlestick Chart', () => {
 
 test('App: Tab Switching', () => {
     context.switchTab('playground');
-    assert.strictEqual(context.UIModule.state.activeTab, 'playground');
+    assert.strictEqual(context.AppState.tabs.active, 'playground');
 });
 
 test('App: Database Browsing', async () => {
