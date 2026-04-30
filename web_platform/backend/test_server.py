@@ -40,7 +40,8 @@ class TestBackend(unittest.TestCase):
         cls.server.join()
 
     def test_config_get(self):
-        req = urllib.request.Request(f"{self.url}/api/config")
+        # Admin handler expects GET for /api/config
+        req = urllib.request.Request(f"{self.url}/api/config", method='GET')
         with urllib.request.urlopen(req) as res:
             data = json.loads(res.read().decode())
             self.assertIn('model', data)
