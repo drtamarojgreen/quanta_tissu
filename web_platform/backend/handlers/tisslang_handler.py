@@ -31,6 +31,13 @@ def run_tisslang(handler, data):
         return
 
     script = data.get('script', '')
+    if not script:
+        handler.send_response(400)
+        handler.send_header('Content-Type', 'application/json')
+        handler.end_headers()
+        handler.wfile.write(b'{"error": "No script provided"}')
+        return
+
     try:
         parser = TissLangParser()
         ast = parser.parse(script)
