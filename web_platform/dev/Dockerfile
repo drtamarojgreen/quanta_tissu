@@ -3,28 +3,28 @@
 
 FROM python:3.12-alpine
 
-# Root System: Install essential system dependencies
-# build-base and python3-dev for potential native extensions
-# py3-numpy and py3-requests for efficient pre-compiled packages
+# Root System: Install essential system dependencies and Git
 RUN apk add --no-cache \
     build-base \
     python3-dev \
-    py3-numpy \
-    py3-requests \
-    libffi-dev
+    libffi-dev \
+    git
+
+# Deploy the Greenhouse: Clone the source code from GitHub
+WORKDIR /app
+RUN git clone https://github.com/drtamarojgreen/quanta_tissu/ .
 
 # Visible Foliage: Python requirements
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir regex
+# Install directly via pip to ensure they are in the correct environment
+RUN pip install --no-cache-dir numpy regex requests
+
+# Refresh the Dev Tools: Copy local dev configuration into the cloned repo
+COPY web_platform/dev /app/web_platform/dev
 
 # Environment Architecture
 ENV PYTHONPATH=/app
 ENV TISSDB_HOST=localhost
 ENV TISSDB_PORT=9876
-
-# Deploy the Greenhouse
-COPY . .
 
 # Setup Logging
 RUN mkdir -p /var/log && touch /var/log/framework.log && chmod 666 /var/log/framework.log
