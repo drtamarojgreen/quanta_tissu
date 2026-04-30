@@ -1,51 +1,80 @@
 const UIModule = {
-    state: {
-        activeTab: 'dashboard',
-        dbName: 'main_db'
-    },
+    state: AppState,
 
     views: {
         dashboard: `
             <div class="grid">
-                <div class="card"><h3>System Status</h3><p id="status-val" style="font-size: 2rem; color: green">Online</p></div>
-                <div class="card"><h3>DB Stats</h3><div id="db-stats-val" style="font-size: 1.2rem;">Loading...</div></div>
-                <div class="card"><h3>Model Status</h3><p style="font-size: 2rem; color: purple">Ready</p></div>
+                <div class="card">
+                    <h3>System Status</h3>
+                    <p id="status-val" class="status-badge status-online" style="font-size: 1.5rem; display: inline-block; margin-top: 1rem;">Online</p>
+                </div>
+                <div class="card">
+                    <h3>DB Stats</h3>
+                    <div id="db-stats-val" style="font-size: 1.1rem; color: var(--text-secondary); margin-top: 1rem;">
+                        Loading the root system telemetry...
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Model Status</h3>
+                    <p class="status-badge status-online" style="font-size: 1.5rem; display: inline-block; margin-top: 1rem; background: #f5f3ff; color: #5b21b6;">Ready</p>
+                </div>
+            </div>
+            <div class="card" style="margin-top: 2rem;">
+                <h3>Active Tasks</h3>
+                <div id="active-tasks-list" class="results">No active growth processes detected.</div>
             </div>
         `,
         explorer: `
             <div class="card">
                 <h3>Database Browser</h3>
-                <div style="margin-bottom: 1rem">
-                    <select id="db-select" onchange="DBModule.loadCollections()"></select>
-                    <select id="coll-select"></select>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Explore the sedimentary layers of your knowledge base.</p>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label>Database</label>
+                        <select id="db-select" onchange="DBModule.loadCollections()"></select>
+                    </div>
+                    <div>
+                        <label>Collection</label>
+                        <select id="coll-select"></select>
+                    </div>
                 </div>
-                <h3>TissQL Query</h3>
-                <textarea id="query-input" rows="4">SELECT * FROM knowledge</textarea>
-                <button class="btn btn-primary" onclick="DBModule.runQuery()">Execute Query</button>
+                <h3 style="margin-top: 2rem;">TissQL Query</h3>
+                <textarea id="query-input" rows="4" style="font-family: monospace;">SELECT * FROM knowledge</textarea>
+                <button class="btn btn-primary" onclick="DBModule.runQuery()">
+                    <span>Execute Query</span>
+                </button>
                 <div id="query-results" class="results">Results will appear here...</div>
             </div>
         `,
         playground: `
             <div class="card">
                 <h3>Chat with QuantaTissu</h3>
-                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;">
-                    <div style="flex: 1">
-                        <label><input type="checkbox" id="rag-checkbox"> Use RAG</label>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Communicate with the emergent intelligence of the greenhouse.</p>
+                <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 1.5rem; align-items: end;">
+                    <div>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" id="rag-checkbox" style="width: auto; margin: 0;">
+                            <span>Use RAG (Retrieved Context)</span>
+                        </label>
                     </div>
-                    <div style="flex: 1">
-                        <label>Temp</label>
+                    <div>
+                        <label>Temperature</label>
                         <input type="range" id="temp-input" min="0.1" max="2.0" step="0.1" value="0.8">
                     </div>
-                    <div style="flex: 1">
-                        <label>Length</label>
-                        <input type="number" id="len-input" value="50" style="width: 60px; margin-bottom: 0">
+                    <div>
+                        <label>Max Length</label>
+                        <input type="number" id="len-input" value="50">
                     </div>
                 </div>
-                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-                    <button class="btn btn-primary" onclick="ModelModule.generate('python')" data-tooltip="Run inference using the Python-based QuantaTissu model.">Send (Python)</button>
-                    <button class="btn btn-primary" onclick="ModelModule.generate('cpp')" style="background: #059669" data-tooltip="Run inference using the high-performance indigenous C++ Transformer stack.">Send (C++)</button>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                    <button class="btn btn-primary" onclick="ModelModule.generate('python')" data-tooltip="Run inference using the Python-based QuantaTissu model.">
+                        Send (Python)
+                    </button>
+                    <button class="btn btn-primary" onclick="ModelModule.generate('cpp')" style="background: #059669" data-tooltip="Run inference using the high-performance indigenous C++ Transformer stack.">
+                        Send (C++)
+                    </button>
                 </div>
-                <input type="text" id="prompt-input" placeholder="Ask me anything...">
+                <input type="text" id="prompt-input" placeholder="Type your inquiry to the mind...">
                 <div id="model-response" class="results">Response will appear here...</div>
             </div>
         `,
@@ -77,7 +106,7 @@ STEP "Analyze" {
         nexus: `
             <div class="card">
                 <h3>Nexus Flow Canvas</h3>
-                <canvas id="nexus-canvas" width="800" height="500" style="border: 1px solid #ddd; background: #000"></canvas>
+                <canvas id="nexus-canvas" width="800" height="500" style="border: 1px solid #ddd; background: #000; width: 100%; height: auto;"></canvas>
             </div>
         `,
         config: `
@@ -356,9 +385,36 @@ STEP "Analyze" {
         `
     },
 
+    init() {
+        AppState.subscribe(state => {
+            this.render(state);
+        });
+        this.switchTab(AppState.tabs.active);
+    },
+
+    render(state) {
+        // Update task list in dashboard if active
+        if (state.tabs.active === 'dashboard') {
+            const list = document.getElementById('active-tasks-list');
+            if (list) {
+                const tasks = Object.entries(state.tasks);
+                if (tasks.length === 0) {
+                    list.innerText = "No active growth processes detected.";
+                } else {
+                    list.innerHTML = tasks.map(([id, t]) => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                            <span><strong>${id}</strong>: ${t.status}</span>
+                            ${t.status === 'running' ? `<button class="btn btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;" onclick="UIModule.stopTask('${id}')">Stop</button>` : ''}
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+    },
+
     switchTab(tab) {
         if (!this.views[tab]) return;
-        this.state.activeTab = tab;
+        AppState.update({ tabs: { active: tab } });
         document.getElementById('tab-title').innerText = tab.charAt(0).toUpperCase() + tab.slice(1);
         document.getElementById('tab-content').innerHTML = this.views[tab];
 
@@ -384,6 +440,17 @@ STEP "Analyze" {
         if (tab === 'analyzer') AnalyzerModule.checkStatus();
         if (tab === 'nexus') {
             if (window.initCanvas) window.initCanvas();
+        }
+
+        this.render(AppState);
+    },
+
+    async stopTask(taskId) {
+        try {
+            await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+            AppState.pollTask(taskId);
+        } catch (e) {
+            console.error("Failed to stop task:", e);
         }
     },
 
@@ -481,3 +548,8 @@ window.UIModule = UIModule;
 window.switchTab = UIModule.switchTab.bind(UIModule);
 window.openModal = UIModule.openModal.bind(UIModule);
 window.closeModals = UIModule.closeModals.bind(UIModule);
+
+// Initialize on load
+if (typeof window !== 'undefined' && window.document && !window.isTestEnvironment) {
+    UIModule.init();
+}

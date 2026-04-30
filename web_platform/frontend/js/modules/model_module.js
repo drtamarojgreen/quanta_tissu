@@ -6,15 +6,22 @@ const ModelModule = {
         const rag = document.getElementById('rag-checkbox').checked;
         const responseEl = document.getElementById('model-response');
         responseEl.innerText = 'Thinking...';
+
+        const taskId = `inference_${mode}_${Date.now()}`;
+
         try {
             const endpoint = mode === 'cpp' ? '/api/model/cpp/generate' : '/api/model/generate';
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, length: len, temperature: temp, use_rag: rag })
+                body: JSON.stringify({ prompt, length: len, temperature: temp, use_rag: rag, task_id: taskId })
             });
             const data = await res.json();
             responseEl.innerText = data.generated_text;
+
+            // Register task in state if it's long running (mocking for now as existing endpoints are synchronous)
+            // AppState.pollTask(taskId);
+
         } catch (e) { responseEl.innerText = 'Error: ' + e.message; }
     },
 

@@ -4,9 +4,10 @@ const DBModule = {
             const res = await fetch('/api/db/stats', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ db_name: UIModule.state.dbName })
+                body: JSON.stringify({ db_name: AppState.db.selected })
             });
             const data = await res.json();
+            AppState.update({ db: { ...AppState.db, stats: data } });
             const el = document.getElementById('db-stats-val');
             if (el) el.innerHTML = `<p>Total Docs: ${data.total_docs || 0}</p><p>Feedback: ${data.feedback_entries || 0}</p>`;
         } catch(e) {}
@@ -18,7 +19,7 @@ const DBModule = {
             const dbs = await res.json();
             const select = document.getElementById('db-select');
             if (select) {
-                select.innerHTML = dbs.map(db => `<option value="${db}" ${db === UIModule.state.dbName ? 'selected' : ''}>${db}</option>`).join('');
+                select.innerHTML = dbs.map(db => `<option value="${db}" ${db === AppState.db.selected ? 'selected' : ''}>${db}</option>`).join('');
                 await this.loadCollections();
             }
         } catch(e) {}
@@ -34,6 +35,7 @@ const DBModule = {
                 body: JSON.stringify({ db_name: dbSelect.value })
             });
             const colls = await res.json();
+            AppState.update({ db: { ...AppState.db, selected: dbSelect.value, collections: colls } });
             const collSelect = document.getElementById('coll-select');
             if (collSelect) collSelect.innerHTML = colls.map(c => `<option value="${c}">${c}</option>`).join('');
         } catch(e) {}
@@ -41,7 +43,9 @@ const DBModule = {
 
     async runQuery() {
         const query = document.getElementById('query-input').value;
-        const coll = document.getElementById('coll-select').value;
+        const collSelect = document.getElementById('coll-select');
+        if (!collSelect) return;
+        const coll = collSelect.value;
         const res = await fetch('/api/db/query', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -55,7 +59,7 @@ const DBModule = {
         const res = await fetch('/api/db/collections', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ db_name: UIModule.state.dbName })
+            body: JSON.stringify({ db_name: AppState.db.selected })
         });
         const colls = await res.json();
         const select = document.getElementById('modal-del-coll-select');
@@ -73,10 +77,11 @@ const DBModule = {
         await fetch('/api/db/collection', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ db_name: UIModule.state.dbName, collection: coll })
+            body: JSON.stringify({ db_name: AppState.db.selected, collection: coll })
         });
-        alert('Deleted!');
+        if (window.alert) alert('Deleted!');
         UIModule.closeModals();
+        if (AppState.tabs.active === 'explorer' || AppState.tabs.active === 'db_mgmt') this.loadCollections();
     },
 
     async createCollectionModal() {
@@ -84,10 +89,11 @@ const DBModule = {
         await fetch('/api/db/collection', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ db_name: UIModule.state.dbName, collection: coll })
+            body: JSON.stringify({ db_name: AppState.db.selected, collection: coll })
         });
-        alert('Created!');
+        if (window.alert) alert('Created!');
         UIModule.closeModals();
+        if (AppState.tabs.active === 'explorer' || AppState.tabs.active === 'db_mgmt') this.loadCollections();
     },
 
     // --- TissDB Lifecycle ---
@@ -100,16 +106,16 @@ const DBModule = {
 
     async executeBuildTissDB() {
         const resultsEl = document.getElementById('db-lifecycle-results');
-        resultsEl.innerText = 'Building TissDB...';
+        if (resultsEl) resultsEl.innerText = 'Building TissDB...';
         try {
             const res = await fetch('/api/db/build', { method: 'POST' });
             const data = await res.json();
             if (data.success) {
-                resultsEl.innerHTML = '<span style="color: green">Build successful!</span>\n' + data.stdout;
+                if (resultsEl) resultsEl.innerHTML = '<span style="color: #10b981">Build successful!</span>\n' + data.stdout;
             } else {
-                resultsEl.innerHTML = '<span style="color: red">Build failed:</span>\n' + data.stderr;
+                if (resultsEl) resultsEl.innerHTML = '<span style="color: #f43f5e">Build failed:</span>\n' + data.stderr;
             }
-        } catch (e) { resultsEl.innerText = 'Error: ' + e.message; }
+        } catch (e) { if (resultsEl) resultsEl.innerText = 'Error: ' + e.message; }
     },
 
     async startTissDB() {
@@ -125,12 +131,12 @@ const DBModule = {
             const res = await fetch('/api/db/start', { method: 'POST' });
             const data = await res.json();
             if (data.success) {
-                resultsEl.innerText = `TissDB started (PID: ${data.pid}).`;
+                if (resultsEl) resultsEl.innerText = `TissDB started (PID: ${data.pid}).`;
                 DBModule.checkStatus();
             } else {
-                resultsEl.innerText = 'Error: ' + data.error;
+                if (resultsEl) resultsEl.innerText = 'Error: ' + data.error;
             }
-        } catch (e) { resultsEl.innerText = 'Error: ' + e.message; }
+        } catch (e) { if (resultsEl) resultsEl.innerText = 'Error: ' + e.message; }
     },
 
     async stopTissDB() {
@@ -139,22 +145,25 @@ const DBModule = {
             const res = await fetch('/api/db/stop', { method: 'POST' });
             const data = await res.json();
             if (data.success) {
-                resultsEl.innerText = 'TissDB stopped.';
+                if (resultsEl) resultsEl.innerText = 'TissDB stopped.';
                 DBModule.checkStatus();
             } else {
-                resultsEl.innerText = 'Error: ' + data.error;
+                if (resultsEl) resultsEl.innerText = 'Error: ' + data.error;
             }
-        } catch (e) { resultsEl.innerText = 'Error: ' + e.message; }
+        } catch (e) { if (resultsEl) resultsEl.innerText = 'Error: ' + e.message; }
     },
 
     async checkStatus() {
         try {
             const res = await fetch('/api/db/lifecycle_status');
             const data = await res.json();
+            
+            AppState.update({ db: { ...AppState.db, running: data.running, pid: data.pid } });
+
             const statusEl = document.getElementById('db-status-text');
             if (statusEl) {
                 statusEl.innerText = data.running ? `Running (PID: ${data.pid})` : 'Stopped';
-                statusEl.style.color = data.running ? 'green' : 'red';
+                statusEl.style.color = data.running ? '#10b981' : '#f43f5e';
             }
         } catch (e) {}
     }
