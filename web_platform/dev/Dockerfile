@@ -23,8 +23,13 @@ ENV PYTHONPATH=/app
 ENV TISSDB_HOST=localhost
 ENV TISSDB_PORT=9876
 
-# Deploy the Greenhouse
-COPY . .
+# Deploy the Greenhouse: Copy only source code directories
+COPY analytics /app/analytics
+COPY integrations /app/integrations
+COPY lite /app/lite
+COPY quanta_tissu /app/quanta_tissu
+COPY tisslm /app/tisslm
+COPY web_platform /app/web_platform
 
 # Setup Logging
 RUN mkdir -p /var/log && touch /var/log/framework.log && chmod 666 /var/log/framework.log
