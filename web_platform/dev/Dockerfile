@@ -7,8 +7,6 @@ FROM python:3.12-alpine
 RUN apk add --no-cache \
     build-base \
     python3-dev \
-    py3-numpy \
-    py3-requests \
     libffi-dev \
     git
 
@@ -17,7 +15,8 @@ WORKDIR /app
 RUN git clone https://github.com/drtamarojgreen/quanta_tissu/ .
 
 # Visible Foliage: Python requirements
-RUN pip install --no-cache-dir regex
+# Install directly via pip to ensure they are in the correct environment
+RUN pip install --no-cache-dir numpy regex requests
 
 # Refresh the Dev Tools: Copy local dev configuration into the cloned repo
 COPY web_platform/dev /app/web_platform/dev
