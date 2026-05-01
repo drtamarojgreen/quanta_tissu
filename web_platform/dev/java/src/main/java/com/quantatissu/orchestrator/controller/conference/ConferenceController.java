@@ -1,35 +1,125 @@
 package com.quantatissu.orchestrator.controller.conference;
 
+import static com.quantatissu.orchestrator.controller.conference.SocketRestController.getRooms;
 import com.quantatissu.orchestrator.model.conference.Room;
-import com.quantatissu.orchestrator.repository.conference.RoomRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 
-@RestController
-@RequestMapping("/api/conference")
+@Controller
 public class ConferenceController {
 
-    @Autowired
-    private RoomRepository roomRepository;
+    @Value("${welcome.message:Welcome to Quanta Tissu}")
+    private String message;
 
-    @GetMapping("/rooms")
-    public List<Room> getAllRooms() {
-        return roomRepository.findAll();
+    @Value("${project.message:Project Portal}")
+    private String projectMessage;
+
+    @Value("${report.message:Conference Reports}")
+    private String reportMessage;
+
+    @Value("${conference.name:Quanta Conference}")
+    private String conferenceName;
+
+    @RequestMapping(value = { "/conferences/conference" }, method = RequestMethod.GET)
+    public String showConference(Model model) {
+        model.addAttribute("message", message);
+        model.addAttribute("conferenceName", conferenceName);
+        return "conferences/conference";
     }
 
-    @PostMapping("/rooms")
-    public Room createRoom(@RequestBody Room room) {
-        return roomRepository.save(room);
+    @RequestMapping(value = { "/conferences/forum" }, method = RequestMethod.GET)
+    public String showForum(Model model) {
+        model.addAttribute("message", message);
+        model.addAttribute("conferenceName", conferenceName);
+        return "conferences/forum";
     }
 
-    @GetMapping("/rooms/{id}")
-    public Room getRoom(@PathVariable Integer id) {
-        return roomRepository.findById(id).orElse(null);
+    @RequestMapping(value = { "/conferences/learn" }, method = RequestMethod.GET)
+    public String showLearn(Model model) {
+        model.addAttribute("message", message);
+        model.addAttribute("conferenceName", conferenceName);
+        return "conferences/learn";
     }
 
-    @DeleteMapping("/rooms/{id}")
-    public void deleteRoom(@PathVariable Integer id) {
-        roomRepository.deleteById(id);
+    @RequestMapping(value = { "/conferences/workshop" }, method = RequestMethod.GET)
+    public String showWorkshop(Model model) {
+        model.addAttribute("message", message);
+        model.addAttribute("conferenceName", conferenceName);
+        return "conferences/workshop";
+    }
+
+    @RequestMapping(value = { "/conferences/project" }, method = RequestMethod.GET)
+    public String showProject(Model model) {
+        model.addAttribute("message", projectMessage);
+        model.addAttribute("conferenceName", conferenceName);
+        return "conferences/project";
+    }
+
+    @RequestMapping(value = { "/conferences/report" }, method = RequestMethod.GET)
+    public String showReport(Model model) {
+        model.addAttribute("message", reportMessage);
+        model.addAttribute("conferenceName", conferenceName);
+        return "conferences/report";
+    }
+
+    @RequestMapping(value = { "/conferences/room" }, method = RequestMethod.GET)
+    public String showConferenceRoom(Model model) {
+        model.addAttribute("message", reportMessage);
+        model.addAttribute("conferenceName", conferenceName);
+        List<Room> rooms = getRooms();
+        model.addAttribute("rooms", rooms);
+        return "conferences/room";
+    }
+
+    @RequestMapping(value = { "/conferences/presentation" }, method = RequestMethod.GET)
+    public String showConferencePresentation(Model model) {
+        model.addAttribute("message", reportMessage);
+        model.addAttribute("conferenceName", conferenceName);
+        List<Room> rooms = getRooms();
+        model.addAttribute("rooms", rooms);
+        return "conferences/presentation";
+    }
+
+    @RequestMapping(value = { "/conferences/screenshare" }, method = RequestMethod.GET)
+    public String showConferenceScreenshare(Model model) {
+        model.addAttribute("message", reportMessage);
+        model.addAttribute("conferenceName", conferenceName);
+        List<Room> rooms = getRooms();
+        model.addAttribute("rooms", rooms);
+        return "conferences/screenshare";
+    }
+
+    @RequestMapping(value = { "/conferences/slides" }, method = RequestMethod.GET)
+    public String showConferenceSlides(Model model) {
+        model.addAttribute("message", reportMessage);
+        model.addAttribute("conferenceName", conferenceName);
+        List<Room> rooms = getRooms();
+        model.addAttribute("rooms", rooms);
+        return "conferences/slides";
+    }
+
+    @RequestMapping(value = { "/conferences/test" }, method = RequestMethod.GET)
+    public String showTestRoom(Model model) {
+        model.addAttribute("message", reportMessage);
+        model.addAttribute("conferenceName", conferenceName);
+        return "conferences/test";
+    }
+
+    @RequestMapping(value = { "/conferences/messages" }, method = RequestMethod.GET)
+    public String showMessageRoom(Model model) {
+        model.addAttribute("message", reportMessage);
+        model.addAttribute("conferenceName", conferenceName);
+        return "conferences/messages";
+    }
+
+    @RequestMapping(value = { "/conferences/music" }, method = RequestMethod.GET)
+    public String showMusicRoom(Model model) {
+        model.addAttribute("message", reportMessage);
+        model.addAttribute("conferenceName", conferenceName);
+        return "conferences/music";
     }
 }
