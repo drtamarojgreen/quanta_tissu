@@ -1,29 +1,26 @@
 # TissDB Makefile
+# Uses user-provided g++ command and builds in the build/ directory
 
-# Compiler
 CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -g -march=native -I. -I../quanta_tissu/tisslm/program -I..
+LDFLAGS = -latomic -lpthread
 
-# Compiler flags
-CXXFLAGS = -std=c++17 -I.. -I. -Wall -Wextra -g
+BUILD_DIR = build
+TARGET = $(BUILD_DIR)/tissdb
+TEST_TARGET = $(BUILD_DIR)/test_tissdb
 
-# Linker flags (for Windows, add -lws2_32 for socket library)
-LDFLAGS =
-
-# Source files
+# Source files for the main binary
 SRCS = main.cpp \
-       ../quanta_tissu/tisslm/program/tissu_sinew.cpp \
-       ../quanta_tissu/tisslm/program/schema_manager.cpp \
-       ../quanta_tissu/tisslm/program/ddl_parser.cpp \
        api/http_server.cpp \
-       auth/token_manager.cpp \
-       auth/rbac.cpp \
        audit/audit_logger.cpp \
-       crypto/kms.cpp \
+       auth/rbac.cpp \
+       auth/token_manager.cpp \
        common/binary_stream_buffer.cpp \
        common/checksum.cpp \
        common/document.cpp \
-       common/serialization.cpp \
        common/schema_validator.cpp \
+       common/serialization.cpp \
+       crypto/kms.cpp \
        json/json.cpp \
        query/executor.cpp \
        query/executor_common.cpp \
@@ -34,58 +31,45 @@ SRCS = main.cpp \
        query/join_algorithms.cpp \
        query/parser.cpp \
        storage/collection.cpp \
+       storage/database_manager.cpp \
        storage/indexer.cpp \
        storage/lsm_tree.cpp \
-       storage/database_manager.cpp \
        storage/memtable.cpp \
-       storage/transaction_manager.cpp \
        storage/native_b_tree.cpp \
        storage/sstable.cpp \
+       storage/transaction_manager.cpp \
        storage/wal.cpp \
+       ../quanta_tissu/tisslm/program/ddl_parser.cpp \
+       ../quanta_tissu/tisslm/program/schema_manager.cpp \
+       ../quanta_tissu/tisslm/program/tissu_sinew.cpp \
        ../tests/db/http_client.cpp
 
-# Object files
-OBJS = $(SRCS:.cpp=.o)
+# Filter out main components to build the test suite
+TEST_SRCS = $(filter-out main.cpp api/http_server.cpp, $(SRCS)) ../tests/db/test_main.cpp
 
-# Filter out objects that should not be in the test build
-TEST_OBJS = $(filter-out main.o api/http_server.o, $(OBJS))
-
-# Executable name
-TARGET = tissdb
-TEST_TARGET = test_tissdb
-
-# Default rule
+# Default target
 all: $(TARGET)
 
-# Rule to link the object files into the executable
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS)
+# Build the main database binary
+$(TARGET): $(SRCS)
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(SRCS) $(LDFLAGS) -o $(TARGET)
 
-# Rule to compile the source files into object files
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+# Run the database
+run: all
+	./$(TARGET)
 
-# Test rule
+# Build and run tests
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
-# All test objects will be placed in the current directory
-TEST_MAIN_SRC = ../tests/db/test_main.cpp
-TEST_MAIN_OBJ = test_main.o
+$(TEST_TARGET): $(TEST_SRCS)
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(TEST_SRCS) $(LDFLAGS) -o $(TEST_TARGET)
 
-$(TEST_TARGET): $(TEST_OBJS) $(TEST_MAIN_OBJ)
-	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) $(TEST_OBJS) $(TEST_MAIN_OBJ) $(LDFLAGS)
-
-$(TEST_MAIN_OBJ): $(TEST_MAIN_SRC)
-	$(CXX) $(CXXFLAGS) -I.. -c $(TEST_MAIN_SRC) -o $(TEST_MAIN_OBJ)
-
-# Rule to clean the compiled files
+# Clean the build directory
 clean:
-	-rm -f $(OBJS) $(TARGET) $(TEST_TARGET) *.o
-
-# Rule to run the executable
-run: all
-	./$(TARGET)
+	rm -rf $(BUILD_DIR)
 
 .PHONY: all clean run test analysis
 
@@ -94,25 +78,13 @@ ANALYSIS_SRCS = analysis/ACID_analysis.cpp \
                 analysis/relational_analysis.cpp \
                 analysis/schema_analysis.cpp \
                 analysis/transaction_analysis.cpp
-ANALYSIS_TARGETS = $(ANALYSIS_SRCS:.cpp=)
+ANALYSIS_TARGETS = $(patsubst analysis/%.cpp, $(BUILD_DIR)/%, $(ANALYSIS_SRCS))
 
 analysis: $(ANALYSIS_TARGETS)
 	@echo "\n\n--- Running TissDB Analysis ---"
-	@./analysis/ACID_analysis
-	@./analysis/relational_analysis
-	@./analysis/schema_analysis
-	@./analysis/transaction_analysis
+	@for target in $(ANALYSIS_TARGETS); do ./$$target; done
 	@echo "\n--- Analysis Complete ---\n"
-	@rm -f $(ANALYSIS_TARGETS)
 
-analysis/ACID_analysis: analysis/ACID_analysis.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
-
-analysis/relational_analysis: analysis/relational_analysis.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
-
-analysis/schema_analysis: analysis/schema_analysis.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
-
-analysis/transaction_analysis: analysis/transaction_analysis.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $<
+$(BUILD_DIR)/%: analysis/%.cpp
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $< -o $@

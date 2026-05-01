@@ -101,6 +101,30 @@ STEP "Run and verify" {
 *   **Modern C++ API:** Uses RAII, smart pointers, and exception-based error handling for robust and clean code.
 *   **High Performance:** Designed for low-overhead communication with the TissDB server.
 
+---
+
+### 7. Web Orchestration Platform
+
+The **Web Orchestration Platform** is a centralized dashboard for the entire ecosystem, allowing for intuitive control of AI models, databases, and monitoring tools.
+
+**Key Features:**
+*   **Model Playground:** Interactive interface for QuantaTissu with RAG support and parameter tuning.
+*   **Database Admin:** Build, start, and manage the C++ TissDB instance from the browser.
+*   **Integrated Testing:** Execute and monitor model workout scripts and evaluation suites.
+*   **Zero-Dependency Design:** Built with a pure Python backend and Vanilla JS frontend for maximum compatibility.
+
+---
+
+### 8. Runtime Model Analyzer (RMA)
+
+The **Runtime Model Analyzer** is a specialized framework for monitoring the arithmetic and logical integrity of C++ models during execution.
+
+**Key Features:**
+*   **POSIX Shared Memory IPC:** High-performance, non-intrusive communication between the model and the analyzer.
+*   **Anomaly Detection:** Real-time detection of NaNs, infinity, and division-by-zero errors.
+*   **Interactive Monitor:** Real-time filtering and performance benchmarking of error streams.
+*   **Dual-Process Architecture:** Ensures that monitoring does not affect the stability or performance of the primary model.
+
 ## Project Philosophy
 
 *   **Ecological Awareness:** We aim to build AI systems that are not only powerful but also resource-efficient, from model architecture to code generation.

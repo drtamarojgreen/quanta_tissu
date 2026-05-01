@@ -52,6 +52,13 @@ const AdminModule = {
     },
 
     async startTraining() {
+        UIModule.openModal('modal-confirm-process', {
+            command: 'python3 quanta_tissu/tisslm/legacylm/train.py (simulated)',
+            callback: 'AdminModule.executeStartTraining'
+        });
+    },
+
+    async executeStartTraining() {
         const taskId = 'training_job';
         const res = await fetch('/api/training/start', {
             method: 'POST',
@@ -107,6 +114,15 @@ const AdminModule = {
     },
 
     async runMigration() {
+        const source = document.getElementById('migrate-source-select').value;
+        const target = document.getElementById('migrate-target-input').value;
+        UIModule.openModal('modal-confirm-process', {
+            command: `Migrate TissDB documents from [${source}] to [${target}]`,
+            callback: 'AdminModule.executeRunMigration'
+        });
+    },
+
+    async executeRunMigration() {
         const source = document.getElementById('migrate-source-select').value;
         const target = document.getElementById('migrate-target-input').value;
         const resEl = document.getElementById('migration-results');
