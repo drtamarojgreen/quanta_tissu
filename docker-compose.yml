@@ -21,3 +21,16 @@ services:
       - TISSDB_HOST=tissdb
     depends_on:
       - tissdb
+
+  orchestrator:
+    build:
+      context: ./web_platform/dev/java
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PLATFORM_HOST=platform
+      - TISSDB_HOST=tissdb
+    depends_on:
+      - platform
+      - tissdb
