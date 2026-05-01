@@ -1,0 +1,87 @@
+package com.quantatissu.orchestrator.dbo.hr;
+
+import com.quantatissu.orchestrator.dbm.HibernateAdmin;
+import com.quantatissu.orchestrator.dbo.DatabaseObject;
+import com.quantatissu.orchestrator.model.hr.HrClient;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
+public class HrClientDBO extends DatabaseObject {
+
+    public static void saveSQLHrClient(HrClient hrClient) {
+            session = HibernateAdmin.getSession();
+            tx = session.beginTransaction();
+            String sql = "INSERT INTO HrClient(clientFirstName,clientLastName,clientSpecialty,clientContact,hrGroupId) VALUES(?,?,?,?,?)";
+            try {
+                conn = DriverManager.getConnection(connectionURL);
+                pstmt = conn.prepareStatement(sql);
+                pstmt.setString(1,hrClient.getClientFirstName());
+                pstmt.setString(2,hrClient.getClientLastName());
+                pstmt.setString(3,hrClient.getClientSpecialty());
+                pstmt.setString(4,hrClient.getClientContact());
+                pstmt.setInt(5,hrClient.getHrGroupId());
+                pstmt.executeUpdate();
+                tx.commit();
+                session.close();
+            } catch (SQLException e) {
+                    System.out.println(e.getMessage());
+            tx.rollback();
+            }
+    }
+
+    public static void updateHrClient(HrClient hrClient) {
+            session = HibernateAdmin.getSession();
+            tx = session.beginTransaction();
+            String sql = "UPDATE HrClient SET clientFirstName=?,clientLastName=?,clientSpecialty=?,clientContact=?,hrGroupId=? WHERE id = ?";
+            try {
+                conn = DriverManager.getConnection(connectionURL);
+                pstmt = conn.prepareStatement(sql);
+                pstmt.setString(1,hrClient.getClientFirstName());
+                pstmt.setString(2,hrClient.getClientLastName());
+                pstmt.setString(3,hrClient.getClientSpecialty());
+                pstmt.setString(4,hrClient.getClientContact());
+                pstmt.setInt(5,hrClient.getHrGroupId());
+                pstmt.setInt(6,hrClient.getId());
+                pstmt.executeUpdate();
+                tx.commit();
+                session.close();
+            } catch (SQLException e) {
+                    System.out.println(e.getMessage());
+            tx.rollback();
+            }
+    }
+
+    public static List<HrClient> loadHrClients(){
+            session = HibernateAdmin.getSession();
+            tx = session.beginTransaction();
+            List<HrClient> hrClientList = new ArrayList<>();
+            String sql = "SELECT id,clientFirstName,clientLastName,clientSpecialty,clientContact,hrGroupId FROM HrClient;";
+            try {
+                conn = DriverManager.getConnection(connectionURL);
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql);
+                       while(rs.next()){
+                           HrClient hrClient = new HrClient();
+                           hrClient.setId(rs.getInt("id"));
+                           hrClient.setClientFirstName(rs.getString("clientFirstName"));
+                           hrClient.setClientLastName(rs.getString("clientLastName"));
+                           hrClient.setClientSpecialty(rs.getString("clientSpecialty"));
+                           hrClient.setClientContact(rs.getString("clientContact"));
+                           hrClient.setHrGroupId(rs.getInt("hrGroupId"));
+                           hrClientList.add(hrClient);
+                       }
+                tx.commit();
+                session.close();
+                return hrClientList;
+            } catch (SQLException e) {
+                    System.out.println(e.getMessage());
+            tx.rollback();
+            }
+        return null;
+    }
+    
+}

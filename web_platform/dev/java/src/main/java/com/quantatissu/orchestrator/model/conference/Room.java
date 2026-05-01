@@ -1,17 +1,7 @@
 package com.quantatissu.orchestrator.model.conference;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Table;
-
-@Entity
-@Table(name = "rooms")
 public class Room {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
     private String sdp;
     private String type;
@@ -57,4 +47,5 @@ public class Room {
     public void setAttendees(Integer attendees) {
         this.attendees = attendees;
     }
+           
 }

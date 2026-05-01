@@ -1,0 +1,61 @@
+package com.quantatissu.orchestrator.dbo.schools;
+
+import com.quantatissu.orchestrator.dbm.HibernateAdmin;
+import com.quantatissu.orchestrator.dbo.DatabaseObject;
+import com.quantatissu.orchestrator.model.school.LectureNote;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
+public class LectureNoteDBO extends DatabaseObject{
+
+    public static void saveSQLLectureNote(LectureNote lectureNote) {
+            session = HibernateAdmin.getSession();
+            tx = session.beginTransaction();
+            String sql = "INSERT INTO LectureNote(noteInstructor,noteLecture,noteText) VALUES(?,?,?)";
+            try {
+                conn = DriverManager.getConnection(connectionURL);
+                pstmt = conn.prepareStatement(sql);
+                pstmt.setString(1,lectureNote.getNoteInstructor());
+                pstmt.setString(2,lectureNote.getNoteLecture());
+                pstmt.setString(3,lectureNote.getNoteText());
+                pstmt.executeUpdate();
+                tx.commit();
+                session.close();
+            } catch (SQLException e) {
+                    System.out.println(e.getMessage());
+            tx.rollback();
+            }
+    }
+
+    public static List<LectureNote> loadLectureNotes(){
+            session = HibernateAdmin.getSession();
+            tx = session.beginTransaction();
+            List<LectureNote> lectureNoteList = new ArrayList<>();
+            String sql = "SELECT id,noteInstructor,noteLecture,noteText FROM LectureNote;";
+            try  {
+                        conn = DriverManager.getConnection(connectionURL);
+                        Statement stmt = conn.createStatement();
+                        ResultSet rs = stmt.executeQuery(sql);                
+                       while(rs.next()){
+                           LectureNote lectureNote = new LectureNote();
+                           lectureNote.setId(rs.getInt("id"));
+                           lectureNote.setNoteInstructor(rs.getString("noteInstructor"));
+                           lectureNote.setNoteLecture(rs.getString("noteLecture"));
+                           lectureNote.setNoteText(rs.getString("noteText"));
+                           lectureNoteList.add(lectureNote);
+                       }
+                tx.commit();
+                session.close();
+                return lectureNoteList;
+            } catch (SQLException e) {
+                    System.out.println(e.getMessage());
+            tx.rollback();
+            }
+        return null;
+    }
+    
+}

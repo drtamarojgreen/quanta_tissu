@@ -1,0 +1,59 @@
+package com.quantatissu.orchestrator.dbo.schools;
+
+import com.quantatissu.orchestrator.dbm.HibernateAdmin;
+import com.quantatissu.orchestrator.dbo.DatabaseObject;
+import com.quantatissu.orchestrator.model.school.Administrator;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
+public class AdministratorDBO extends DatabaseObject {
+
+    public static void saveSQLAdministrator(Administrator administrator) {
+            session = HibernateAdmin.getSession();
+            tx = session.beginTransaction();
+            String sql = "INSERT INTO Administrator(administratorName, administratorGroupId) VALUES(?,?)";
+            try (Connection conn = DriverManager.getConnection(connectionURL);
+                ){
+                pstmt = conn.prepareStatement(sql);
+                pstmt.setString(1,administrator.getAdministratorName());
+                pstmt.setInt(2,administrator.getAdministratorGroupId());
+                pstmt.executeUpdate();
+                tx.commit();
+                 session.close();
+            } catch (SQLException e) {
+                    System.out.println(e.getMessage());
+            tx.rollback();
+            }
+    }
+
+    public static List<Administrator> loadAdministrators(){
+            session = HibernateAdmin.getSession();
+            tx = session.beginTransaction();
+            List<Administrator> administratorList = new ArrayList<>();
+            String sql = "SELECT id,administratorName,administratorGroupId FROM Administrator;";
+            try (Connection conn = DriverManager.getConnection(connectionURL);
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
+                       while(rs.next()){
+                           Administrator administrator = new Administrator();
+                           administrator.setId(rs.getInt("id"));
+                           administrator.setAdministratorName(rs.getString("administratorName"));
+                           administrator.setAdministratorGroupId(rs.getInt("administratorGroupId"));
+                           administratorList.add(administrator);
+                       }
+                tx.commit();
+                 session.close();
+                return administratorList;
+            } catch (SQLException e) {
+                    System.out.println(e.getMessage());
+            tx.rollback();
+            }
+        return null;
+    }
+    
+}
