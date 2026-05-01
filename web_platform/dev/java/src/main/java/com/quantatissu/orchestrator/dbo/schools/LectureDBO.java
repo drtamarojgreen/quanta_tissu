@@ -3,7 +3,7 @@ package com.quantatissu.orchestrator.dbo.schools;
 import com.quantatissu.orchestrator.dbm.HibernateAdmin;
 import com.quantatissu.orchestrator.dbo.DatabaseObject;
 import com.quantatissu.orchestrator.model.school.Lecture;
-import com.quantatissu.orchestrator.services.DecodedMultipartFile;
+import com.quantatissu.orchestrator.service.DecodedMultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -63,6 +63,8 @@ public class LectureDBO extends DatabaseObject{
                                DecodedMultipartFile mpf = new DecodedMultipartFile(is);
                                 lecture.setLecturePoster(mpf);
                                 lectureList.add(lecture);
+                           } catch (IOException ex) {
+                               Logger.getLogger(LectureDBO.class.getName()).log(Level.SEVERE, null, ex);
                            } catch (SecurityException ex) {
                                Logger.getLogger(LectureDBO.class.getName()).log(Level.SEVERE, null, ex);
                                Logger.getLogger(LectureDBO.class.getName()).log(Level.SEVERE, null, ex);
