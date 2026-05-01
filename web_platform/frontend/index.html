@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QuantaTissu Platform</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <div id="app">
         <header id="top-nav">
             <div class="logo">
-                <img src="logo.jpg" alt="QuantaTissu Logo" style="height: 40px; margin-right: 10px;">
+                <img src="/logo.jpg" alt="QuantaTissu Logo" style="height: 40px; margin-right: 10px;">
                 <span>QuantaTissu</span>
             </div>
             <nav class="nav-menu">
@@ -86,7 +86,9 @@
                     <button class="nav-item" data-tab="playground" onclick="switchTab('playground')">Model Playground</button>
                     <button class="nav-item" data-tab="analytics" onclick="switchTab('analytics')">Analytics</button>
                     <button class="nav-item" data-tab="tisslang" onclick="switchTab('tisslang')">TissLang</button>
+                    <button class="nav-item" data-tab="analyzer" onclick="switchTab('analyzer')">Analyzer</button>
                     <button class="nav-item" data-tab="config" onclick="switchTab('config')">Model Training</button>
+                    <button class="nav-item" data-tab="db_mgmt" onclick="switchTab('db_mgmt')">Database Management</button>
                     <button class="nav-item" data-tab="admin" onclick="switchTab('admin')">Admin</button>
                     <button class="nav-item" data-tab="tests" onclick="switchTab('tests')">Tests</button>
                     <button class="nav-item" data-tab="nexus" onclick="switchTab('nexus')">Nexus Flow</button>
@@ -116,23 +118,24 @@
     </div>
 
     <!-- Core Utilities -->
-    <script src="js/candlestick.js"></script>
-    <script src="js/graph.js"></script>
-    <script src="js/visualization.js"></script>
+    <script src="/js/candlestick.js"></script>
+    <script src="/js/graph.js"></script>
+    <script src="/js/visualization.js"></script>
 
     <!-- State Management -->
     <script src="js/modules/state.js"></script>
 
     <!-- Modules -->
-    <script src="js/modules/ui_module.js"></script>
-    <script src="js/modules/db_module.js"></script>
-    <script src="js/modules/model_module.js"></script>
-    <script src="js/modules/analytics_module.js"></script>
-    <script src="js/modules/tisslang_module.js"></script>
-    <script src="js/modules/admin_module.js"></script>
-    <script src="js/modules/test_module.js"></script>
+    <script src="/js/modules/ui_module.js"></script>
+    <script src="/js/modules/db_module.js"></script>
+    <script src="/js/modules/model_module.js"></script>
+    <script src="/js/modules/analytics_module.js"></script>
+    <script src="/js/modules/analyzer_module.js"></script>
+    <script src="/js/modules/tisslang_module.js"></script>
+    <script src="/js/modules/admin_module.js"></script>
+    <script src="/js/modules/test_module.js"></script>
 
     <!-- App Entry -->
-    <script src="js/app.js"></script>
+    <script src="/js/app.js"></script>
 </body>
 </html>

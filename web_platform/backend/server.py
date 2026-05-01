@@ -62,8 +62,14 @@ class CustomHandler(http.server.BaseHTTPRequestHandler):
         full_path = os.path.join(STATIC_DIR, requested)
         if os.path.isdir(full_path):
             full_path = os.path.join(full_path, 'index.html')
+        
+        # If file doesn't exist, only fallback to index.html if it looks like a route (no extension)
         if not os.path.isfile(full_path):
-            full_path = os.path.join(STATIC_DIR, 'index.html')
+            if '.' not in requested:
+                full_path = os.path.join(STATIC_DIR, 'index.html')
+            else:
+                self.send_error(404, f"File not found: {requested}")
+                return
 
         if os.path.isfile(full_path):
             content_type, _ = mimetypes.guess_type(full_path)
@@ -138,10 +144,11 @@ class CustomHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'error': f"Endpoint {self.path} not found"}).encode('utf-8'))
 
 if __name__ == '__main__':
-    class MyTCPServer(socketserver.TCPServer):
+    class ThreadingSimpleServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         allow_reuse_address = True
 
-    with MyTCPServer(('0.0.0.0', PORT), CustomHandler) as httpd:
+    # Bind to 0.0.0.0 to ensure accessibility from all interfaces
+    with ThreadingSimpleServer(('0.0.0.0', PORT), CustomHandler) as httpd:
         print(f'QuantaTissu Platform serving at http://127.0.0.1:{PORT}')
         print(f'Static directory: {STATIC_DIR}')
         httpd.serve_forever()

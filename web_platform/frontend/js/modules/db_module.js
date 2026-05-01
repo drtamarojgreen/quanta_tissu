@@ -81,7 +81,7 @@ const DBModule = {
         });
         if (window.alert) alert('Deleted!');
         UIModule.closeModals();
-        if (AppState.tabs.active === 'explorer') this.loadCollections();
+        if (AppState.tabs.active === 'explorer' || AppState.tabs.active === 'db_mgmt') this.loadCollections();
     },
 
     async createCollectionModal() {
@@ -93,7 +93,79 @@ const DBModule = {
         });
         if (window.alert) alert('Created!');
         UIModule.closeModals();
-        if (AppState.tabs.active === 'explorer') this.loadCollections();
+        if (AppState.tabs.active === 'explorer' || AppState.tabs.active === 'db_mgmt') this.loadCollections();
+    },
+
+    // --- TissDB Lifecycle ---
+    async buildTissDB() {
+        UIModule.openModal('modal-confirm-process', {
+            command: 'Native g++ build (tissdb)',
+            callback: 'DBModule.executeBuildTissDB'
+        });
+    },
+
+    async executeBuildTissDB() {
+        const resultsEl = document.getElementById('db-lifecycle-results');
+        if (resultsEl) resultsEl.innerText = 'Building TissDB...';
+        try {
+            const res = await fetch('/api/db/build', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                if (resultsEl) resultsEl.innerHTML = '<span style="color: #10b981">Build successful!</span>\n' + data.stdout;
+            } else {
+                if (resultsEl) resultsEl.innerHTML = '<span style="color: #f43f5e">Build failed:</span>\n' + data.stderr;
+            }
+        } catch (e) { if (resultsEl) resultsEl.innerText = 'Error: ' + e.message; }
+    },
+
+    async startTissDB() {
+        UIModule.openModal('modal-confirm-process', {
+            command: './tissdb (in tissdb)',
+            callback: 'DBModule.executeStartTissDB'
+        });
+    },
+
+    async executeStartTissDB() {
+        const resultsEl = document.getElementById('db-lifecycle-results');
+        try {
+            const res = await fetch('/api/db/start', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                if (resultsEl) resultsEl.innerText = `TissDB started (PID: ${data.pid}).`;
+                DBModule.checkStatus();
+            } else {
+                if (resultsEl) resultsEl.innerText = 'Error: ' + data.error;
+            }
+        } catch (e) { if (resultsEl) resultsEl.innerText = 'Error: ' + e.message; }
+    },
+
+    async stopTissDB() {
+        const resultsEl = document.getElementById('db-lifecycle-results');
+        try {
+            const res = await fetch('/api/db/stop', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                if (resultsEl) resultsEl.innerText = 'TissDB stopped.';
+                DBModule.checkStatus();
+            } else {
+                if (resultsEl) resultsEl.innerText = 'Error: ' + data.error;
+            }
+        } catch (e) { if (resultsEl) resultsEl.innerText = 'Error: ' + e.message; }
+    },
+
+    async checkStatus() {
+        try {
+            const res = await fetch('/api/db/lifecycle_status');
+            const data = await res.json();
+            
+            AppState.update({ db: { ...AppState.db, running: data.running, pid: data.pid } });
+
+            const statusEl = document.getElementById('db-status-text');
+            if (statusEl) {
+                statusEl.innerText = data.running ? `Running (PID: ${data.pid})` : 'Stopped';
+                statusEl.style.color = data.running ? '#10b981' : '#f43f5e';
+            }
+        } catch (e) {}
     }
 };
 
