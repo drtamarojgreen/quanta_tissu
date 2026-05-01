@@ -1,7 +1,7 @@
 package com.quantatissu.orchestrator.model.socket;
 
 import com.quantatissu.orchestrator.controller.subscription.SubscriptionController;
-import com.quantatissu.orchestrator.services.filters.CustomFilter;
+import com.quantatissu.orchestrator.filter.CustomFilter;
 import java.io.Serializable;
 import java.util.concurrent.Flow;
 import javax.persistence.Entity;

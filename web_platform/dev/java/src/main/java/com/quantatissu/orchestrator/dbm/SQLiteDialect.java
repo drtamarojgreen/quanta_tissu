@@ -14,10 +14,6 @@ public class SQLiteDialect extends Dialect {
         registerColumnType(Types.BINARY, "binary");
     }    
 
-    @Override
-    public int getVersion() {
-        return 0;
-    }
     
     @Override
     public IdentityColumnSupport getIdentityColumnSupport() {
