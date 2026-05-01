@@ -35,4 +35,8 @@ public class SubscriptionController {
 
     @RequestMapping(value = { "/subscriptions/unsubscribe" }, method = RequestMethod.POST)
     public String unsubscribeSave(Model model) { return "redirect:/subscriptions/subscribers"; }
+
+    public void publishItem() {
+        // Implementation for publishItem
+    }
 }
