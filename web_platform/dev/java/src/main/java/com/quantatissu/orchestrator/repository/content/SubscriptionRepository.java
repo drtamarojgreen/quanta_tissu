@@ -1,7 +1,7 @@
 package com.quantatissu.orchestrator.repository.content;
 
 import org.springframework.data.repository.CrudRepository;
-import com.quantatissu.orchestrator.model.content.Subscription;
+import com.quantatissu.orchestrator.dbo.SubscriptionDBO;
 
-public interface SubscriptionRepository extends CrudRepository<Subscription, Integer> {
+public interface SubscriptionRepository extends CrudRepository<SubscriptionDBO, Integer> {
 }
