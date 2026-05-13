@@ -74,6 +74,10 @@ const AdminModule = {
         }
     },
 
+    refreshUI() {
+        this.checkTrainingStatus();
+    },
+
     trainingInterval: null,
     async checkTrainingStatus() {
         const res = await fetch('/api/training/status');
