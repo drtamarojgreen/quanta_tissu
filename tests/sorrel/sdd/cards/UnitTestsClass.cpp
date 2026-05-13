@@ -18,6 +18,14 @@
 // @Is platform == linux
 // @Results generate_success == true
 
+// @Card: unit_query_db
+// @Is platform == linux
+// @Results query_success == true
+
+// @Card: unit_create_logs
+// @Is platform == linux
+// @Results logs_created == true
+
 #include <iostream>
 #include <string>
 #include <cstdio>
@@ -64,6 +72,16 @@ int main(int argc, char** argv) {
         std::string res = exec((api_cmd + "generate '\"Test prompt\"'").c_str());
         if (res.find("\"status\": \"success\"") != std::string::npos) {
             std::cout << "generate_success = true" << std::endl;
+        }
+    } else if (card == "unit_query_db") {
+        std::string res = exec((api_cmd + "query_db '{\"query\": \"SELECT * FROM platform_logs\", \"collection\": \"platform_logs\"}'").c_str());
+        if (res.find("\"status\": \"success\"") != std::string::npos) {
+            std::cout << "query_success = true" << std::endl;
+        }
+    } else if (card == "unit_create_logs") {
+        std::string res = exec((api_cmd + "create_platform_logs").c_str());
+        if (res.find("created") != std::string::npos || res.find("exists") != std::string::npos || res.find("success") != std::string::npos) {
+            std::cout << "logs_created = true" << std::endl;
         }
     }
     return 0;
