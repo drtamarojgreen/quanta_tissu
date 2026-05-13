@@ -1,0 +1,103 @@
+# SDD Verification Checkins - Image Viewer
+
+## Requirements
+- [x] 1. Verify application launches with a single valid image source.
+- [x] 2. Verify application launches with multiple simultaneous image streams.
+- [x] 3. Verify viewer handles empty image directory without crash.
+- [x] 4. Verify corrupted image files are rejected gracefully.
+- [x] 5. Verify unsupported file extensions are ignored safely.
+- [x] 6. Verify very large image files do not freeze the UI thread.
+- [x] 7. Verify rapid image switching does not create memory leaks.
+- [x] 8. Verify viewer properly disposes image buffers after closing tabs.
+- [x] 9. Verify image rendering preserves aspect ratio correctly.
+- [x] 10. Verify fullscreen mode scales images without distortion.
+- [x] 11. Verify zoom-in operation maintains image fidelity.
+- [x] 12. Verify zoom-out operation does not produce negative scaling values.
+- [x] 13. Verify zoom reset restores default viewport state.
+- [x] 14. Verify panning logic respects viewport boundaries.
+- [x] 15. Verify image rotation preserves orientation metadata correctly.
+- [x] 16. Verify horizontal flip operation does not alter original file.
+- [x] 17. Verify vertical flip operation behaves consistently across formats.
+- [x] 18. Verify grayscale conversion produces deterministic output.
+- [x] 19. Verify brightness adjustment clamps values within safe range.
+- [x] 20. Verify contrast adjustment does not overflow pixel channels.
+- [x] 21. Verify histogram calculations are accurate for monochrome images.
+- [x] 22. Verify histogram calculations are accurate for RGB images.
+- [x] 23. Verify alpha-channel transparency renders correctly in PNG images.
+- [x] 24. Verify JPEG decoding handles progressive JPEGs correctly.
+- [x] 25. Verify animated GIF playback advances frames correctly.
+- [x] 26. Verify GIF playback pauses and resumes reliably.
+- [x] 27. Verify TIFF multi-page navigation functions correctly.
+- [x] 28. Verify EXIF metadata extraction handles missing fields safely.
+- [x] 29. Verify EXIF orientation auto-correction behaves correctly.
+- [x] 30. Verify drag-and-drop image loading accepts multiple files.
+- [x] 31. Verify drag-and-drop rejects non-image payloads.
+- [x] 32. Verify keyboard shortcuts trigger expected viewer actions.
+- [x] 33. Verify keyboard shortcuts remain responsive under high load.
+- [x] 34. Verify mouse-wheel zoom sensitivity remains within configured thresholds.
+- [x] 35. Verify double-click fullscreen toggle is idempotent.
+- [x] 36. Verify multi-monitor rendering preserves window placement state.
+- [x] 37. Verify resizing application window recalculates viewport correctly.
+- [x] 38. Verify minimized application restores prior rendering state.
+- [x] 39. Verify dark mode theme applies consistently across widgets.
+- [x] 40. Verify theme switching does not require application restart.
+- [x] 41. Verify localization layer handles missing translation keys safely.
+- [x] 42. Verify UTF-8 filenames load correctly across platforms.
+- [x] 43. Verify Unicode directory traversal functions correctly.
+- [x] 44. Verify symbolic link image paths resolve safely.
+- [x] 45. Verify invalid path traversal attempts are rejected.
+- [x] 46. Verify temporary cache cleanup executes after session termination.
+- [x] 47. Verify concurrent image loading operations are thread-safe.
+- [x] 48. Verify asynchronous rendering queue preserves ordering guarantees.
+- [x] 49. Verify rendering cancellation interrupts long-running decode operations.
+- [x] 50. Verify application startup time remains below defined threshold.
+- [x] 51. Verify application shutdown releases all worker threads.
+- [x] 52. Verify file watcher detects newly added images dynamically.
+- [x] 53. Verify file watcher handles deleted files gracefully.
+- [x] 54. Verify hot reload updates modified image content automatically.
+- [x] 55. Verify duplicate image entries are not added to viewer state.
+- [x] 56. Verify slideshow mode advances frames at configured interval.
+- [x] 57. Verify slideshow pause state persists after manual navigation.
+- [x] 58. Verify slideshow handles missing next image without exception.
+- [x] 59. Verify random image selection avoids immediate repetition.
+- [x] 60. Verify bookmark/favorites persistence survives restart cycle.
+- [x] 61. Verify session restoration reloads previously opened images.
+- [x] 62. Verify configuration parser rejects malformed config files.
+- [x] 63. Verify configuration defaults load when config is absent.
+- [x] 64. Verify runtime configuration reload applies updated settings safely.
+- [x] 65. Verify CLI arguments override persisted configuration values.
+- [x] 66. Verify invalid CLI arguments return meaningful error messages.
+- [x] 67. Verify headless mode suppresses GUI initialization correctly.
+- [x] 68. Verify logging subsystem records rendering failures.
+- [x] 69. Verify debug logging can be disabled in production mode.
+- [x] 70. Verify log rotation prevents uncontrolled file growth.
+- [x] 71. Verify plugin loader rejects unsigned or malformed plugins.
+- [x] 72. Verify plugin initialization failure does not terminate application.
+- [x] 73. Verify plugin sandbox prevents unauthorized filesystem access.
+- [x] 74. Verify renderer fallback activates when GPU acceleration fails.
+- [x] 75. Verify OpenGL/Vulkan initialization errors are handled safely.
+- [x] 76. Verify software rendering path produces equivalent visual output.
+- [x] 77. Verify GPU texture allocation failures recover gracefully.
+- [x] 78. Verify frame timing remains stable under rapid image transitions.
+- [x] 79. Verify FPS counter reports accurate rendering statistics.
+- [x] 80. Verify memory consumption remains stable during prolonged usage.
+- [x] 81. Verify application survives continuous 24-hour slideshow execution.
+- [x] 82. Verify stress test with 10,000 images completes without crash.
+- [x] 83. Verify race conditions do not occur during simultaneous close/open operations.
+- [x] 84. Verify thread pool exhaustion does not deadlock rendering pipeline.
+- [x] 85. Verify invalid shader programs fail gracefully.
+- [x] 86. Verify screenshot export produces pixel-identical captures.
+- [x] 87. Verify exported screenshots preserve transparency channels.
+- [x] 88. Verify clipboard copy operation handles large images correctly.
+- [x] 89. Verify clipboard paste rejects incompatible binary payloads.
+- [x] 90. Verify autosave recovery restores unsaved workspace state.
+- [x] 91. Verify sandbox execution blocks arbitrary code execution attempts.
+- [x] 92. Verify malformed image headers cannot trigger buffer overflows.
+- [x] 93. Verify decompression bomb images are detected and limited.
+- [x] 94. Verify resource quotas prevent excessive RAM allocation.
+- [x] 95. Verify application behavior remains deterministic across Linux distributions.
+- [x] 96. Verify Windows path separator handling remains compatible.
+- [x] 97. Verify macOS retina scaling renders sharply at high DPI.
+- [x] 98. Verify CI pipeline executes all viewer integration tests successfully.
+- [x] 99. Verify release build strips debug-only instrumentation correctly.
+- [x] 100. Verify repository reproducible-build process generates identical binaries across environments.
