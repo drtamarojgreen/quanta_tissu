@@ -107,7 +107,7 @@ loadModule('test_module.js');
 loadModule('tisslang_module.js');
 loadModule('ui_module.js');
 
-const STATE_FILE = path.join(projectRoot, '.platform_cli_state.json');
+const STATE_FILE = path.join('/tmp', '.platform_cli_state.json');
 
 function saveCLIState() {
     try {
