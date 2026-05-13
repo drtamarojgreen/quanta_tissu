@@ -1,7 +1,9 @@
 Situation: Default
 Is platform = linux
 Is backend_running = true
+Is api_available = true
+Needs node = installed
 
-Situation: NoBackend
+Situation: Offline
 Is platform = linux
 Is backend_running = false

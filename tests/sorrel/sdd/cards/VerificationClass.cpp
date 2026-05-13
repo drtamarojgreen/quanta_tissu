@@ -1,7 +1,12 @@
-// @Card: bdd_state_persistence
+// @Card: verify_persistence
 // @Situation Default
-// @Is platform == linux
-// @Results persistence_verified == true
+// @Is api_available == true
+// @Results state_persisted == true
+
+// @Card: verify_platform_logs
+// @Situation Default
+// @Is api_available == true
+// @Results collection_created == true
 
 #include <iostream>
 #include <string>
@@ -25,16 +30,22 @@ int main(int argc, char** argv) {
     std::string card = argv[1];
     std::string api_cmd = "node ../../../web_platform/frontend/js/api/platform_api.js ";
 
-    if (card == "bdd_state_persistence") {
+    if (card == "verify_persistence") {
         exec((api_cmd + "clear_state").c_str());
         exec((api_cmd + "switch_tab '\"playground\"'").c_str());
-        exec((api_cmd + "generate '\"Hello greenhouse\"'").c_str());
+        exec((api_cmd + "generate '\"Persistence Test\"'").c_str());
         exec((api_cmd + "switch_tab '\"config\"'").c_str());
         exec((api_cmd + "switch_tab '\"playground\"'").c_str());
 
         std::string res = exec((api_cmd + "get_module_state '\"ModelModule\"'").c_str());
-        if (res.find("\"lastPrompt\": \"Hello greenhouse\"") != std::string::npos) {
-            std::cout << "persistence_verified = true" << std::endl;
+        if (res.find("\"lastPrompt\": \"Persistence Test\"") != std::string::npos) {
+            std::cout << "state_persisted = true" << std::endl;
+        }
+    } else if (card == "verify_platform_logs") {
+        std::string res = exec((api_cmd + "create_platform_logs").c_str());
+        // Since backend might return non-JSON on error or text, find keyword
+        if (res.find("created") != std::string::npos || res.find("exists") != std::string::npos || res.find("success") != std::string::npos) {
+            std::cout << "collection_created = true" << std::endl;
         }
     }
     return 0;
