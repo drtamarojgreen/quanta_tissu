@@ -1,0 +1,25 @@
+{
+  "AppState": {
+    "tabs": {
+      "active": "playground"
+    },
+    "tasks": {},
+    "db": {
+      "selected": "main_db",
+      "collections": [],
+      "stats": {
+        "feedback_entries": 0,
+        "total_accesses": 0,
+        "total_docs": 0
+      }
+    },
+    "config": {
+      "model": {},
+      "training": {}
+    }
+  },
+  "ModelModuleState": {
+    "lastResponse": "object of type 'NoneType' has no len()",
+    "lastPrompt": "Test prompt"
+  }
+}
