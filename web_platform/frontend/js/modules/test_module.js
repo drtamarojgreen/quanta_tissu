@@ -44,7 +44,9 @@ const TestModule = {
             if (select) {
                 select.innerHTML = data.tests.map(t => `<option value="${t}">${t}</option>`).join('');
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('Failed to load test scripts:', e);
+        }
     },
 
     async runScript() {

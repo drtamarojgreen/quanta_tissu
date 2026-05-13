@@ -10,7 +10,9 @@ const DBModule = {
             AppState.update({ db: { ...AppState.db, stats: data } });
             const el = document.getElementById('db-stats-val');
             if (el) el.innerHTML = `<p>Total Docs: ${data.total_docs || 0}</p><p>Feedback: ${data.feedback_entries || 0}</p>`;
-        } catch(e) {}
+        } catch(e) {
+            console.error('Failed to load stats:', e);
+        }
     },
 
     async loadDatabases() {
@@ -22,7 +24,9 @@ const DBModule = {
                 select.innerHTML = dbs.map(db => `<option value="${db}" ${db === AppState.db.selected ? 'selected' : ''}>${db}</option>`).join('');
                 await this.loadCollections();
             }
-        } catch(e) {}
+        } catch(e) {
+            console.error('Failed to load databases:', e);
+        }
     },
 
     async loadCollections() {
@@ -38,7 +42,9 @@ const DBModule = {
             AppState.update({ db: { ...AppState.db, selected: dbSelect.value, collections: colls } });
             const collSelect = document.getElementById('coll-select');
             if (collSelect) collSelect.innerHTML = colls.map(c => `<option value="${c}">${c}</option>`).join('');
-        } catch(e) {}
+        } catch(e) {
+            console.error('Failed to load collections:', e);
+        }
     },
 
     async runQuery() {
@@ -165,7 +171,9 @@ const DBModule = {
                 statusEl.innerText = data.running ? `Running (PID: ${data.pid})` : 'Stopped';
                 statusEl.style.color = data.running ? '#10b981' : '#f43f5e';
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('Failed to check status:', e);
+        }
     }
 };
 
