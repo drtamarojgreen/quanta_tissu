@@ -1,0 +1,7 @@
+Situation: Default
+Is platform = linux
+Is backend_running = true
+
+Situation: NoBackend
+Is platform = linux
+Is backend_running = false
