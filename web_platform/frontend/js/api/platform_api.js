@@ -60,7 +60,13 @@ global.fetch = async (url, options = {}) => {
                 resolve({
                     ok: res.statusCode >= 200 && res.statusCode < 300,
                     status: res.statusCode,
-                    json: async () => JSON.parse(data),
+                    json: async () => {
+                        try {
+                            return JSON.parse(data);
+                        } catch (e) {
+                            return { error: 'Failed to parse JSON', data: data };
+                        }
+                    },
                     text: async () => data
                 });
             });
@@ -175,7 +181,10 @@ const PlatformAPI = {
         return { status: 'success', response: response };
     },
 
-    async query_db(query, collection) {
+    async query_db(params = {}) {
+        const query = params.query || '';
+        const collection = params.collection || 'platform_logs';
+
         document.getElementById('query-input').value = query;
         const select = document.getElementById('coll-select');
         select.value = collection;
@@ -220,7 +229,10 @@ const PlatformAPI = {
         return { status: 'stopped', output: document.getElementById('analyzer-results').innerText };
     },
 
-    async run_test_script(script_name, overrides = {}) {
+    async run_test_script(params = {}) {
+        const script_name = params.script_name;
+        const overrides = params.overrides || {};
+
         const select = document.getElementById('script-select');
         select.value = script_name;
         // Mock overrides would need more detailed document element mocking if we use the UI fields
