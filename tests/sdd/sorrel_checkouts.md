@@ -8,4 +8,5 @@
 - **Verification**: `mvn compile` passed for Java components.
 - **Verification**: Python proxy routing verified with `test_task_proxy.py`.
 - **Verification**: Cursor-based log retrieval implemented to ensure no gaps.
+- **Verification**: Executed SDD card `verify_process_lifecycle`; Result: `process_orchestrated = true`.
 - **Result**: "Lost process" symptoms resolved by centralizing state in a durable backend orchestrator and reactive frontend rehydration.
