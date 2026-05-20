@@ -6,3 +6,12 @@
 - **Symptom**: No unified `task_id` for analyzer vs generic tasks.
 - **Constraint**: Java Orchestrator exists but currently only proxies back to Python for task listing.
 - **Goal**: Move canonical lifecycle ownership to Java, provide cursor-based logs, and unified API.
+
+## 2024-05-20 - C++ Trainer Compilation Failure
+- **Symptom**: `run_integration_api.py` fails at step [5/8] with "undefined reference to TissLM::Training::TokenDataset::TokenDataset".
+- **Root Cause**: `quanta_tissu/tisslm/program/training/dataset.cpp` is missing from the `g++` compilation command in `run_integration_api.py`.
+- **Goal**: Fix the compilation command to include the missing source file and verify full integration.
+- **Restrictions**:
+  - **Tooling**: Must use `g++` with `-std=c++17`.
+  - **Dependencies**: All TissLM program source files used in `train_model.cpp` must be explicitly listed in the compilation command.
+  - **Minimalism**: The compilation command must only include necessary files and flags to achieve a successful build.
