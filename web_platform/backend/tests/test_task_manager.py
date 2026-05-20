@@ -1,5 +1,4 @@
 import unittest
-import unittest.mock as mock
 import os
 import sys
 import time
@@ -13,53 +12,60 @@ class TestTaskManager(unittest.TestCase):
     def setUp(self):
         self.tm = TaskManager()
 
-    @mock.patch('requests.post')
-    @mock.patch('requests.get')
-    @mock.patch('requests.delete')
-    def test_start_and_stop_task(self, mock_delete, mock_get, mock_post):
-        # Mock start
-        mock_post.return_value.status_code = 200
-        mock_post.return_value.json.return_value = {'success': True, 'taskId': 'sleep_task'}
-
-        success, msg = self.tm.start_task('sleep_task', 'sleep 10')
+    def test_start_and_complete_task(self):
+        # Start a quick echo task
+        success, msg = self.tm.start_task('echo_task', 'echo hello world')
         self.assertTrue(success)
         self.assertEqual(msg, "Task started")
 
-        # Mock status
-        mock_get.return_value.status_code = 200
-        mock_get.return_value.json.return_value = {
-            'status': 'RUNNING',
-            'logs': [],
-            'startTime': time.time() * 1000
-        }
+        # Wait for execution and thread log reader to finish
+        retries = 10
+        status = None
+        while retries > 0:
+            status = self.tm.get_task_status('echo_task')
+            if status['status'] == 'completed':
+                break
+            time.sleep(0.2)
+            retries -= 1
+
+        self.assertEqual(status['status'], 'completed')
+        self.assertIn('hello world', status['logs'])
+
+    def test_stop_task(self):
+        # Start a longer sleep task
+        success, msg = self.tm.start_task('sleep_task', 'sleep 10')
+        self.assertTrue(success)
+
+        # Ensure it's running
         status = self.tm.get_task_status('sleep_task')
         self.assertEqual(status['status'], 'running')
 
-        # Mock stop
-        mock_delete.return_value.status_code = 200
-        success, msg = self.tm.stop_task('sleep_task')
-        self.assertTrue(success)
-        self.assertEqual(msg, "Task stopped")
+        # Stop the task
+        success_stop, msg_stop = self.tm.stop_task('sleep_task')
+        self.assertTrue(success_stop)
 
-    @mock.patch('requests.post')
-    @mock.patch('requests.get')
-    def test_task_logs(self, mock_get, mock_post):
-        # Mock start
-        mock_post.return_value.status_code = 200
-        success, msg = self.tm.start_task('log_task', 'echo hello world')
-        self.assertTrue(success)
+        # Verify status is stopped
+        status = self.tm.get_task_status('sleep_task')
+        self.assertEqual(status['status'], 'stopped')
 
-        # Mock completed status with logs
-        mock_get.return_value.status_code = 200
-        mock_get.return_value.json.return_value = {
-            'status': 'COMPLETED',
-            'logs': ['hello world'],
-            'startTime': time.time() * 1000
-        }
+    def test_get_process_logs_cursor(self):
+        # Start a process that outputs multiple lines
+        # Using bash to output multiple lines separated by sleep to ensure they are read
+        cmd = 'bash -c "echo line1 && sleep 0.1 && echo line2 && sleep 0.1 && echo line3"'
+        self.tm.start_process('multi_line', 'shell', cmd)
 
-        status = self.tm.get_task_status('log_task')
-        self.assertEqual(status['status'], 'completed')
-        self.assertTrue(any('hello world' in log for log in status['logs']))
+        # Wait a bit for it to run and output
+        time.sleep(0.5)
+
+        # Fetch first set of logs
+        logs1, cursor1 = self.tm.get_process_logs('multi_line', 0)
+        self.assertGreater(len(logs1), 0)
+        self.assertEqual(cursor1, len(logs1))
+
+        # Fetch next set of logs with cursor
+        logs2, cursor2 = self.tm.get_process_logs('multi_line', cursor1)
+        self.assertEqual(len(logs2), 0)
+        self.assertEqual(cursor2, cursor1)
 
 if __name__ == '__main__':
     unittest.main()

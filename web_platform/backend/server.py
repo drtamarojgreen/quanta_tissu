@@ -28,6 +28,9 @@ handle_tisslang = safe_import('web_platform.backend.handlers.tisslang_handler', 
 handle_nexus = safe_import('web_platform.backend.handlers.nexus_handler', 'handle_nexus')
 handle_admin = safe_import('web_platform.backend.handlers.admin_handler', 'handle_admin')
 handle_tasks = safe_import('web_platform.backend.handlers.task_handler', 'handle_tasks')
+handle_analyzer = safe_import('web_platform.backend.handlers.analyzer_handler', 'handle_analyzer')
+handle_db_lifecycle = safe_import('web_platform.backend.handlers.db_lifecycle_handler', 'handle_db_lifecycle')
+handle_testing = safe_import('web_platform.backend.handlers.testing_handler', 'handle_testing')
 
 PORT = 8000
 STATIC_DIR = os.path.abspath(os.path.join(BACKEND_DIR, '..', 'frontend'))
@@ -122,7 +125,11 @@ class CustomHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400)
             return
 
-        handlers = [handle_db, handle_model, handle_analytics, handle_tisslang, handle_nexus, handle_admin, handle_tasks]
+        handlers = [
+            handle_db, handle_model, handle_analytics, handle_tisslang, 
+            handle_nexus, handle_admin, handle_tasks, handle_analyzer, 
+            handle_db_lifecycle, handle_testing
+        ]
         handled = False
         for handler_func in handlers:
             try:
