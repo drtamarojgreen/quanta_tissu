@@ -5,6 +5,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 import javax.websocket.Encoder.Binary;
 import org.hibernate.search.annotations.Indexed;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +19,7 @@ public class Lecture {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
     private String lectureName;
+    @Transient
     private MultipartFile lecturePoster;
     
     public Lecture(){}

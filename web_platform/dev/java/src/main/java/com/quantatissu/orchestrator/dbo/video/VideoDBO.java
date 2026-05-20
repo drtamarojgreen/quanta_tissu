@@ -3,7 +3,7 @@ package com.quantatissu.orchestrator.dbo.video;
 import com.quantatissu.orchestrator.dbm.HibernateAdmin;
 import com.quantatissu.orchestrator.dbo.DatabaseObject;
 import com.quantatissu.orchestrator.model.video.Video;
-import com.quantatissu.orchestrator.services.DecodedMultipartFile;
+import com.quantatissu.orchestrator.service.DecodedMultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -56,7 +56,7 @@ public class VideoDBO extends DatabaseObject{
                            try {
                                byte[] fb = Files.readAllBytes(Paths.get(rs.getString("videoPath")));
                                //Binary<?> bd = (Binary<?>) bws.getClass().getConstructor().newInstance();
-                               DecodedMultipartFile mpf = new DecodedMultipartFile(rs.getString("videoName"),fb);
+                               DecodedMultipartFile mpf = new DecodedMultipartFile(fb, "video/mp4");
                                 video.setVideoContent(mpf);
                                 videoList.add(video);
                            } catch (SecurityException ex) {

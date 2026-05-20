@@ -1,6 +1,12 @@
 const ModelModule = {
+    state: {
+        lastResponse: '',
+        lastPrompt: ''
+    },
+
     async generate(mode = 'python') {
-        const prompt = document.getElementById('prompt-input').value;
+        const promptInput = document.getElementById('prompt-input');
+        const prompt = promptInput ? promptInput.value : '';
         const temp = parseFloat(document.getElementById('temp-input').value);
         const len = parseInt(document.getElementById('len-input').value);
         const rag = document.getElementById('rag-checkbox').checked;
@@ -17,12 +23,21 @@ const ModelModule = {
                 body: JSON.stringify({ prompt, length: len, temperature: temp, use_rag: rag, task_id: taskId })
             });
             const data = await res.json();
-            responseEl.innerText = data.generated_text;
+            this.state.lastResponse = data.generated_text || data.error || 'No response';
+            this.state.lastPrompt = prompt;
+            responseEl.innerText = this.state.lastResponse;
 
             // Register task in state if it's long running (mocking for now as existing endpoints are synchronous)
             // AppState.pollTask(taskId);
 
         } catch (e) { responseEl.innerText = 'Error: ' + e.message; }
+    },
+
+    refreshUI() {
+        const responseEl = document.getElementById('model-response');
+        const promptEl = document.getElementById('prompt-input');
+        if (responseEl) responseEl.innerText = this.state.lastResponse || 'Response will appear here...';
+        if (promptEl) promptEl.value = this.state.lastPrompt || '';
     },
 
     async runModalInference(type) {

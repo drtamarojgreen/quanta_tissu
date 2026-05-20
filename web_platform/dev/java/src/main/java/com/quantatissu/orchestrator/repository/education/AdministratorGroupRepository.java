@@ -1,7 +1,7 @@
 package com.quantatissu.orchestrator.repository.education;
 
 import org.springframework.data.repository.CrudRepository;
-import com.quantatissu.orchestrator.model.education.AdministratorGroup;
+import com.quantatissu.orchestrator.model.school.AdministratorGroup;
 
 public interface AdministratorGroupRepository extends CrudRepository<AdministratorGroup, Integer> {
 }

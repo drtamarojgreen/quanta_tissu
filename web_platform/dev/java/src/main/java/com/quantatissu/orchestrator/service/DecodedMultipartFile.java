@@ -15,9 +15,24 @@ public class DecodedMultipartFile implements MultipartFile {
         this.header = header;
     }
 
-    @Override public String getName() { return System.currentTimeMillis() + Math.random() + "." + header.split("/")[1]; }
-    @Override public String getOriginalFilename() { return System.currentTimeMillis() + (int)Math.random() * 10000 + "." + header.split("/")[1]; }
-    @Override public String getContentType() { return header.split(":")[1]; }
+    public DecodedMultipartFile(InputStream is) throws IOException {
+        this.imgContent = is.readAllBytes();
+        this.header = "image/png";
+    }
+
+    private String getExtension() {
+        if (header != null && header.contains("/")) {
+            return header.split("/")[1];
+        }
+        if (header != null && header.contains(".")) {
+             return header.substring(header.lastIndexOf(".") + 1);
+        }
+        return "bin";
+    }
+
+    @Override public String getName() { return System.currentTimeMillis() + Math.random() + "." + getExtension(); }
+    @Override public String getOriginalFilename() { return System.currentTimeMillis() + (int)(Math.random() * 10000) + "." + getExtension(); }
+    @Override public String getContentType() { return header; }
     @Override public boolean isEmpty() { return imgContent == null || imgContent.length == 0; }
     @Override public long getSize() { return imgContent.length; }
     @Override public byte[] getBytes() throws IOException { return imgContent; }

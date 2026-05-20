@@ -145,7 +145,11 @@ def register_steps(runner):
         context['cache_time'] = time.time() - start_time
         context['cache_text'] = generated_text
 
-    @runner.step(r'I generate (\d+) tokens from the prompt "([^"]*)" using the "([^"]*)" sampling method
+    @runner.step(r'I generate (\d+) tokens from the prompt "([^"]*)" using the "([^"]*)" sampling method$')
+    def when_generate_standard(context, length, prompt, method):
+        model, tokenizer = context['model'], context['tokenizer']
+        context['length'] = int(length)
+        context['generated_text'] = generate_text_helper(model, tokenizer, prompt, int(length), method=method)
 
     @runner.step(r"I generate 50 tokens from the prompt$")
     def when_generate_for_rules(context):
@@ -183,8 +187,7 @@ def register_steps(runner):
         response = requests.put(f"{context['db_url']}/{db_name}/{collection_name}/{doc_id}", json=document, headers={"Authorization": f"Bearer {context['db_token']}"})
         assert response.status_code in [200, 201]
 
-    @runner.step(r'I generate (\d+) tokens from the prompt "([^"]*)" with a "([^"]*)" sentiment of strength (\d+\.\d+)$'
-)
+    @runner.step(r'I generate (\d+) tokens from the prompt "([^"]*)" with a "([^"]*)" sentiment of strength (\d+\.\d+)$')
     def when_generate_with_sentiment(context, length, prompt, sentiment, strength):
         model, tokenizer, analyzer = context['model'], context['tokenizer'], context['sentiment_analyzer']
         context['generated_text'] = generate_text_helper(
@@ -240,7 +243,7 @@ def register_steps(runner):
         analyzer = context['sentiment_analyzer']
         analysis = analyzer.analyze_sentiment_of_text(context['generated_text'])
         dominant_sentiment = max(analysis, key=analysis.get)
-        assert dominant_sentiment == sentiment)
+        assert dominant_sentiment == sentiment
     def when_generate_standard(context, length, prompt, method):
         model, tokenizer = context['model'], context['tokenizer']
         context['length'] = int(length)
