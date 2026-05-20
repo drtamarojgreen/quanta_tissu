@@ -33,6 +33,23 @@ const AppState = {
         this.notify();
     },
 
+    async rehydrateTasks() {
+        try {
+            const res = await fetch('/api/tasks');
+            if (!res.ok) return;
+            const tasks = await res.json();
+            for (const taskId in tasks) {
+                this.tasks[taskId] = tasks[taskId];
+                if (tasks[taskId].status === 'running') {
+                    this.pollTask(taskId);
+                }
+            }
+            this.notify();
+        } catch (e) {
+            console.error('Failed to rehydrate tasks:', e);
+        }
+    },
+
     // Task Management Integration
     async pollTask(taskId) {
         try {
