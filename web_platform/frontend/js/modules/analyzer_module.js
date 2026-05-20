@@ -1,9 +1,4 @@
 const AnalyzerModule = {
-    state: {
-        pollingInterval: null,
-        isRunning: false
-    },
-
     async build() {
         UIModule.openModal('modal-confirm-process', {
             command: 'make all (in tests/model/analyzer)',
@@ -30,7 +25,7 @@ const AnalyzerModule = {
     async start() {
         const session_id = parseInt(document.getElementById('analyzer-session-id').value || 0);
         UIModule.openModal('modal-confirm-process', {
-            command: `./analyzer -s ${session_id} -o analyzer_log.txt`,
+            command: `./analyzer -s \${session_id} -o analyzer_log.txt`,
             callback: 'AnalyzerModule.executeStart'
         });
     },
@@ -46,10 +41,10 @@ const AnalyzerModule = {
             });
             const data = await res.json();
             if (data.success) {
-                resultsEl.innerText = `Analyzer started (PID: ${data.pid}). Waiting for errors...`;
-                AnalyzerModule.startPolling();
+                resultsEl.innerText = \`Analyzer started (ID: \${data.taskId}). Waiting for errors...\`;
+                AppState.pollTask(data.taskId);
             } else {
-                resultsEl.innerText = 'Error: ' + data.error;
+                resultsEl.innerText = 'Error: ' + data.message;
             }
         } catch (e) {
             resultsEl.innerText = 'Error: ' + e.message;
@@ -62,10 +57,9 @@ const AnalyzerModule = {
             const res = await fetch('/api/analyzer/stop', { method: 'POST' });
             const data = await res.json();
             if (data.success) {
-                resultsEl.innerText = 'Analyzer stopped.';
-                AnalyzerModule.stopPolling();
+                resultsEl.innerText = 'Analyzer stop request sent.';
             } else {
-                resultsEl.innerText = 'Error: ' + data.error;
+                resultsEl.innerText = 'Error: ' + data.message;
             }
         } catch (e) {
             resultsEl.innerText = 'Error: ' + e.message;
@@ -73,52 +67,34 @@ const AnalyzerModule = {
     },
 
     async checkStatus() {
-        try {
-            const res = await fetch('/api/analyzer/status');
-            const data = await res.json();
-            const statusEl = document.getElementById('analyzer-status-text');
-            if (statusEl) {
-                statusEl.innerText = data.running ? `Running (PID: ${data.pid})` : 'Stopped';
-                statusEl.style.color = data.running ? 'green' : 'red';
+        const task = AppState.tasks['analyzer'];
+        const statusEl = document.getElementById('analyzer-status-text');
+        if (statusEl) {
+            if (task) {
+                statusEl.innerText = task.status === 'running' ? \`Running (PID: \${task.pid})\` : \`Status: \${task.status}\`;
+                statusEl.style.color = task.status === 'running' ? 'green' : 'red';
+            } else {
+                statusEl.innerText = 'Not started';
+                statusEl.style.color = 'gray';
             }
-            AnalyzerModule.state.isRunning = data.running;
-            if (data.running && !AnalyzerModule.state.pollingInterval) {
-                AnalyzerModule.startPolling();
-            }
-        } catch (e) { console.error('Status check failed', e); }
-    },
+        }
 
-    async fetchLogs() {
-        try {
-            const res = await fetch('/api/analyzer/logs');
-            const data = await res.json();
+        // Render logs if they exist
+        if (task && task.logs) {
             const logEl = document.getElementById('analyzer-log-stream');
-            if (logEl && data.logs) {
-                if (data.logs.length === 0) {
-                    logEl.innerText = 'No logs yet...';
-                } else {
-                    logEl.innerText = data.logs.join('\n');
-                    logEl.scrollTop = logEl.scrollHeight;
-                }
+            if (logEl) {
+                logEl.innerText = task.logs.join('\n');
+                logEl.scrollTop = logEl.scrollHeight;
             }
-        } catch (e) { console.error('Log fetch failed', e); }
-    },
-
-    startPolling() {
-        if (AnalyzerModule.state.pollingInterval) return;
-        AnalyzerModule.fetchLogs();
-        AnalyzerModule.state.pollingInterval = setInterval(() => {
-            AnalyzerModule.fetchLogs();
-            AnalyzerModule.checkStatus();
-        }, 2000);
-    },
-
-    stopPolling() {
-        if (AnalyzerModule.state.pollingInterval) {
-            clearInterval(AnalyzerModule.state.pollingInterval);
-            AnalyzerModule.state.pollingInterval = null;
         }
     }
 };
+
+// Auto-bind to AppState changes
+AppState.subscribe(() => {
+    if (AppState.tabs.active === 'analyzer') {
+        AnalyzerModule.checkStatus();
+    }
+});
 
 window.AnalyzerModule = AnalyzerModule;

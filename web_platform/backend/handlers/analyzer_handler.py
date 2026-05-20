@@ -1,12 +1,10 @@
 import json
 import os
-import subprocess
-import signal
+from web_platform.backend.managers.task_manager import task_manager
 
-# Global state for the analyzer process
-_analyzer_process = None
+# Constant ID for the analyzer task
+ANALYZER_TASK_ID = 'analyzer'
 _analyzer_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'tests', 'model', 'analyzer'))
-_analyzer_log_path = os.path.join(_analyzer_dir, 'analyzer_log.txt')
 
 def handle_analyzer(handler, path, data, command):
     if path == '/api/analyzer/start':
@@ -22,6 +20,7 @@ def handle_analyzer(handler, path, data, command):
     return False
 
 def handle_build(handler, data):
+    import subprocess
     try:
         process = subprocess.Popen(['make', 'all'], cwd=_analyzer_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         stdout, stderr = process.communicate()
@@ -32,64 +31,33 @@ def handle_build(handler, data):
     return True
 
 def handle_start(handler, data):
-    global _analyzer_process
-    if _analyzer_process and _analyzer_process.poll() is None:
-        _send_json(handler, 400, {'error': "Analyzer is already running."})
-        return True
-
     session_id = data.get('session_id', 0)
-    try:
-        # Clear old logs
-        if os.path.exists(_analyzer_log_path):
-            os.remove(_analyzer_log_path)
-        
-        cmd = ['./analyzer', '-s', str(session_id), '-o', 'analyzer_log.txt']
-        _analyzer_process = subprocess.Popen(cmd, cwd=_analyzer_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        
-        _send_json(handler, 200, {'success': True, 'pid': _analyzer_process.pid})
-    except Exception as e:
-        _send_json(handler, 500, {'error': str(e)})
+    cmd = f"./analyzer -s {session_id} -o analyzer_log.txt"
+    success, msg = task_manager.start_task(ANALYZER_TASK_ID, cmd, cwd=_analyzer_dir)
+    status = 200 if success else 400
+    _send_json(handler, status, {'success': success, 'message': msg, 'taskId': ANALYZER_TASK_ID})
     return True
 
 def handle_stop(handler, data):
-    global _analyzer_process
-    if not _analyzer_process or _analyzer_process.poll() is not None:
-        _send_json(handler, 400, {'error': "Analyzer is not running."})
-        return True
-
-    try:
-        _analyzer_process.terminate()
-        _analyzer_process.wait(timeout=5)
-        _analyzer_process = None
-        _send_json(handler, 200, {'success': True})
-    except Exception as e:
-        if _analyzer_process:
-            _analyzer_process.kill()
-        _analyzer_process = None
-        _send_json(handler, 500, {'error': str(e)})
+    success, msg = task_manager.stop_task(ANALYZER_TASK_ID)
+    status = 200 if success else 400
+    _send_json(handler, status, {'success': success, 'message': msg})
     return True
 
 def handle_status(handler, data):
-    is_running = _analyzer_process is not None and _analyzer_process.poll() is None
+    status_info = task_manager.get_task_status(ANALYZER_TASK_ID)
     binary_exists = os.path.exists(os.path.join(_analyzer_dir, 'analyzer'))
     
     _send_json(handler, 200, {
-        'running': is_running,
+        'running': status_info.get('status') == 'running',
         'binary_exists': binary_exists,
-        'pid': _analyzer_process.pid if is_running else None
+        'status': status_info.get('status')
     })
     return True
 
 def handle_logs(handler, data):
-    try:
-        logs = []
-        if os.path.exists(_analyzer_log_path):
-            with open(_analyzer_log_path, 'r') as f:
-                logs = f.readlines()[-50:] # Last 50 lines
-        
-        _send_json(handler, 200, {'logs': [line.strip() for line in logs]})
-    except Exception as e:
-        _send_json(handler, 500, {'error': str(e)})
+    status_info = task_manager.get_task_status(ANALYZER_TASK_ID)
+    _send_json(handler, 200, {'logs': status_info.get('logs', [])})
     return True
 
 def _send_json(handler, status, data):

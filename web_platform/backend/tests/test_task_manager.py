@@ -1,4 +1,5 @@
 import unittest
+import unittest.mock as mock
 import os
 import sys
 import time
@@ -12,33 +13,52 @@ class TestTaskManager(unittest.TestCase):
     def setUp(self):
         self.tm = TaskManager()
 
-    def test_start_and_stop_task(self):
-        # Start a simple sleep task
-        success, msg = self.tm.start_task('sleep_task', ['sleep', '10'])
+    @mock.patch('requests.post')
+    @mock.patch('requests.get')
+    @mock.patch('requests.delete')
+    def test_start_and_stop_task(self, mock_delete, mock_get, mock_post):
+        # Mock start
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {'success': True, 'taskId': 'sleep_task'}
+
+        success, msg = self.tm.start_task('sleep_task', 'sleep 10')
         self.assertTrue(success)
         self.assertEqual(msg, "Task started")
 
+        # Mock status
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            'status': 'RUNNING',
+            'logs': [],
+            'startTime': time.time() * 1000
+        }
         status = self.tm.get_task_status('sleep_task')
         self.assertEqual(status['status'], 'running')
 
-        # Stop it
+        # Mock stop
+        mock_delete.return_value.status_code = 200
         success, msg = self.tm.stop_task('sleep_task')
         self.assertTrue(success)
         self.assertEqual(msg, "Task stopped")
 
-        status = self.tm.get_task_status('sleep_task')
-        self.assertEqual(status['status'], 'stopped')
-
-    def test_task_logs(self):
-        # Start a task that prints
-        success, msg = self.tm.start_task('log_task', ['echo', 'hello world'])
+    @mock.patch('requests.post')
+    @mock.patch('requests.get')
+    def test_task_logs(self, mock_get, mock_post):
+        # Mock start
+        mock_post.return_value.status_code = 200
+        success, msg = self.tm.start_task('log_task', 'echo hello world')
         self.assertTrue(success)
 
-        # Wait for completion
-        time.sleep(1)
+        # Mock completed status with logs
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            'status': 'COMPLETED',
+            'logs': ['hello world'],
+            'startTime': time.time() * 1000
+        }
 
         status = self.tm.get_task_status('log_task')
-        self.assertIn(status['status'], ['completed', 'failed'])
+        self.assertEqual(status['status'], 'completed')
         self.assertTrue(any('hello world' in log for log in status['logs']))
 
 if __name__ == '__main__':

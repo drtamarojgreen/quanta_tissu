@@ -436,7 +436,11 @@ STEP "Analyze" {
             TestModule.loadTestScripts();
             TestModule.refreshUI();
         }
-        if (tab === 'config') AdminModule.loadConfig();
+        if (tab === 'playground') ModelModule.refreshUI();
+        if (tab === 'config') {
+            AdminModule.loadConfig();
+            AdminModule.refreshUI();
+        }
         if (tab === 'analyzer') AnalyzerModule.checkStatus();
         if (tab === 'nexus') {
             if (window.initCanvas) window.initCanvas();
