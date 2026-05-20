@@ -32,6 +32,8 @@ struct DynamicConfig {
     int num_epochs = 3;
     int batch_size = 1;
     float learning_rate = 1e-4;
+    int vocab_size = 4196;
+    int max_batches = 0;
 };
 
 DynamicConfig load_dynamic_config(const std::string& path) {
@@ -60,6 +62,8 @@ DynamicConfig load_dynamic_config(const std::string& path) {
                     if (t.count("num_epochs")) config.num_epochs = (int)t.at("num_epochs").as_number();
                     if (t.count("batch_size")) config.batch_size = (int)t.at("batch_size").as_number();
                     if (t.count("learning_rate")) config.learning_rate = (float)t.at("learning_rate").as_number();
+                    if (t.count("vocab_size")) config.vocab_size = (int)t.at("vocab_size").as_number();
+                    if (t.count("max_batches")) config.max_batches = (int)t.at("max_batches").as_number();
                 }
             }
         } catch (...) {
@@ -77,6 +81,8 @@ DynamicConfig load_dynamic_config(const std::string& path) {
     if ((env_val = std::getenv("TISSLM_NUM_EPOCHS"))) config.num_epochs = std::atoi(env_val);
     if ((env_val = std::getenv("TISSLM_BATCH_SIZE"))) config.batch_size = std::atoi(env_val);
     if ((env_val = std::getenv("TISSLM_LEARNING_RATE"))) config.learning_rate = std::atof(env_val);
+    if ((env_val = std::getenv("TISSLM_VOCAB_SIZE"))) config.vocab_size = std::atoi(env_val);
+    if ((env_val = std::getenv("TISSLM_MAX_BATCHES"))) config.max_batches = std::atoi(env_val);
 
     return config;
 }
@@ -123,7 +129,7 @@ void run_training() {
     // --- 2. Train Tokenizer ---
     std::cout << "[2/5] Training tokenizer..." << std::endl;
     auto tokenizer = std::make_shared<TissLM::Tokenizer::Tokenizer>("");
-    tokenizer->train(corpus, 4196);
+    tokenizer->train(corpus, config.vocab_size);
     tokenizer->save("trained_tokenizer");
     std::cout << "Tokenizer trained and saved." << std::endl;
 
@@ -156,7 +162,7 @@ void run_training() {
     const std::string checkpoint_dir = "checkpoints";
     std::filesystem::create_directories(checkpoint_dir);
     TissLM::Training::Trainer trainer(model, optimizer, loss_function);
-    trainer.train(dataset, config.num_epochs, config.batch_size, 100, checkpoint_dir);
+    trainer.train(dataset, config.num_epochs, config.batch_size, 100, checkpoint_dir, config.max_batches);
     std::cout << "Training completed." << std::endl;
     std::cout.flush();
 }
