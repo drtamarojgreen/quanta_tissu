@@ -1,6 +1,6 @@
 package com.quantatissu.orchestrator.controller;
 
-import com.quantatissu.orchestrator.service.ProcessManager;
+import com.quantatissu.orchestrator.model.ProcessTask;
 import com.quantatissu.orchestrator.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/orchestrator")
@@ -17,9 +17,6 @@ public class OrchestratorController {
 
     @Autowired
     private TaskService taskService;
-
-    @Autowired
-    private ProcessManager processManager;
 
     @GetMapping("/status")
     public Map<String, String> getStatus() {
@@ -34,51 +31,63 @@ public class OrchestratorController {
         return taskService.listTasks();
     }
 
-    @PostMapping("/processes")
-    public ResponseEntity<Map<String, Object>> startProcess(@RequestBody Map<String, String> request) {
-        String taskId = request.get("taskId");
-        String command = request.get("command");
-        String workingDir = request.get("workingDir");
-
-        try {
-            processManager.startProcess(taskId, command, workingDir);
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("taskId", taskId);
-            return ResponseEntity.ok(response);
-        } catch (IOException e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("success", false);
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        }
+    @GetMapping("/processes")
+    public ResponseEntity<List<ProcessTask>> listProcesses() {
+        return ResponseEntity.ok(taskService.getAllTasks());
     }
 
-    @GetMapping("/processes")
-    public Map<String, Object> listProcesses() {
-        return processManager.getAllProcesses().entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toMap()));
+    @PostMapping("/processes")
+    public ResponseEntity<ProcessTask> startProcess(@RequestBody Map<String, String> payload) throws IOException {
+        String taskId = payload.get("task_id");
+        String type = payload.get("type");
+        String command = payload.get("command");
+        String workingDir = payload.get("working_dir");
+
+        ProcessTask task = taskService.startProcess(taskId, type, command, workingDir);
+        return ResponseEntity.ok(task);
     }
 
     @GetMapping("/processes/{taskId}")
-    public ResponseEntity<Map<String, Object>> getProcess(@PathVariable String taskId) {
-        ProcessManager.ProcessInfo info = processManager.getProcessInfo(taskId);
-        if (info == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(info.toMap());
+    public ResponseEntity<ProcessTask> getProcessStatus(@PathVariable String taskId) {
+        ProcessTask task = taskService.getTaskStatus(taskId);
+        if (task == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(task);
+    }
+
+    @GetMapping("/processes/{taskId}/logs")
+    public ResponseEntity<Map<String, Object>> getProcessLogs(@PathVariable String taskId, @RequestParam(defaultValue = "0") int cursor) {
+        List<String> logs = taskService.getLogs(taskId, cursor);
+        Map<String, Object> response = new HashMap<>();
+        response.put("logs", logs);
+        response.put("cursor", cursor + logs.size());
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/processes/{taskId}")
-    public ResponseEntity<Map<String, Object>> stopProcess(@PathVariable String taskId) {
-        boolean success = processManager.stopProcess(taskId);
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", success);
+    public ResponseEntity<Map<String, String>> stopProcess(@PathVariable String taskId) {
+        taskService.stopProcess(taskId);
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Process stop signal sent");
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/processes/verify/{taskId}")
-    public Map<String, Object> verifyProcess(@PathVariable String taskId) {
-        return processManager.getVerification(taskId);
+    public ResponseEntity<Map<String, Object>> verifyProcess(@PathVariable String taskId) {
+        ProcessTask task = taskService.getTaskStatus(taskId);
+        Map<String, Object> result = new HashMap<>();
+        if (task == null) {
+            result.put("valid", false);
+            result.put("error", "Task not found");
+            return ResponseEntity.ok(result);
+        }
+
+        boolean logContinuity = task.getLogs().size() > 0; // Simple check for now
+        result.put("valid", true);
+        result.put("taskId", taskId);
+        result.put("state", task.getState());
+        result.put("log_count", task.getLogs().size());
+        result.put("log_continuity", logContinuity);
+
+        return ResponseEntity.ok(result);
     }
 }

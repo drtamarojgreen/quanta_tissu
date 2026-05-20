@@ -1,6 +1,6 @@
 package com.quantatissu.orchestrator.controller;
 
-import com.quantatissu.orchestrator.service.ProcessManager;
+import com.quantatissu.orchestrator.model.ProcessTask;
 import com.quantatissu.orchestrator.service.TaskService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +9,9 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.anyString;
@@ -28,9 +30,6 @@ public class OrchestratorControllerTest {
     @MockBean
     private TaskService taskService;
 
-    @MockBean
-    private ProcessManager processManager;
-
     @Test
     public void testGetStatus() throws Exception {
         mockMvc.perform(get("/api/orchestrator/status"))
@@ -40,51 +39,54 @@ public class OrchestratorControllerTest {
 
     @Test
     public void testStartProcess() throws Exception {
-        when(processManager.startProcess(eq("task-1"), eq("echo test"), eq("/tmp")))
-                .thenReturn("task-1");
+        ProcessTask task = new ProcessTask("task-1", "analyzer", "echo test");
+        when(taskService.startProcess(eq("task-1"), eq("analyzer"), eq("echo test"), eq("/tmp")))
+                .thenReturn(task);
 
-        String json = "{\"taskId\":\"task-1\", \"command\":\"echo test\", \"workingDir\":\"/tmp\"}";
+        String json = "{\"task_id\":\"task-1\", \"type\":\"analyzer\", \"command\":\"echo test\", \"working_dir\":\"/tmp\"}";
 
         mockMvc.perform(post("/api/orchestrator/processes")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.taskId").value("task-1"));
+                .andExpect(jsonPath("$.taskId").value("task-1"))
+                .andExpect(jsonPath("$.state").value("PENDING"));
     }
 
     @Test
     public void testGetProcess() throws Exception {
-        ProcessManager.ProcessInfo info = new ProcessManager.ProcessInfo();
-        info.id = "task-1";
-        info.status = "RUNNING";
+        ProcessTask task = new ProcessTask("task-1", "analyzer", "echo test");
+        task.setState(ProcessTask.State.RUNNING);
 
-        when(processManager.getProcessInfo("task-1")).thenReturn(info);
+        when(taskService.getTaskStatus("task-1")).thenReturn(task);
 
         mockMvc.perform(get("/api/orchestrator/processes/task-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value("task-1"))
-                .andExpect(jsonPath("$.status").value("RUNNING"));
+                .andExpect(jsonPath("$.taskId").value("task-1"))
+                .andExpect(jsonPath("$.state").value("RUNNING"));
     }
 
     @Test
     public void testStopProcess() throws Exception {
-        when(processManager.stopProcess("task-1")).thenReturn(true);
-
         mockMvc.perform(delete("/api/orchestrator/processes/task-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.message").value("Process stop signal sent"));
     }
 
     @Test
     public void testVerifyProcess() throws Exception {
-        Map<String, Object> verification = new HashMap<>();
-        verification.put("verified", true);
+        ProcessTask task = new ProcessTask("task-1", "analyzer", "echo test");
+        task.setState(ProcessTask.State.RUNNING);
+        task.addLog("Started");
 
-        when(processManager.getVerification("task-1")).thenReturn(verification);
+        when(taskService.getTaskStatus("task-1")).thenReturn(task);
 
         mockMvc.perform(get("/api/orchestrator/processes/verify/task-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.verified").value(true));
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.taskId").value("task-1"))
+                .andExpect(jsonPath("$.state").value("RUNNING"))
+                .andExpect(jsonPath("$.log_count").value(1))
+                .andExpect(jsonPath("$.log_continuity").value(true));
     }
 }

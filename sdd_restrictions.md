@@ -5,6 +5,7 @@
 - **No Unused Logic Paths:** Avoid implementing functionality that is not required by the CLI API or current debugging needs.
 - **Minimal Abstraction:** Do not introduce complex design patterns or abstraction layers unless they directly simplify the reuse of existing frontend modules.
 - **Single Source of Truth:** All state must reside in or be derived from `AppState`.
+- **Process Management Consolidation:** Long-running processes must be managed by the Java Orchestrator. No module-local polling or process ownership is permitted in the frontend.
 - **C++ Only SDD Tests:** All verification cards and runners in `tests/sorrel/sdd/` must be written in C++. Orchestration of Node.js or Python scripts is allowed via system calls.
 
 ## 2. Tool Restrictions
@@ -28,5 +29,6 @@ Any tool outside this set is prohibited.
 ## 4. Validation Restrictions
 - All API outputs must be valid JSON.
 - Tests must verify real outputs against expected empirical results.
+- **Process Continuity Validation:** Verification must confirm log continuity and state persistence across tab switches and browser sessions.
 - Process management must be verified by observing actual process IDs and log accumulation.
 - SDD Cards must strictly use decorators (`// @Card`, `// @Is`, `// @Needs`, `// @Results`) for requirement enforcement.
