@@ -256,6 +256,21 @@ const PlatformAPI = {
         });
         const data = await res.json();
         return data;
+    },
+
+    async execute_analyzer_start(params = {}) {
+        await AnalyzerModule.executeStart();
+        return { status: 'success' };
+    },
+
+    async execute_analyzer_stop(params = {}) {
+        await AnalyzerModule.stop();
+        return { status: 'success' };
+    },
+
+    async rehydrate() {
+        await AppState.rehydrateTasks();
+        return { status: 'success', tasks: AppState.tasks };
     }
 };
 

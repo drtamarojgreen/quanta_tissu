@@ -190,6 +190,8 @@ test('App: Modal & Admin Logic', async () => {
 
     // Migration
     await context.AdminModule.runMigration();
+    // Simulate clicking the confirm button in the modal
+    await context.AdminModule.executeRunMigration();
     assert.ok(getElementByIdMock('migration-results').innerText.includes('Migrated 150 documents'));
 
     // Deletion

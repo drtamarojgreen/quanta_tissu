@@ -6,6 +6,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 import org.hibernate.search.annotations.Indexed;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -19,6 +20,7 @@ public class Video implements Serializable{
     private Integer id;
     private String videoName;
     private String videoPath;
+    @Transient
     private MultipartFile videoContent;
 
     public Video(){}
