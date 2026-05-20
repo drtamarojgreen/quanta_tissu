@@ -4,6 +4,7 @@ import urllib.parse
 import json
 import time
 import sys
+import os
 
 SERVER_URL = "http://127.0.0.1:8000"
 
@@ -111,6 +112,7 @@ def main():
         "quanta_tissu/tisslm/program/training/optimizer.cpp "
         "quanta_tissu/tisslm/program/training/loss_function.cpp "
         "quanta_tissu/tisslm/program/training/trainer.cpp "
+        "quanta_tissu/tisslm/program/training/dataset.cpp "
         "quanta_tissu/tisslm/program/retrieval/retrieval_strategy.cpp "
         "tissdb/json/json.cpp "
         "-Itests/model/program -Iquanta_tissu/tisslm/program -Iquanta_tissu/tisslm/program/core "
