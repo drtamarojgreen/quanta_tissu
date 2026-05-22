@@ -1,7 +1,8 @@
 const ModelModule = {
     state: {
         lastResponse: '',
-        lastPrompt: ''
+        lastPrompt: '',
+        currentTaskId: null
     },
 
     async generate(mode = 'python') {
@@ -14,8 +15,10 @@ const ModelModule = {
         responseEl.innerText = 'Thinking...';
 
         const taskId = `inference_${mode}_${Date.now()}`;
+        this.state.currentTaskId = taskId;
 
         try {
+            // For inference, we use the specific model endpoints
             const endpoint = mode === 'cpp' ? '/api/model/cpp/generate' : '/api/model/generate';
             const res = await fetch(endpoint, {
                 method: 'POST',
@@ -27,16 +30,51 @@ const ModelModule = {
             this.state.lastPrompt = prompt;
             responseEl.innerText = this.state.lastResponse;
 
-            // Register task in state if it's long running (mocking for now as existing endpoints are synchronous)
-            // AppState.pollTask(taskId);
-
+            // If it were a long-running training task, we'd use /api/processes
         } catch (e) { responseEl.innerText = 'Error: ' + e.message; }
+    },
+
+    async startTraining() {
+        const taskId = 'training_singleton';
+        this.state.currentTaskId = taskId;
+        const responseEl = document.getElementById('model-response');
+        responseEl.innerText = 'Starting training...';
+
+        try {
+            const res = await fetch('/api/processes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    task_id: taskId,
+                    type: 'training',
+                    command: 'python3 -m tisslm.train --config config.json',
+                    working_dir: '.'
+                })
+            });
+            if (res.ok) {
+                responseEl.innerText = 'Training started.';
+                AppState.pollTask(taskId);
+            } else {
+                const data = await res.json();
+                responseEl.innerText = 'Error: ' + (data.error || 'Failed to start training');
+            }
+        } catch (e) {
+            responseEl.innerText = 'Error: ' + e.message;
+        }
     },
 
     refreshUI() {
         const responseEl = document.getElementById('model-response');
         const promptEl = document.getElementById('prompt-input');
-        if (responseEl) responseEl.innerText = this.state.lastResponse || 'Response will appear here...';
+        if (responseEl) {
+            const taskId = this.state.currentTaskId;
+            const task = AppState.tasks[taskId];
+            if (task && task.type === 'training') {
+                responseEl.innerText = `Training ${task.state}\n` + (task.logs ? task.logs.slice(-5).join('\n') : '');
+            } else {
+                responseEl.innerText = this.state.lastResponse || 'Response will appear here...';
+            }
+        }
         if (promptEl) promptEl.value = this.state.lastPrompt || '';
     },
 
@@ -60,4 +98,5 @@ const ModelModule = {
     }
 };
 
+AppState.subscribe(() => ModelModule.refreshUI());
 window.ModelModule = ModelModule;

@@ -8,7 +8,7 @@ import javax.annotation.PostConstruct;
 @Service
 public class DatabaseService {
 
-    @Autowired
+    @Autowired(required = false)
     private JdbcTemplate jdbcTemplate;
 
     @PostConstruct
@@ -17,6 +17,7 @@ public class DatabaseService {
     }
 
     public void startDatabase() {
+        if (jdbcTemplate == null) return;
         // Initialize tables from the xmlcms2 model
         runSQLQuery("CREATE TABLE IF NOT EXISTS rooms (\n"
                 + " id integer PRIMARY KEY,\n"
@@ -344,6 +345,7 @@ public class DatabaseService {
     }
 
     public void runSQLQuery(String sql) {
+        if (jdbcTemplate == null) return;
         try {
             jdbcTemplate.execute(sql);
         } catch (Exception e) {
