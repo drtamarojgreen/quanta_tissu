@@ -1,7 +1,6 @@
 const AnalyzerModule = {
     state: {
-        pollingInterval: null,
-        isRunning: false
+        currentTaskId: 'analyzer_singleton'
     },
 
     async build() {
@@ -15,6 +14,7 @@ const AnalyzerModule = {
         const resultsEl = document.getElementById('analyzer-results');
         resultsEl.innerText = 'Building analyzer...';
         try {
+            // Build is still synchronous for now, but we'll use the orchestrator for it soon
             const res = await fetch('/api/analyzer/build', { method: 'POST' });
             const data = await res.json();
             if (data.success) {
@@ -28,28 +28,35 @@ const AnalyzerModule = {
     },
 
     async start() {
-        const session_id = parseInt(document.getElementById('analyzer-session-id').value || 0);
+        const session_id = document.getElementById('analyzer-session-id').value || 0;
         UIModule.openModal('modal-confirm-process', {
-            command: `./analyzer -s ${session_id} -o analyzer_log.txt`,
+            command: `./analyzer -s \${session_id} -o analyzer_log.txt`,
             callback: 'AnalyzerModule.executeStart'
         });
     },
 
     async executeStart() {
-        const session_id = parseInt(document.getElementById('analyzer-session-id').value || 0);
+        const session_id = document.getElementById('analyzer-session-id').value || 0;
         const resultsEl = document.getElementById('analyzer-results');
+        const taskId = this.state.currentTaskId;
+
         try {
-            const res = await fetch('/api/analyzer/start', {
+            const res = await fetch('/api/processes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ session_id })
+                body: JSON.stringify({
+                    task_id: taskId,
+                    type: 'analyzer',
+                    command: `./analyzer -s ${session_id} -o analyzer_log.txt`,
+                    working_dir: 'tests/model/analyzer'
+                })
             });
             const data = await res.json();
-            if (data.success) {
-                resultsEl.innerText = `Analyzer started (PID: ${data.pid}). Waiting for errors...`;
-                AnalyzerModule.startPolling();
+            if (res.ok) {
+                resultsEl.innerText = `Analyzer started (PID: ${data.pid}).`;
+                AppState.pollTask(taskId);
             } else {
-                resultsEl.innerText = 'Error: ' + data.error;
+                resultsEl.innerText = 'Error: ' + (data.error || 'Failed to start');
             }
         } catch (e) {
             resultsEl.innerText = 'Error: ' + e.message;
@@ -58,14 +65,13 @@ const AnalyzerModule = {
 
     async stop() {
         const resultsEl = document.getElementById('analyzer-results');
+        const taskId = this.state.currentTaskId;
         try {
-            const res = await fetch('/api/analyzer/stop', { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                resultsEl.innerText = 'Analyzer stopped.';
-                AnalyzerModule.stopPolling();
+            const res = await fetch(`/api/processes/${taskId}`, { method: 'DELETE' });
+            if (res.ok) {
+                resultsEl.innerText = 'Analyzer stop signal sent.';
             } else {
-                resultsEl.innerText = 'Error: ' + data.error;
+                resultsEl.innerText = 'Error: Failed to stop';
             }
         } catch (e) {
             resultsEl.innerText = 'Error: ' + e.message;
@@ -73,52 +79,42 @@ const AnalyzerModule = {
     },
 
     async checkStatus() {
-        try {
-            const res = await fetch('/api/analyzer/status');
-            const data = await res.json();
-            const statusEl = document.getElementById('analyzer-status-text');
-            if (statusEl) {
-                statusEl.innerText = data.running ? `Running (PID: ${data.pid})` : 'Stopped';
-                statusEl.style.color = data.running ? 'green' : 'red';
+        const taskId = this.state.currentTaskId;
+        const task = AppState.tasks[taskId];
+        const statusEl = document.getElementById('analyzer-status-text');
+        if (statusEl) {
+            if (task) {
+                statusEl.innerText = `${task.state} (PID: ${task.pid || 'N/A'})`;
+                statusEl.style.color = task.state === 'RUNNING' ? 'green' : 'gray';
+            } else {
+                statusEl.innerText = 'Stopped';
+                statusEl.style.color = 'red';
             }
-            AnalyzerModule.state.isRunning = data.running;
-            if (data.running && !AnalyzerModule.state.pollingInterval) {
-                AnalyzerModule.startPolling();
-            }
-        } catch (e) { console.error('Status check failed', e); }
+        }
     },
 
     async fetchLogs() {
-        try {
-            const res = await fetch('/api/analyzer/logs');
-            const data = await res.json();
-            const logEl = document.getElementById('analyzer-log-stream');
-            if (logEl && data.logs) {
-                if (data.logs.length === 0) {
-                    logEl.innerText = 'No logs yet...';
-                } else {
-                    logEl.innerText = data.logs.join('\n');
-                    logEl.scrollTop = logEl.scrollHeight;
-                }
+        const taskId = this.state.currentTaskId;
+        const task = AppState.tasks[taskId];
+        const logEl = document.getElementById('analyzer-log-stream');
+        if (logEl && task && task.logs) {
+            if (task.logs.length === 0) {
+                logEl.innerText = 'No logs yet...';
+            } else {
+                logEl.innerText = task.logs.join('\n');
+                logEl.scrollTop = logEl.scrollHeight;
             }
-        } catch (e) { console.error('Log fetch failed', e); }
-    },
-
-    startPolling() {
-        if (AnalyzerModule.state.pollingInterval) return;
-        AnalyzerModule.fetchLogs();
-        AnalyzerModule.state.pollingInterval = setInterval(() => {
-            AnalyzerModule.fetchLogs();
-            AnalyzerModule.checkStatus();
-        }, 2000);
-    },
-
-    stopPolling() {
-        if (AnalyzerModule.state.pollingInterval) {
-            clearInterval(AnalyzerModule.state.pollingInterval);
-            AnalyzerModule.state.pollingInterval = null;
         }
+    },
+
+    // UI synchronization called by AppState notify
+    refreshUI() {
+        this.checkStatus();
+        this.fetchLogs();
     }
 };
+
+// Hook into AppState
+AppState.subscribe(() => AnalyzerModule.refreshUI());
 
 window.AnalyzerModule = AnalyzerModule;

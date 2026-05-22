@@ -23,7 +23,8 @@ void Trainer::train(
     int epochs,
     int batch_size,
     int checkpoint_every_n_batches,
-    const std::string& checkpoint_dir
+    const std::string& checkpoint_dir,
+    int max_batches_per_epoch
 ) {
     size_t num_samples = dataset.size();
     if (num_samples == 0) {
@@ -39,7 +40,8 @@ void Trainer::train(
     for (int epoch = 0; epoch < epochs; ++epoch) {
         std::shuffle(indices.begin(), indices.end(), rng);
         float epoch_loss = 0.0f;
-        size_t num_batches = (num_samples + batch_size - 1) / batch_size;
+        size_t total_num_batches = (num_samples + batch_size - 1) / batch_size;
+        size_t num_batches = (max_batches_per_epoch > 0) ? std::min((size_t)max_batches_per_epoch, total_num_batches) : total_num_batches;
 
         for (size_t b = 0; b < num_batches; ++b) {
             size_t batch_start = b * batch_size;
