@@ -2,6 +2,8 @@ Situation: Default
 Is platform = linux
 Is backend_running = true
 Is api_available = true
+Is source_available = true
+Is analyzer_built = true
 Needs node = installed
 
 Situation: Offline

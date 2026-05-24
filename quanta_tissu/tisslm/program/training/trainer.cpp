@@ -1,4 +1,5 @@
 #include "trainer.h"
+#include "tests/model/analyzer/error_handler.hpp"
 #include <random>
 #include <chrono>
 #include <algorithm> // For std::shuffle
@@ -112,7 +113,9 @@ void Trainer::train(
             }
             optimizer_->update(params_raw);
         }
-        std::cout << "Epoch " << epoch + 1 << ", Loss: " << epoch_loss / num_batches << std::endl;
+        float avg_loss = epoch_loss / num_batches;
+        std::cout << "Epoch " << epoch + 1 << ", Loss: " << avg_loss << std::endl;
+        RMA_ERROR_VAL(rma::ErrorType::INFO, (double)avg_loss, "Epoch loss reported");
     }
 }
 
