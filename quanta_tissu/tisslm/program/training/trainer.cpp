@@ -1,6 +1,7 @@
 #include "trainer.h"
-#include "tests/model/analyzer/error_handler.hpp"
+#include "quanta_tissu/tisslm/program/analyzer/error_handler.hpp"
 #include <random>
+#include <cstdio>
 #include <chrono>
 #include <algorithm> // For std::shuffle
 #include <numeric>   // For std::iota
@@ -115,7 +116,9 @@ void Trainer::train(
         }
         float avg_loss = epoch_loss / num_batches;
         std::cout << "Epoch " << epoch + 1 << ", Loss: " << avg_loss << std::endl;
-        RMA_ERROR_VAL(rma::ErrorType::INFO, (double)avg_loss, "Epoch loss reported");
+        char msg[128];
+        std::snprintf(msg, sizeof(msg), "Epoch loss: %.6f", avg_loss);
+        RMA_ERROR_VAL(rma::ErrorType::INFO, (double)avg_loss, msg);
     }
 }
 

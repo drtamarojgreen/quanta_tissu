@@ -1,6 +1,6 @@
-#include "analyzer_queue.hpp"
-#include "rpc_protocol.hpp"
-#include "filter_manager.hpp"
+#include "quanta_tissu/tisslm/program/analyzer/analyzer_queue.hpp"
+#include "quanta_tissu/tisslm/program/analyzer/rpc_protocol.hpp"
+#include "quanta_tissu/tisslm/program/analyzer/filter_manager.hpp"
 #include <cassert>
 #include <iostream>
 #include <thread>

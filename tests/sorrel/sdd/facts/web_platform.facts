@@ -1,10 +1,13 @@
 Situation: Default
-Is platform = linux
-Is backend_running = true
-Is api_available = true
-Is source_available = true
-Is analyzer_built = true
-Needs node = installed
+Is platform_name = linux
+Is backend_port = 8000
+Is api_status_code = 200
+Is source_file_size_bytes = 7580
+Is analyzer_binary_size_bytes > 0
+Needs node_version >= 18
+Results rma_include_line = 2
+Results rma_call_line = 120
+Results source_bytes_scanned = 7580
 
 Situation: Offline
 Is platform = linux
