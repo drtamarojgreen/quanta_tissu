@@ -1,5 +1,5 @@
 #include "loss_function.h"
-#include "tests/model/analyzer/error_handler.hpp"
+#include "quanta_tissu/tisslm/program/analyzer/error_handler.hpp"
 #include <algorithm>
 #include <limits>
 #include <cmath>

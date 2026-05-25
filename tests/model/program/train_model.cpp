@@ -4,7 +4,7 @@
 #include "quanta_tissu/tisslm/program/training/dataset.h"
 #include "quanta_tissu/tisslm/program/training/optimizer.h"
 #include "quanta_tissu/tisslm/program/training/loss_function.h"
-#include "tests/model/analyzer/error_handler.hpp"
+#include "quanta_tissu/tisslm/program/analyzer/error_handler.hpp"
 #include "config/TestConfig.h"
 #include "tissdb/json/json.h"
 

@@ -1,5 +1,5 @@
 #include "matrix.h"
-#include "tests/model/analyzer/error_handler.hpp"
+#include "quanta_tissu/tisslm/program/analyzer/error_handler.hpp"
 #include <random>
 #include <algorithm>
 #include <numeric>
