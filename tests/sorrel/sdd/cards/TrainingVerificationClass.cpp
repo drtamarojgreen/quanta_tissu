@@ -3,11 +3,13 @@
 // @Is source_available == true
 // @Results rma_include_found == 1
 // @Results rma_call_found == 1
+// @Results source_lines_scanned > 0
 
 // @Card: verify_training_telemetry
 // @Situation Default
 // @Is analyzer_built == true
 // @Results telemetry_records_found >= 1
+// @Results execution_time_ms > 0
 
 #include <iostream>
 #include <fstream>
@@ -40,21 +42,26 @@ int main(int argc, char** argv) {
     if (card == "verify_training_instrumentation") {
         std::ifstream file("../../../quanta_tissu/tisslm/program/training/trainer.cpp");
         std::string line;
-        bool has_include = false;
-        bool has_rma_call = false;
+        int has_include = 0;
+        int has_rma_call = 0;
+        int line_count = 0;
 
         while (std::getline(file, line)) {
+            line_count++;
             if (line.find("#include \"tests/model/analyzer/error_handler.hpp\"") != std::string::npos) {
-                has_include = true;
+                has_include = 1;
             }
             if (line.find("RMA_ERROR_VAL(rma::ErrorType::INFO, (double)avg_loss, \"Epoch loss reported\")") != std::string::npos) {
-                has_rma_call = true;
+                has_rma_call = 1;
             }
         }
 
-        std::cout << "rma_include_found = " << (has_include ? 1 : 0) << std::endl;
-        std::cout << "rma_call_found = " << (has_rma_call ? 1 : 0) << std::endl;
+        std::cout << "source_lines_scanned = " << line_count << std::endl;
+        std::cout << "rma_include_found = " << has_include << std::endl;
+        std::cout << "rma_call_found = " << has_rma_call << std::endl;
     } else if (card == "verify_training_telemetry") {
+        auto start_time = std::chrono::steady_clock::now();
+
         // 1. Prepare environment
         std::string session_id = "12345";
         std::string log_file = "analyzer_log.txt";
@@ -74,6 +81,9 @@ int main(int argc, char** argv) {
         system("pkill -f \"analyzer -s 12345\"");
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
+        auto end_time = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+
         // 6. Verify Log
         std::ifstream log(log_file);
         std::string log_line;
@@ -87,6 +97,7 @@ int main(int argc, char** argv) {
         }
 
         std::cout << "telemetry_records_found = " << count << std::endl;
+        std::cout << "execution_time_ms = " << duration << std::endl;
 
         if (!found_telemetry) {
             std::cerr << "Telemetry not found in " << log_file << " (count=" << count << ")" << std::endl;
