@@ -58,7 +58,7 @@ Matrix TransformerModel::forward(const Matrix& input_tokens, bool training) {
     embedded_input_ = embedding_layer_.forward(token_ids);
     Matrix x_2d = positional_encoding_layer_.forward(embedded_input_);
     Matrix x({1, x_2d.rows(), x_2d.cols()});
-    for (size_t r = 0; r < x_2d.rows(); ++r) for (size_t c = 0; c < x_2d.cols(); ++c) x({ 0, r, c }) = x_2d({ r, c });
+    std::copy(x_2d.get_data(), x_2d.get_data() + x_2d.data_size(), x.get_data());
     size_t seq_len = x.get_shape()[1];
     Matrix mask = Matrix::zeros({1, 1, seq_len, seq_len});
     for (size_t i = 0; i < seq_len; ++i) for (size_t j = i + 1; j < seq_len; ++j) mask({ 0, 0, i, j }) = -1e9;
@@ -70,7 +70,7 @@ Matrix TransformerModel::forward(const Matrix& input_tokens, bool training) {
     final_layer_norm_output_ = final_layer_norm_.forward(x);
     TissNum::Matrix out_3d = TissNum::Matrix::matmul(final_layer_norm_output_, output_weight_.value()) + output_bias_.value();
     Matrix out_2d({out_3d.get_shape()[1], out_3d.get_shape()[2]});
-    for (size_t r = 0; r < out_2d.rows(); ++r) for (size_t c = 0; c < out_2d.cols(); ++c) out_2d({ r, c }) = out_3d({ 0, r, c });
+    std::copy(out_3d.get_data(), out_3d.get_data() + out_3d.data_size(), out_2d.get_data());
     return out_2d;
 }
 

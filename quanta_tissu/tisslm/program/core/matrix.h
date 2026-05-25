@@ -6,6 +6,7 @@
 #include <numeric>
 #include <algorithm>
 #include <functional>
+#include <initializer_list>
 
 namespace TissNum {
 
@@ -27,8 +28,10 @@ public:
     size_t cols() const { return shape_.size() > 1 ? shape_[1] : 0; }
 
     float& operator()(const std::vector<size_t>& indices);
-
     const float& operator()(const std::vector<size_t>& indices) const;
+
+    float& operator()(std::initializer_list<size_t> indices);
+    const float& operator()(std::initializer_list<size_t> indices) const;
 
     // Reshape and transpose
     Matrix reshape(const std::vector<size_t>& new_shape) const;
@@ -111,6 +114,17 @@ private:
 
     template<typename Func>
     Matrix broadcast_op(const Matrix& other, Func op) const {
+        if (shape_ == other.shape_) {
+            Matrix result(shape_);
+            float* res_data = result.get_data();
+            const float* this_data = data_.data();
+            const float* other_data = other.data_.data();
+            size_t total_size = data_.size();
+            for (size_t i = 0; i < total_size; ++i) {
+                res_data[i] = op(this_data[i], other_data[i]);
+            }
+            return result;
+        }
         std::vector<size_t> result_shape = get_broadcasted_shape(shape_, other.shape_);
         Matrix result(result_shape);
 

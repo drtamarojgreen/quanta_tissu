@@ -8,6 +8,7 @@ LC_ALL=C
 ############################################
 RETRY_COUNT=3
 SESSION_ID=42
+export TISSLM_MAX_BATCHES=100
 
 ############################################
 # retry: runs a command up to RETRY_COUNT times
@@ -94,8 +95,7 @@ kill $TISSDB_PID $ANALYZER_PID
 wait $TISSDB_PID $ANALYZER_PID 2>/dev/null || true
 
 # Clean up artifacts
-rm -f trained_tokenizer_merges.txt trained_tokenizer_vocab.json
-rm -rf checkpoints tissdb_data corpus train_model_exe tissdb_exe
+rm -f train_model_exe tissdb_exe
 
 echo "=== Analyzer Results ==="
 cat tests/model/analyzer/analyzer_stdout.txt

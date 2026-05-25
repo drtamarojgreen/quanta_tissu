@@ -28,7 +28,8 @@ public:
         int batch_size,
         int checkpoint_every_n_batches = 0,
         const std::string& checkpoint_dir = "",
-        int max_batches_per_epoch = 0
+        int max_batches_per_epoch = 0,
+        int batch_offset = 0
     );
 
     void save_checkpoint(const std::string& path) const;

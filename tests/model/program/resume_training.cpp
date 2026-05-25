@@ -49,7 +49,7 @@ std::string load_corpus_for_dataset(const std::string& path) {
     return corpus_stream.str();
 }
 
-void run_resume_training() {
+void run_resume_training(const std::string& checkpoint_path) {
     std::cout << "=== Running C++ Model Training Resumption ===" << std::endl;
 
     // --- 1. Load Tokenizer --- (Corresponds to starting from original Step 3 preparation)
@@ -84,18 +84,56 @@ void run_resume_training() {
     auto loss_function = std::make_shared<TissLM::Training::CrossEntropyLoss>();
     std::cout << "Training components initialized." << std::endl;
 
-    // --- 4. Run Training --- (Corresponds to original Step 5)
-    std::cout << "[4/4] Starting training..." << std::endl;
     const std::string checkpoint_dir = "checkpoints";
     std::filesystem::create_directories(checkpoint_dir);
     TissLM::Training::Trainer trainer(model, optimizer, loss_function);
-    trainer.train(dataset, 1, 64, 10, checkpoint_dir);
+
+    int batch_offset = 0;
+    // --- 3.5 Load Checkpoint if provided ---
+    if (!checkpoint_path.empty()) {
+        std::cout << "Resuming training from checkpoint: " << checkpoint_path << std::endl;
+        trainer.load_checkpoint(checkpoint_path);
+        
+        // Parse batch offset from filename (e.g. checkpoint_epoch_0_batch_90.bin -> 90)
+        size_t pos = checkpoint_path.find("_batch_");
+        if (pos != std::string::npos) {
+            size_t start = pos + 7;
+            size_t end = checkpoint_path.find(".bin", start);
+            if (end != std::string::npos) {
+                try {
+                    batch_offset = std::stoi(checkpoint_path.substr(start, end - start));
+                } catch (...) {
+                    batch_offset = 0;
+                }
+            }
+        }
+    }
+
+    // --- 4. Run Training --- (Corresponds to original Step 5)
+    std::cout << "[4/4] Starting training..." << std::endl;
+    int max_batches = 0;
+    if (const char* env_val = std::getenv("TISSLM_MAX_BATCHES")) {
+        max_batches = std::atoi(env_val);
+    }
+    
+    // Train the model
+    trainer.train(dataset, 1, 1, 10, checkpoint_dir, max_batches, batch_offset);
     std::cout << "Training completed." << std::endl;
+
+    // Save final checkpoint
+    int final_batch_num = batch_offset + max_batches;
+    std::string final_checkpoint = checkpoint_dir + "/checkpoint_epoch_0_batch_" + std::to_string(final_batch_num) + ".bin";
+    trainer.save_checkpoint(final_checkpoint);
+    std::cout << "Saved final checkpoint to " << final_checkpoint << std::endl;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     try {
-        run_resume_training();
+        std::string checkpoint_path = "";
+        if (argc > 1) {
+            checkpoint_path = argv[1];
+        }
+        run_resume_training(checkpoint_path);
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "C++ Training failed with exception: " << e.what() << std::endl;

@@ -10,6 +10,7 @@ PROJECT_ROOT=$(cd "$SCRIPT_DIR/../../.." &> /dev/null && pwd)
 # Internal configuration
 ############################################
 RETRY_COUNT=3
+export TISSLM_MAX_BATCHES="${TISSLM_MAX_BATCHES:-100}"
 
 ############################################
 # retry: runs a command up to RETRY_COUNT times
@@ -56,7 +57,7 @@ retry bash -c "$COMPILE_RESUME_COMMAND"
 ############################################
 echo "=== Run Resume Training ==="
 ############################################
-$PROJECT_ROOT/resume_train_model_exe
+$PROJECT_ROOT/resume_train_model_exe "$@"
 
 
 

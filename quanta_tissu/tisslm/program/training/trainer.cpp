@@ -24,7 +24,8 @@ void Trainer::train(
     int batch_size,
     int checkpoint_every_n_batches,
     const std::string& checkpoint_dir,
-    int max_batches_per_epoch
+    int max_batches_per_epoch,
+    int batch_offset
 ) {
     size_t num_samples = dataset.size();
     if (num_samples == 0) {
@@ -48,13 +49,15 @@ void Trainer::train(
             size_t batch_end = std::min((size_t)batch_start + batch_size, num_samples);
             size_t current_batch_size = batch_end - batch_start;
 
+            int global_b = batch_offset + b;
+
             if (b % 10 == 0) {
-                std::cout << "Epoch " << epoch + 1 << ", Batch " << b << "/" << num_batches << std::endl;
+                std::cout << "Epoch " << epoch + 1 << ", Batch " << global_b << "/" << (batch_offset + num_batches) << std::endl;
             }
 
-            if (checkpoint_every_n_batches > 0 && b > 0 && b % checkpoint_every_n_batches == 0) {
+            if (checkpoint_every_n_batches > 0 && b > 0 && global_b % checkpoint_every_n_batches == 0) {
                 std::string checkpoint_path = (checkpoint_dir.empty() ? "" : checkpoint_dir + "/") + 
-                                              "checkpoint_epoch_" + std::to_string(epoch) + "_batch_" + std::to_string(b) + ".bin";
+                                              "checkpoint_epoch_" + std::to_string(epoch) + "_batch_" + std::to_string(global_b) + ".bin";
                 save_checkpoint(checkpoint_path);
                 std::cout << "Saved checkpoint to " << checkpoint_path << std::endl;
             }

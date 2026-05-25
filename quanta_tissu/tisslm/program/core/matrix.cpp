@@ -39,6 +39,35 @@ const float& Matrix::operator()(const std::vector<size_t>& indices) const {
     return data_[index];
 }
 
+float& Matrix::operator()(std::initializer_list<size_t> indices) {
+    if (indices.size() != shape_.size()) throw std::out_of_range("Index dimension mismatch.");
+    size_t index = 0;
+    size_t i = 0;
+    for (size_t idx : indices) {
+        if (idx >= shape_[i]) throw std::out_of_range("Index out of range.");
+        size_t stride = 1;
+        for (size_t j = i + 1; j < shape_.size(); ++j) stride *= shape_[j];
+        index += idx * stride;
+        i++;
+    }
+    return data_[index];
+}
+
+const float& Matrix::operator()(std::initializer_list<size_t> indices) const {
+    if (indices.size() != shape_.size()) throw std::out_of_range("Index dimension mismatch.");
+    size_t index = 0;
+    size_t i = 0;
+    for (size_t idx : indices) {
+        if (idx >= shape_[i]) throw std::out_of_range("Index out of range.");
+        size_t stride = 1;
+        for (size_t j = i + 1; j < shape_.size(); ++j) stride *= shape_[j];
+        index += idx * stride;
+        i++;
+    }
+    return data_[index];
+}
+
+
 Matrix Matrix::random(const std::vector<size_t>& shape, float mean, float stddev) {
     Matrix m(shape);
     std::random_device rd;
@@ -133,14 +162,29 @@ Matrix Matrix::matmul(const Matrix& a, const Matrix& b) {
     if (a.get_shape().size() == 2 && b.get_shape().size() == 2) {
         if (a.cols() != b.rows()) throw std::invalid_argument("Dim mismatch.");
         Matrix res({a.rows(), b.cols()});
+        const float* a_data = a.get_data();
+        const float* b_data = b.get_data();
+        float* res_data = res.get_data();
+        size_t a_cols = a.cols();
+        size_t b_cols = b.cols();
+        size_t a_rows = a.rows();
+
         unsigned int nt = std::thread::hardware_concurrency();
         std::vector<std::thread> ts;
-        size_t rpt = a.rows() / nt;
+        size_t rpt = a_rows / nt;
         for (unsigned int i = 0; i < nt; ++i) {
-            size_t s = i * rpt, e = (i == nt - 1) ? a.rows() : s + rpt;
+            size_t s = i * rpt, e = (i == nt - 1) ? a_rows : s + rpt;
             ts.emplace_back([&, s, e]() {
-                for (size_t r = s; r < e; ++r) for (size_t c = 0; c < b.cols(); ++c)
-                    for (size_t k = 0; k < a.cols(); ++k) res({r, c}) += a({r, k}) * b({k, c});
+                for (size_t r = s; r < e; ++r) {
+                    for (size_t c = 0; c < b_cols; ++c) {
+                        float sum = 0.0f;
+                        size_t a_offset = r * a_cols;
+                        for (size_t k = 0; k < a_cols; ++k) {
+                            sum += a_data[a_offset + k] * b_data[k * b_cols + c];
+                        }
+                        res_data[r * b_cols + c] = sum;
+                    }
+                }
             });
         }
         for (auto& t : ts) t.join();
@@ -150,9 +194,21 @@ Matrix Matrix::matmul(const Matrix& a, const Matrix& b) {
         if (a.get_shape()[2] != b.get_shape()[0]) throw std::invalid_argument("Dim mismatch.");
         size_t bz = a.get_shape()[0], sl = a.get_shape()[1], d = a.get_shape()[2], nd = b.get_shape()[1];
         Matrix res({bz, sl, nd});
-        for (size_t i = 0; i < bz; ++i) for (size_t j = 0; j < sl; ++j) for (size_t k = 0; k < nd; ++k) {
-            float sum = 0.0f; for (size_t l = 0; l < d; ++l) sum += a({i, j, l}) * b({l, k});
-            res({i, j, k}) = sum;
+        const float* a_data = a.get_data();
+        const float* b_data = b.get_data();
+        float* res_data = res.get_data();
+
+        for (size_t i = 0; i < bz; ++i) {
+            for (size_t j = 0; j < sl; ++j) {
+                for (size_t k = 0; k < nd; ++k) {
+                    float sum = 0.0f;
+                    size_t a_offset = (i * sl + j) * d;
+                    for (size_t l = 0; l < d; ++l) {
+                        sum += a_data[a_offset + l] * b_data[l * nd + k];
+                    }
+                    res_data[(i * sl + j) * nd + k] = sum;
+                }
+            }
         }
         return res;
     }
@@ -165,10 +221,37 @@ Matrix Matrix::sum(int axis) const {
         return res;
     }
     std::vector<size_t> ns = shape_; ns[axis] = 1; Matrix res(ns);
-    std::vector<size_t> idx(shape_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-        size_t t = i; for (int d = (int)shape_.size() - 1; d >= 0; --d) { idx[d] = t % shape_[d]; t /= shape_[d]; }
-        std::vector<size_t> nidx = idx; nidx[axis] = 0; res(nidx) += data_[i];
+    
+    std::vector<size_t> res_strides(ns.size(), 1);
+    for (int d = (int)ns.size() - 2; d >= 0; --d) {
+        res_strides[d] = res_strides[d + 1] * ns[d + 1];
+    }
+    
+    float* res_data = res.get_data();
+    const float* src_data = data_.data();
+    size_t num_elements = data_.size();
+    size_t num_dims = shape_.size();
+    
+    std::vector<size_t> current_coords(num_dims, 0);
+    size_t current_res_idx = 0;
+    
+    for (size_t i = 0; i < num_elements; ++i) {
+        res_data[current_res_idx] += src_data[i];
+        
+        for (int d = (int)num_dims - 1; d >= 0; --d) {
+            current_coords[d]++;
+            if (current_coords[d] < shape_[d]) {
+                if (d != axis) {
+                    current_res_idx += res_strides[d];
+                }
+                break;
+            } else {
+                current_coords[d] = 0;
+                if (d != axis) {
+                    current_res_idx -= (shape_[d] - 1) * res_strides[d];
+                }
+            }
+        }
     }
     return res;
 }
@@ -197,11 +280,39 @@ Matrix Matrix::max(int axis) const {
     if (axis == -1) { Matrix res({1}); res.data_[0] = *std::max_element(data_.begin(), data_.end()); return res; }
     std::vector<size_t> ns = shape_; ns[axis] = 1; Matrix res(ns);
     std::fill(res.data_.begin(), res.data_.end(), -std::numeric_limits<float>::infinity());
-    std::vector<size_t> idx(shape_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-        size_t t = i; for (int d = (int)shape_.size() - 1; d >= 0; --d) { idx[d] = t % shape_[d]; t /= shape_[d]; }
-        std::vector<size_t> nidx = idx; nidx[axis] = 0;
-        if (data_[i] > res(nidx)) res(nidx) = data_[i];
+    
+    std::vector<size_t> res_strides(ns.size(), 1);
+    for (int d = (int)ns.size() - 2; d >= 0; --d) {
+        res_strides[d] = res_strides[d + 1] * ns[d + 1];
+    }
+    
+    float* res_data = res.get_data();
+    const float* src_data = data_.data();
+    size_t num_elements = data_.size();
+    size_t num_dims = shape_.size();
+    
+    std::vector<size_t> current_coords(num_dims, 0);
+    size_t current_res_idx = 0;
+    
+    for (size_t i = 0; i < num_elements; ++i) {
+        if (src_data[i] > res_data[current_res_idx]) {
+            res_data[current_res_idx] = src_data[i];
+        }
+        
+        for (int d = (int)num_dims - 1; d >= 0; --d) {
+            current_coords[d]++;
+            if (current_coords[d] < shape_[d]) {
+                if (d != axis) {
+                    current_res_idx += res_strides[d];
+                }
+                break;
+            } else {
+                current_coords[d] = 0;
+                if (d != axis) {
+                    current_res_idx -= (shape_[d] - 1) * res_strides[d];
+                }
+            }
+        }
     }
     return res;
 }
@@ -273,9 +384,24 @@ Matrix Matrix::batch_matmul(const Matrix& a, const Matrix& b) {
     if (a.get_shape().size() != 4 || b.get_shape().size() != 4) throw std::invalid_argument("4D only.");
     size_t bz = a.get_shape()[0], nh = a.get_shape()[1], slq = a.get_shape()[2], slk = b.get_shape()[3], hd = a.get_shape()[3];
     Matrix res({bz, nh, slq, slk});
-    for (size_t i = 0; i < bz; ++i) for (size_t j = 0; j < nh; ++j) for (size_t l = 0; l < slq; ++l) for (size_t m = 0; m < slk; ++m) {
-        float sum = 0.0f; for (size_t n = 0; n < hd; ++n) sum += a({i, j, l, n}) * b({i, j, n, m});
-        res({i, j, l, m}) = sum;
+    const float* a_data = a.get_data();
+    const float* b_data = b.get_data();
+    float* res_data = res.get_data();
+
+    for (size_t i = 0; i < bz; ++i) {
+        for (size_t j = 0; j < nh; ++j) {
+            for (size_t l = 0; l < slq; ++l) {
+                for (size_t m = 0; m < slk; ++m) {
+                    float sum = 0.0f;
+                    size_t a_offset = ((i * nh + j) * slq + l) * hd;
+                    size_t b_offset = (i * nh + j) * hd * slk;
+                    for (size_t n = 0; n < hd; ++n) {
+                        sum += a_data[a_offset + n] * b_data[b_offset + n * slk + m];
+                    }
+                    res_data[((i * nh + j) * slq + l) * slk + m] = sum;
+                }
+            }
+        }
     }
     return res;
 }

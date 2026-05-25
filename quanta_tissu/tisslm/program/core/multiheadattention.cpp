@@ -48,19 +48,19 @@ Matrix softmax_backward(const Matrix& d_out, const Matrix& softmax_output) {
     if (d_out.get_shape().size() == 2) {
         size_t rows = d_out.rows();
         size_t cols = d_out.cols();
+        const float* d_out_data = d_out.get_data();
+        const float* softmax_data = softmax_output.get_data();
+        float* d_input_data = d_input.get_data();
+
         for (size_t i = 0; i < rows; ++i) {
+            size_t offset = i * cols;
+            float sum_d_out_s = 0.0f;
+            for (size_t k = 0; k < cols; ++k) {
+                sum_d_out_s += d_out_data[offset + k] * softmax_data[offset + k];
+            }
             for (size_t j = 0; j < cols; ++j) {
-                float s_ij = softmax_output({i, j});
-                float d_s_ij = 0;
-                for (size_t k = 0; k < cols; ++k) {
-                    float s_ik = softmax_output({i, k});
-                    if (j == k) {
-                        d_s_ij += d_out({i, k}) * s_ik * (1 - s_ik);
-                    } else {
-                        d_s_ij -= d_out({i, k}) * s_ik * s_ij;
-                    }
-                }
-                d_input({i, j}) = d_s_ij;
+                size_t idx = offset + j;
+                d_input_data[idx] = softmax_data[idx] * (d_out_data[idx] - sum_d_out_s);
             }
         }
     } else if (d_out.get_shape().size() == 4) {
@@ -68,22 +68,21 @@ Matrix softmax_backward(const Matrix& d_out, const Matrix& softmax_output) {
         size_t num_heads = d_out.get_shape()[1];
         size_t seq_len_q = d_out.get_shape()[2];
         size_t seq_len_k = d_out.get_shape()[3];
+        const float* d_out_data = d_out.get_data();
+        const float* softmax_data = softmax_output.get_data();
+        float* d_input_data = d_input.get_data();
 
         for (size_t b = 0; b < batch_size; ++b) {
             for (size_t h = 0; h < num_heads; ++h) {
                 for (size_t i = 0; i < seq_len_q; ++i) {
+                    size_t offset = ((b * num_heads + h) * seq_len_q + i) * seq_len_k;
+                    float sum_d_out_s = 0.0f;
+                    for (size_t k = 0; k < seq_len_k; ++k) {
+                        sum_d_out_s += d_out_data[offset + k] * softmax_data[offset + k];
+                    }
                     for (size_t j = 0; j < seq_len_k; ++j) {
-                        float s_ij = softmax_output({b, h, i, j});
-                        float d_s_ij = 0;
-                        for (size_t k = 0; k < seq_len_k; ++k) {
-                            float s_ik = softmax_output({b, h, i, k});
-                            if (j == k) {
-                                d_s_ij += d_out({b, h, i, k}) * s_ik * (1 - s_ik);
-                            } else {
-                                d_s_ij -= d_out({b, h, i, k}) * s_ik * s_ij;
-                            }
-                        }
-                        d_input({b, h, i, j}) = d_s_ij;
+                        size_t idx = offset + j;
+                        d_input_data[idx] = softmax_data[idx] * (d_out_data[idx] - sum_d_out_s);
                     }
                 }
             }
