@@ -22,3 +22,13 @@
 - [x] Fix JSON parsing errors in `UnitTestsClass.cpp`.
 - [x] Ensure `platform_api.js` handles non-JSON responses from backend.
 - [x] Implement all unit/BDD tests as SDD cards.
+
+## Active Task: Training-Analyzer Integration Telemetry
+- **Goal**: Enable and verify telemetry between Model Training and the Runtime Model Analyzer.
+- **Tasks**:
+  - Instrument `trainer.cpp` with `RMA_ERROR_VAL` for epoch loss reporting.
+  - Create `verify_training_instrumentation` SDD card.
+  - Create `verify_training_telemetry` SDD card.
+- **Constraints**:
+  - Must use existing `rma::ErrorType` (e.g., `INFO`).
+  - Must not break existing training loop logic.

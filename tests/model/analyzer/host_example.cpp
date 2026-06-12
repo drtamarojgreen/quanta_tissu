@@ -1,5 +1,5 @@
 // Example host application demonstrating ErrorHandler usage
-#include "error_handler.hpp"
+#include "quanta_tissu/tisslm/program/analyzer/error_handler.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <thread>

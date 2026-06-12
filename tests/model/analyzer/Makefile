@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -std=c++17 -Wall -Wextra -pedantic -O2
+CXXFLAGS := -std=c++17 -Wall -Wextra -pedantic -O2 -I../../..
 LDFLAGS := -pthread
 
 # Platform-specific
@@ -13,22 +13,20 @@ ANALYZER := analyzer
 HOST_EXAMPLE := host_example
 UNIT_TESTS := unit_tests
 
-# Headers
-HEADERS := error_types.hpp error_wrapper.hpp rpc_protocol.hpp \
-           analyzer_queue.hpp filter_manager.hpp file_buffer.hpp \
-           benchmark.hpp keyboard_input.hpp error_handler.hpp
+# Paths
+PROD_ANALYZER_DIR := ../../../quanta_tissu/tisslm/program/analyzer
 
 .PHONY: all clean
 
 all: $(ANALYZER) $(HOST_EXAMPLE) $(UNIT_TESTS)
 
-$(ANALYZER): analyzer_main.cpp $(HEADERS)
+$(ANALYZER): $(PROD_ANALYZER_DIR)/analyzer_main.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
-$(HOST_EXAMPLE): host_example.cpp $(HEADERS)
+$(HOST_EXAMPLE): host_example.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
-$(UNIT_TESTS): unit_tests.cpp $(HEADERS)
+$(UNIT_TESTS): unit_tests.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
 clean:

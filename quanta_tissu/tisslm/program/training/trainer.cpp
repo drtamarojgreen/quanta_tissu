@@ -1,5 +1,7 @@
 #include "trainer.h"
+#include "quanta_tissu/tisslm/program/analyzer/error_handler.hpp"
 #include <random>
+#include <cstdio>
 #include <chrono>
 #include <algorithm> // For std::shuffle
 #include <numeric>   // For std::iota
@@ -112,7 +114,11 @@ void Trainer::train(
             }
             optimizer_->update(params_raw);
         }
-        std::cout << "Epoch " << epoch + 1 << ", Loss: " << epoch_loss / num_batches << std::endl;
+        float avg_loss = epoch_loss / num_batches;
+        std::cout << "Epoch " << epoch + 1 << ", Loss: " << avg_loss << std::endl;
+        char msg[128];
+        std::snprintf(msg, sizeof(msg), "Epoch loss: %.6f", avg_loss);
+        RMA_ERROR_VAL(rma::ErrorType::INFO, (double)avg_loss, msg);
     }
 }
 
