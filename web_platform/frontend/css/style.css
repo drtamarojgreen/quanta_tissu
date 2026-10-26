@@ -278,3 +278,63 @@ button.btn {
     pointer-events: none;
 }
 [data-tooltip]:hover::after { visibility: visible; opacity: 1; }
+
+/* Query Browser */
+.query-results { margin-top: 1.25rem; }
+.query-status { color: var(--text-secondary); padding: 1rem 0; }
+.query-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border-left: 5px solid var(--danger);
+    border-radius: 0.5rem;
+    padding: 1rem 1.25rem;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+}
+.query-summary { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem; }
+.query-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+}
+.query-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.query-table th, .query-table td {
+    padding: 0.6rem 0.9rem;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+}
+.query-table td { font-family: 'Fira Code', 'Courier New', monospace; word-break: break-word; }
+.query-table tbody tr:nth-child(even) { background: #f8fafc; }
+.query-table tbody tr:hover { background: #ecfdf5; }
+.query-table th {
+    background: var(--primary-color);
+    color: white;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+    user-select: none;
+}
+.query-table th.sortable { cursor: pointer; }
+.query-table th.sortable:hover, .query-table th.sorted { background: #084a32; }
+.query-table .sort-indicator { display: inline-block; width: 1em; margin-left: 0.35rem; color: var(--light-accent); }
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+.pagination button.btn { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+.pagination button.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pagination .page-indicator { margin: 0 0.5rem; color: var(--text-primary); font-size: 0.9rem; }
+.pagination .page-size { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); }
+.pagination .page-size select { width: auto; margin-bottom: 0; padding: 0.35rem 0.5rem; }
+.query-import { display: flex; gap: 0.75rem; align-items: center; }
+.query-import input[type="file"] { margin-bottom: 0; padding: 0.5rem; flex: 1; }
+.query-import button.btn { white-space: nowrap; }
+.query-import-status { min-height: 1.5rem; margin: 0.5rem 0 1rem; font-size: 0.875rem; }
+.query-import-status .success { color: var(--success); }
+.query-import-status .error { color: var(--danger); white-space: pre-wrap; }
+.query-import-status .pending { color: var(--text-secondary); }

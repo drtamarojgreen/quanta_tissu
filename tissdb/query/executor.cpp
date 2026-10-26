@@ -3,6 +3,7 @@
 #include "executor_insert.h"
 #include "executor_update.h"
 #include "executor_delete.h"
+#include "executor_sparql.h"
 #include <stdexcept>
 
 namespace TissDB {
@@ -22,6 +23,8 @@ QueryResult Executor::execute(const AST& ast, const std::vector<Literal>& params
         return execute_update_statement(storage_engine, *update_stmt, params);
     } else if (auto* delete_stmt = std::get_if<DeleteStatement>(&ast)) {
         return execute_delete_statement(storage_engine, *delete_stmt, params);
+    } else if (auto* sparql_stmt = std::get_if<SparqlSelectStatement>(&ast)) {
+        return execute_sparql_select_statement(storage_engine, *sparql_stmt);
     }
     return {};
 }

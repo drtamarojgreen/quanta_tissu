@@ -20,6 +20,9 @@
 #include "test_stddev.cpp"
 #include "test_query_executor.cpp"
 #include "test_timestamp.cpp"
+#include "test_rdf.cpp"
+#include "test_sparql.cpp"
+#include "test_query_regression.cpp"
 
 #include "test_tissdb_client.cpp"
 

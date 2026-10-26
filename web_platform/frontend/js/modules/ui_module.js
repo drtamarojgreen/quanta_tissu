@@ -90,6 +90,27 @@ const UIModule = {
                 <div id="trading-results" style="margin-top: 1rem"></div>
             </div>
         `,
+        query: `
+            <div class="card">
+                <h3>Query Browser</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Run TissQL or SPARQL queries. SPARQL queries start with <code>PREFIX</code>. Press Ctrl+Enter to run.</p>
+                <label>Database</label>
+                <select id="query-browser-db" onchange="QueryModule.state.dbName = this.value"></select>
+                <label for="query-browser-file">Import N-Triples into this database</label>
+                <div class="query-import">
+                    <input type="file" id="query-browser-file" accept=".nt,.ntriples,application/n-triples,text/plain">
+                    <button class="btn btn-secondary" onclick="QueryModule.importNTriples()">Import File</button>
+                </div>
+                <div id="query-browser-import-status" class="query-import-status"></div>
+                <label>Query</label>
+                <textarea id="query-browser-input" rows="6" style="font-family: monospace;" onkeydown="QueryModule.handleKeydown(event)"
+                    placeholder="SELECT * FROM knowledge&#10;&#10;PREFIX ex: &lt;http://example.org/&gt; SELECT ?s ?o WHERE { ?s ex:knows ?o }"></textarea>
+                <button class="btn btn-primary" onclick="QueryModule.runQuery()">
+                    <span>Run Query</span>
+                </button>
+                <div id="query-browser-results" class="query-results"></div>
+            </div>
+        `,
         tisslang: `
             <div class="card">
                 <h3>TissLang Orchestration</h3>
@@ -385,6 +406,11 @@ STEP "Analyze" {
         `
     },
 
+    // Tab titles that differ from the capitalized tab key.
+    titles: {
+        query: 'Query Browser'
+    },
+
     init() {
         AppState.subscribe(state => {
             this.render(state);
@@ -415,7 +441,7 @@ STEP "Analyze" {
     switchTab(tab) {
         if (!this.views[tab]) return;
         AppState.update({ tabs: { active: tab } });
-        document.getElementById('tab-title').innerText = tab.charAt(0).toUpperCase() + tab.slice(1);
+        document.getElementById('tab-title').innerText = this.titles[tab] || tab.charAt(0).toUpperCase() + tab.slice(1);
         document.getElementById('tab-content').innerHTML = this.views[tab];
 
         document.querySelectorAll('.nav-item').forEach(btn => {
@@ -424,6 +450,7 @@ STEP "Analyze" {
 
         if (tab === 'dashboard') DBModule.loadStats();
         if (tab === 'explorer') DBModule.loadDatabases();
+        if (tab === 'query') QueryModule.onShow();
         if (tab === 'db_mgmt') {
             DBModule.loadDatabases();
             DBModule.loadStats();

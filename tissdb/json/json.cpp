@@ -1,4 +1,5 @@
 #include "json.h"
+#include <cstdio>
 #include <sstream>
 #include <cctype>
 #include <stdexcept>
@@ -6,6 +7,35 @@
 
 namespace TissDB {
 namespace Json {
+
+namespace {
+
+// Writes s as a quoted JSON string, escaping quotes, backslashes and control characters.
+void write_escaped_string(std::stringstream& ss, const std::string& s) {
+    ss << '"';
+    for (char ch : s) {
+        switch (ch) {
+            case '"': ss << "\\\""; break;
+            case '\\': ss << "\\\\"; break;
+            case '\b': ss << "\\b"; break;
+            case '\f': ss << "\\f"; break;
+            case '\n': ss << "\\n"; break;
+            case '\r': ss << "\\r"; break;
+            case '\t': ss << "\\t"; break;
+            default:
+                if (static_cast<unsigned char>(ch) < 0x20) {
+                    char buf[8];
+                    std::snprintf(buf, sizeof(buf), "\\u%04x", static_cast<unsigned char>(ch));
+                    ss << buf;
+                } else {
+                    ss << ch;
+                }
+        }
+    }
+    ss << '"';
+}
+
+} // anonymous namespace
 
 // --- Tokenizer ---
 
@@ -61,6 +91,7 @@ private:
                     case '/': ss << '/'; break; case 'b': ss << '\b'; break;
                     case 'f': ss << '\f'; break; case 'n': ss << '\n'; break;
                     case 'r': ss << '\r'; break; case 't': ss << '\t'; break;
+                    case 'u': ss << parse_unicode_escape(); break;
                     default: throw std::runtime_error("Invalid escape sequence.");
                 }
             } else { ss << text[pos]; }
@@ -68,6 +99,45 @@ private:
         }
         if (pos >= text.length()) throw std::runtime_error("Unterminated string.");
         pos++; return ss.str();
+    }
+    // Reads the XXXX of a \\uXXXX escape (pos is on the 'u'), combining UTF-16
+    // surrogate pairs, and returns the code point encoded as UTF-8.
+    std::string parse_unicode_escape() {
+        auto read_hex4 = [this]() {
+            if (pos + 4 >= text.length()) throw std::runtime_error("Invalid unicode escape.");
+            unsigned int value = 0;
+            for (int i = 1; i <= 4; ++i) {
+                char h = text[pos + i];
+                if (!std::isxdigit(static_cast<unsigned char>(h))) throw std::runtime_error("Invalid unicode escape.");
+                value = value * 16 + (std::isdigit(static_cast<unsigned char>(h)) ? h - '0' : (std::tolower(static_cast<unsigned char>(h)) - 'a' + 10));
+            }
+            pos += 4;
+            return value;
+        };
+        unsigned int cp = read_hex4();
+        if (cp >= 0xD800 && cp <= 0xDBFF && pos + 2 < text.length() && text[pos + 1] == '\\' && text[pos + 2] == 'u') {
+            pos += 2;
+            unsigned int low = read_hex4();
+            if (low < 0xDC00 || low > 0xDFFF) throw std::runtime_error("Invalid unicode surrogate pair.");
+            cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
+        }
+        std::string out;
+        if (cp < 0x80) {
+            out += static_cast<char>(cp);
+        } else if (cp < 0x800) {
+            out += static_cast<char>(0xC0 | (cp >> 6));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        } else if (cp < 0x10000) {
+            out += static_cast<char>(0xE0 | (cp >> 12));
+            out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        } else {
+            out += static_cast<char>(0xF0 | (cp >> 18));
+            out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+            out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        }
+        return out;
     }
     std::string parse_number() {
         std::stringstream ss;
@@ -167,8 +237,7 @@ std::string JsonValue::serialize() const {
             } else if constexpr (std::is_same_v<T, double>) {
                 ss << arg;
             } else if constexpr (std::is_same_v<T, std::string>) {
-                // A proper implementation would handle escape characters.
-                ss << '"' << arg << '"';
+                write_escaped_string(ss, arg);
             } else if constexpr (std::is_same_v<T, JsonArray>) {
                 ss << '[';
                 bool first = true;
@@ -183,7 +252,8 @@ std::string JsonValue::serialize() const {
                 bool first = true;
                 for (const auto& pair : arg) {
                     if (!first) ss << ',';
-                    ss << '"' << pair.first << "\":" << pair.second.serialize();
+                    write_escaped_string(ss, pair.first);
+                    ss << ':' << pair.second.serialize();
                     first = false;
                 }
                 ss << '}';

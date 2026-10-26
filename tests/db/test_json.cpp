@@ -68,3 +68,35 @@ TEST_CASE(JsonSerialization) {
     ASSERT_EQ(reparsed_obj.at("key").as_string(), "value");
     ASSERT_EQ(reparsed_obj.at("number").as_number(), 42.0);
 }
+
+TEST_CASE(JsonSerializationEscapesStrings) {
+    // Values such as SPARQL results in N-Triples form contain quotes and must stay valid JSON.
+    const std::string literal = "\"34\"^^<http://www.w3.org/2001/XMLSchema#integer>";
+    const std::string tricky = "back\\slash \"quoted\"\nnew line\ttab\x01";
+    TissDB::Json::JsonObject obj;
+    obj["age"] = TissDB::Json::JsonValue(literal);
+    obj["text"] = TissDB::Json::JsonValue(tricky);
+    obj["key \"with\" quotes"] = TissDB::Json::JsonValue(true);
+
+    std::string serialized = TissDB::Json::JsonValue(obj).serialize();
+    ASSERT_TRUE(serialized.find("\"age\":\"\\\"34\\\"^^<http://www.w3.org/2001/XMLSchema#integer>\"") != std::string::npos);
+    ASSERT_TRUE(serialized.find("\\u0001") != std::string::npos);
+
+    TissDB::Json::JsonValue reparsed = TissDB::Json::JsonValue::parse(serialized);
+    const auto& reparsed_obj = reparsed.as_object();
+    ASSERT_EQ(literal, reparsed_obj.at("age").as_string());
+    ASSERT_EQ(tricky, reparsed_obj.at("text").as_string());
+    ASSERT_TRUE(reparsed_obj.at("key \"with\" quotes").as_bool());
+}
+
+TEST_CASE(JsonParsesUnicodeEscapes) {
+    TissDB::Json::JsonValue parsed = TissDB::Json::JsonValue::parse("{\"s\": \"caf\\u00e9 \\ud83d\\ude00 \\u0041\"}");
+    ASSERT_EQ(std::string("caf\xC3\xA9 \xF0\x9F\x98\x80 A"), parsed.as_object().at("s").as_string());
+    bool rejected = false;
+    try {
+        TissDB::Json::JsonValue::parse("\"\\u12\"");
+    } catch (const std::runtime_error&) {
+        rejected = true;
+    }
+    ASSERT_TRUE(rejected);
+}

@@ -48,6 +48,8 @@ if [ -z "${TISSLM_SKIP_COMPILE:-}" ]; then
         tissdb/storage/database_manager.cpp tissdb/storage/indexer.cpp tissdb/storage/lsm_tree.cpp \
         tissdb/storage/memtable.cpp tissdb/storage/native_b_tree.cpp tissdb/storage/sstable.cpp \
         tissdb/storage/transaction_manager.cpp tissdb/storage/wal.cpp \
+        tissdb/common/ntriples.cpp tissdb/common/rdf.cpp tissdb/query/executor_sparql.cpp \
+        tissdb/query/sparql_parser.cpp tissdb/storage/triple_store.cpp \
         quanta_tissu/tisslm/program/ddl_parser.cpp quanta_tissu/tisslm/program/schema_manager.cpp \
         quanta_tissu/tisslm/program/tissu_sinew.cpp tests/db/http_client.cpp \
         -latomic -lpthread -o tissdb_exe

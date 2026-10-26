@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "sparql_parser.h"
 #include "../common/log.h"
 #include <stdexcept>
 #include <cctype>
@@ -252,6 +253,11 @@ std::vector<Token> Parser::tokenize(const std::string& query_string) {
 Parser::Parser() = default;
 
 AST Parser::parse(const std::string& query_string) {
+    if (is_sparql_query(query_string)) {
+        SparqlParser sparql_parser;
+        return sparql_parser.parse(query_string);
+    }
+
     LOG_INFO("Parsing query: " + query_string);
     tokens = tokenize(query_string);
     pos = 0;

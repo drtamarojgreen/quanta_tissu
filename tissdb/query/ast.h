@@ -5,7 +5,9 @@
 #include <variant>
 #include <optional>
 #include <memory>
+#include <map>
 #include "../common/document.h"
+#include "../common/rdf.h"
 
 namespace TissDB {
 namespace Query {
@@ -180,8 +182,80 @@ struct CreateTableStatement {
 };
 
 
+// --- SPARQL ---
+
+// A SPARQL variable (?name or $name), stored without the sigil. Blank nodes in a
+// query pattern act as variables and are stored as "_:label", which cannot clash
+// with variable names and is never projected by SELECT *.
+struct SparqlVariable {
+    std::string name;
+};
+
+// A position in a triple pattern: either a variable or a concrete RDF term.
+using SparqlPatternTerm = std::variant<SparqlVariable, Rdf::Term>;
+
+struct SparqlTriplePattern {
+    SparqlPatternTerm subject;
+    SparqlPatternTerm predicate;
+    SparqlPatternTerm object;
+};
+
+// An expression inside FILTER(...).
+struct SparqlExpression {
+    enum class Kind {
+        TERM,      // a constant RDF term
+        VARIABLE,  // a variable reference
+        UNARY,     // op applied to args[0] ("!")
+        BINARY,    // args[0] op args[1] ("||", "&&", "=", "!=", "<", ">", "<=", ">=")
+        FUNCTION   // built-in call; op holds the upper-cased function name
+    };
+    Kind kind = Kind::TERM;
+    std::string op;
+    Rdf::Term term;
+    std::string variable;
+    std::vector<std::shared_ptr<SparqlExpression>> args;
+};
+
+struct SparqlGroupPattern;
+
+// One element of a group graph pattern. Elements are evaluated left to right:
+// a TRIPLES element is joined with the solutions so far, and an OPTIONAL element
+// is left-joined (solutions it cannot extend are kept unchanged).
+struct SparqlGroupElement {
+    enum class Kind { TRIPLES, OPTIONAL };
+    Kind kind = Kind::TRIPLES;
+    std::vector<SparqlTriplePattern> triples;  // TRIPLES: a basic graph pattern
+    std::shared_ptr<SparqlGroupPattern> group; // OPTIONAL: the optional group
+};
+
+// A { ... } group. Its filters restrict the whole group's solutions; for an
+// OPTIONAL group they instead decide whether the optional part matches.
+struct SparqlGroupPattern {
+    std::vector<SparqlGroupElement> elements;
+    std::vector<std::shared_ptr<SparqlExpression>> filters;
+};
+
+struct SparqlOrderCondition {
+    std::string variable;
+    bool descending = false;
+};
+
+// Represents a SPARQL SELECT query over the database's RDF triples.
+struct SparqlSelectStatement {
+    std::map<std::string, std::string> prefixes; // prefix label (without ':') -> namespace IRI
+    std::string base;
+    bool distinct = false;
+    bool select_all = false;            // SELECT *
+    std::vector<std::string> variables; // projected variables when !select_all
+    SparqlGroupPattern where;
+    std::vector<SparqlOrderCondition> order_by;
+    std::optional<size_t> limit;
+    std::optional<size_t> offset;
+};
+
+
 // The Abstract Syntax Tree (AST) for a query.
-using AST = std::variant<SelectStatement, UpdateStatement, DeleteStatement, InsertStatement, CreateTableStatement>;
+using AST = std::variant<SelectStatement, UpdateStatement, DeleteStatement, InsertStatement, CreateTableStatement, SparqlSelectStatement>;
 
 } // namespace Query
 } // namespace TissDB

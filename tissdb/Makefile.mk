@@ -18,6 +18,8 @@ SRCS = main.cpp \
        common/binary_stream_buffer.cpp \
        common/checksum.cpp \
        common/document.cpp \
+       common/ntriples.cpp \
+       common/rdf.cpp \
        common/serialization.cpp \
        common/schema_validator.cpp \
        json/json.cpp \
@@ -26,15 +28,18 @@ SRCS = main.cpp \
        query/executor_delete.cpp \
        query/executor_insert.cpp \
        query/executor_select.cpp \
+       query/executor_sparql.cpp \
        query/executor_update.cpp \
        query/join_algorithms.cpp \
        query/parser.cpp \
+       query/sparql_parser.cpp \
        storage/collection.cpp \
        storage/indexer.cpp \
        storage/lsm_tree.cpp \
        storage/database_manager.cpp \
        storage/memtable.cpp \
        storage/transaction_manager.cpp \
+       storage/triple_store.cpp \
        storage/native_b_tree.cpp \
        storage/sstable.cpp \
        storage/wal.cpp \

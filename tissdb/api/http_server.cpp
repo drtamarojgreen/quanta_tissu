@@ -7,6 +7,9 @@
 #include "../query/parser.h"
 #include "../query/ast.h"
 #include "../query/executor.h"
+#include "../query/sparql_parser.h"
+#include "../storage/triple_store.h"
+#include "../common/ntriples.h"
 #include "../auth/token_manager.h"
 #include "../auth/rbac.h"
 #include "../audit/audit_logger.h"
@@ -514,15 +517,31 @@ void HttpServer::Impl::handle_client(int client_socket) {
         } else if (sub_path_parts[0] == "_query" && req.method == "POST") {
             const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
             std::string query_string = parsed_body.as_object().at("query").as_string();
-            Query::Parser parser;
-            Query::AST ast = parser.parse(query_string);
-            Query::Executor executor(storage_engine);
-            Query::QueryResult result = executor.execute(ast, {});
-            Json::JsonArray result_array;
-            for (const auto& doc : result) {
-                result_array.push_back(Json::JsonValue(document_to_json(doc)));
+            try {
+                Query::Parser parser;
+                Query::AST ast = parser.parse(query_string);
+                Query::Executor executor(storage_engine);
+                Query::QueryResult result = executor.execute(ast, {});
+                Json::JsonArray result_array;
+                for (const auto& doc : result) {
+                    result_array.push_back(Json::JsonValue(document_to_json(doc)));
+                }
+                send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
+            } catch (const Query::SparqlSyntaxError& e) {
+                // Invalid SPARQL is a client error; report what is wrong and where.
+                send_response(client_socket, "400 Bad Request", "text/plain", e.what());
             }
-            send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
+        } else if (sub_path_parts[0] == "_ntriples" && req.method == "POST") {
+            // Body is an N-Triples document; its triples are added to the RDF collection queried by SPARQL.
+            try {
+                Storage::TripleStore triple_store(storage_engine);
+                size_t added = triple_store.load_ntriples(req.body);
+                Json::JsonObject response_obj;
+                response_obj["loaded"] = Json::JsonValue(static_cast<double>(added));
+                send_response(client_socket, "200 OK", "application/json", Json::JsonValue(response_obj).serialize());
+            } catch (const NTriples::ParseError& e) {
+                send_response(client_socket, "400 Bad Request", "text/plain", e.what());
+            }
         } else if (sub_path_parts[0] == "_collections" && req.method == "GET") {
             Json::JsonArray collections_array;
             for (const auto& name : storage_engine.list_collections()) {
@@ -549,15 +568,19 @@ void HttpServer::Impl::handle_client(int client_socket) {
                 } else if (doc_path_parts[0] == "_query") {
                     const Json::JsonValue parsed_body = Json::JsonValue::parse(req.body);
                     std::string query_str = parsed_body.as_object().at("query").as_string();
-                    Query::Parser parser;
-                    Query::AST ast = parser.parse(query_str);
-                    Query::Executor executor(storage_engine);
-                    auto result_docs = executor.execute(ast, {});
-                    Json::JsonArray result_array;
-                    for (const auto& doc : result_docs) {
-                        result_array.push_back(Json::JsonValue(document_to_json(doc)));
+                    try {
+                        Query::Parser parser;
+                        Query::AST ast = parser.parse(query_str);
+                        Query::Executor executor(storage_engine);
+                        auto result_docs = executor.execute(ast, {});
+                        Json::JsonArray result_array;
+                        for (const auto& doc : result_docs) {
+                            result_array.push_back(Json::JsonValue(document_to_json(doc)));
+                        }
+                        send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
+                    } catch (const Query::SparqlSyntaxError& e) {
+                        send_response(client_socket, "400 Bad Request", "text/plain", e.what());
                     }
-                    send_response(client_socket, "200 OK", "application/json", Json::JsonValue(result_array).serialize());
                 }
                 else {
                     send_response(client_socket, "404 Not Found", "text/plain", "Endpoint not found.");

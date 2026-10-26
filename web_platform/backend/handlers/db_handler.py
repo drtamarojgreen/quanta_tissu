@@ -30,8 +30,23 @@ def proxy_tissdb(handler, method, path, body):
         handler.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
 
 def handle_db(handler, path, data, command):
-    if path == '/api/db/query':
+    if path == '/api/db/query' and not data.get('collection'):
+        # Database-level query (Query Browser): TissQL names its collection in FROM,
+        # and SPARQL queries (starting with PREFIX) run over the database's RDF triples.
+        db_name = data.get('db_name') or 'main_db'
+        proxy_tissdb(handler, 'POST', f'/{db_name}/_query', json.dumps({'query': data.get('query', '')}))
+    elif path == '/api/db/query':
         proxy_tissdb(handler, 'POST', f'/main_db/{data.get("collection")}/_query', json.dumps(data))
+    elif path == '/api/db/ntriples' and command == 'POST':
+        # Loads N-Triples text (e.g. an uploaded .nt file) into the database's RDF triples.
+        ntriples = data.get('data')
+        if not isinstance(ntriples, str):
+            handler.send_response(400)
+            handler.send_header('Content-Type', 'application/json')
+            handler.end_headers()
+            handler.wfile.write(json.dumps({'error': "Request must include N-Triples text in 'data'."}).encode('utf-8'))
+            return True
+        proxy_tissdb(handler, 'POST', f'/{data.get("db_name") or "main_db"}/_ntriples', ntriples)
     elif path == '/api/db/doc' and command == 'PUT':
         coll = data.get('collection')
         doc_id = data.get('doc_id')
