@@ -63,7 +63,7 @@ inline void run_all_tests() {
     int passed = 0;
     int failed = 0;
     for (const auto& test_case : get_test_cases()) {
-        std::cout << "Running test: " << test_case.name << "... ";
+        std::cout << "Running test: " << test_case.name << "... " << std::flush;
         try {
             test_case.func();
             std::cout << "PASSED" << std::endl;

@@ -29,9 +29,12 @@ public:
     void update_indexes(const std::string& document_id, const Document& doc);
     void remove_from_indexes(const std::string& document_id, const Document& doc);
     std::vector<std::string> find_by_index(const std::string& index_name, const Value& key) const;
+    // Keep string literals unambiguous alongside the typed Value overload.
+    std::vector<std::string> find_by_index(const std::string& index_name, const char* value) const;
     std::vector<std::string> find_by_index(const std::string& index_name, const std::string& value) const;
     std::vector<std::string> find_by_index(const std::string& index_name, int64_t value) const;
     std::vector<std::string> find_by_index(const std::vector<std::string>& field_names, const std::vector<Value>& values) const;
+    std::vector<std::string> find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const;
     std::vector<std::string> find_by_index(const std::vector<std::string>& field_names) const;
     std::vector<std::string> find_by_timestamp_range(const std::string& index_name, int64_t start_key, int64_t end_key) const;
 

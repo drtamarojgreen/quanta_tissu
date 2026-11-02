@@ -5,6 +5,7 @@
 #include <chrono>
 #include <atomic>
 #include <iostream>
+#include <mutex>
 
 // For mock server
 #ifdef _WIN32
@@ -49,6 +50,12 @@ public:
 
     void stop() {
         stop_ = true;
+        {
+            std::lock_guard<std::mutex> lock(active_client_mutex_);
+            if (active_client_fd_ != -1) {
+                shutdown(active_client_fd_, SHUT_RDWR);
+            }
+        }
         if (server_fd_ != -1) {
             shutdown(server_fd_, SHUT_RDWR);
 #ifdef _WIN32
@@ -122,26 +129,43 @@ private:
                 continue;
             }
 
-            // Handle the client connection using the length-prefix protocol
-            uint32_t net_len;
-            ssize_t read_bytes = recv(client_fd, (char*)&net_len, sizeof(net_len), 0);
-            if (read_bytes != sizeof(net_len)) {
+            if (stop_) {
 #ifdef _WIN32
                 closesocket(client_fd);
 #else
                 close(client_fd);
 #endif
+                break;
+            }
+            {
+                std::lock_guard<std::mutex> lock(active_client_mutex_);
+                active_client_fd_ = client_fd;
+            }
+
+            auto close_client = [this, client_fd]() {
+                {
+                    std::lock_guard<std::mutex> lock(active_client_mutex_);
+                    if (active_client_fd_ == client_fd) active_client_fd_ = -1;
+                }
+#ifdef _WIN32
+                closesocket(client_fd);
+#else
+                close(client_fd);
+#endif
+            };
+
+            // Handle the client connection using the length-prefix protocol
+            uint32_t net_len;
+            ssize_t read_bytes = recv(client_fd, (char*)&net_len, sizeof(net_len), 0);
+            if (read_bytes != sizeof(net_len)) {
+                close_client();
                 continue;
             }
             uint32_t msg_len = ntohl(net_len);
             std::vector<char> buffer(msg_len);
             read_bytes = recv(client_fd, buffer.data(), msg_len, 0);
             if (read_bytes != msg_len) {
-#ifdef _WIN32
-                closesocket(client_fd);
-#else
-                close(client_fd);
-#endif
+                close_client();
                 continue;
             }
 
@@ -149,11 +173,7 @@ private:
             Behavior current_behavior = behavior_.load();
 
             if (current_behavior == Behavior::CloseImmediately) {
-#ifdef _WIN32
-                closesocket(client_fd);
-#else
-                close(client_fd);
-#endif
+                close_client();
                 continue; // Done with this client, wait for next.
             }
 
@@ -166,11 +186,7 @@ private:
             send(client_fd, (const char*)&resp_len_net, sizeof(resp_len_net), 0);
             send(client_fd, buffer.data(), msg_len, 0);
 
-#ifdef _WIN32
-            closesocket(client_fd);
-#else
-            close(client_fd);
-#endif
+            close_client();
         }
     }
 
@@ -178,6 +194,8 @@ private:
     int server_fd_;
     std::thread server_thread_;
     std::atomic<bool> stop_;
+    std::mutex active_client_mutex_;
+    int active_client_fd_ = -1;
 };
 
 // =================================================================================================

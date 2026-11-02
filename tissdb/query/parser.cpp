@@ -61,7 +61,7 @@ std::optional<DateTime> parse_datetime_string(const std::string& s) {
 }
 
 // Helper to parse ISO 8601 timestamp strings
-std::optional<Timestamp> try_parse_timestamp(const std::string& s) {
+std::optional<Timestamp> parse_timestamp_impl(const std::string& s) {
     std::tm tm = {};
     std::stringstream ss(s);
 
@@ -107,6 +107,10 @@ std::optional<Timestamp> try_parse_timestamp(const std::string& s) {
 }
 
 } // anonymous namespace
+
+std::optional<Timestamp> try_parse_timestamp(const std::string& s) {
+    return parse_timestamp_impl(s);
+}
 
 
 std::optional<Timestamp> Parser::try_parse_timestamp(const std::string& literal) {

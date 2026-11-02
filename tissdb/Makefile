@@ -50,7 +50,10 @@ SRCS = main.cpp \
        ../tests/db/http_client.cpp
 
 # Filter out main components to build the test suite
-TEST_SRCS = $(filter-out main.cpp api/http_server.cpp, $(SRCS)) ../tests/db/test_main.cpp
+TEST_SRCS = $(filter-out main.cpp api/http_server.cpp, $(SRCS)) \
+	../quanta_tissu/tisslm/program/db/http_client.cpp \
+	../quanta_tissu/tisslm/program/db/tissdb_client.cpp \
+	../tests/db/test_main.cpp
 
 # Default target
 all: $(TARGET)

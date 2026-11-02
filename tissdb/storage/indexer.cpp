@@ -287,6 +287,10 @@ std::vector<std::string> Indexer::find_by_index(const std::string& index_name, c
     return {};
 }
 
+std::vector<std::string> Indexer::find_by_index(const std::string& index_name, const char* value) const {
+    return find_by_index(index_name, std::string(value));
+}
+
 std::vector<std::string> Indexer::find_by_index(const std::string& index_name, int64_t value) const {
     auto it = timestamp_indexes_.find(index_name);
     if (it != timestamp_indexes_.end()) {
@@ -364,6 +368,15 @@ std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& 
     }
 
     return {};
+}
+
+std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& field_names, const std::vector<std::string>& values) const {
+    std::vector<Value> typed_values;
+    typed_values.reserve(values.size());
+    for (const auto& value : values) {
+        typed_values.emplace_back(value);
+    }
+    return find_by_index(field_names, typed_values);
 }
 
 std::vector<std::string> Indexer::find_by_index(const std::vector<std::string>& field_names) const {
